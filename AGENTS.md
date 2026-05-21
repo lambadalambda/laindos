@@ -30,6 +30,12 @@ LainDOS is a tiny single-tasking DOS implementation targeting x86 real mode. Its
 - Do not bundle unrelated changes.
 - Commit as soon as a coherent step compiles and passes its test — do not accumulate large diffs.
 
+### Track progress with repo issues
+
+- Use the repo-issues skill to manage milestones in `meta/issues/`.
+- When a phase is complete and acceptance criteria are satisfied, move its entry from `meta/issues.md` to `meta/issues_archive.md`, changing `- [ ]` to `- [x]`.
+- Do not delete issue detail files when archiving.
+
 ### Non-native tools run in Podman
 
 - This project requires tools that are not native to the host (NASM, Open Watcom, DOS-format disk image utilities, etc.). Run them inside **Podman** containers.
