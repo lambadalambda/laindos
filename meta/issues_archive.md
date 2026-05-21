@@ -1,0 +1,2 @@
+- [x] [Phase 0: Toolchain & Infrastructure](issues/phase0-toolchain-infrastructure.md)
+- [x] [Phase 1: Bootable Kernel](issues/phase1-bootable-kernel.md)

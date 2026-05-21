@@ -1,5 +1,3 @@
-- [ ] [Phase 0: Toolchain & Infrastructure](issues/phase0-toolchain-infrastructure.md)
-- [ ] [Phase 1: Bootable Kernel](issues/phase1-bootable-kernel.md)
 - [ ] [Phase 2: .COM Loader](issues/phase2-com-loader.md)
 - [ ] [Phase 3: MZ .EXE Loader](issues/phase3-mz-exe-loader.md)
 - [ ] [Phase 4: Filesystem Handles](issues/phase4-filesystem-handles.md)
