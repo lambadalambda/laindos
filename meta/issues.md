@@ -1,5 +1,3 @@
-- [ ] [Phase 2: .COM Loader](issues/phase2-com-loader.md)
-- [ ] [Phase 3: MZ .EXE Loader](issues/phase3-mz-exe-loader.md)
 - [ ] [Phase 4: Filesystem Handles](issues/phase4-filesystem-handles.md)
 - [ ] [Phase 5: DOS Memory Allocator](issues/phase5-dos-memory-allocator.md)
 - [ ] [Phase 6: Direct Boot into Monkey Island](issues/phase6-boot-monkey-island.md)

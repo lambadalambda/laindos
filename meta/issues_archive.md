@@ -1,2 +1,4 @@
 - [x] [Phase 0: Toolchain & Infrastructure](issues/phase0-toolchain-infrastructure.md)
 - [x] [Phase 1: Bootable Kernel](issues/phase1-bootable-kernel.md)
+- [x] [Phase 2: .COM Loader](issues/phase2-com-loader.md)
+- [x] [Phase 3: MZ .EXE Loader](issues/phase3-mz-exe-loader.md)
