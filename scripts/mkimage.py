@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import struct
+import os
 
 SECTOR_SIZE = 512
 TOTAL_SECTORS = 2880
@@ -23,10 +24,6 @@ DATA_START = ROOT_START + ROOT_SECS
 FAT12_EOC = 0xFF8
 
 
-def fat12_entries_per_sector():
-    return (SECTOR_SIZE * 2) // 3
-
-
 def set_fat12_entry(fat_data, cluster, value):
     offset = cluster + (cluster >> 1)
     if cluster & 1:
@@ -47,14 +44,36 @@ def make_root_entry(name, ext, cluster, size, attr=0x20):
     return entry
 
 
+def add_file(image, fat, next_cluster, name, ext, data):
+    clusters_needed = (len(data) + BYTES_PER_SEC - 1) // BYTES_PER_SEC
+    if clusters_needed == 0:
+        clusters_needed = 1
+    first_cluster = next_cluster
+
+    for i in range(clusters_needed):
+        cluster = first_cluster + i
+        if i < clusters_needed - 1:
+            next_clus = cluster + 1
+        else:
+            next_clus = FAT12_EOC
+        set_fat12_entry(fat, cluster, next_clus)
+
+    data_offset = DATA_START * SECTOR_SIZE
+    file_offset = data_offset + (first_cluster - 2) * SEC_PER_CLUS * BYTES_PER_SEC
+    image[file_offset:file_offset + len(data)] = data
+
+    return first_cluster, clusters_needed
+
+
 def main():
-    if len(sys.argv) != 4:
-        print(f"Usage: {sys.argv[0]} boot.bin kernel.bin disk.img", file=sys.stderr)
+    if len(sys.argv) < 4:
+        print(f"Usage: {sys.argv[0]} boot.bin kernel.bin disk.img [file1.com ...]", file=sys.stderr)
         sys.exit(1)
 
     boot_path = sys.argv[1]
     kernel_path = sys.argv[2]
     output_path = sys.argv[3]
+    extra_files = sys.argv[4:]
 
     with open(boot_path, 'rb') as f:
         boot_data = f.read()
@@ -73,35 +92,39 @@ def main():
     set_fat12_entry(fat, 0, 0xFF0)
     set_fat12_entry(fat, 1, 0xFFF)
 
-    clusters_needed = (len(kernel_data) + BYTES_PER_SEC - 1) // BYTES_PER_SEC
-    first_cluster = 2
+    next_cluster = 2
 
-    for i in range(clusters_needed):
-        cluster = first_cluster + i
-        if i < clusters_needed - 1:
-            next_cluster = cluster + 1
-        else:
-            next_cluster = FAT12_EOC
-        set_fat12_entry(fat, cluster, next_cluster)
+    kclus, knum = add_file(image, fat, next_cluster, "KERNEL", "SYS", kernel_data)
+    next_cluster += knum
+
+    root_offset = ROOT_START * SECTOR_SIZE
+    entry = make_root_entry("KERNEL", "SYS", kclus, len(kernel_data))
+    image[root_offset:root_offset + 32] = entry
+    root_offset += 32
+
+    for filepath in extra_files:
+        with open(filepath, 'rb') as f:
+            file_data = f.read()
+        basename = os.path.basename(filepath).upper()
+        parts = basename.split('.')
+        name = parts[0] if len(parts) > 0 else basename
+        ext = parts[1] if len(parts) > 1 else ""
+        fclus, fnum = add_file(image, fat, next_cluster, name, ext, file_data)
+        next_cluster += fnum
+        entry = make_root_entry(name, ext, fclus, len(file_data))
+        image[root_offset:root_offset + 32] = entry
+        root_offset += 32
 
     fat1_offset = FAT_START * SECTOR_SIZE
     image[fat1_offset:fat1_offset + len(fat)] = fat
     fat2_offset = (FAT_START + FAT_SZ) * SECTOR_SIZE
     image[fat2_offset:fat2_offset + len(fat)] = fat
 
-    root_offset = ROOT_START * SECTOR_SIZE
-    entry = make_root_entry("KERNEL", "SYS", first_cluster, len(kernel_data))
-    image[root_offset:root_offset + 32] = entry
-
-    data_offset = DATA_START * SECTOR_SIZE
-    kernel_offset = data_offset + (first_cluster - 2) * SEC_PER_CLUS * BYTES_PER_SEC
-    image[kernel_offset:kernel_offset + len(kernel_data)] = kernel_data
-
     with open(output_path, 'wb') as f:
         f.write(image)
 
     print(f"Created {output_path}: {IMAGE_SIZE} bytes, "
-          f"kernel {len(kernel_data)} bytes in {clusters_needed} cluster(s) starting at cluster {first_cluster}")
+          f"kernel {len(kernel_data)} bytes in {knum} cluster(s) at cluster {kclus}")
 
 
 if __name__ == '__main__':

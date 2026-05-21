@@ -7,9 +7,10 @@ BUILDDIR := build
 
 BOOT_BIN := $(BUILDDIR)/boot.bin
 KERNEL_BIN := $(BUILDDIR)/kernel.bin
+HELLO_COM := $(BUILDDIR)/hello.com
 DISK_IMG := $(BUILDDIR)/disk.img
 
-.PHONY: all clean run
+.PHONY: all clean run test
 
 all: $(DISK_IMG)
 
@@ -21,11 +22,18 @@ $(KERNEL_BIN): $(SRCDIR)/kernel.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN)
-	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@
+$(HELLO_COM): $(SRCDIR)/hello.asm
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
+$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM)
+	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM)
 
 run: $(DISK_IMG)
 	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic
+
+test: $(DISK_IMG)
+	$(PYTHON) scripts/test_boot.py
 
 clean:
 	rm -rf $(BUILDDIR)

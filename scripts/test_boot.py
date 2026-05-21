@@ -2,7 +2,6 @@
 import subprocess
 import sys
 import os
-import time
 import signal
 
 QEMU = "qemu-system-i386"
@@ -13,6 +12,10 @@ EXPECTED = [
     "MiniDOS booted",
     "Conventional memory:",
     "KB",
+    "INT 20h/21h installed",
+    "PASS: HELLO.COM",
+    "Program exited, code=",
+    "HALT",
 ]
 
 

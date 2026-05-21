@@ -38,6 +38,7 @@ boot:
     sti
     cld
     mov [drv],dl
+    mov [0x500],dl
 
     mov dx,0x3F9
     xor al,al
