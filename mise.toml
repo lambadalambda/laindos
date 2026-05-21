@@ -1,0 +1,15 @@
+[tasks.test]
+description = "Run automated QEMU boot tests"
+run = "python3 scripts/test_boot.py"
+
+[tasks.build]
+description = "Build the disk image"
+run = "make"
+
+[tasks.run]
+description = "Boot LainDOS in QEMU with serial output"
+run = "make run"
+
+[tasks.clean]
+description = "Remove build artifacts"
+run = "make clean"
