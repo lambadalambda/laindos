@@ -8,6 +8,7 @@ BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x1000
 ROOT_SEG  equ 0x2000
 PSP_SEG   equ 0x3000
+TEMP_SEG  equ 0x4000
 
 kernel_entry:
     mov ax, cs
@@ -36,17 +37,50 @@ kernel_entry:
     mov si, msg_ints
     call serial_print
 
-    mov si, fname_hello
-    mov ax, PSP_SEG
+    mov si, fname_exe
+    mov ax, TEMP_SEG
+    xor bx, bx
     call load_file
     cmp ax, 0
     jne .halt
 
-    mov si, msg_loaded
+    mov ax, TEMP_SEG
+    mov ds, ax
+    cmp word [0x0000], 0x5A4D
+    je .is_exe
+
+    push cs
+    pop ds
+    mov si, msg_com_load
     call serial_print
 
     mov ax, PSP_SEG
+    call build_psp
+
+    mov ax, TEMP_SEG
+    mov ds, ax
+    xor si, si
+    mov ax, PSP_SEG
+    mov es, ax
+    mov di, 0x0100
+    mov cx, [cs:kfsize]
+    rep movsb
+    push cs
+    pop ds
+
+    mov ax, PSP_SEG
     call exec_com
+    jmp .returned
+
+.is_exe:
+    push cs
+    pop ds
+    mov si, msg_exe_load
+    call serial_print
+
+    call setup_exe
+
+.returned:
 
     mov si, msg_returned
     call serial_print
@@ -96,6 +130,18 @@ int21_handler:
     je .print_string
     cmp ah, 0x00
     je .terminate
+    pusha
+    push ds
+    push cs
+    pop ds
+    mov si, msg_unhandled
+    call serial_print
+    mov al, ah
+    call serial_print_hex
+    mov si, msg_crlf
+    call serial_print
+    pop ds
+    popa
     iret
 .terminate:
     mov [cs:ret_code], al
@@ -145,6 +191,7 @@ do_terminate:
 load_file:
     mov [cs:load_name], si
     mov [cs:load_seg], ax
+    mov [cs:load_off], bx
 
     push ds
     push bx
@@ -216,7 +263,7 @@ load_file:
 
     mov ax, [cs:load_seg]
     mov es, ax
-    mov bx, 0x0100
+    mov bx, [cs:load_off]
     mov si, [cs:kclus]
 .load:
     cmp si, 0xFF8
@@ -238,26 +285,6 @@ load_file:
     mov si, ax
     jmp .load
 .done:
-    mov ax, PSP_SEG
-    mov es, ax
-    xor di, di
-    mov cx, 128
-    xor ax, ax
-    rep stosw
-
-    mov byte [es:0x00], 0xCD
-    mov byte [es:0x01], 0x20
-    mov ax, 0xA000
-    mov [es:0x02], ax
-    mov ax, cs
-    mov [es:0x0A], ax
-    mov [es:0x0A+2], ax
-    mov [es:0x0E], ax
-    mov [es:0x0E+2], ax
-    mov [es:0x12], ax
-    mov [es:0x12+2], ax
-    mov word [es:0x2C], 0
-
     push cs
     pop ds
     xor ax, ax
@@ -344,6 +371,128 @@ exec_com:
 
 .back:
     ret
+
+build_psp:
+    mov es, ax
+    push ax
+    xor di, di
+    mov cx, 128
+    xor ax, ax
+    rep stosw
+
+    mov byte [es:0x00], 0xCD
+    mov byte [es:0x01], 0x20
+    mov ax, 0xA000
+    mov [es:0x02], ax
+
+    push ds
+    xor ax, ax
+    mov ds, ax
+    mov ax, [0x22*4]
+    mov [es:0x0A], ax
+    mov ax, [0x22*4+2]
+    mov [es:0x0C], ax
+    mov ax, [0x23*4]
+    mov [es:0x0E], ax
+    mov ax, [0x23*4+2]
+    mov [es:0x10], ax
+    mov ax, [0x24*4]
+    mov [es:0x12], ax
+    mov ax, [0x24*4+2]
+    mov [es:0x14], ax
+    pop ds
+
+    mov word [es:0x2C], 0
+    pop ax
+    ret
+
+setup_exe:
+    mov ax, TEMP_SEG
+    mov ds, ax
+
+    mov ax, [0x08]
+    mov [cs:exe_hdr_par], ax
+    mov ax, [0x0E]
+    mov [cs:exe_ss], ax
+    mov ax, [0x10]
+    mov [cs:exe_sp], ax
+    mov ax, [0x14]
+    mov [cs:exe_ip], ax
+    mov ax, [0x16]
+    mov [cs:exe_cs], ax
+    mov ax, [0x06]
+    mov [cs:exe_reloc_count], ax
+    mov ax, [0x18]
+    mov [cs:exe_reloc_off], ax
+
+    mov ax, PSP_SEG
+    call build_psp
+
+    mov ax, PSP_SEG
+    add ax, 0x10
+    mov [cs:exe_load_seg], ax
+
+    mov ax, [cs:exe_hdr_par]
+    mov cx, 16
+    mul cx
+    mov si, ax
+
+    mov ax, TEMP_SEG
+    mov ds, ax
+    mov ax, [cs:exe_load_seg]
+    mov es, ax
+    xor di, di
+    mov cx, [cs:kfsize]
+    sub cx, si
+    rep movsb
+
+    mov cx, [cs:exe_reloc_count]
+    test cx, cx
+    jz .no_reloc
+.reloc_loop:
+    push cx
+    mov bx, [cs:exe_reloc_off]
+    mov ax, TEMP_SEG
+    mov ds, ax
+    mov di, [bx]
+    mov ax, [bx+2]
+    pop cx
+
+    push ax
+    add ax, [cs:exe_load_seg]
+    mov es, ax
+    pop ax
+    mov ax, [es:di]
+    add ax, [cs:exe_load_seg]
+    mov [es:di], ax
+
+    add word [cs:exe_reloc_off], 4
+    loop .reloc_loop
+.no_reloc:
+    push cs
+    pop ds
+    call exec_exe
+    ret
+
+exec_exe:
+    mov byte [cs:ret_code], 0xFF
+    mov word [cs:running], 1
+    mov [cs:saved_sp], sp
+
+    mov ax, PSP_SEG
+    mov ds, ax
+    mov es, ax
+
+    mov ax, [cs:exe_load_seg]
+    add ax, [cs:exe_ss]
+    mov ss, ax
+    mov sp, [cs:exe_sp]
+
+    mov ax, [cs:exe_load_seg]
+    add ax, [cs:exe_cs]
+    push ax
+    push word [cs:exe_ip]
+    retf
 
 serial_init:
     mov dx, COM1_PORT + 1
@@ -449,12 +598,15 @@ msg_mem:      db "Conventional memory: ", 0
 msg_kib:      db " KB", 13, 10, 0
 msg_ints:     db "INT 20h/21h installed", 13, 10, 0
 msg_nofile:   db "File not found", 13, 10, 0
-msg_loaded:   db "HELLO.COM loaded", 13, 10, 0
+msg_com_load: db "HELLO.COM loaded", 13, 10, 0
+msg_exe_load: db "HELLO.EXE loaded", 13, 10, 0
 msg_returned: db "Program exited, code=", 0
 msg_crlf:     db 13, 10, 0
 msg_halt:     db "HALT", 13, 10, 0
+msg_unhandled: db "INT 21h AH=", 0
 
 fname_hello:  db "HELLO   COM"
+fname_exe:   db "HELLO   EXE"
 
 mem_kib:   dw 0
 ret_code:  db 0
@@ -463,6 +615,7 @@ saved_sp:  dw 0
 
 load_name: dw 0
 load_seg:  dw 0
+load_off:  dw 0
 
 krsta: dw 0
 krsc:  dw 0
@@ -477,3 +630,12 @@ khd:   db 0
 kcy:   db 0
 kdrv:  db 0
 kret:  db 3
+
+exe_hdr_par:    dw 0
+exe_ss:         dw 0
+exe_sp:         dw 0
+exe_ip:         dw 0
+exe_cs:         dw 0
+exe_reloc_count: dw 0
+exe_reloc_off:  dw 0
+exe_load_seg:   dw 0
