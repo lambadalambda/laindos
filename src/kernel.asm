@@ -130,15 +130,6 @@ kernel_entry:
     mov ax, [cs:prog_seg]
     call build_psp
 
-    mov ax, [cs:prog_seg]
-    add ax, 0x10
-    mov ds, ax
-    xor si, si
-    mov ax, [cs:prog_seg]
-    mov es, ax
-    mov di, 0x0100
-    mov cx, [cs:kfsize]
-    rep movsb
     push cs
     pop ds
 
@@ -1546,6 +1537,14 @@ load_file_direct:
     mov cl, [cs:kspc]
     mul cx
     add ax, [cs:kdsta]
+    mov [cs:.sec_num], ax
+    pop si
+    xor ch, ch
+    mov cl, [cs:kspc]
+.sec_loop:
+    push cx
+    push si
+    mov ax, [cs:.sec_num]
     push es
     push bx
     mov bx, 0
@@ -1555,7 +1554,7 @@ load_file_direct:
     call read_sector
     pop bx
     pop es
-    jc .err_pop
+    jc .err_pop2
     push ds
     push si
     push di
@@ -1574,7 +1573,10 @@ load_file_direct:
     add ax, 0x1000
     mov es, ax
 .adv_ok:
+    inc word [cs:.sec_num]
     pop si
+    pop cx
+    loop .sec_loop
     call fat_next
     mov si, ax
     jmp .load
@@ -1583,13 +1585,15 @@ load_file_direct:
     pop ds
     xor ax, ax
     ret
-.err_pop:
+.err_pop2:
     pop si
 .err:
     push cs
     pop ds
     mov ax, 1
     ret
+
+.sec_num: dw 0
 
 load_file:
     mov [cs:load_name], si
