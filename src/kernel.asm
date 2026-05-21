@@ -21,7 +21,12 @@ H_SIZE_LO   equ 8
 H_SIZE_HI   equ 10
 MAX_HANDLES equ 20
 
+ATTR_DIR equ 0x10
+ROOT_ENT_CNT equ 224
+
 CF equ 0x0001
+
+ROOT_CLUSTER equ 0
 
 kernel_entry:
     mov ax, cs
@@ -49,6 +54,9 @@ kernel_entry:
 
     mov si, msg_ints
     call serial_print
+
+    mov word [cur_dir_cluster], ROOT_CLUSTER
+    mov byte [cur_dir_path], 0
 
     mov si, fname_exe
     mov ax, TEMP_SEG
@@ -151,12 +159,15 @@ int20_handler:
     jmp do_terminate
 
 int21_handler:
+    cld
     cmp ah, 0x4C
     je .terminate
     cmp ah, 0x09
     je .print_string
     cmp ah, 0x00
     je .terminate
+    cmp ah, 0x3B
+    je .chdir
     cmp ah, 0x3D
     je .open_file
     cmp ah, 0x3E
@@ -165,6 +176,8 @@ int21_handler:
     je .read_file
     cmp ah, 0x42
     je .seek_file
+    cmp ah, 0x47
+    je .get_curdir
     cmp ah, 0x19
     je .get_drive
     cmp ah, 0x1A
@@ -179,6 +192,8 @@ int21_handler:
     je .get_vector
     cmp ah, 0x4E
     je .find_first
+    cmp ah, 0x4F
+    je .find_next
     cmp ah, 0x62
     je .get_psp
     pusha
@@ -271,14 +286,72 @@ int21_handler:
 .get_psp:
     mov bx, PSP_SEG
     jmp iret_nc
+.chdir:
+    push ds
+    push si
+    push es
+    push di
+    push bx
+    mov [cs:cd_path_off], dx
+    mov [cs:cd_path_seg], ds
+    mov si, dx
+    call resolve_path
+    jc .cd_err
+    test byte [es:di+11], ATTR_DIR
+    jz .cd_err
+    mov ax, [es:di+26]
+    mov [cs:cur_dir_cluster], ax
+    push cs
+    pop es
+    mov di, cur_dir_path
+    mov cx, 62
+    mov ds, [cs:cd_path_seg]
+    mov si, [cs:cd_path_off]
+.cd_skip_sep:
+    cmp byte [ds:si], '\'
+    je .cd_ss
+    cmp byte [ds:si], '/'
+    je .cd_ss
+    jmp .cd_copy
+.cd_ss:
+    inc si
+    jmp .cd_skip_sep
+.cd_copy:
+    lodsb
+    stosb
+    dec cx
+    jz .cd_trunc
+    test al, al
+    jnz .cd_copy
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+    jmp iret_nc
+.cd_trunc:
+    mov byte [es:di-1], 0
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+    jmp iret_nc
+.cd_err:
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+    mov ax, 3
+    jmp iret_cy
 .open_file:
     push ds
     push si
     push cx
     push di
     mov si, dx
-    call parse_83name
-    call find_in_root
+    call resolve_path
     jnc .of_found
     pop di
     pop cx
@@ -376,7 +449,7 @@ int21_handler:
     call read_sector
     pop bx
     pop es
-    jc .rf_err
+    jc .rf_err_pop
     mov si, [cs:rf_hoff]
     mov cx, [cs:si+handles+H_SIZE_LO]
     mov ax, [cs:si+handles+H_POS_LO]
@@ -432,6 +505,13 @@ int21_handler:
     pop cx
     pop bx
     jmp iret_nc
+.rf_err_pop:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop cx
+    pop bx
 .rf_err:
     mov ax, 6
     jmp iret_cy
@@ -480,12 +560,121 @@ int21_handler:
     mov ax, 1
     jmp iret_cy
 
+.get_curdir:
+    push ds
+    push si
+    push es
+    push di
+    mov ax, ds
+    mov es, ax
+    mov di, si
+    push cs
+    pop ds
+    mov si, cur_dir_path
+.cdl:
+    lodsb
+    stosb
+    test al, al
+    jnz .cdl
+    pop di
+    pop es
+    pop si
+    pop ds
+    jmp iret_nc
+
 .find_first:
     push ds
     push si
     push cx
     push bx
-    mov si, dx
+    push es
+    push di
+    mov [cs:ff_path_off], dx
+    mov [cs:ff_path_seg], ds
+    mov ax, ds
+    mov es, ax
+    mov di, dx
+    mov word [cs:ff_sep_off], 0
+.ff_scan:
+    mov al, [es:di]
+    test al, al
+    jz .ff_scan_done
+    cmp al, '\'
+    je .ff_sep
+    cmp al, '/'
+    je .ff_sep
+    inc di
+    jmp .ff_scan
+.ff_sep:
+    mov [cs:ff_sep_off], di
+    inc di
+    jmp .ff_scan
+.ff_scan_done:
+    cmp word [cs:ff_sep_off], 0
+    je .ff_bare_name
+.ff_has_path:
+    mov ds, [cs:ff_path_seg]
+    mov di, [cs:ff_sep_off]
+    mov ax, [cs:ff_path_off]
+    cmp ax, di
+    je .ff_root_path
+    mov bl, [ds:di]
+    push bx
+    push di
+    mov byte [ds:di], 0
+    mov si, [cs:ff_path_off]
+    call resolve_path
+    mov [cs:ff_res_es], es
+    mov [cs:ff_res_di], di
+    pop di
+    pop bx
+    mov ds, [cs:ff_path_seg]
+    mov [ds:di], bl
+    jc .ff_err
+    mov es, [cs:ff_res_es]
+    mov di, [cs:ff_res_di]
+    test byte [es:di+11], ATTR_DIR
+    jnz .ff_got_dir_entry
+    stc
+    jmp .ff_err
+.ff_root_path:
+    mov ds, [cs:ff_path_seg]
+    mov di, [cs:ff_sep_off]
+    mov bl, [ds:di]
+    push bx
+    push di
+    mov byte [ds:di], 0
+    mov si, [cs:ff_path_off]
+    call resolve_path
+    mov [cs:ff_res_es], es
+    mov [cs:ff_res_di], di
+    pop di
+    pop bx
+    mov ds, [cs:ff_path_seg]
+    mov [ds:di], bl
+    jc .ff_root_fallback
+    mov es, [cs:ff_res_es]
+    mov di, [cs:ff_res_di]
+    test byte [es:di+11], ATTR_DIR
+    jnz .ff_got_dir_entry
+.ff_root_fallback:
+    mov ax, ROOT_CLUSTER
+    mov [cs:ff_dir_cluster], ax
+    jmp .ff_after_dir
+.ff_got_dir_entry:
+    mov ax, [es:di+26]
+    mov [cs:ff_dir_cluster], ax
+.ff_after_dir:
+    mov ds, [cs:ff_path_seg]
+    mov si, [cs:ff_sep_off]
+    inc si
+    jmp .ff_parse_name
+.ff_bare_name:
+    mov ax, [cs:cur_dir_cluster]
+    mov [cs:ff_dir_cluster], ax
+    mov ds, [cs:ff_path_seg]
+    mov si, [cs:ff_path_off]
+.ff_parse_name:
     call parse_83name
     mov ax, [cs:dta_seg]
     mov es, ax
@@ -496,34 +685,73 @@ int21_handler:
     mov si, name_buf
     mov cx, 11
     rep movsb
-    mov ax, ROOT_SEG
-    mov ds, ax
-    xor si, si
-    mov cx, 224
-.ff_search:
-    cmp byte [ds:si], 0
-    je .ff_notfound
-    push cx
-    push si
-    push es
-    push cs
+    mov ax, [cs:ff_dir_cluster]
+    xor dx, dx
+    call find_in_dir
+    jnc .ff_found
+    pop di
     pop es
-    mov di, name_buf
-    mov cx, 11
-    repe cmpsb
-    pop es
-    pop si
+    pop bx
     pop cx
-    jne .ff_next
+    pop si
+    pop ds
+    mov ax, 2
+    jmp iret_cy
+.ff_err:
+    pop di
+    pop es
+    pop bx
+    pop cx
+    pop si
+    pop ds
+    mov ax, 3
+    jmp iret_cy
+.ff_found:
     mov ax, [cs:dta_seg]
     mov es, ax
     mov di, [cs:dta_off]
-    mov al, [ds:si]
+    mov al, [es:di+21]
     mov [es:di], al
-    mov ax, [ds:si+28]
-    mov [es:di+26], ax
-    mov ax, [ds:si+26]
+    mov ax, [cs:ff_entry_cluster]
     mov [es:di+24], ax
+    mov ax, [cs:ff_entry_size]
+    mov [es:di+26], ax
+    mov byte [es:di+20], 0
+    mov byte [es:di+19], 0
+    pop di
+    pop es
+    pop bx
+    pop cx
+    pop si
+    pop ds
+    jmp iret_nc
+
+.find_next:
+    push ds
+    push si
+    push cx
+    push bx
+    mov ax, [cs:ff_dir_cluster]
+    mov bx, [cs:ff_entry_idx]
+    inc bx
+    call find_in_dir_from
+    jnc .fn_found
+    pop bx
+    pop cx
+    pop si
+    pop ds
+    mov ax, 2
+    jmp iret_cy
+.fn_found:
+    mov ax, [cs:dta_seg]
+    mov es, ax
+    mov di, [cs:dta_off]
+    mov al, [es:di+21]
+    mov [es:di], al
+    mov ax, [cs:ff_entry_cluster]
+    mov [es:di+24], ax
+    mov ax, [cs:ff_entry_size]
+    mov [es:di+26], ax
     mov byte [es:di+20], 0
     mov byte [es:di+19], 0
     pop bx
@@ -531,16 +759,6 @@ int21_handler:
     pop si
     pop ds
     jmp iret_nc
-.ff_next:
-    add si, 32
-    loop .ff_search
-.ff_notfound:
-    pop bx
-    pop cx
-    pop si
-    pop ds
-    mov ax, 2
-    jmp iret_cy
 
 int23_handler:
     iret
@@ -585,6 +803,256 @@ alloc_handle:
     stc
     ret
 
+resolve_path:
+    push bx
+    mov [cs:rp_path], si
+    mov [cs:rp_path_seg], ds
+    cmp byte [ds:si], '\'
+    je .rp_abs
+    cmp byte [ds:si], '/'
+    je .rp_abs
+    cmp byte [ds:si], 'A'
+    jb .rp_rel
+    cmp byte [ds:si], 'Z'
+    ja .rp_rel
+    cmp byte [ds:si+1], ':'
+    jne .rp_rel
+.rp_abs:
+    add si, 2
+    cmp byte [ds:si-1], ':'
+    je .rp_abs_skip
+    sub si, 2
+.rp_abs_skip:
+    mov [cs:rp_path], si
+    mov ax, ROOT_CLUSTER
+    jmp .rp_walk
+.rp_rel:
+    mov ax, [cs:cur_dir_cluster]
+.rp_walk:
+    mov [cs:rp_cluster], ax
+.rp_next:
+    mov ds, [cs:rp_path_seg]
+    mov si, [cs:rp_path]
+.rp_skip_sep:
+    cmp byte [ds:si], '\'
+    je .rp_sep
+    cmp byte [ds:si], '/'
+    je .rp_sep
+    jmp .rp_have_name
+.rp_sep:
+    inc si
+    mov [cs:rp_path], si
+    jmp .rp_skip_sep
+.rp_have_name:
+    cmp byte [ds:si], 0
+    je .rp_empty
+    cmp byte [ds:si], ':'
+    jne .rp_parse_name
+    inc si
+    inc si
+    mov [cs:rp_path], si
+    jmp .rp_skip_sep
+.rp_empty:
+    cmp word [cs:rp_cluster], ROOT_CLUSTER
+    je .rp_empty_root
+    stc
+    pop bx
+    ret
+.rp_empty_root:
+    stc
+    pop bx
+    ret
+.rp_parse_name:
+    push ds
+    push es
+    push cs
+    pop es
+    mov di, name_buf
+    mov cx, 11
+    mov al, ' '
+    rep stosb
+    mov di, name_buf
+    cld
+.rp_copy:
+    mov ds, [cs:rp_path_seg]
+    mov si, [cs:rp_path]
+    lodsb
+    cmp al, 0
+    je .rp_copy_end
+    cmp al, '\'
+    je .rp_copy_sep
+    cmp al, '/'
+    je .rp_copy_sep
+    cmp al, 'a'
+    jb .rp_no_lower
+    cmp al, 'z'
+    ja .rp_no_lower
+    sub al, 32
+.rp_no_lower:
+    cmp al, '.'
+    je .rp_dot
+    stosb
+    jmp .rp_adv
+.rp_dot:
+    mov di, name_buf + 8
+    jmp .rp_adv
+.rp_adv:
+    mov [cs:rp_path], si
+    jmp .rp_copy
+.rp_copy_sep:
+    mov [cs:rp_path], si
+    pop es
+    pop ds
+    mov ax, [cs:rp_cluster]
+    xor bx, bx
+    xor dx, dx
+    call find_in_dir
+    jc .rp_notfound
+    test byte [es:di+11], ATTR_DIR
+    jz .rp_notadir
+    mov ax, [es:di+26]
+    mov [cs:rp_cluster], ax
+    jmp .rp_next
+.rp_notadir:
+    stc
+    pop bx
+    ret
+.rp_copy_end:
+    pop es
+    pop ds
+    mov ax, [cs:rp_cluster]
+    xor bx, bx
+    xor dx, dx
+    call find_in_dir
+    jc .rp_notfound
+    pop bx
+    ret
+.rp_notfound:
+    stc
+    pop bx
+    ret
+
+find_in_dir:
+    xor bx, bx
+find_in_dir_from:
+    push ax
+    push cx
+    push ds
+    push si
+    mov [cs:fid_cluster], ax
+    mov [cs:fid_idx], bx
+.rid_loop:
+    mov ax, [cs:fid_cluster]
+    cmp ax, ROOT_CLUSTER
+    jne .rid_subdir
+    mov ax, ROOT_SEG
+    mov es, ax
+    mov cx, [cs:fid_idx]
+    mov ax, cx
+    mov dx, 32
+    mul dx
+    mov di, ax
+    cmp di, ROOT_ENT_CNT * 32
+    jae .rid_notfound
+    cmp byte [es:di], 0
+    je .rid_notfound
+    push cx
+    push di
+    push cs
+    pop ds
+    mov si, name_buf
+    mov cx, 11
+    repe cmpsb
+    pop di
+    pop cx
+    je .rid_found
+    inc cx
+    mov [cs:fid_idx], cx
+    jmp .rid_loop
+.rid_subdir:
+    push bx
+    push dx
+    mov [cs:rid_clus], ax
+.rid_sec_loop:
+    mov si, [cs:rid_clus]
+    cmp si, 0xFF8
+    jae .rid_notfound_pop
+    push si
+    mov ax, si
+    sub ax, 2
+    xor ch, ch
+    mov cl, [cs:kspc]
+    mul cx
+    add ax, [cs:kdsta]
+    xor bx, bx
+    mov dx, SEC_BUF
+    mov es, dx
+    call read_sector
+    pop si
+    jc .rid_notfound_pop
+    mov ax, SEC_BUF
+    mov es, ax
+    mov cx, [cs:fid_idx]
+.rid_entry:
+    mov ax, cx
+    and ax, (512 / 32) - 1
+    mov dx, 32
+    mul dx
+    mov di, ax
+    cmp byte [es:di], 0
+    je .rid_notfound_pop
+    push cx
+    push di
+    mov ax, SEC_BUF
+    mov ds, ax
+    mov si, di
+    push cs
+    pop es
+    mov di, name_buf
+    mov cx, 11
+    cld
+    repe cmpsb
+    pop di
+    pop cx
+    mov ax, SEC_BUF
+    mov es, ax
+    je .rid_found_subdir
+    inc cx
+    mov [cs:fid_idx], cx
+    test cx, (512 / 32) - 1
+    jnz .rid_entry
+.rid_next_sec:
+    mov si, [cs:rid_clus]
+    call fat_next
+    mov [cs:rid_clus], ax
+    mov word [cs:fid_idx], 0
+    jmp .rid_sec_loop
+.rid_found_subdir:
+    pop dx
+    pop bx
+.rid_found:
+    mov ax, [es:di+26]
+    mov [cs:ff_entry_cluster], ax
+    mov ax, [es:di+28]
+    mov [cs:ff_entry_size], ax
+    mov [cs:ff_entry_idx], cx
+    pop si
+    pop ds
+    pop cx
+    pop ax
+    clc
+    ret
+.rid_notfound_pop:
+    pop dx
+    pop bx
+.rid_notfound:
+    pop si
+    pop ds
+    pop cx
+    pop ax
+    stc
+    ret
+
 parse_83name:
     push ax
     push cx
@@ -619,39 +1087,6 @@ parse_83name:
     pop ds
     pop cx
     pop ax
-    ret
-
-find_in_root:
-    push cs
-    pop ds
-    mov si, name_buf
-    mov ax, ROOT_SEG
-    mov es, ax
-    xor di, di
-    mov cx, 224
-.fr_search:
-    cmp byte [es:di], 0
-    je .fr_notfound
-    push cx
-    push di
-    push ds
-    push cs
-    pop ds
-    mov si, name_buf
-    mov cx, 11
-    repe cmpsb
-    pop ds
-    pop di
-    pop cx
-    je .fr_found
-    add di, 32
-    loop .fr_search
-.fr_notfound:
-    stc
-    ret
-.fr_found:
-    mov [cs:find_di], di
-    clc
     ret
 
 load_file:
@@ -693,35 +1128,11 @@ load_file:
     pop ds
     mov [cs:kdrv], al
 
-    mov ax, ROOT_SEG
-    mov es, ax
-    xor di, di
-    mov cx, 224
-.search:
-    cmp byte [es:di], 0
-    je .notfound
-    push cx
-    push di
-    push ds
     push cs
     pop ds
     mov si, [cs:load_name]
-    mov cx, 11
-    repe cmpsb
-    pop ds
-    pop di
-    pop cx
-    je .found
-    add di, 32
-    loop .search
-.notfound:
-    push cs
-    pop ds
-    mov si, msg_nofile
-    call serial_print
-    mov ax, 1
-    ret
-.found:
+    call resolve_path
+    jc .notfound
     mov ax, [es:di+26]
     mov [cs:kclus], ax
     mov ax, [es:di+28]
@@ -754,6 +1165,13 @@ load_file:
     push cs
     pop ds
     xor ax, ax
+    ret
+.notfound:
+    push cs
+    pop ds
+    mov si, msg_nofile
+    call serial_print
+    mov ax, 1
     ret
 
 fat_next:
@@ -1071,8 +1489,8 @@ msg_crlf:     db 13, 10, 0
 msg_halt:     db "HALT", 13, 10, 0
 msg_unhandled: db "INT 21h AH=", 0
 
-fname_hello:  db "HELLO   COM"
-fname_exe:   db "FILETESTEXE"
+fname_hello:  db "HELLO   COM", 0
+fname_exe:   db "FILETESTEXE", 0
 
 mem_kib:   dw 0
 ret_code:  db 0
@@ -1116,6 +1534,30 @@ rf_buf_off:    dw 0
 rf_buf_seg:    dw 0
 
 sf_origin: db 0
+
+cur_dir_cluster: dw 0
+cur_dir_path: times 64 db 0
+cd_path_off: dw 0
+cd_path_seg: dw 0
+
+rp_path: dw 0
+rp_path_seg: dw 0
+rp_cluster: dw 0
+rp_component_idx: db 0
+
+ff_dir_cluster: dw 0
+ff_entry_idx: dw 0
+ff_entry_cluster: dw 0
+ff_entry_size: dw 0
+ff_path_off: dw 0
+ff_path_seg: dw 0
+ff_sep_off: dw 0
+ff_res_es: dw 0
+ff_res_di: dw 0
+
+fid_cluster: dw 0
+fid_idx: dw 0
+rid_clus: dw 0
 
 find_di: dw 0
 

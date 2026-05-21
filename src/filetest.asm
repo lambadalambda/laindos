@@ -50,6 +50,33 @@ image_start:
     mov ah, 0x09
     int 0x21
 
+    mov dx, subdir - image_start
+    mov al, 0
+    mov ah, 0x3D
+    int 0x21
+    jc .fail_open_sub
+
+    mov [handle2 - image_start], ax
+    mov bx, ax
+    mov dx, buf2 - image_start
+    mov cx, 10
+    mov ah, 0x3F
+    int 0x21
+    jc .fail_read
+
+    mov bx, [handle2 - image_start]
+    mov ah, 0x3E
+    int 0x21
+
+    mov byte [buf2 + 10 - image_start], '$'
+    mov dx, buf2 - image_start
+    mov ah, 0x09
+    int 0x21
+
+    mov dx, pass2_msg - image_start
+    mov ah, 0x09
+    int 0x21
+
     mov ah, 0x4C
     mov al, 0x00
     int 0x21
@@ -62,6 +89,14 @@ image_start:
     mov al, 0x01
     int 0x21
 
+.fail_open_sub:
+    mov dx, fail_sub_msg - image_start
+    mov ah, 0x09
+    int 0x21
+    mov ah, 0x4C
+    mov al, 0x03
+    int 0x21
+
 .fail_read:
     mov dx, fail_read_msg - image_start
     mov ah, 0x09
@@ -71,10 +106,15 @@ image_start:
     int 0x21
 
 filename: db "TESTFILEDAT", 0
+subdir: db "\MIDEMO\SUBTEST.DAT", 0
 fail_open_msg: db "FAIL: OPEN$"
+fail_sub_msg: db "FAIL: SUBDIR$"
 fail_read_msg: db "FAIL: READ$"
-pass_msg: db 13, 10, "PASS: HELLO.EXE$"
+pass_msg: db 13, 10, "PASS: ROOT$"
+pass2_msg: db 13, 10, "PASS: SUBDIR$"
 handle: dw 0
+handle2: dw 0
 buf: times 128 db 0
+buf2: times 128 db 0
 
 file_end:
