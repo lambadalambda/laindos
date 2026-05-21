@@ -103,6 +103,7 @@ kernel_entry:
     push cs
     pop ds
 
+    mov word [cs:prog_seg], PSP_SEG
     mov ax, PSP_SEG
     call exec_com
     jmp .returned
@@ -113,6 +114,10 @@ kernel_entry:
     mov si, msg_exe_load
     call serial_print
 
+    mov ax, PSP_SEG
+    call build_psp
+
+    mov word [cs:prog_seg], PSP_SEG
     call setup_exe
 
 .returned:
@@ -198,12 +203,18 @@ int21_handler:
     je .free_mem
     cmp ah, 0x4A
     je .resize_mem
+    cmp ah, 0x4B
+    je .exec
     cmp ah, 0x19
     je .get_drive
     cmp ah, 0x1A
     je .set_dta
     cmp ah, 0x25
     je .set_vector
+    cmp ah, 0x2A
+    je .get_date
+    cmp ah, 0x2C
+    je .get_time
     cmp ah, 0x2F
     je .get_dta
     cmp ah, 0x30
@@ -537,6 +548,22 @@ int21_handler:
     pop es
     pop si
     pop ds
+    jmp iret_cy
+.get_date:
+    mov al, 0
+    mov cx, 2026
+    mov dh, 5
+    mov dl, 21
+    jmp iret_nc
+.get_time:
+    mov ch, 12
+    mov cl, 0
+    mov dh, 0
+    mov dl, 0
+    jmp iret_nc
+.exec:
+    stc
+    mov ax, 1
     jmp iret_cy
 .chdir:
     push ds
@@ -1056,6 +1083,72 @@ do_terminate:
     mov sp, [cs:saved_sp]
     jmp exec_com.back
 
+alloc_mem_direct:
+    push ds
+    push si
+    mov [cs:am_req], bx
+    mov si, [cs:mcb_first]
+.amd_walk:
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .amd_check
+    cmp byte [ds:0], MCB_SIG_Z
+    je .amd_check
+    stc
+    pop si
+    pop ds
+    ret
+.amd_check:
+    cmp word [ds:1], 0
+    jne .amd_next
+    mov ax, [ds:3]
+    cmp ax, [cs:am_req]
+    jb .amd_next
+    mov ax, [ds:3]
+    sub ax, [cs:am_req]
+    cmp ax, 2
+    jb .amd_exact
+    push si
+    mov di, si
+    add di, [cs:am_req]
+    inc di
+    push di
+    mov es, di
+    mov al, [ds:0]
+    mov byte [es:0], al
+    mov word [es:1], 0
+    mov cx, [ds:3]
+    sub cx, [cs:am_req]
+    dec cx
+    mov word [es:3], cx
+    mov byte [ds:0], MCB_SIG_M
+    mov ax, [cs:am_req]
+    mov word [ds:3], ax
+    pop di
+    pop si
+.amd_exact:
+    mov ax, [cs:cur_psp]
+    mov word [ds:1], ax
+    mov ax, si
+    inc ax
+    pop si
+    pop ds
+    clc
+    ret
+.amd_next:
+    cmp byte [ds:0], MCB_SIG_Z
+    je .amd_nomem
+    mov ax, si
+    inc ax
+    add ax, [ds:3]
+    mov si, ax
+    jmp .amd_walk
+.amd_nomem:
+    stc
+    pop si
+    pop ds
+    ret
+
 alloc_handle:
     push bx
     push si
@@ -1236,6 +1329,7 @@ find_in_dir_from:
     jae .rid_notfound
     cmp byte [es:di], 0
     je .rid_notfound
+.rid_debug_root:
     push cx
     push di
     push cs
@@ -1568,6 +1662,7 @@ build_psp:
 
     mov word [es:0x2C], 0
     pop ax
+    mov [cs:cur_psp], ax
     ret
 
 setup_exe:
@@ -1588,9 +1683,6 @@ setup_exe:
     mov [cs:exe_reloc_count], ax
     mov ax, [0x18]
     mov [cs:exe_reloc_off], ax
-
-    mov ax, PSP_SEG
-    call build_psp
 
     mov ax, PSP_SEG
     add ax, 0x10
@@ -1762,8 +1854,8 @@ msg_mem:      db "Conventional memory: ", 0
 msg_kib:      db " KB", 13, 10, 0
 msg_ints:     db "INT 20h/21h installed", 13, 10, 0
 msg_nofile:   db "File not found", 13, 10, 0
-msg_com_load: db "HELLO.COM loaded", 13, 10, 0
-msg_exe_load: db "HELLO.EXE loaded", 13, 10, 0
+msg_com_load: db "COM loaded", 13, 10, 0
+msg_exe_load: db "EXE loaded", 13, 10, 0
 msg_returned: db "Program exited, code=", 0
 msg_crlf:     db 13, 10, 0
 msg_halt:     db "HALT", 13, 10, 0
@@ -1845,6 +1937,9 @@ mcb_first: dw 0
 cur_psp: dw 0
 alloc_strat: db 0
 am_req: dw 0
+
+prog_seg: dw 0
+prog_par: dw 0
 
 name_buf: times 11 db 0
 

@@ -1,5 +1,3 @@
-- [ ] [Phase 4: Filesystem Handles](issues/phase4-filesystem-handles.md)
-- [ ] [Phase 5: DOS Memory Allocator](issues/phase5-dos-memory-allocator.md)
 - [ ] [Phase 6: Direct Boot into Monkey Island](issues/phase6-boot-monkey-island.md)
 - [ ] [Phase 7: Implement Missing Calls Until Visible Start](issues/phase7-missing-calls-for-start.md)
 - [ ] [Phase 8: Mouse Shim](issues/phase8-mouse-shim.md)
