@@ -72,14 +72,52 @@ kernel_entry:
     mov word [mcb_first], MCB_START
     mov word [cur_psp], PSP_SEG
 
+    call init_bpb_geometry
+
     mov si, fname_exe
-    mov ax, TEMP_SEG
+    call resolve_path
+    jnc .rp_ok
+    push cs
+    pop ds
+    mov si, msg_nofile
+    call serial_print
+    jmp .halt
+.rp_ok:
+    mov ax, [es:di+26]
+    mov [cs:kclus], ax
+    mov ax, [es:di+28]
+    mov [cs:kfsize], ax
+    mov dx, [es:di+30]
+    add ax, 511
+    adc dx, 0
+    mov cx, 9
+.shr9:
+    shr dx, 1
+    rcr ax, 1
+    loop .shr9
+    mov cx, 5
+.shl5:
+    shl ax, 1
+    rcl dx, 1
+    loop .shl5
+    add ax, 0x12
+    mov [cs:prog_par], ax
+    mov bx, ax
+    call alloc_mem_direct
+    jc .halt
+    mov [cs:prog_seg], ax
+
+    mov ax, [cs:prog_seg]
+    add ax, 0x10
+    mov es, ax
     xor bx, bx
-    call load_file
+    mov si, [cs:kclus]
+    call load_file_direct
     cmp ax, 0
     jne .halt
 
-    mov ax, TEMP_SEG
+    mov ax, [cs:prog_seg]
+    add ax, 0x10
     mov ds, ax
     cmp word [0x0000], 0x5A4D
     je .is_exe
@@ -89,13 +127,14 @@ kernel_entry:
     mov si, msg_com_load
     call serial_print
 
-    mov ax, PSP_SEG
+    mov ax, [cs:prog_seg]
     call build_psp
 
-    mov ax, TEMP_SEG
+    mov ax, [cs:prog_seg]
+    add ax, 0x10
     mov ds, ax
     xor si, si
-    mov ax, PSP_SEG
+    mov ax, [cs:prog_seg]
     mov es, ax
     mov di, 0x0100
     mov cx, [cs:kfsize]
@@ -103,9 +142,8 @@ kernel_entry:
     push cs
     pop ds
 
-    mov word [cs:prog_seg], PSP_SEG
-    mov ax, PSP_SEG
-    call exec_com
+    mov ax, [cs:prog_seg]
+    call exec_com_dyn
     jmp .returned
 
 .is_exe:
@@ -114,11 +152,8 @@ kernel_entry:
     mov si, msg_exe_load
     call serial_print
 
-    mov ax, PSP_SEG
-    call build_psp
-
-    mov word [cs:prog_seg], PSP_SEG
-    call setup_exe
+    mov ax, [cs:prog_seg]
+    call setup_exe_dyn
 
 .returned:
 
@@ -150,6 +185,42 @@ iret_cy:
     or word [bp+6], CF
     pop bp
     iret
+
+init_bpb_geometry:
+    push ds
+    push bx
+    mov ax, BPB_SEG
+    mov ds, ax
+    mov bx, BPB_OFF
+
+    mov ax, [bx+22]
+    movzx cx, byte [bx+16]
+    mul cx
+    add ax, [bx+14]
+    mov [cs:krsta], ax
+    mov ax, [bx+17]
+    push ax
+    mov al, [bx+13]
+    mov [cs:kspc], al
+    pop ax
+    mov bx, 32
+    mul bx
+    add ax, 511
+    mov bx, 512
+    div bx
+    mov [cs:krsc], ax
+    add ax, [cs:krsta]
+    mov [cs:kdsta], ax
+
+    pop bx
+    pop ds
+    push ds
+    xor ax, ax
+    mov ds, ax
+    mov al, [0x500]
+    pop ds
+    mov [cs:kdrv], al
+    ret
 
 init_interrupts:
     pusha
@@ -1329,7 +1400,6 @@ find_in_dir_from:
     jae .rid_notfound
     cmp byte [es:di], 0
     je .rid_notfound
-.rid_debug_root:
     push cx
     push di
     push cs
@@ -1463,44 +1533,68 @@ parse_83name:
     pop ax
     ret
 
+load_file_direct:
+.load:
+    cmp si, 0xFF8
+    jae .done
+    cmp si, 2
+    jb .err
+    push si
+    mov ax, si
+    sub ax, 2
+    xor ch, ch
+    mov cl, [cs:kspc]
+    mul cx
+    add ax, [cs:kdsta]
+    push es
+    push bx
+    mov bx, 0
+    mov dx, SEC_BUF
+    mov es, dx
+    mov cx, 1
+    call read_sector
+    pop bx
+    pop es
+    jc .err_pop
+    push ds
+    push si
+    push di
+    mov dx, SEC_BUF
+    mov ds, dx
+    xor si, si
+    mov di, bx
+    mov cx, 512
+    rep movsb
+    pop di
+    pop si
+    pop ds
+    add bx, 512
+    jnc .adv_ok
+    mov ax, es
+    add ax, 0x1000
+    mov es, ax
+.adv_ok:
+    pop si
+    call fat_next
+    mov si, ax
+    jmp .load
+.done:
+    push cs
+    pop ds
+    xor ax, ax
+    ret
+.err_pop:
+    pop si
+.err:
+    push cs
+    pop ds
+    mov ax, 1
+    ret
+
 load_file:
     mov [cs:load_name], si
     mov [cs:load_seg], ax
     mov [cs:load_off], bx
-
-    push ds
-    push bx
-    mov ax, BPB_SEG
-    mov ds, ax
-    mov bx, BPB_OFF
-
-    mov ax, [bx+22]
-    movzx cx, byte [bx+16]
-    mul cx
-    add ax, [bx+14]
-    mov [cs:krsta], ax
-    mov ax, [bx+17]
-    push ax
-    mov al, [bx+13]
-    mov [cs:kspc], al
-    pop ax
-    mov bx, 32
-    mul bx
-    add ax, 511
-    mov bx, 512
-    div bx
-    mov [cs:krsc], ax
-    add ax, [cs:krsta]
-    mov [cs:kdsta], ax
-
-    pop bx
-    pop ds
-    push ds
-    xor ax, ax
-    mov ds, ax
-    mov al, [0x500]
-    pop ds
-    mov [cs:kdrv], al
 
     push cs
     pop ds
@@ -1730,6 +1824,128 @@ setup_exe:
     call exec_exe
     ret
 
+setup_exe_dyn:
+    mov ax, [cs:prog_seg]
+    add ax, 0x10
+    mov ds, ax
+
+    mov ax, [0x08]
+    mov [cs:exe_hdr_par], ax
+    mov ax, [0x0E]
+    mov [cs:exe_ss], ax
+    mov ax, [0x10]
+    mov [cs:exe_sp], ax
+    mov ax, [0x14]
+    mov [cs:exe_ip], ax
+    mov ax, [0x16]
+    mov [cs:exe_cs], ax
+    mov ax, [0x06]
+    mov [cs:exe_reloc_count], ax
+    mov ax, [0x18]
+    mov [cs:exe_reloc_off], ax
+
+    mov ax, [cs:prog_seg]
+    call build_psp
+
+    mov ax, [cs:prog_seg]
+    add ax, 0x10
+    mov [cs:exe_load_seg], ax
+
+    mov ax, [cs:exe_hdr_par]
+    mov cx, 16
+    mul cx
+    mov si, ax
+
+    mov cx, [cs:exe_reloc_count]
+    test cx, cx
+    jz .nr2
+    push cx
+    mov bx, [cs:exe_reloc_off]
+    mov ax, [cs:prog_seg]
+    add ax, 0x10
+    mov ds, ax
+    push cs
+    pop es
+    mov di, reloc_buf
+.rl_save:
+    mov ax, [bx]
+    stosw
+    mov ax, [bx+2]
+    stosw
+    add bx, 4
+    loop .rl_save
+    pop cx
+
+    mov ax, [cs:prog_seg]
+    add ax, 0x10
+    mov ds, ax
+    mov ax, [cs:exe_load_seg]
+    mov es, ax
+    xor di, di
+    mov cx, [cs:kfsize]
+    sub cx, si
+    rep movsb
+
+    push cs
+    pop ds
+    mov si, reloc_buf
+.rl2:
+    push cx
+    mov di, [si]
+    mov ax, [si+2]
+
+    push ax
+    add ax, [cs:exe_load_seg]
+    mov es, ax
+    pop ax
+    mov ax, [es:di]
+    add ax, [cs:exe_load_seg]
+    mov [es:di], ax
+
+    add si, 4
+    pop cx
+    loop .rl2
+.nr2:
+    push cs
+    pop ds
+    call exec_exe_dyn
+    ret
+
+exec_exe_dyn:
+    mov byte [cs:ret_code], 0xFF
+    mov word [cs:running], 1
+    mov [cs:saved_sp], sp
+
+    mov ax, [cs:prog_seg]
+    mov ds, ax
+    mov es, ax
+
+    mov ax, [cs:exe_load_seg]
+    add ax, [cs:exe_ss]
+    mov ss, ax
+    mov sp, [cs:exe_sp]
+
+    mov ax, [cs:exe_load_seg]
+    add ax, [cs:exe_cs]
+    push ax
+    push word [cs:exe_ip]
+    retf
+
+exec_com_dyn:
+    mov byte [cs:ret_code], 0xFF
+    mov word [cs:running], 1
+    mov [cs:saved_sp], sp
+
+    mov ax, [cs:prog_seg]
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+    mov sp, 0xFFFE
+    push word 0x0000
+    push ax
+    push word 0x0100
+    retf
+
 exec_exe:
     mov byte [cs:ret_code], 0xFF
     mov word [cs:running], 1
@@ -1942,5 +2158,7 @@ prog_seg: dw 0
 prog_par: dw 0
 
 name_buf: times 11 db 0
+
+reloc_buf: times 256 dw 0
 
 handles: times MAX_HANDLES * HANDLE_SIZE db 0
