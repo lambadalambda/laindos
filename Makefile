@@ -10,6 +10,7 @@ KERNEL_BIN := $(BUILDDIR)/kernel.bin
 HELLO_COM := $(BUILDDIR)/hello.com
 HELLO_EXE := $(BUILDDIR)/hello.exe
 FILETEST  := $(BUILDDIR)/filetest.exe
+MEMTEST   := $(BUILDDIR)/memtest.exe
 TESTFILE  := $(BUILDDIR)/testfile.dat
 DISK_IMG := $(BUILDDIR)/disk.img
 
@@ -37,12 +38,16 @@ $(FILETEST): $(SRCDIR)/filetest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
+$(MEMTEST): $(SRCDIR)/memtest.asm
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
 $(TESTFILE): scripts/mktestfile.py
 	@mkdir -p $(BUILDDIR)
 	$(PYTHON) $< $@
 
-$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(TESTFILE)
-	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(TESTFILE)
+$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(TESTFILE)
+	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(TESTFILE) MIDEMO:build/subtest.dat
 
 run: $(DISK_IMG)
 	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic

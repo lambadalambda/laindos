@@ -13,8 +13,7 @@ EXPECTED = [
     "Conventional memory:",
     "KB",
     "INT 20h/21h installed",
-    "PASS: ROOT",
-    "PASS: SUBDIR",
+    "PASS: MEM",
     "Program exited, code=",
     "HALT",
 ]

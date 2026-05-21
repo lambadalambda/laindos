@@ -24,6 +24,11 @@ MAX_HANDLES equ 20
 ATTR_DIR equ 0x10
 ROOT_ENT_CNT equ 224
 
+MCB_SIG_M equ 'M'
+MCB_SIG_Z equ 'Z'
+MCB_START equ 0x6000
+MEM_TOP   equ 0xA000
+
 CF equ 0x0001
 
 ROOT_CLUSTER equ 0
@@ -57,6 +62,15 @@ kernel_entry:
 
     mov word [cur_dir_cluster], ROOT_CLUSTER
     mov byte [cur_dir_path], 0
+
+    mov ax, MCB_START
+    mov es, ax
+    mov byte [es:0], MCB_SIG_Z
+    mov word [es:1], 0
+    mov ax, MEM_TOP - MCB_START - 1
+    mov word [es:3], ax
+    mov word [mcb_first], MCB_START
+    mov word [cur_psp], PSP_SEG
 
     mov si, fname_exe
     mov ax, TEMP_SEG
@@ -178,6 +192,12 @@ int21_handler:
     je .seek_file
     cmp ah, 0x47
     je .get_curdir
+    cmp ah, 0x48
+    je .alloc_mem
+    cmp ah, 0x49
+    je .free_mem
+    cmp ah, 0x4A
+    je .resize_mem
     cmp ah, 0x19
     je .get_drive
     cmp ah, 0x1A
@@ -194,6 +214,8 @@ int21_handler:
     je .find_first
     cmp ah, 0x4F
     je .find_next
+    cmp ah, 0x58
+    je .alloc_strategy
     cmp ah, 0x62
     je .get_psp
     pusha
@@ -284,8 +306,238 @@ int21_handler:
     pop ax
     jmp iret_nc
 .get_psp:
-    mov bx, PSP_SEG
+    mov bx, [cs:cur_psp]
     jmp iret_nc
+.alloc_strategy:
+    cmp al, 0
+    je .as_get
+    cmp al, 1
+    je .as_set
+    jmp iret_nc
+.as_get:
+    mov ax, [cs:alloc_strat]
+    jmp iret_nc
+.as_set:
+    mov [cs:alloc_strat], bl
+    jmp iret_nc
+.alloc_mem:
+    push ds
+    push si
+    mov [cs:am_req], bx
+    mov si, [cs:mcb_first]
+.am_walk:
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .am_check
+    cmp byte [ds:0], MCB_SIG_Z
+    je .am_check
+    mov ax, 7
+    jmp .am_err
+.am_check:
+    cmp word [ds:1], 0
+    jne .am_next
+    mov ax, [ds:3]
+    cmp ax, [cs:am_req]
+    jb .am_next
+    mov ax, [ds:3]
+    sub ax, [cs:am_req]
+    cmp ax, 2
+    jb .am_exact
+    push si
+    mov di, si
+    add di, [cs:am_req]
+    inc di
+    push di
+    mov es, di
+    mov al, [ds:0]
+    mov byte [es:0], al
+    mov word [es:1], 0
+    mov cx, [ds:3]
+    sub cx, [cs:am_req]
+    dec cx
+    mov word [es:3], cx
+    mov byte [ds:0], MCB_SIG_M
+    mov ax, [cs:am_req]
+    mov word [ds:3], ax
+    pop di
+    pop si
+.am_exact:
+    mov ax, [cs:cur_psp]
+    mov word [ds:1], ax
+    mov ax, si
+    inc ax
+    pop si
+    pop ds
+    jmp iret_nc
+.am_next:
+    cmp byte [ds:0], MCB_SIG_Z
+    je .am_nomem
+    mov ax, si
+    inc ax
+    add ax, [ds:3]
+    mov si, ax
+    jmp .am_walk
+.am_nomem:
+    mov bx, 0
+    mov si, [cs:mcb_first]
+.am_scan_largest:
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .am_sl_check
+    cmp byte [ds:0], MCB_SIG_Z
+    je .am_sl_check
+    jmp .am_sl_done
+.am_sl_check:
+    cmp word [ds:1], 0
+    jne .am_sl_next
+    mov ax, [ds:3]
+    cmp ax, bx
+    jbe .am_sl_next
+    mov bx, ax
+.am_sl_next:
+    cmp byte [ds:0], MCB_SIG_Z
+    je .am_sl_done
+    mov ax, si
+    inc ax
+    add ax, [ds:3]
+    mov si, ax
+    jmp .am_scan_largest
+.am_sl_done:
+    mov ax, 8
+.am_err:
+    pop si
+    pop ds
+    jmp iret_cy
+.free_mem:
+    push ds
+    push si
+    mov si, es
+    dec si
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .fm_ok
+    cmp byte [ds:0], MCB_SIG_Z
+    je .fm_ok
+    mov ax, 9
+    jmp .fm_err
+.fm_ok:
+    mov word [ds:1], 0
+.fm_fwd_merge:
+    mov ax, si
+    inc ax
+    add ax, [ds:3]
+    mov di, ax
+    mov es, ax
+    cmp byte [es:0], MCB_SIG_M
+    je .fm_next_valid
+    cmp byte [es:0], MCB_SIG_Z
+    jne .fm_done
+.fm_next_valid:
+    cmp word [es:1], 0
+    jne .fm_done
+    mov cx, [es:3]
+    inc cx
+    add word [ds:3], cx
+    mov al, [es:0]
+    mov byte [ds:0], al
+    jmp .fm_fwd_merge
+.fm_done:
+    pop si
+    pop ds
+    jmp iret_nc
+.fm_err:
+    pop si
+    pop ds
+    jmp iret_cy
+.resize_mem:
+    push ds
+    push si
+    push es
+    push di
+    mov si, es
+    dec si
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .rm_ok
+    cmp byte [ds:0], MCB_SIG_Z
+    je .rm_ok
+    mov ax, 9
+    jmp .rm_err
+.rm_ok:
+    mov ax, [ds:3]
+    cmp ax, bx
+    jae .rm_shrink
+    mov di, si
+    inc di
+    add di, ax
+    mov es, di
+    cmp byte [es:0], MCB_SIG_M
+    je .rm_next_ok
+    cmp byte [es:0], MCB_SIG_Z
+    jne .rm_cant_grow
+.rm_next_ok:
+    cmp word [es:1], 0
+    jne .rm_cant_grow
+    mov cx, [es:3]
+    inc cx
+    add ax, cx
+    cmp ax, bx
+    jb .rm_cant_grow
+    mov dl, [es:0]
+    mov byte [ds:0], dl
+    add word [ds:3], cx
+    mov ax, [ds:3]
+    sub ax, bx
+    cmp ax, 2
+    jb .rm_shrink
+    push es
+    mov di, si
+    add di, bx
+    inc di
+    mov es, di
+    mov byte [es:0], dl
+    mov byte [ds:0], MCB_SIG_M
+    mov word [es:1], 0
+    mov cx, [ds:3]
+    sub cx, bx
+    dec cx
+    mov word [es:3], cx
+    mov word [ds:3], bx
+    pop es
+    jmp .rm_done
+.rm_shrink:
+    mov ax, [ds:3]
+    sub ax, bx
+    cmp ax, 2
+    jb .rm_done
+    push es
+    mov di, si
+    add di, bx
+    inc di
+    mov es, di
+    mov al, [ds:0]
+    mov byte [es:0], al
+    mov word [es:1], 0
+    dec ax
+    mov word [es:3], ax
+    mov byte [ds:0], MCB_SIG_M
+    mov word [ds:3], bx
+    pop es
+.rm_done:
+    pop di
+    pop es
+    pop si
+    pop ds
+    jmp iret_nc
+.rm_cant_grow:
+    mov bx, ax
+    mov ax, 8
+.rm_err:
+    pop di
+    pop es
+    pop si
+    pop ds
+    jmp iret_cy
 .chdir:
     push ds
     push si
@@ -768,6 +1020,34 @@ int24_handler:
     iret
 
 do_terminate:
+    push ds
+    push si
+    push ax
+    mov si, [cs:mcb_first]
+.dt_mcb_walk:
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .dt_mcb_check
+    cmp byte [ds:0], MCB_SIG_Z
+    je .dt_mcb_check
+    jmp .dt_mcb_done
+.dt_mcb_check:
+    mov ax, [cs:cur_psp]
+    cmp word [ds:1], ax
+    jne .dt_mcb_next
+    mov word [ds:1], 0
+.dt_mcb_next:
+    cmp byte [ds:0], MCB_SIG_Z
+    je .dt_mcb_done
+    mov ax, si
+    inc ax
+    add ax, [ds:3]
+    mov si, ax
+    jmp .dt_mcb_walk
+.dt_mcb_done:
+    pop ax
+    pop si
+    pop ds
     mov word [cs:running], 0
     mov ax, cs
     mov ds, ax
@@ -1490,7 +1770,7 @@ msg_halt:     db "HALT", 13, 10, 0
 msg_unhandled: db "INT 21h AH=", 0
 
 fname_hello:  db "HELLO   COM", 0
-fname_exe:   db "FILETESTEXE", 0
+fname_exe:   db "MEMTEST EXE", 0
 
 mem_kib:   dw 0
 ret_code:  db 0
@@ -1560,6 +1840,11 @@ fid_idx: dw 0
 rid_clus: dw 0
 
 find_di: dw 0
+
+mcb_first: dw 0
+cur_psp: dw 0
+alloc_strat: db 0
+am_req: dw 0
 
 name_buf: times 11 db 0
 
