@@ -64,46 +64,18 @@ do_dir:
     jmp prompt
 
 read_line:
+    mov dx, line_input
+    mov ah, 0x0A
+    int 0x21
     push ds
     pop es
+    mov si, line_input + 2
     mov di, line_buf
     xor cx, cx
-.loop:
-    xor ah, ah
-    int 0x16
-    cmp al, 13
-    je .done
-    cmp al, 8
-    je .backspace
-    cmp cx, 63
-    jae .loop
+    mov cl, [line_input + 1]
+    rep movsb
+    xor al, al
     stosb
-    inc cx
-    mov dl, al
-    mov ah, 0x02
-    int 0x21
-    jmp .loop
-.backspace:
-    test cx, cx
-    jz .loop
-    dec di
-    dec cx
-    mov dl, 8
-    mov ah, 0x02
-    int 0x21
-    mov dl, ' '
-    mov ah, 0x02
-    int 0x21
-    mov dl, 8
-    mov ah, 0x02
-    int 0x21
-    jmp .loop
-.done:
-    mov al, 0
-    stosb
-    mov dx, crlf
-    mov ah, 0x09
-    int 0x21
     ret
 
 uppercase_line:
@@ -237,6 +209,8 @@ dir_cmd: db "DIR", 0
 dir_pattern: db "*.*", 0
 
 line_buf: times 64 db 0
+line_input: db 64, 0
+times 64 db 0
 command_name: times 64 db 0
 command_has_ext: db 0
 command_ext_off: dw 0

@@ -39,6 +39,7 @@ MCB_START equ 0x2200
 MEM_TOP   equ 0xA000
 
 CF equ 0x0001
+ZF equ 0x0040
 
 ROOT_CLUSTER equ 0
 
@@ -268,6 +269,21 @@ iret_cy:
     push bp
     mov bp, sp
     or word [bp+6], CF
+    pop bp
+    iret
+
+iret_nc_zf:
+    push bp
+    mov bp, sp
+    and word [bp+6], ~CF
+    or word [bp+6], ZF
+    pop bp
+    iret
+
+iret_nc_nz:
+    push bp
+    mov bp, sp
+    and word [bp+6], ~(CF | ZF)
     pop bp
     iret
 
@@ -827,10 +843,18 @@ int21_handler:
     je .terminate
     cmp ah, 0x09
     je .print_string
+    cmp ah, 0x01
+    je .read_char_echo
     cmp ah, 0x02
     je .print_char
+    cmp ah, 0x06
+    je .direct_console_io
+    cmp ah, 0x07
+    je .read_char_direct
     cmp ah, 0x08
     je .read_char_no_echo
+    cmp ah, 0x0A
+    je .read_line_buffered
     cmp ah, 0x0B
     je .stdin_status
     cmp ah, 0x00
@@ -949,6 +973,59 @@ int21_handler:
     pop ax
     mov al, dl
     jmp iret_nc
+.read_char_echo:
+    push bx
+    push cx
+    push dx
+    xor ah, ah
+    int 0x16
+    mov dl, al
+    call console_putchar
+    mov ah, 0x01
+    pop dx
+    pop cx
+    pop bx
+    jmp iret_nc
+.direct_console_io:
+    cmp dl, 0xFF
+    je .direct_console_input
+    push ax
+    mov al, dl
+    call console_putchar
+    pop ax
+    mov al, dl
+    jmp iret_nc
+.direct_console_input:
+    push bx
+    push cx
+    push dx
+    mov ah, 0x01
+    int 0x16
+    jz .direct_console_empty
+    xor ah, ah
+    int 0x16
+    mov ah, 0x06
+    pop dx
+    pop cx
+    pop bx
+    jmp iret_nc_nz
+.direct_console_empty:
+    mov ax, 0x0600
+    pop dx
+    pop cx
+    pop bx
+    jmp iret_nc_zf
+.read_char_direct:
+    push bx
+    push cx
+    push dx
+    xor ah, ah
+    int 0x16
+    mov ah, 0x07
+    pop dx
+    pop cx
+    pop bx
+    jmp iret_nc
 .read_char_no_echo:
     push bx
     push cx
@@ -959,6 +1036,66 @@ int21_handler:
     pop dx
     pop cx
     pop bx
+    jmp iret_nc
+.read_line_buffered:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    mov si, dx
+    xor cx, cx
+    mov cl, [si]
+    mov byte [si+1], 0
+    test cl, cl
+    jz .rl_done
+    dec cl
+    xor bx, bx
+    mov di, si
+    add di, 2
+.rl_loop:
+    xor ah, ah
+    int 0x16
+    test al, al
+    jz .rl_loop
+    cmp al, 13
+    je .rl_enter
+    cmp al, 8
+    je .rl_backspace
+    cmp bl, cl
+    jae .rl_loop
+    mov [di], al
+    inc di
+    inc bl
+    call console_putchar
+    jmp .rl_loop
+.rl_backspace:
+    test bl, bl
+    jz .rl_loop
+    dec di
+    dec bl
+    mov al, 8
+    call console_putchar
+    mov al, ' '
+    call console_putchar
+    mov al, 8
+    call console_putchar
+    jmp .rl_loop
+.rl_enter:
+    mov byte [di], 13
+    mov [si+1], bl
+    mov al, 13
+    call console_putchar
+    mov al, 10
+    call console_putchar
+.rl_done:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
     jmp iret_nc
 .stdin_status:
     push bx

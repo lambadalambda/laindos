@@ -224,3 +224,29 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Built `build/shell_mi2.img` and launched `mi2demo` from `SHELL.COM`; a 15-second serial smoke had no `EXC `, runtime error, unhandled `INT 21h`, or sound overlay error markers.
 - Captured a QEMU VGA screendump for `build/shelltest.img` at `/var/folders/_k/0yhtrj754g59m75jw73827q80000gn/T/laindos-shell-vga.ppm` to confirm a graphical display surface exists for shell output.
 - After adding startup clear, `python3 scripts/test_shell.py` and `make test` passed; a QEMU monitor memory check at `0xB8000` confirmed VGA text starts with `LainDOS Shell` instead of BIOS output.
+
+## 2026-05-22 DOS Console API Completion
+
+### Confirmed Facts
+
+- Phase 12 still lacked `INT 21h AH=01h`, `06h`, `07h`, and `0Ah`, and the shell was still reading command lines with BIOS `INT 16h` directly.
+- A new `CONSOLE.COM` regression failed before implementation on unhandled `INT 21h AH=06h`, confirming the test covered the missing DOS path.
+
+### Fixes Made During Investigation
+
+- Added `INT 21h AH=01h` read character with echo.
+- Added `INT 21h AH=06h` direct console I/O, including nonblocking input with ZF set on no character and clear on input.
+- Added `INT 21h AH=07h` direct character input without echo.
+- Added `INT 21h AH=0Ah` buffered line input with basic backspace editing and CR termination.
+- Switched `SHELL.COM` line input to `AH=0Ah` and kept command parsing on its NUL-terminated copy.
+- Added `src/consoletest.asm` and `scripts/test_console.py`; wired the console test into `make test`.
+- After review, preserved `BX/CX` in `AH=01h`, ignored extended-key NUL prefixes in `AH=0Ah`, and extended `CONSOLE.COM` to cover `AH=06h` output.
+
+### Tests Run
+
+- `python3 scripts/test_console.py` passed.
+- `python3 scripts/test_shell.py` passed after switching the shell to `AH=0Ah`.
+- `make test` passed with the new console regression included.
+- `python3 scripts/build_monkey.py` plus a 15-second direct Monkey serial smoke passed, reaching `INT 33h AX=0000`.
+- `python3 scripts/build_mi2.py` plus a 15-second direct MI2 serial smoke passed.
+- `python3 scripts/test_console.py`, `make test`, and direct Monkey/MI2 serial smokes passed again after the review fixes.
