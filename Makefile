@@ -16,6 +16,11 @@ REGTEST   := $(BUILDDIR)/regtest.exe
 MOUSETEST := $(BUILDDIR)/mouse.exe
 MOUSEHW   := $(BUILDDIR)/mousehw.exe
 MIIOTEST  := $(BUILDDIR)/miiotest.exe
+WRITETEST := $(BUILDDIR)/write.exe
+BIGRELOC  := $(BUILDDIR)/bigreloc.exe
+KEYTEST   := $(BUILDDIR)/keytest.com
+OVLTEST   := $(BUILDDIR)/ovltest.com
+OVERLAY   := $(BUILDDIR)/overlay.exe
 TESTFILE  := $(BUILDDIR)/testfile.dat
 DISK_IMG := $(BUILDDIR)/disk.img
 
@@ -67,18 +72,42 @@ $(MIIOTEST): $(SRCDIR)/miiotest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
+$(WRITETEST): $(SRCDIR)/writetest.asm
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
+$(BIGRELOC): $(SRCDIR)/bigreloc.asm
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
+$(KEYTEST): $(SRCDIR)/keytest.asm
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
+$(OVLTEST): $(SRCDIR)/ovltest.asm
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
+$(OVERLAY): $(SRCDIR)/overlay.asm
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
 $(TESTFILE): scripts/mktestfile.py
 	@mkdir -p $(BUILDDIR)
 	$(PYTHON) $< $@
 
-$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(TESTFILE)
-	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(TESTFILE) MIDEMO:build/subtest.dat
+$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(OVLTEST) $(OVERLAY) $(TESTFILE)
+	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(OVLTEST) $(OVERLAY) $(TESTFILE) MIDEMO:build/subtest.dat
 
 run: $(DISK_IMG)
 	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic
 
 test: $(DISK_IMG)
 	$(PYTHON) scripts/test_boot.py
+	$(PYTHON) scripts/test_write.py
+	$(PYTHON) scripts/test_bigreloc.py
+	$(PYTHON) scripts/test_keyboard.py
+	$(PYTHON) scripts/test_overlay.py
 
 clean:
 	rm -rf $(BUILDDIR)

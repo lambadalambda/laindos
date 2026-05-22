@@ -23,6 +23,7 @@ H_SIZE_HI   equ 10
 H_LAST_CLUSTER equ 12
 H_LAST_INDEX   equ 14
 MAX_HANDLES equ 20
+SMALL_ALLOC_HIGH_MAX equ 0x0020
 
 ATTR_DIR equ 0x10
 ROOT_ENT_CNT equ 224
@@ -35,6 +36,10 @@ MEM_TOP   equ 0xA000
 CF equ 0x0001
 
 ROOT_CLUSTER equ 0
+
+%ifndef TRACE_DOS
+%define TRACE_DOS 0
+%endif
 
 kernel_entry:
     mov ax, cs
@@ -63,15 +68,13 @@ kernel_entry:
     mov si, msg_ints
     call serial_print
 
+    mov word [trace_left], TRACE_DOS
     call mouse_init_ps2
 
     mov word [cur_dir_cluster], ROOT_CLUSTER
     mov byte [cur_dir_path], 0
 
-    mov ax, ENV_SEG
-    mov es, ax
-    xor ax, ax
-    mov [es:0], ax
+    call init_environment
 
     mov ax, MCB_START
     mov es, ax
@@ -289,6 +292,58 @@ init_bpb_geometry:
     mov al, [0x500]
     pop ds
     mov [cs:kdrv], al
+    ret
+
+init_environment:
+    push ax
+    push cx
+    push ds
+    push es
+    push si
+    push di
+    push cs
+    pop ds
+    mov ax, ENV_SEG
+    mov es, ax
+    xor di, di
+    xor ax, ax
+    stosb
+    stosb
+    mov ax, 1
+    stosw
+    mov al, 'A'
+    stosb
+    mov al, ':'
+    stosb
+    mov al, '\'
+    stosb
+    mov si, fname_exe
+    mov cx, 8
+.name_loop:
+    lodsb
+    cmp al, ' '
+    je .name_next
+    stosb
+.name_next:
+    loop .name_loop
+    mov al, '.'
+    stosb
+    mov cx, 3
+.ext_loop:
+    lodsb
+    cmp al, ' '
+    je .ext_next
+    stosb
+.ext_next:
+    loop .ext_loop
+    xor ax, ax
+    stosb
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop cx
+    pop ax
     ret
 
 init_interrupts:
@@ -759,6 +814,10 @@ int21_handler:
     je .terminate
     cmp ah, 0x09
     je .print_string
+    cmp ah, 0x08
+    je .read_char_no_echo
+    cmp ah, 0x0B
+    je .stdin_status
     cmp ah, 0x00
     je .terminate
     cmp ah, 0x3B
@@ -769,6 +828,8 @@ int21_handler:
     je .close_file
     cmp ah, 0x3F
     je .read_file
+    cmp ah, 0x40
+    je .write_file
     cmp ah, 0x42
     je .seek_file
     cmp ah, 0x43
@@ -871,6 +932,33 @@ int21_handler:
     pop si
     pop ds
     jmp iret_nc
+.read_char_no_echo:
+    push bx
+    push cx
+    push dx
+    xor ah, ah
+    int 0x16
+    mov ah, 0x08
+    pop dx
+    pop cx
+    pop bx
+    jmp iret_nc
+.stdin_status:
+    push bx
+    push cx
+    push dx
+    mov ah, 0x01
+    int 0x16
+    jz .stdin_empty
+    mov ax, 0x0BFF
+    jmp .stdin_done
+.stdin_empty:
+    mov ax, 0x0B00
+.stdin_done:
+    pop dx
+    pop cx
+    pop bx
+    jmp iret_nc
 .get_drive:
     mov al, 0
     jmp iret_nc
@@ -923,13 +1011,36 @@ int21_handler:
     mov bx, [cs:cur_psp]
     jmp iret_nc
 .alloc_strategy:
+    mov [cs:log_ax], ax
+    mov [cs:log_bx], bx
+    cmp word [cs:trace_left], 0
+    je .as_no_trace
+    dec word [cs:trace_left]
+    pusha
+    push ds
+    push cs
+    pop ds
+    mov si, msg_trace_strategy_call
+    call serial_print
+    mov ax, [cs:log_ax]
+    call serial_print_hex_word
+    mov si, msg_reg_bx
+    call serial_print
+    mov ax, [cs:log_bx]
+    call serial_print_hex_word
+    mov si, msg_crlf
+    call serial_print
+    pop ds
+    popa
+.as_no_trace:
     cmp al, 0
     je .as_get
     cmp al, 1
     je .as_set
     jmp iret_nc
 .as_get:
-    mov ax, [cs:alloc_strat]
+    xor ax, ax
+    mov al, [cs:alloc_strat]
     jmp iret_nc
 .as_set:
     mov [cs:alloc_strat], bl
@@ -938,6 +1049,20 @@ int21_handler:
     push ds
     push si
     mov [cs:am_req], bx
+    mov al, [cs:alloc_strat]
+    and al, 0x03
+    cmp al, 2
+    jne .am_not_last_strategy
+    jmp near .am_find_last
+.am_not_last_strategy:
+    cmp al, 1
+    jne .am_first_strategy
+    jmp near .am_find_best
+.am_first_strategy:
+    cmp word [cs:am_req], SMALL_ALLOC_HIGH_MAX
+    ja .am_first_walk
+    jmp near .am_find_last
+.am_first_walk:
     mov si, [cs:mcb_first]
 .am_walk:
     mov ds, si
@@ -953,6 +1078,7 @@ int21_handler:
     mov ax, [ds:3]
     cmp ax, [cs:am_req]
     jb .am_next
+.am_use:
     mov ax, [ds:3]
     sub ax, [cs:am_req]
     cmp ax, 2
@@ -980,6 +1106,9 @@ int21_handler:
     mov word [ds:1], ax
     mov ax, si
     inc ax
+    cmp word [cs:trace_left], 0
+    je .am_no_trace
+    dec word [cs:trace_left]
     push ax
     pusha
     push ds
@@ -988,6 +1117,11 @@ int21_handler:
     mov si, msg_trace_alloc
     call serial_print
     mov ax, [cs:am_req]
+    call serial_print_hex_word
+    mov si, msg_trace_strategy
+    call serial_print
+    xor ax, ax
+    mov al, [cs:alloc_strat]
     call serial_print_hex_word
     mov si, msg_trace_ret
     call serial_print
@@ -999,6 +1133,7 @@ int21_handler:
     pop ds
     mov si, msg_crlf
     call serial_print
+.am_no_trace:
     pop si
     pop ds
     jmp iret_nc
@@ -1010,6 +1145,91 @@ int21_handler:
     add ax, [ds:3]
     mov si, ax
     jmp .am_walk
+.am_find_last:
+    mov word [cs:am_best_seg], 0
+    mov si, [cs:mcb_first]
+.am_last_walk:
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .am_last_check
+    cmp byte [ds:0], MCB_SIG_Z
+    je .am_last_check
+    mov ax, 7
+    jmp .am_err
+.am_last_check:
+    cmp word [ds:1], 0
+    jne .am_last_next
+    mov ax, [ds:3]
+    cmp ax, [cs:am_req]
+    jb .am_last_next
+    mov [cs:am_best_seg], si
+.am_last_next:
+    cmp byte [ds:0], MCB_SIG_Z
+    je .am_choose_last
+    mov ax, si
+    inc ax
+    add ax, [ds:3]
+    mov si, ax
+    jmp .am_last_walk
+.am_find_best:
+    mov word [cs:am_best_seg], 0
+    mov word [cs:am_best_size], 0xFFFF
+    mov si, [cs:mcb_first]
+.am_best_walk:
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .am_best_check
+    cmp byte [ds:0], MCB_SIG_Z
+    je .am_best_check
+    mov ax, 7
+    jmp .am_err
+.am_best_check:
+    cmp word [ds:1], 0
+    jne .am_best_next
+    mov ax, [ds:3]
+    cmp ax, [cs:am_req]
+    jb .am_best_next
+    cmp ax, [cs:am_best_size]
+    jae .am_best_next
+    mov [cs:am_best_size], ax
+    mov [cs:am_best_seg], si
+.am_best_next:
+    cmp byte [ds:0], MCB_SIG_Z
+    je .am_choose_best
+    mov ax, si
+    inc ax
+    add ax, [ds:3]
+    mov si, ax
+    jmp .am_best_walk
+.am_choose_best:
+    mov si, [cs:am_best_seg]
+    test si, si
+    jz .am_nomem
+    mov ds, si
+    jmp .am_use
+.am_choose_last:
+    mov si, [cs:am_best_seg]
+    test si, si
+    jz .am_nomem
+    mov ds, si
+.am_use_last:
+    mov cx, [ds:3]
+    sub cx, [cs:am_req]
+    cmp cx, 2
+    jb .am_exact
+    mov di, si
+    add di, cx
+    mov al, [ds:0]
+    mov byte [ds:0], MCB_SIG_M
+    dec cx
+    mov [ds:3], cx
+    mov es, di
+    mov byte [es:0], al
+    mov ax, [cs:am_req]
+    mov [es:3], ax
+    mov si, di
+    mov ds, di
+    jmp .am_exact
 .am_nomem:
     mov bx, 0
     mov si, [cs:mcb_first]
@@ -1038,6 +1258,9 @@ int21_handler:
 .am_sl_done:
     mov ax, 8
 .am_err:
+    cmp word [cs:trace_left], 0
+    je .am_err_no_trace
+    dec word [cs:trace_left]
     push ax
     pusha
     push ds
@@ -1052,6 +1275,7 @@ int21_handler:
     pop ds
     popa
     pop ax
+.am_err_no_trace:
     pop si
     pop ds
     jmp iret_cy
@@ -1101,6 +1325,7 @@ int21_handler:
     push si
     push es
     push di
+    mov [cs:rm_req], bx
     mov si, es
     dec si
     mov ds, si
@@ -1171,18 +1396,42 @@ int21_handler:
     mov word [ds:3], bx
     pop es
 .rm_done:
+    cmp word [cs:trace_left], 0
+    je .rm_no_trace
+    dec word [cs:trace_left]
     pusha
     push ds
+    xor ax, ax
+    mov al, [ds:0]
+    push ax
+    mov ax, [ds:3]
+    push ax
+    mov ax, si
+    inc ax
+    push ax
     push cs
     pop ds
     mov si, msg_trace_resize
     call serial_print
-    mov ax, bx
+    pop ax
+    call serial_print_hex_word
+    mov si, msg_trace_size
+    call serial_print
+    pop ax
+    call serial_print_hex_word
+    mov si, msg_trace_sig
+    call serial_print
+    pop ax
+    call serial_print_hex_word
+    mov si, msg_trace_req
+    call serial_print
+    mov ax, [cs:rm_req]
     call serial_print_hex_word
     mov si, msg_crlf
     call serial_print
     pop ds
     popa
+.rm_no_trace:
     pop di
     pop es
     pop si
@@ -1192,18 +1441,42 @@ int21_handler:
     mov bx, ax
     mov ax, 8
 .rm_err:
+    cmp word [cs:trace_left], 0
+    je .rm_err_no_trace
+    dec word [cs:trace_left]
     pusha
     push ds
+    xor ax, ax
+    mov al, [ds:0]
+    push ax
+    mov ax, [ds:3]
+    push ax
+    mov ax, si
+    inc ax
+    push ax
     push cs
     pop ds
     mov si, msg_trace_resize
     call serial_print
-    mov ax, bx
+    pop ax
+    call serial_print_hex_word
+    mov si, msg_trace_size
+    call serial_print
+    pop ax
+    call serial_print_hex_word
+    mov si, msg_trace_sig
+    call serial_print
+    pop ax
+    call serial_print_hex_word
+    mov si, msg_trace_req
+    call serial_print
+    mov ax, [cs:rm_req]
     call serial_print_hex_word
     mov si, msg_trace_fail
     call serial_print
     pop ds
     popa
+.rm_err_no_trace:
     pop di
     pop es
     pop si
@@ -1222,8 +1495,60 @@ int21_handler:
     mov dl, 0
     jmp iret_nc
 .exec:
-    stc
+    cmp al, 3
+    je .exec_overlay
     mov ax, 1
+    jmp iret_cy
+.exec_overlay:
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov [cs:ov_param_off], bx
+    mov [cs:ov_param_seg], es
+    mov [cs:ov_path_off], dx
+    mov [cs:ov_path_seg], ds
+    mov bx, [cs:ov_param_off]
+    mov ax, [es:bx]
+    mov [cs:ov_load_seg], ax
+    mov ax, [es:bx+2]
+    mov [cs:ov_reloc_seg], ax
+    mov ds, [cs:ov_path_seg]
+    mov si, [cs:ov_path_off]
+    call resolve_path
+    jc .exec_overlay_nf
+    mov ax, [es:di+26]
+    mov [cs:ov_cluster], ax
+    mov ax, [es:di+28]
+    mov [cs:ov_size_lo], ax
+    call load_overlay_direct
+    jc .exec_overlay_err
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    xor ax, ax
+    jmp iret_nc
+.exec_overlay_nf:
+    mov word [cs:ov_status], 2
+    jmp .exec_overlay_pop_err
+.exec_overlay_err:
+    mov word [cs:ov_status], 1
+.exec_overlay_pop_err:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    mov ax, [cs:ov_status]
     jmp iret_cy
 .chdir:
     push ds
@@ -1285,6 +1610,9 @@ int21_handler:
     mov ax, 3
     jmp iret_cy
 .open_file:
+    cmp word [cs:trace_left], 0
+    je .of_no_path_trace
+    dec word [cs:trace_left]
     pusha
     push ds
     push si
@@ -1305,6 +1633,7 @@ int21_handler:
     pop si
     pop ds
     popa
+.of_no_path_trace:
     push ds
     push si
     push cx
@@ -1340,8 +1669,10 @@ int21_handler:
     mov [cs:di+handles+H_SIZE_HI], ax
     mov word [cs:di+handles+H_POS_LO], 0
     mov word [cs:di+handles+H_POS_HI], 0
-    mov word [cs:trace_left], 500
     pop ax
+    cmp word [cs:trace_left], 0
+    je .of_no_handle_trace
+    dec word [cs:trace_left]
     pusha
     push ds
     push cs
@@ -1359,6 +1690,7 @@ int21_handler:
     call serial_print
     pop ds
     popa
+.of_no_handle_trace:
     pop di
     pop cx
     pop si
@@ -1636,6 +1968,34 @@ int21_handler:
 .rf_err:
     mov ax, 6
     jmp iret_cy
+
+.write_file:
+    cmp bx, MAX_HANDLES
+    jae .wf_invalid
+    cmp bx, 5
+    jb .wf_stdio
+    mov ax, 5
+    jmp iret_cy
+.wf_invalid:
+    mov ax, 6
+    jmp iret_cy
+.wf_stdio:
+    push ds
+    push si
+    push cx
+    mov si, dx
+    mov [cs:wf_count], cx
+.wf_loop:
+    jcxz .wf_done
+    lodsb
+    call serial_putchar
+    loop .wf_loop
+.wf_done:
+    mov ax, [cs:wf_count]
+    pop cx
+    pop si
+    pop ds
+    jmp iret_nc
 
 .seek_file:
     cmp bx, MAX_HANDLES
@@ -2587,6 +2947,308 @@ read_sector:
     clc
     ret
 
+load_overlay_direct:
+    call overlay_read_first_sector
+    jc .err
+    push ds
+    mov ax, SEC_BUF
+    mov ds, ax
+    cmp word [0], 0x5A4D
+    je .mz
+    pop ds
+    mov word [cs:ov_skip], 0
+    mov ax, [cs:ov_size_lo]
+    mov [cs:ov_left], ax
+    mov ax, [cs:ov_load_seg]
+    mov [cs:ov_dst_seg], ax
+    mov word [cs:ov_dst_off], 0
+    call overlay_copy_range
+    ret
+.mz:
+    mov ax, [0x08]
+    mov cx, 4
+.hdr_shift:
+    shl ax, 1
+    loop .hdr_shift
+    mov [cs:ov_skip], ax
+    mov ax, [cs:ov_size_lo]
+    sub ax, [cs:ov_skip]
+    jc .mz_bad_pop
+    mov [cs:ov_left], ax
+    mov ax, [0x06]
+    mov [cs:ov_reloc_count], ax
+    mov ax, [0x18]
+    mov [cs:ov_reloc_off], ax
+    pop ds
+    mov ax, [cs:ov_load_seg]
+    mov [cs:ov_dst_seg], ax
+    mov word [cs:ov_dst_off], 0
+    call overlay_copy_range
+    jc .err
+    call overlay_apply_relocs
+    ret
+.mz_bad_pop:
+    pop ds
+.err:
+    stc
+    ret
+
+overlay_apply_relocs:
+    push ax
+    push bx
+    push cx
+    push ds
+    push es
+    push di
+    mov cx, [cs:ov_reloc_count]
+    test cx, cx
+    jz .done
+.loop:
+    call overlay_read_reloc_sector
+    jc .err
+    push ds
+    mov ax, SEC_BUF
+    mov ds, ax
+    mov bx, [cs:ov_reloc_off]
+    and bx, 511
+    cmp bx, 508
+    ja .entry_crosses_sector
+    mov di, [bx]
+    mov ax, [bx+2]
+    pop ds
+    add ax, [cs:ov_load_seg]
+    mov es, ax
+    mov ax, [es:di]
+    add ax, [cs:ov_reloc_seg]
+    mov [es:di], ax
+    add word [cs:ov_reloc_off], 4
+    loop .loop
+.done:
+    pop di
+    pop es
+    pop ds
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.entry_crosses_sector:
+    pop ds
+.err:
+    pop di
+    pop es
+    pop ds
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
+
+overlay_read_reloc_sector:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push es
+    mov si, [cs:ov_cluster]
+    mov ax, [cs:ov_reloc_off]
+    mov cx, 9
+.sector_shift:
+    shr ax, 1
+    loop .sector_shift
+    mov bx, ax
+.cluster_walk:
+    xor ch, ch
+    mov cl, [cs:kspc]
+    cmp bx, cx
+    jb .read_sector
+    sub bx, cx
+    call fat_next
+    cmp ax, 0xFF8
+    jae .err
+    cmp ax, 2
+    jb .err
+    mov si, ax
+    jmp .cluster_walk
+.read_sector:
+    mov ax, si
+    sub ax, 2
+    xor ch, ch
+    mov cl, [cs:kspc]
+    mul cx
+    add ax, bx
+    add ax, [cs:kdsta]
+    mov dx, SEC_BUF
+    mov es, dx
+    xor bx, bx
+    call read_sector
+    jc .err
+    pop es
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.err:
+    pop es
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
+
+overlay_read_first_sector:
+    push bx
+    push cx
+    push dx
+    push es
+    mov ax, [cs:ov_cluster]
+    cmp ax, 2
+    jb .err
+    sub ax, 2
+    xor ch, ch
+    mov cl, [cs:kspc]
+    mul cx
+    add ax, [cs:kdsta]
+    mov dx, SEC_BUF
+    mov es, dx
+    xor bx, bx
+    call read_sector
+    jc .err
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    clc
+    ret
+.err:
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    stc
+    ret
+
+overlay_copy_range:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    mov si, [cs:ov_cluster]
+    mov ax, [cs:ov_skip]
+    mov dx, ax
+    and dx, 511
+    mov [cs:ov_sector_offset], dx
+    mov cx, 9
+.sector_shift:
+    shr ax, 1
+    loop .sector_shift
+    mov bx, ax
+.skip_cluster_loop:
+    xor ch, ch
+    mov cl, [cs:kspc]
+    cmp bx, cx
+    jb .have_sector
+    sub bx, cx
+    call fat_next
+    cmp ax, 0xFF8
+    jae .err_pop
+    cmp ax, 2
+    jb .err_pop
+    mov si, ax
+    jmp .skip_cluster_loop
+.have_sector:
+    mov [cs:ov_sec_in_cluster], bx
+.copy_loop:
+    mov ax, [cs:ov_left]
+    test ax, ax
+    jz .done
+    cmp si, 0xFF8
+    jae .err_pop
+    cmp si, 2
+    jb .err_pop
+    push si
+    mov ax, si
+    sub ax, 2
+    xor ch, ch
+    mov cl, [cs:kspc]
+    mul cx
+    add ax, [cs:ov_sec_in_cluster]
+    add ax, [cs:kdsta]
+    mov dx, SEC_BUF
+    mov es, dx
+    xor bx, bx
+    call read_sector
+    pop si
+    jc .err_pop
+    mov cx, 512
+    sub cx, [cs:ov_sector_offset]
+    mov ax, [cs:ov_left]
+    cmp cx, ax
+    jbe .chunk_ok
+    mov cx, ax
+.chunk_ok:
+    mov [cs:ov_chunk], cx
+    push si
+    mov ax, SEC_BUF
+    mov ds, ax
+    mov si, [cs:ov_sector_offset]
+    mov ax, [cs:ov_dst_seg]
+    mov es, ax
+    mov di, [cs:ov_dst_off]
+    rep movsb
+    pop si
+    mov ax, [cs:ov_dst_off]
+    add ax, [cs:ov_chunk]
+    mov [cs:ov_dst_off], ax
+    jnc .dst_no_wrap
+    add word [cs:ov_dst_seg], 0x1000
+.dst_no_wrap:
+    mov ax, [cs:ov_chunk]
+    sub [cs:ov_left], ax
+    mov word [cs:ov_sector_offset], 0
+    inc word [cs:ov_sec_in_cluster]
+    xor ch, ch
+    mov cl, [cs:kspc]
+    cmp [cs:ov_sec_in_cluster], cx
+    jb .copy_loop
+    call fat_next
+    cmp ax, 0xFF8
+    jae .done
+    cmp ax, 2
+    jb .err_pop
+    mov si, ax
+    mov word [cs:ov_sec_in_cluster], 0
+    jmp .copy_loop
+.done:
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.err_pop:
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
+
 exec_com:
     mov byte [cs:ret_code], 0xFF
     mov word [cs:running], 1
@@ -2746,22 +3408,23 @@ setup_exe_dyn:
     mov cx, [cs:exe_reloc_count]
     test cx, cx
     jz .copy_image
-    push cx
     mov bx, [cs:exe_reloc_off]
     mov ax, [cs:prog_seg]
     add ax, 0x10
     mov ds, ax
-    push cs
-    pop es
-    mov di, reloc_buf
-.rl_save:
-    mov ax, [bx]
-    stosw
+.reloc_source:
+    push cx
+    mov di, [bx]
     mov ax, [bx+2]
-    stosw
+    add ax, [cs:exe_hdr_par]
+    add ax, [cs:exe_load_seg]
+    mov es, ax
+    mov ax, [es:di]
+    add ax, [cs:exe_load_seg]
+    mov [es:di], ax
     add bx, 4
-    loop .rl_save
     pop cx
+    loop .reloc_source
 
 .copy_image:
     mov ax, [cs:prog_seg]
@@ -2788,31 +3451,6 @@ setup_exe_dyn:
     pop cx
     loop .copy_par
 .copy_done:
-
-    mov cx, [cs:exe_reloc_count]
-    test cx, cx
-    jz .nr2
-
-    push cs
-    pop ds
-    mov si, reloc_buf
-.rl2:
-    push cx
-    mov di, [si]
-    mov ax, [si+2]
-
-    push ax
-    add ax, [cs:exe_load_seg]
-    mov es, ax
-    pop ax
-    mov ax, [es:di]
-    add ax, [cs:exe_load_seg]
-    mov [es:di], ax
-
-    add si, 4
-    pop cx
-    loop .rl2
-.nr2:
     push cs
     pop ds
     call exec_exe_dyn
@@ -3014,6 +3652,7 @@ msg_at:        db " at ", 0
 msg_trace_open: db "OPEN ", 0
 msg_trace_handle: db " -> H=", 0
 msg_trace_size: db " SIZE=", 0
+msg_trace_sig: db " SIG=", 0
 msg_trace_read: db "READ H=", 0
 msg_trace_close: db "CLOSE H=", 0
 msg_trace_seek: db "SEEK H=", 0
@@ -3023,6 +3662,8 @@ msg_trace_buf: db " BUF=", 0
 msg_trace_ret: db " -> ", 0
 msg_trace_fail: db " FAIL", 13, 10, 0
 msg_trace_alloc: db "ALLOC ", 0
+msg_trace_strategy: db " STRAT=", 0
+msg_trace_strategy_call: db "STRATEGY AX=", 0
 msg_trace_resize: db "RESIZE ", 0
 msg_reg_ax:    db " AX=", 0
 msg_reg_bx:    db " BX=", 0
@@ -3085,6 +3726,7 @@ rf_cache_lba:  dw 0
 rf_cache_valid: db 0
 rf_buf_off:    dw 0
 rf_buf_seg:    dw 0
+wf_count:      dw 0
 
 sf_origin: db 0
 sf_ret_lo: dw 0
@@ -3120,6 +3762,28 @@ mcb_first: dw 0
 cur_psp: dw 0
 alloc_strat: db 0
 am_req: dw 0
+am_best_seg: dw 0
+am_best_size: dw 0
+rm_req: dw 0
+
+ov_param_off: dw 0
+ov_param_seg: dw 0
+ov_path_off: dw 0
+ov_path_seg: dw 0
+ov_load_seg: dw 0
+ov_reloc_seg: dw 0
+ov_cluster: dw 0
+ov_size_lo: dw 0
+ov_skip: dw 0
+ov_left: dw 0
+ov_dst_seg: dw 0
+ov_dst_off: dw 0
+ov_sector_offset: dw 0
+ov_sec_in_cluster: dw 0
+ov_chunk: dw 0
+ov_reloc_count: dw 0
+ov_reloc_off: dw 0
+ov_status: dw 0
 
 prog_seg: dw 0
 prog_par: dw 0
@@ -3130,8 +3794,6 @@ copy_src_seg: dw 0
 copy_dst_seg: dw 0
 
 name_buf: times 11 db 0
-
-reloc_buf: times 256 dw 0
 
 handles: times MAX_HANDLES * HANDLE_SIZE db 0
 

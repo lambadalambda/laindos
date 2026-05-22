@@ -128,7 +128,7 @@ ld: cmp si,0xFF8
     movzx cx,byte[bpb+13]
     mul cx
     add ax,[dsta]
-    mov cx,1
+    movzx cx,byte[bpb+13]
     call rs
     pop si
     jc nf

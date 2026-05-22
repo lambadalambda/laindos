@@ -3,19 +3,37 @@ import sys
 import struct
 import os
 
-SECTOR_SIZE = 512
-TOTAL_SECTORS = 2880
-IMAGE_SIZE = SECTOR_SIZE * TOTAL_SECTORS
-
 BYTES_PER_SEC = 512
-SEC_PER_CLUS = 1
 RSVD_SEC_CNT = 1
 NUM_FATS = 2
-ROOT_ENT_CNT = 224
-FAT_SZ = 9
-SEC_PER_TRK = 18
-NUM_HEADS = 2
+FORMATS = {
+    '1440k': {
+        'total_sectors': 2880,
+        'sec_per_clus': 1,
+        'root_ent_cnt': 224,
+        'fat_sz': 9,
+        'sec_per_trk': 18,
+        'num_heads': 2,
+    },
+    '2880k': {
+        'total_sectors': 5760,
+        'sec_per_clus': 2,
+        'root_ent_cnt': 224,
+        'fat_sz': 9,
+        'sec_per_trk': 36,
+        'num_heads': 2,
+    },
+}
 
+fmt = FORMATS['1440k']
+SECTOR_SIZE = 512
+TOTAL_SECTORS = fmt['total_sectors']
+SEC_PER_CLUS = fmt['sec_per_clus']
+ROOT_ENT_CNT = fmt['root_ent_cnt']
+FAT_SZ = fmt['fat_sz']
+SEC_PER_TRK = fmt['sec_per_trk']
+NUM_HEADS = fmt['num_heads']
+IMAGE_SIZE = SECTOR_SIZE * TOTAL_SECTORS
 FAT_START = RSVD_SEC_CNT
 ROOT_START = FAT_START + NUM_FATS * FAT_SZ
 ROOT_SECS = (ROOT_ENT_CNT * 32 + BYTES_PER_SEC - 1) // BYTES_PER_SEC
@@ -79,13 +97,17 @@ class Fat12Image:
     def alloc_clusters(self, count):
         first = self.next_cluster
         self.next_cluster += count
+        max_cluster = (TOTAL_SECTORS - DATA_START) // SEC_PER_CLUS + 1
+        if self.next_cluster > max_cluster:
+            raise RuntimeError("disk image is full")
         for i in range(count):
             nxt = first + i + 1 if i < count - 1 else FAT12_EOC
             set_fat12_entry(self.fat, first + i, nxt)
         return first
 
     def add_file_to_root(self, name, ext, data, attr=0x20):
-        num_clusters = max(1, (len(data) + BYTES_PER_SEC - 1) // BYTES_PER_SEC)
+        cluster_bytes = BYTES_PER_SEC * SEC_PER_CLUS
+        num_clusters = max(1, (len(data) + cluster_bytes - 1) // cluster_bytes)
         first = self.alloc_clusters(num_clusters)
         for i in range(num_clusters):
             c = first + i
@@ -121,7 +143,8 @@ class Fat12Image:
         if dirname not in self.subdirs:
             self.add_subdir(dirname)
         sd = self.subdirs[dirname]
-        num_clusters = max(1, (len(data) + BYTES_PER_SEC - 1) // BYTES_PER_SEC)
+        cluster_bytes = BYTES_PER_SEC * SEC_PER_CLUS
+        num_clusters = max(1, (len(data) + cluster_bytes - 1) // cluster_bytes)
         first = self.alloc_clusters(num_clusters)
         for i in range(num_clusters):
             c = first + i
@@ -163,12 +186,34 @@ class Fat12Image:
 
 
 def main():
+    global fmt, TOTAL_SECTORS, SEC_PER_CLUS, ROOT_ENT_CNT, FAT_SZ
+    global SEC_PER_TRK, NUM_HEADS, IMAGE_SIZE, ROOT_START, ROOT_SECS, DATA_START
     if len(sys.argv) < 4:
         print(f"Usage: {sys.argv[0]} boot.bin kernel.bin disk.img [file1 ...]",
+              file=sys.stderr)
+        print("  Optional first argument: --format=1440k or --format=2880k",
               file=sys.stderr)
         print(f"  Files can be: FILE.EXT (root) or DIR/FILE.EXT (subdir)",
               file=sys.stderr)
         sys.exit(1)
+
+    if sys.argv[1].startswith('--format='):
+        fmt_name = sys.argv[1].split('=', 1)[1]
+        if fmt_name not in FORMATS:
+            print(f"Unknown format: {fmt_name}", file=sys.stderr)
+            sys.exit(1)
+        fmt = FORMATS[fmt_name]
+        TOTAL_SECTORS = fmt['total_sectors']
+        SEC_PER_CLUS = fmt['sec_per_clus']
+        ROOT_ENT_CNT = fmt['root_ent_cnt']
+        FAT_SZ = fmt['fat_sz']
+        SEC_PER_TRK = fmt['sec_per_trk']
+        NUM_HEADS = fmt['num_heads']
+        IMAGE_SIZE = SECTOR_SIZE * TOTAL_SECTORS
+        ROOT_START = FAT_START + NUM_FATS * FAT_SZ
+        ROOT_SECS = (ROOT_ENT_CNT * 32 + BYTES_PER_SEC - 1) // BYTES_PER_SEC
+        DATA_START = ROOT_START + ROOT_SECS
+        sys.argv.pop(1)
 
     boot_path = sys.argv[1]
     kernel_path = sys.argv[2]
@@ -176,11 +221,22 @@ def main():
     extra_files = sys.argv[4:]
 
     with open(boot_path, 'rb') as f:
-        boot_data = f.read()
+        boot_data = bytearray(f.read())
     if len(boot_data) != SECTOR_SIZE:
         print(f"Error: boot sector is {len(boot_data)} bytes, expected {SECTOR_SIZE}",
               file=sys.stderr)
         sys.exit(1)
+    struct.pack_into('<H', boot_data, 0x0B, BYTES_PER_SEC)
+    boot_data[0x0D] = SEC_PER_CLUS
+    struct.pack_into('<H', boot_data, 0x0E, RSVD_SEC_CNT)
+    boot_data[0x10] = NUM_FATS
+    struct.pack_into('<H', boot_data, 0x11, ROOT_ENT_CNT)
+    struct.pack_into('<H', boot_data, 0x13, TOTAL_SECTORS if TOTAL_SECTORS <= 0xFFFF else 0)
+    boot_data[0x15] = 0xF0
+    struct.pack_into('<H', boot_data, 0x16, FAT_SZ)
+    struct.pack_into('<H', boot_data, 0x18, SEC_PER_TRK)
+    struct.pack_into('<H', boot_data, 0x1A, NUM_HEADS)
+    struct.pack_into('<I', boot_data, 0x20, 0 if TOTAL_SECTORS <= 0xFFFF else TOTAL_SECTORS)
 
     with open(kernel_path, 'rb') as f:
         kernel_data = f.read()
@@ -235,7 +291,7 @@ def main():
     kclus = 2
     print(f"Created {output_path}: {IMAGE_SIZE} bytes, "
           f"kernel {len(kernel_data)} bytes in "
-          f"{max(1,(len(kernel_data)+511)//512)} cluster(s) at cluster {kclus}")
+          f"{max(1,(len(kernel_data)+(BYTES_PER_SEC * SEC_PER_CLUS)-1)//(BYTES_PER_SEC * SEC_PER_CLUS))} cluster(s) at cluster {kclus}")
 
 
 if __name__ == '__main__':

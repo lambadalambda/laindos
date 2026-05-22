@@ -72,6 +72,59 @@ image_start:
     mov ah, 0x48
     int 0x21
     jc .fail6
+    mov [block_a - image_start], ax
+
+    mov es, [block_a - image_start]
+    mov ah, 0x49
+    int 0x21
+    jc .fail3
+
+    mov bx, 0x0080
+    mov ah, 0x48
+    int 0x21
+    jc .fail7
+    mov [block_a - image_start], ax
+
+    mov bx, 0x0080
+    mov ah, 0x48
+    int 0x21
+    jc .fail7
+    mov [block_b - image_start], ax
+
+    mov es, [block_a - image_start]
+    mov ah, 0x49
+    int 0x21
+    jc .fail7
+
+    mov ax, 0x5801
+    mov bx, 0x0002
+    int 0x21
+    jc .fail7
+
+    mov bx, 0x0010
+    mov ah, 0x48
+    int 0x21
+    jc .fail7
+    mov [block_c - image_start], ax
+
+    mov ax, 0x5801
+    xor bx, bx
+    int 0x21
+    jc .fail7
+
+    mov ax, [block_c - image_start]
+    cmp ax, [block_b - image_start]
+    jbe .fail7
+
+    mov es, [block_c - image_start]
+    mov ah, 0x49
+    int 0x21
+    jc .fail7
+
+    mov es, [block_b - image_start]
+    mov ah, 0x49
+    int 0x21
+    jc .fail7
 
     mov dx, pass_msg - image_start
     mov ah, 0x09
@@ -104,6 +157,9 @@ image_start:
     jmp .print_fail
 .fail6:
     mov dx, fail6_msg - image_start
+    jmp .print_fail
+.fail7:
+    mov dx, fail7_msg - image_start
 .print_fail:
     mov ah, 0x09
     int 0x21
@@ -124,5 +180,6 @@ fail4_msg: db "FAIL: ALLOC2A$"
 fail4b_msg: db "FAIL: ALLOC2B$"
 fail5_msg: db "FAIL: FREE2$"
 fail6_msg: db "FAIL: MERGE$"
+fail7_msg: db "FAIL: STRATEGY$"
 
 file_end:
