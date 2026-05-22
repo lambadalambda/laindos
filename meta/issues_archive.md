@@ -4,4 +4,7 @@
 - [x] [Phase 3: MZ .EXE Loader](issues/phase3-mz-exe-loader.md)
 - [x] [Phase 4: Filesystem Handles](issues/phase4-filesystem-handles.md)
 - [x] [Phase 5: DOS Memory Allocator](issues/phase5-dos-memory-allocator.md)
+- [x] [Phase 6: Direct Boot into Monkey Island](issues/phase6-boot-monkey-island.md)
+- [x] [Phase 7: Implement Missing Calls Until Visible Start](issues/phase7-missing-calls-for-start.md)
 - [x] [Phase 8: Built-in INT 33h Mouse Support](issues/phase8-built-in-int33h-mouse-support.md)
+- [x] [Phase 11: Parent/Child EXEC](issues/phase11-parent-child-exec.md)
