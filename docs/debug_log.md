@@ -69,3 +69,37 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Add automated runs for `close.exe` and `regtest.exe`; they currently require building a kernel with the selected `BOOT_FILE` value.
 - Add a repeatable Monkey smoke test around `build/monkey.img` if a stable serial or screendump marker can be checked.
 - Reduce remaining file/allocation serial tracing when it is no longer useful for Monkey bring-up.
+
+## 2026-05-22 Mouse Support Bring-Up
+
+### Confirmed Facts
+
+- Current Monkey Island mouse trace starts with `INT 33h AX=0000`, then repeatedly polls `AX=0005` and `AX=000B`.
+- `AX=0005` is button-press data; returning zero counts is sufficient when no button has been pressed.
+- `AX=000B` is motion counter data; it must return accumulated motion and reset the counters.
+- QEMU HMP reports an active `QEMU PS/2 Mouse` with `info mice`.
+- Direct polling after `F6`/`F4` PS/2 mouse enable did not receive HMP-injected `mouse_move` events.
+- Enabling IRQ12 delivery after the `F6`/`F4` ACK handshake made HMP-injected `mouse_move 40 0` visible to the guest.
+- Reading the i8042 command byte with controller command `0x20` timed out in this environment; the current working path uses `0xA8`, mouse `F6`/`F4`, then writes command byte `0x47` to enable keyboard and aux IRQ delivery.
+
+### Fixes Made During Investigation
+
+- Added `src/mousetest.asm` for the software `INT 33h` API: reset/install, set/get position, range clamping, show/hide, button press query, and motion counters.
+- Added a built-in `INT 33h` state machine for `AX=0000`, `0001`, `0002`, `0003`, `0004`, `0005`, `0007`, `0008`, `000B`, and `000C` callback address storage.
+- Added PS/2 mouse initialization and packet decoding for standard 3-byte packets.
+- Added an IRQ12 handler at `INT 74h` that feeds mouse bytes into the packet decoder and sends EOIs to both PICs.
+- Added `src/mousehw.asm`, an optional hardware probe that waits for non-zero motion from `INT 33h AX=000B`.
+
+### Tests And Probes Run
+
+- `make test` passed with the mouse code included in the default disk image.
+- `mousetest` image booted with `BOOT_FILE="MOUSE   EXE"` and printed `PASS: MOUSE`.
+- `mousehw` image booted with `BOOT_FILE="MOUSEHW EXE"`; a QEMU monitor `mouse_move 40 0` injection produced `PASS: MOUSEHW`.
+- Monkey image booted with `PS2 mouse enabled`; serial trace showed `INT 33h AX=0000`, repeated `AX=0005`, and repeated `AX=000B`, with no `File not found` or exception during the sampled window.
+
+### Follow-Ups
+
+- Verify real interactive mouse movement in a graphical QEMU run, not just HMP injection under `-nographic`.
+- Decide whether to keep always-on `INT 33h` serial tracing or gate it behind a build flag once Phase 8 stabilizes.
+- Revisit i8042 command-byte read/write handling if targeting hardware or emulators stricter than QEMU.
+- Implement `INT 33h AX=0006` release data and `AX=000Ch` callback invocation if the game needs edge-triggered release or callback behavior.
