@@ -104,6 +104,55 @@ start:
     int 0x21
     jc fail_close
 
+    mov dx, dst_name
+    mov ah, 0x41
+    int 0x21
+    jc fail_delete
+
+    mov dx, dst_name
+    xor al, al
+    mov ah, 0x3D
+    int 0x21
+    jnc fail_delete
+
+    mov dx, reuse_name
+    xor cx, cx
+    mov ah, 0x3C
+    int 0x21
+    jc fail_create
+    mov [handle], ax
+
+    mov bx, ax
+    mov dx, pattern
+    mov cx, pattern_size
+    mov ah, 0x40
+    int 0x21
+    jc fail_write
+    cmp ax, pattern_size
+    jne fail_write
+
+    mov bx, [handle]
+    mov ah, 0x3E
+    int 0x21
+    jc fail_close
+
+    mov dx, readonly_name
+    mov cx, 1
+    mov ah, 0x3C
+    int 0x21
+    jc fail_create
+    mov [handle], ax
+
+    mov bx, [handle]
+    mov ah, 0x3E
+    int 0x21
+    jc fail_close
+
+    mov dx, readonly_name
+    mov ah, 0x41
+    int 0x21
+    jnc fail_delete_readonly
+
     mov dx, pass_msg
     mov ah, 0x09
     int 0x21
@@ -161,6 +210,12 @@ fail_rename:
     jmp print_fail
 fail_date:
     mov dx, fail_date_msg
+    jmp print_fail
+fail_delete:
+    mov dx, fail_delete_msg
+    jmp print_fail
+fail_delete_readonly:
+    mov dx, fail_delete_readonly_msg
 print_fail:
     mov ah, 0x09
     int 0x21
@@ -169,6 +224,8 @@ print_fail:
 
 src_name: db "SAVEWR.DAT", 0
 dst_name: db "SAVEDONE.DAT", 0
+reuse_name: db "REUSED.DAT", 0
+readonly_name: db "READONLY.DAT", 0
 pass_msg: db "PASS: SAVEWRITE", 13, 10, "$"
 fail_create_msg: db "FAIL: CREATE", 13, 10, "$"
 fail_write_msg: db "FAIL: WRITEFILE", 13, 10, "$"
@@ -178,6 +235,8 @@ fail_read_msg: db "FAIL: READ", 13, 10, "$"
 fail_compare_msg: db "FAIL: COMPARE", 13, 10, "$"
 fail_rename_msg: db "FAIL: RENAME", 13, 10, "$"
 fail_date_msg: db "FAIL: DATE", 13, 10, "$"
+fail_delete_msg: db "FAIL: DELETE", 13, 10, "$"
+fail_delete_readonly_msg: db "FAIL: DELETE READONLY", 13, 10, "$"
 handle: dw 0
 pattern_size equ 700
 pattern: times pattern_size db 0

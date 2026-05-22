@@ -291,6 +291,8 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Expanded file-handle metadata to track directory entry LBA/offset and date/time fields.
 - Added root-directory `AH=3Ch` create/truncate, close-time directory size/cluster flush, regular-handle `AH=40h` sequential writes, `AH=56h` root rename, and `AH=57h` get/set file date/time.
 - Added `src/savewr.asm` and `scripts/test_savewrite.py`; the test writes a 700-byte pattern across two clusters, closes, reopens, verifies date/time and contents, renames the file, and verifies the mutated disk image on the host.
+- Added root-directory `AH=41h` delete with FAT chain freeing and extended `SAVEWR.COM` to delete the renamed file, verify it no longer opens, create a replacement file, and verify the replacement persists on disk.
+- After review, changed delete ordering to flush the deleted directory entry before freeing FAT clusters, rejected read-only files, and rejected deletion while a matching file handle is still open.
 
 ### Tests Run
 
@@ -299,8 +301,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - `python3 scripts/build_monkey.py` plus a 15-second direct Monkey serial smoke passed, reaching `INT 33h AX=0000`.
 - `python3 scripts/build_mi2.py` plus a 15-second direct MI2 serial smoke passed with no serial failure markers.
 - `python3 scripts/test_savewrite.py`, `make test`, and direct Monkey/MI2 serial smokes passed again after the review fixes.
+- `python3 scripts/test_savewrite.py` failed before delete support on unhandled `AH=41h`; after implementation, `python3 scripts/test_savewrite.py`, `make test`, and direct Monkey/MI2 serial smokes passed.
+- `python3 scripts/test_savewrite.py`, `make test`, and direct Monkey/MI2 serial smokes passed again after the delete review fixes.
 
 ### Follow-Ups
 
 - Phase 9 remains open until actual Monkey save/load is verified interactively.
-- General writable FAT work still needs `AH=41h` delete, subdirectory create/write/rename support, directory extension, and seek-gap zero filling.
+- General writable FAT work still needs subdirectory create/write/rename/delete support, directory extension, and seek-gap zero filling.

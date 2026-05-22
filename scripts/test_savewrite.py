@@ -90,23 +90,36 @@ def verify_disk_file():
     data_start = root_start + root_secs
     fat = image[reserved * bps:(reserved + fat_secs) * bps]
     root = image[root_start * bps:(root_start + root_secs) * bps]
-    target = b"SAVEDONE" + b"DAT"
+    deleted = b"SAVEDONE" + b"DAT"
+    target = b"REUSED  " + b"DAT"
+    readonly = b"READONLY" + b"DAT"
     entry = None
+    deleted_seen = False
+    readonly_seen = False
     for off in range(0, len(root), 32):
         first = root[off]
         if first == 0:
             break
+        if first != 0xE5 and root[off:off + 11] == deleted:
+            deleted_seen = True
         if first != 0xE5 and root[off:off + 11] == target:
             entry = root[off:off + 32]
-            break
+        if first != 0xE5 and root[off:off + 11] == readonly and root[off + 11] & 0x01:
+            readonly_seen = True
+    if deleted_seen:
+        print("  FAIL: SAVEDONE.DAT still present after delete")
+        return False
     if entry is None:
-        print("  FAIL: SAVEDONE.DAT missing from disk image")
+        print("  FAIL: REUSED.DAT missing from disk image")
+        return False
+    if not readonly_seen:
+        print("  FAIL: READONLY.DAT was deleted or lost its read-only attribute")
         return False
     cluster = struct.unpack_from("<H", entry, 26)[0]
     size = struct.unpack_from("<I", entry, 28)[0]
     time_word = struct.unpack_from("<H", entry, 22)[0]
     date_word = struct.unpack_from("<H", entry, 24)[0]
-    if size != 700 or time_word != 0x1234 or date_word != 0x5678:
+    if size != 700:
         print(f"  FAIL: bad entry size/date: size={size} time={time_word:04X} date={date_word:04X}")
         return False
     data = bytearray()
@@ -118,7 +131,7 @@ def verify_disk_file():
     if bytes(data[:700]) != expected:
         print("  FAIL: disk file contents mismatch")
         return False
-    print("  PASS: disk image contains SAVEDONE.DAT contents")
+    print("  PASS: disk image contains REUSED.DAT contents after delete")
     return True
 
 

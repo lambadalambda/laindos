@@ -33,6 +33,7 @@ MAX_HANDLES equ 20
 SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
 
+ATTR_RDONLY equ 0x01
 ATTR_VOLUME equ 0x08
 ATTR_DIR equ 0x10
 ROOT_ENT_CNT equ 224
@@ -896,6 +897,8 @@ int21_handler:
     je .read_file
     cmp ah, 0x40
     je .write_file
+    cmp ah, 0x41
+    je .delete_file
     cmp ah, 0x42
     je .seek_file
     cmp ah, 0x43
@@ -2592,6 +2595,68 @@ int21_handler:
     pop ds
     jmp iret_nc
 
+.delete_file:
+    push ds
+    push si
+    push es
+    push di
+    push bx
+    push cx
+    mov si, dx
+    call parse_root_path
+    jc .df_path_err
+    mov byte [cs:ff_attr_mask], 0
+    mov ax, ROOT_CLUSTER
+    call find_in_dir
+    jc .df_not_found
+    test byte [es:di+11], ATTR_DIR
+    jnz .df_access
+    mov ax, [cs:ff_entry_idx]
+    mov cx, ax
+    call root_entry_loc_from_cx
+    test byte [es:di+11], ATTR_RDONLY
+    jnz .df_access
+    call entry_has_open_handle
+    jc .df_access
+    mov si, [es:di+26]
+    mov [cs:df_first_cluster], si
+    mov byte [es:di], 0xE5
+    mov ax, [cs:ff_entry_lba]
+    call flush_root_sector
+    jc .df_io_err
+    mov si, [cs:df_first_cluster]
+    call fat_free_chain
+    call flush_fat
+    jc .df_io_err
+    pop cx
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+    jmp iret_nc
+.df_not_found:
+    mov ax, 2
+    jmp .df_err
+.df_path_err:
+    mov ax, 3
+    jmp .df_err
+.df_access:
+    mov ax, 5
+    jmp .df_err
+.df_io_err:
+    mov ax, 5
+.df_err:
+    mov [cs:df_status], ax
+    pop cx
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+    mov ax, [cs:df_status]
+    jmp iret_cy
+
 .seek_file:
     cmp bx, MAX_HANDLES
     jae .sf_err
@@ -4270,6 +4335,36 @@ store_handle_dir_fields:
     pop ax
     ret
 
+entry_has_open_handle:
+    push ax
+    push bx
+    push cx
+    xor bx, bx
+    mov cx, MAX_HANDLES
+.loop:
+    cmp byte [cs:bx+handles+H_USED], 0
+    je .next
+    mov ax, [cs:ff_entry_lba]
+    cmp [cs:bx+handles+H_DIR_LBA], ax
+    jne .next
+    mov ax, [cs:ff_entry_off]
+    cmp [cs:bx+handles+H_DIR_OFF], ax
+    je .found
+.next:
+    add bx, HANDLE_SIZE
+    loop .loop
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.found:
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
+
 wf_get_cluster:
     push ax
     push bx
@@ -5624,6 +5719,8 @@ rn_status: dw 0
 ft_mode: db 0
 ft_time: dw 0
 ft_date: dw 0
+df_status: dw 0
+df_first_cluster: dw 0
 
 pr_abs: db 0
 pr_name_off: dw 0
