@@ -243,6 +243,75 @@ start:
     int 0x21
     jc fail_close
 
+    mov dx, path_src_name
+    xor cx, cx
+    mov ah, 0x3C
+    int 0x21
+    jc fail_create
+    mov [handle], ax
+
+    mov bx, ax
+    mov dx, pattern
+    mov cx, pattern_size
+    mov ah, 0x40
+    int 0x21
+    jc fail_write
+    cmp ax, pattern_size
+    jne fail_write
+
+    mov bx, [handle]
+    mov ah, 0x3E
+    int 0x21
+    jc fail_close
+
+    push cs
+    pop es
+    mov dx, path_src_name
+    mov di, path_done_name
+    mov ah, 0x56
+    int 0x21
+    jc fail_rename
+
+    mov dx, path_src_name
+    xor al, al
+    mov ah, 0x3D
+    int 0x21
+    jnc fail_rename
+
+    mov dx, path_done_name
+    xor al, al
+    mov ah, 0x3D
+    int 0x21
+    jc fail_open
+    mov [handle], ax
+
+    mov bx, ax
+    mov dx, read_buf
+    mov cx, pattern_size
+    mov ah, 0x3F
+    int 0x21
+    jc fail_read
+    cmp ax, pattern_size
+    jne fail_read
+    call compare_pattern
+    jc fail_compare
+
+    mov bx, [handle]
+    mov ah, 0x3E
+    int 0x21
+    jc fail_close
+
+    mov dx, path_done_name
+    mov ah, 0x41
+    int 0x21
+    jc fail_delete
+
+    mov dx, path_done_name
+    xor al, al
+    mov ah, 0x3D
+    int 0x21
+    jnc fail_delete
+
     mov dx, subdir_name
     mov ah, 0x3B
     int 0x21
@@ -526,6 +595,8 @@ reuse_name: db "REUSED.DAT", 0
 readonly_name: db "READONLY.DAT", 0
 stale_name: db "STALE.DAT", 0
 gap_name: db "GAP.DAT", 0
+path_src_name: db "MIDEMO\PATHSAVE.DAT", 0
+path_done_name: db "MIDEMO\PATHDONE.DAT", 0
 subdir_name: db "MIDEMO", 0
 root_path: db "\", 0
 subtest_name: db "SUBTEST.DAT", 0

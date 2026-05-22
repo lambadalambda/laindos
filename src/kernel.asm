@@ -3960,42 +3960,106 @@ parse_root_path:
     push bx
     push dx
     mov byte [cs:pr_abs], 0
+    mov [cs:pr_path_off], si
     mov ax, [cs:cur_dir_cluster]
     mov [cs:pr_dir_cluster], ax
-    cmp byte [ds:si], 'A'
-    jb .check_sep
-    cmp byte [ds:si], 'Z'
-    ja .check_sep
-    cmp byte [ds:si+1], ':'
-    jne .check_sep
-    add si, 2
-.check_sep:
-    cmp byte [ds:si], '\'
-    je .sep
-    cmp byte [ds:si], '/'
-    jne .after_sep
-.sep:
-    mov byte [cs:pr_abs], 1
-    mov word [cs:pr_dir_cluster], ROOT_CLUSTER
-    inc si
-    jmp .check_sep
-.after_sep:
-    cmp byte [ds:si], 0
-    je .err
-    mov [cs:pr_name_off], si
+    mov word [cs:pr_last_sep], 0xFFFF
     mov bx, si
+    cmp byte [ds:bx], 'A'
+    jb .scan
+    cmp byte [ds:bx], 'Z'
+    ja .scan
+    cmp byte [ds:bx+1], ':'
+    jne .scan
+    add bx, 2
 .scan:
     mov al, [ds:bx]
     test al, al
-    jz .parse
+    jz .scan_done
     cmp al, '\'
-    je .err
+    je .saw_sep
     cmp al, '/'
-    je .err
+    jne .scan_next
+.saw_sep:
+    mov [cs:pr_last_sep], bx
+.scan_next:
     inc bx
     jmp .scan
+.scan_done:
+    mov bx, [cs:pr_last_sep]
+    cmp bx, 0xFFFF
+    jne .have_parent
+    mov si, [cs:pr_path_off]
+    cmp byte [ds:si], 'A'
+    jb .no_parent_name
+    cmp byte [ds:si], 'Z'
+    ja .no_parent_name
+    cmp byte [ds:si+1], ':'
+    jne .no_parent_name
+    add si, 2
+.no_parent_name:
+    cmp byte [ds:si], 0
+    je .err
+    jmp .parse
+.have_parent:
+    cmp byte [ds:bx+1], 0
+    je .err
+    mov si, [cs:pr_path_off]
+    cmp byte [ds:si], 'A'
+    jb .root_check
+    cmp byte [ds:si], 'Z'
+    ja .root_check
+    cmp byte [ds:si+1], ':'
+    jne .root_check
+    add si, 2
+.root_check:
+    cmp si, bx
+    jae .parent_root
+    mov al, [ds:si]
+    cmp al, '\'
+    je .root_check_next
+    cmp al, '/'
+    jne .resolve_parent
+.root_check_next:
+    inc si
+    jmp .root_check
+.parent_root:
+    mov word [cs:pr_dir_cluster], ROOT_CLUSTER
+    mov byte [cs:pr_abs], 1
+    mov si, bx
+    inc si
+    jmp .parse
+.resolve_parent:
+    mov al, [ds:bx]
+    mov [cs:pr_sep_char], al
+    mov byte [ds:bx], 0
+    mov si, [cs:pr_path_off]
+    cmp byte [ds:si], '\'
+    je .set_abs_parent
+    cmp byte [ds:si], '/'
+    je .set_abs_parent
+    cmp byte [ds:si], 'A'
+    jb .call_resolve_parent
+    cmp byte [ds:si], 'Z'
+    ja .call_resolve_parent
+    cmp byte [ds:si+1], ':'
+    jne .call_resolve_parent
+.set_abs_parent:
+    mov byte [cs:pr_abs], 1
+.call_resolve_parent:
+    call resolve_path
+    mov bx, [cs:pr_last_sep]
+    mov al, [cs:pr_sep_char]
+    mov [ds:bx], al
+    jc .err
+    test byte [es:di+11], ATTR_DIR
+    jz .err
+    mov ax, [es:di+26]
+    mov [cs:pr_dir_cluster], ax
+    mov si, [cs:pr_last_sep]
+    inc si
 .parse:
-    mov si, [cs:pr_name_off]
+    mov [cs:pr_name_off], si
     call parse_83name
     pop dx
     pop bx
@@ -6007,6 +6071,9 @@ df_first_cluster: dw 0
 pr_abs: db 0
 pr_name_off: dw 0
 pr_dir_cluster: dw 0
+pr_path_off: dw 0
+pr_last_sep: dw 0
+pr_sep_char: db 0
 
 dir_flush_lba: dw 0
 dir_update_hoff: dw 0

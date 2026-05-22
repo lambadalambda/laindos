@@ -30,4 +30,5 @@ Generalize FAT writes beyond minimal std-handle support so shell commands and ga
 - Subdirectory lookup and free-entry scanning now cover every sector in each directory cluster, covered by a 2.88 MB `SAVEWR.COM` image that forces entries into the second directory sector.
 - Full subdirectories now extend by allocating, zeroing, linking, and flushing a new directory cluster; covered by forcing `MIDEMO/SUBUSED.DAT` into an extended directory cluster.
 - Seek-past-EOF writes now zero-fill gaps before writing caller data, covered by `GAP.DAT` reusing a stale freed cluster.
-- Remaining gaps include actual Monkey load validation and multi-component write paths such as `DIR\FILE.DAT`.
+- Multi-component create/delete/rename paths such as `DIR\FILE.DAT` now resolve the parent directory and operate on the final path component; covered by `MIDEMO\PATHSAVE.DAT` regression coverage.
+- Remaining gap is actual Monkey load validation.

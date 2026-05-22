@@ -387,6 +387,26 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Seek-past-EOF zero filling remains deferred.
 - Multi-component write paths such as `DIR\FILE.DAT` remain unsupported.
 
+## 2026-05-22 Multi-Component Write Paths
+
+### Confirmed Facts
+
+- Adding a root-launched regression that creates `MIDEMO\PATHSAVE.DAT`, renames it to `MIDEMO\PATHDONE.DAT`, reads it back, and deletes it failed at `FAIL: CREATE` before the write-path parser was generalized.
+
+### Fixes Made During Investigation
+
+- Reworked `parse_root_path` so write APIs resolve the parent path up to the final separator, then parse the final 8.3 filename component.
+- `AH=3Ch` create/truncate, `AH=41h` delete, and `AH=56h` rename now accept multi-component paths while preserving same-directory-only rename behavior.
+- Extended `SAVEWR.COM` and host verification to ensure the multi-component test files do not remain after rename/delete.
+
+### Tests Run
+
+- `python3 scripts/test_savewrite.py` reproduced the multi-component create failure before the implementation and passed after parent-directory resolution was added.
+
+### Follow-Ups
+
+- Actual Monkey load validation remains open.
+
 ## 2026-05-22 Seek Gap Zero Fill
 
 ### Confirmed Facts

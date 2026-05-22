@@ -212,6 +212,12 @@ def verify_disk_file():
     if find_entry(midemo_dir, b"SUBDONE " + b"DAT") is not None:
         print("  FAIL: MIDEMO/SUBDONE.DAT still present after delete")
         return False
+    if find_entry(midemo_dir, b"PATHSAVE" + b"DAT") is not None:
+        print("  FAIL: MIDEMO/PATHSAVE.DAT still present after rename")
+        return False
+    if find_entry(midemo_dir, b"PATHDONE" + b"DAT") is not None:
+        print("  FAIL: MIDEMO/PATHDONE.DAT still present after delete")
+        return False
     sub_entry_off = find_entry_offset(midemo_dir, b"SUBUSED " + b"DAT")
     if sub_entry_off is not None and sub_entry_off < bps * spc:
         print("  FAIL: MIDEMO/SUBUSED.DAT was not created in an extended directory cluster")
