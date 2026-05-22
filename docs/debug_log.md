@@ -415,12 +415,14 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - The full VGA files do not fit in the existing 2.88 MB floppy format.
 - A 10 MB FAT12 image with 8 sectors per cluster keeps the cluster count within FAT12 limits and fits the full game files.
 - Booting the 10 MB raw image as a hard disk works with the existing BIOS-drive boot path: SeaBIOS loads sector 0 as `DL=80h`, LainDOS boots, loads `MONKEY.EXE`, and the full game reaches `INT 33h AX=0000` mouse initialization.
+- User verified the full VGA image runs interactively with VGA output. Pressing `F5` did not open the save menu during that run, so real save/load validation remains open under Phase 9.
 
 ### Fixes Made During Investigation
 
 - Added an `hd10m` `mkimage.py` format with hard-disk media byte and CHS geometry.
 - Added `scripts/build_monkey_full.py` to extract `vendor/monkey_full.zip` into `build/` and build `build/monkey_full.img` without committing game data.
 - Added `scripts/test_monkey_full.py` to build the image, boot it as a hard disk, and assert serial startup markers.
+- Added `mise run run-monkey-full` for launching the full VGA image interactively.
 
 ### Tests Run
 
@@ -431,8 +433,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Follow-Ups
 
-- Run interactively without `-nographic` to validate visible gameplay and real save/load behavior on the full VGA image.
-- Decide whether a partitioned hard-disk image is needed later; current startup works as an unpartitioned FAT12 hard-disk-style image.
+- Investigate the correct full-game save/load key path or missing input behavior if `F5` remains inactive.
 
 ## 2026-05-22 Seek Gap Zero Fill
 

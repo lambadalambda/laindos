@@ -10,3 +10,4 @@
 - [x] [Phase 10: Minimal Command Shell](issues/phase10-minimal-command-shell.md)
 - [x] [Phase 11: Parent/Child EXEC](issues/phase11-parent-child-exec.md)
 - [x] [Phase 12: Console API Completion](issues/phase12-console-api-completion.md)
+- [x] [Phase 18: Boot Full VGA Monkey Island](issues/phase18-boot-full-vga-monkey-island.md)

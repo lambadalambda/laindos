@@ -24,3 +24,4 @@ Implement file creation, writing, closing, renaming, and date/time functions so 
 ## Notes
 
 - User reported an interactive save attempt produced a working record file, confirming practical game-side file creation/write behavior. Keep the phase open until load behavior is verified and the saved-file format/flow is understood.
+- Full VGA Monkey Island boots and runs interactively from `build/monkey_full.img`, but user reported `F5` did not open the save menu. Save/load validation remains open.

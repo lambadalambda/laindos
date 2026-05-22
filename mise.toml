@@ -10,6 +10,10 @@ run = "make"
 description = "Boot LainDOS in QEMU with serial output"
 run = "make run"
 
+[tasks.run-monkey-full]
+description = "Boot full VGA Monkey Island in QEMU"
+run = "python3 scripts/build_monkey_full.py && qemu-system-i386 -drive file=build/monkey_full.img,format=raw -boot order=c -serial stdio -monitor none"
+
 [tasks.clean]
 description = "Remove build artifacts"
 run = "make clean"

@@ -26,4 +26,4 @@ Boot the full VGA version of The Secret of Monkey Island from `vendor/monkey_ful
 - Initial bring-up uses an unpartitioned 10 MB FAT12 hard-disk-style image (`--format=hd10m`) booted as BIOS drive `80h`.
 - Image parameters: 20,480 sectors, 8 sectors per cluster, 224 root entries, 8 sectors per FAT, CHS 63 sectors/track and 16 heads, media byte `0xF8`, drive byte `0x80`.
 - `scripts/test_monkey_full.py` currently verifies boot, `MONKEY.EXE` load, and `INT 33h AX=0000` mouse initialization in serial output.
-- Interactive visible gameplay and full save/load validation remain to be checked without `-nographic`.
+- Interactive visible gameplay is verified. Full save/load validation remains under Phase 9 because `F5` did not open the save menu in the user's full VGA run.
