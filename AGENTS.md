@@ -18,6 +18,7 @@ LainDOS is a tiny single-tasking DOS implementation targeting x86 real mode. Its
 
 - Before committing any change, request a code review using the `code-reviewer-zai` agent.
 - Do not commit until the review is incorporated or explicitly waived.
+- After the review is incorporated or explicitly waived and the relevant checks pass, agents may commit without asking for additional approval.
 
 ### Ask advisors when you need help
 
