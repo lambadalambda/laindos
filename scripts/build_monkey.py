@@ -24,6 +24,7 @@ def main():
         ("src/regtest.asm", f"{BUILDDIR}/regtest.exe"),
         ("src/mousetest.asm", f"{BUILDDIR}/mouse.exe"),
         ("src/mousehw.asm", f"{BUILDDIR}/mousehw.exe"),
+        ("src/miiotest.asm", f"{BUILDDIR}/miiotest.exe"),
     ]:
         cmd = ["nasm", "-f", "bin", src, "-o", out]
         if src == "src/kernel.asm":
@@ -51,6 +52,7 @@ def main():
         f"{BUILDDIR}/regtest.exe",
         f"{BUILDDIR}/mouse.exe",
         f"{BUILDDIR}/mousehw.exe",
+        f"{BUILDDIR}/miiotest.exe",
         f"{BUILDDIR}/testfile.dat",
         f"MIDEMO:{BUILDDIR}/subtest.dat",
     ]

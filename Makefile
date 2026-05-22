@@ -15,6 +15,7 @@ CLOSETEST := $(BUILDDIR)/close.exe
 REGTEST   := $(BUILDDIR)/regtest.exe
 MOUSETEST := $(BUILDDIR)/mouse.exe
 MOUSEHW   := $(BUILDDIR)/mousehw.exe
+MIIOTEST  := $(BUILDDIR)/miiotest.exe
 TESTFILE  := $(BUILDDIR)/testfile.dat
 DISK_IMG := $(BUILDDIR)/disk.img
 
@@ -62,12 +63,16 @@ $(MOUSEHW): $(SRCDIR)/mousehw.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
+$(MIIOTEST): $(SRCDIR)/miiotest.asm
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
 $(TESTFILE): scripts/mktestfile.py
 	@mkdir -p $(BUILDDIR)
 	$(PYTHON) $< $@
 
-$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(TESTFILE)
-	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(TESTFILE) MIDEMO:build/subtest.dat
+$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(TESTFILE)
+	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(TESTFILE) MIDEMO:build/subtest.dat
 
 run: $(DISK_IMG)
 	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic
