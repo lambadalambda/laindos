@@ -275,3 +275,32 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - `make test` passed.
 - `python3 scripts/build_monkey.py` plus a 15-second direct Monkey serial smoke passed, reaching `INT 33h AX=0000`.
 - `python3 scripts/build_mi2.py` plus a 15-second direct MI2 serial smoke passed with no serial failure markers.
+
+## 2026-05-22 Save-Write FAT Bring-Up
+
+### Confirmed Facts
+
+- Phase 9 had no regular file create/write path: `AH=3Ch` was unhandled and `AH=40h` returned access denied for non-stdio handles.
+- A new `SAVEWR.COM` regression failed before implementation at `INT 21h AH=3Ch`, confirming the test covered the missing API path.
+- Root-directory save files are enough for the current direct-boot Monkey image layout; subdirectory create/rename/delete remains Phase 13 territory.
+
+### Fixes Made During Investigation
+
+- Added `write_sector` using BIOS `INT 13h AH=03h` with the same CHS geometry and retry path as reads.
+- Added FAT12 mutation helpers for setting entries, allocating clusters, freeing a chain on create/truncate, and flushing both FAT copies.
+- Expanded file-handle metadata to track directory entry LBA/offset and date/time fields.
+- Added root-directory `AH=3Ch` create/truncate, close-time directory size/cluster flush, regular-handle `AH=40h` sequential writes, `AH=56h` root rename, and `AH=57h` get/set file date/time.
+- Added `src/savewr.asm` and `scripts/test_savewrite.py`; the test writes a 700-byte pattern across two clusters, closes, reopens, verifies date/time and contents, renames the file, and verifies the mutated disk image on the host.
+
+### Tests Run
+
+- `python3 scripts/test_savewrite.py` failed before implementation on unhandled `AH=3Ch` and passed after the write path was added.
+- `make test` passed with `scripts/test_savewrite.py` wired into the ladder.
+- `python3 scripts/build_monkey.py` plus a 15-second direct Monkey serial smoke passed, reaching `INT 33h AX=0000`.
+- `python3 scripts/build_mi2.py` plus a 15-second direct MI2 serial smoke passed with no serial failure markers.
+- `python3 scripts/test_savewrite.py`, `make test`, and direct Monkey/MI2 serial smokes passed again after the review fixes.
+
+### Follow-Ups
+
+- Phase 9 remains open until actual Monkey save/load is verified interactively.
+- General writable FAT work still needs `AH=41h` delete, subdirectory create/write/rename support, directory extension, and seek-gap zero filling.

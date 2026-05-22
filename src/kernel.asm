@@ -15,7 +15,7 @@ TEMP_SEG  equ 0x4000
 SEC_BUF   equ 0x21C0
 ENV_SEG   equ 0x21E0
 
-HANDLE_SIZE equ 16
+HANDLE_SIZE equ 24
 H_USED      equ 0
 H_MODE      equ 1
 H_CLUSTER   equ 2
@@ -25,6 +25,10 @@ H_SIZE_LO   equ 8
 H_SIZE_HI   equ 10
 H_LAST_CLUSTER equ 12
 H_LAST_INDEX   equ 14
+H_DIR_LBA   equ 16
+H_DIR_OFF   equ 18
+H_TIME      equ 20
+H_DATE      equ 22
 MAX_HANDLES equ 20
 SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
@@ -42,6 +46,8 @@ CF equ 0x0001
 ZF equ 0x0040
 
 ROOT_CLUSTER equ 0
+FAT_TIME equ 0x6000
+FAT_DATE equ 0x5CB6
 
 %ifndef TRACE_DOS
 %define TRACE_DOS 0
@@ -295,6 +301,12 @@ init_bpb_geometry:
     mov bx, BPB_OFF
 
     mov ax, [bx+22]
+    mov [cs:kfat_secs], ax
+    mov ax, [bx+14]
+    mov [cs:kfat_start], ax
+    mov al, [bx+16]
+    mov [cs:knum_fats], al
+    mov ax, [bx+22]
     movzx cx, byte [bx+16]
     mul cx
     add ax, [bx+14]
@@ -312,6 +324,19 @@ init_bpb_geometry:
     mov [cs:krsc], ax
     add ax, [cs:krsta]
     mov [cs:kdsta], ax
+
+    mov ax, [BPB_OFF+19]
+    test ax, ax
+    jnz .have_total
+    mov ax, [BPB_OFF+32]
+.have_total:
+    sub ax, [cs:kdsta]
+    xor dx, dx
+    xor ch, ch
+    mov cl, [cs:kspc]
+    div cx
+    add ax, 2
+    mov [cs:kmax_cluster], ax
 
     pop bx
     pop ds
@@ -861,6 +886,8 @@ int21_handler:
     je .terminate
     cmp ah, 0x3B
     je .chdir
+    cmp ah, 0x3C
+    je .create_file
     cmp ah, 0x3D
     je .open_file
     cmp ah, 0x3E
@@ -907,6 +934,10 @@ int21_handler:
     je .find_first
     cmp ah, 0x4F
     je .find_next
+    cmp ah, 0x56
+    je .rename_file
+    cmp ah, 0x57
+    je .file_time
     cmp ah, 0x58
     je .alloc_strategy
     cmp ah, 0x62
@@ -1881,6 +1912,126 @@ int21_handler:
     pop ds
     mov ax, 3
     jmp iret_cy
+.create_file:
+    push ds
+    push si
+    push es
+    push di
+    push bx
+    push cx
+    mov [cs:cf_attr], cl
+    mov si, dx
+    call parse_root_path
+    jc .cr_path_err
+    mov byte [cs:ff_attr_mask], 0
+    mov ax, ROOT_CLUSTER
+    call find_in_dir
+    jnc .cr_existing
+    call find_root_free
+    jc .cr_no_slot
+    mov [cs:cf_entry_idx], cx
+    mov [cs:cf_entry_off], di
+    call root_entry_loc_from_cx
+    mov byte [cs:cf_found], 0
+    jmp .cr_alloc_handle
+.cr_existing:
+    test byte [es:di+11], ATTR_DIR
+    jnz .cr_access_denied
+    mov ax, [cs:ff_entry_idx]
+    mov [cs:cf_entry_idx], ax
+    mov [cs:cf_entry_off], di
+    mov cx, ax
+    call root_entry_loc_from_cx
+    mov byte [cs:cf_found], 1
+.cr_alloc_handle:
+    call alloc_handle
+    jc .cr_no_handles
+    mov [cs:cf_handle], ax
+    mov ax, ROOT_SEG
+    mov es, ax
+    mov di, [cs:cf_entry_off]
+    cmp byte [cs:cf_found], 0
+    je .cr_clear_entry
+    mov si, [es:di+26]
+    call fat_free_chain
+    call flush_fat
+    jc .cr_io_err
+.cr_clear_entry:
+    push di
+    xor ax, ax
+    mov cx, 16
+    cld
+    rep stosw
+    pop di
+    push ds
+    push cs
+    pop ds
+    mov si, name_buf
+    mov cx, 11
+    rep movsb
+    pop ds
+    mov di, [cs:cf_entry_off]
+    mov al, [cs:cf_attr]
+    mov [es:di+11], al
+    mov word [es:di+22], FAT_TIME
+    mov word [es:di+24], FAT_DATE
+    mov word [es:di+26], 0
+    mov word [es:di+28], 0
+    mov word [es:di+30], 0
+    mov ax, [cs:ff_entry_lba]
+    call flush_root_sector
+    jc .cr_io_err
+    mov ax, [cs:cf_handle]
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov bx, ax
+    mov byte [cs:bx+handles+H_USED], 1
+    mov byte [cs:bx+handles+H_MODE], 2
+    mov word [cs:bx+handles+H_CLUSTER], 0
+    mov word [cs:bx+handles+H_POS_LO], 0
+    mov word [cs:bx+handles+H_POS_HI], 0
+    mov word [cs:bx+handles+H_SIZE_LO], 0
+    mov word [cs:bx+handles+H_SIZE_HI], 0
+    mov word [cs:bx+handles+H_LAST_CLUSTER], 0
+    mov word [cs:bx+handles+H_LAST_INDEX], 0
+    mov ax, [cs:ff_entry_lba]
+    mov [cs:bx+handles+H_DIR_LBA], ax
+    mov ax, [cs:ff_entry_off]
+    mov [cs:bx+handles+H_DIR_OFF], ax
+    mov word [cs:bx+handles+H_TIME], FAT_TIME
+    mov word [cs:bx+handles+H_DATE], FAT_DATE
+    pop cx
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+    mov ax, [cs:cf_handle]
+    jmp iret_nc
+.cr_path_err:
+    mov ax, 3
+    jmp .cr_err
+.cr_no_slot:
+    mov ax, 4
+    jmp .cr_err
+.cr_no_handles:
+    mov ax, 4
+    jmp .cr_err
+.cr_access_denied:
+    mov ax, 5
+    jmp .cr_err
+.cr_io_err:
+    mov ax, 5
+.cr_err:
+    mov [cs:cf_status], ax
+    pop cx
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+    mov ax, [cs:cf_status]
+    jmp iret_cy
 .open_file:
     cmp word [cs:trace_left], 0
     je .of_no_path_trace
@@ -1910,6 +2061,7 @@ int21_handler:
     push si
     push cx
     push di
+    mov [cs:of_mode], al
     mov si, dx
     call resolve_path
     jnc .of_found
@@ -1929,7 +2081,8 @@ int21_handler:
     mul cx
     mov di, ax
     mov byte [cs:di+handles+H_USED], 1
-    mov byte [cs:di+handles+H_MODE], 0
+    mov al, [cs:of_mode]
+    mov byte [cs:di+handles+H_MODE], al
     pop si
     mov ax, [es:si+26]
     mov [cs:di+handles+H_CLUSTER], ax
@@ -1941,6 +2094,14 @@ int21_handler:
     mov [cs:di+handles+H_SIZE_HI], ax
     mov word [cs:di+handles+H_POS_LO], 0
     mov word [cs:di+handles+H_POS_HI], 0
+    mov ax, [cs:ff_entry_lba]
+    mov [cs:di+handles+H_DIR_LBA], ax
+    mov ax, [cs:ff_entry_off]
+    mov [cs:di+handles+H_DIR_OFF], ax
+    mov ax, [es:si+22]
+    mov [cs:di+handles+H_TIME], ax
+    mov ax, [es:si+24]
+    mov [cs:di+handles+H_DATE], ax
     pop ax
     cmp word [cs:trace_left], 0
     je .of_no_handle_trace
@@ -2003,9 +2164,22 @@ int21_handler:
     mov bx, ax
     cmp byte [cs:bx+handles+H_USED], 0
     je .cf_invalid_pop
+    cmp byte [cs:bx+handles+H_MODE], 0
+    je .cf_mark_free
+    mov si, bx
+    call flush_handle_dir_entry
+    jc .cf_flush_err_pop
+    call flush_fat
+    jc .cf_flush_err_pop
+.cf_mark_free:
     mov byte [cs:bx+handles+H_USED], 0
+    mov byte [cs:bx+handles+H_MODE], 0
     pop bx
     jmp iret_nc
+.cf_flush_err_pop:
+    pop bx
+    mov ax, 5
+    jmp iret_cy
 .cf_invalid_pop:
     pop bx
     jmp .cf_err
@@ -2246,7 +2420,156 @@ int21_handler:
     jae .wf_invalid
     cmp bx, 5
     jb .wf_stdio
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov [cs:wf_req], cx
+    mov [cs:wf_count], cx
+    mov word [cs:wf_written], 0
+    mov [cs:wf_buf_off], dx
+    mov [cs:wf_buf_seg], ds
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov [cs:wf_hoff], ax
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    je .wf_file_invalid_pop
+    cmp byte [cs:si+handles+H_MODE], 0
+    je .wf_file_access_pop
+.wf_file_loop:
+    cmp word [cs:wf_count], 0
+    je .wf_file_done
+    mov si, [cs:wf_hoff]
+    cmp word [cs:si+handles+H_CLUSTER], 0
+    jne .wf_have_start
+    call fat_alloc_cluster
+    jc .wf_file_done
+    mov si, [cs:wf_hoff]
+    mov [cs:si+handles+H_CLUSTER], ax
+    mov [cs:si+handles+H_LAST_CLUSTER], ax
+    mov word [cs:si+handles+H_LAST_INDEX], 0
+.wf_have_start:
+    mov ax, [cs:si+handles+H_POS_LO]
+    mov dx, [cs:si+handles+H_POS_HI]
+    mov cx, 9
+.wf_sector_shift:
+    shr dx, 1
+    rcr ax, 1
+    loop .wf_sector_shift
+    xor ch, ch
+    mov cl, [cs:kspc]
+    div cx
+    mov [cs:wf_cluster_index], ax
+    mov [cs:wf_sec_in_cluster], dx
+    mov cx, ax
+    call wf_get_cluster
+    jc .wf_file_done
+    mov [cs:wf_cluster], si
+    mov ax, si
+    sub ax, 2
+    xor ch, ch
+    mov cl, [cs:kspc]
+    mul cx
+    add ax, [cs:wf_sec_in_cluster]
+    add ax, [cs:kdsta]
+    mov [cs:wf_sector_lba], ax
+    push es
+    push bx
+    mov dx, SEC_BUF
+    mov es, dx
+    xor bx, bx
+    call read_sector
+    pop bx
+    pop es
+    jc .wf_file_io_pop
+    mov si, [cs:wf_hoff]
+    mov di, [cs:si+handles+H_POS_LO]
+    and di, 511
+    mov cx, 512
+    sub cx, di
+    mov ax, [cs:wf_count]
+    cmp cx, ax
+    jbe .wf_chunk_ok
+    mov cx, ax
+.wf_chunk_ok:
+    push cx
+    push ds
+    push es
+    mov ax, SEC_BUF
+    mov es, ax
+    mov ax, [cs:wf_buf_seg]
+    mov ds, ax
+    mov si, [cs:wf_buf_off]
+    rep movsb
+    pop es
+    pop ds
+    pop cx
+    push cx
+    push es
+    push bx
+    mov ax, [cs:wf_sector_lba]
+    mov dx, SEC_BUF
+    mov es, dx
+    xor bx, bx
+    call write_sector
+    pop bx
+    pop es
+    pop cx
+    jc .wf_file_io_pop
+    mov byte [cs:rf_cache_valid], 0
+    mov si, [cs:wf_hoff]
+    add [cs:si+handles+H_POS_LO], cx
+    adc word [cs:si+handles+H_POS_HI], 0
+    mov ax, [cs:si+handles+H_POS_HI]
+    cmp ax, [cs:si+handles+H_SIZE_HI]
+    jb .wf_size_ok
+    ja .wf_update_size
+    mov ax, [cs:si+handles+H_POS_LO]
+    cmp ax, [cs:si+handles+H_SIZE_LO]
+    jbe .wf_size_ok
+.wf_update_size:
+    mov ax, [cs:si+handles+H_POS_LO]
+    mov [cs:si+handles+H_SIZE_LO], ax
+    mov ax, [cs:si+handles+H_POS_HI]
+    mov [cs:si+handles+H_SIZE_HI], ax
+.wf_size_ok:
+    add [cs:wf_buf_off], cx
+    sub [cs:wf_count], cx
+    add [cs:wf_written], cx
+    jmp .wf_file_loop
+.wf_file_done:
+    mov ax, [cs:wf_written]
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    jmp iret_nc
+.wf_file_invalid_pop:
+    mov ax, 6
+    jmp .wf_file_err_pop
+.wf_file_access_pop:
     mov ax, 5
+    jmp .wf_file_err_pop
+.wf_file_io_pop:
+    mov ax, 5
+.wf_file_err_pop:
+    mov [cs:wf_status], ax
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    mov ax, [cs:wf_status]
     jmp iret_cy
 .wf_invalid:
     mov ax, 6
@@ -2600,6 +2923,122 @@ int21_handler:
     pop ds
     jmp iret_nc
 
+.rename_file:
+    push ds
+    push si
+    push es
+    push di
+    push bx
+    push cx
+    mov [cs:rn_new_off], di
+    mov ax, es
+    mov [cs:rn_new_seg], ax
+    mov si, dx
+    call parse_root_path
+    jc .rn_path_err
+    mov byte [cs:ff_attr_mask], 0
+    mov ax, ROOT_CLUSTER
+    call find_in_dir
+    jc .rn_not_found
+    test byte [es:di+11], ATTR_DIR
+    jnz .rn_access
+    mov ax, [cs:ff_entry_idx]
+    mov [cs:rn_src_idx], ax
+    mov [cs:rn_src_off], di
+    mov cx, ax
+    call root_entry_loc_from_cx
+    mov ax, [cs:ff_entry_lba]
+    mov [cs:rn_src_lba], ax
+    mov ax, [cs:rn_new_seg]
+    mov ds, ax
+    mov si, [cs:rn_new_off]
+    call parse_root_path
+    jc .rn_path_err
+    mov byte [cs:ff_attr_mask], 0
+    mov ax, ROOT_CLUSTER
+    call find_in_dir
+    jnc .rn_access
+    mov ax, ROOT_SEG
+    mov es, ax
+    mov di, [cs:rn_src_off]
+    push cs
+    pop ds
+    mov si, name_buf
+    mov cx, 11
+    rep movsb
+    mov ax, [cs:rn_src_lba]
+    call flush_root_sector
+    jc .rn_access
+    pop cx
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+    jmp iret_nc
+.rn_not_found:
+    mov ax, 2
+    jmp .rn_err
+.rn_path_err:
+    mov ax, 3
+    jmp .rn_err
+.rn_access:
+    mov ax, 5
+.rn_err:
+    mov [cs:rn_status], ax
+    pop cx
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+    mov ax, [cs:rn_status]
+    jmp iret_cy
+
+.file_time:
+    cmp bx, MAX_HANDLES
+    jae .ft_bad_handle
+    push si
+    mov [cs:ft_mode], al
+    mov [cs:ft_time], cx
+    mov [cs:ft_date], dx
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    je .ft_bad_handle_saved
+    cmp byte [cs:ft_mode], 0
+    je .ft_get
+    cmp byte [cs:ft_mode], 1
+    je .ft_set
+    pop si
+    mov ax, 1
+    jmp iret_cy
+.ft_get:
+    mov cx, [cs:si+handles+H_TIME]
+    mov dx, [cs:si+handles+H_DATE]
+    pop si
+    jmp iret_nc
+.ft_set:
+    mov ax, [cs:ft_time]
+    mov [cs:si+handles+H_TIME], ax
+    mov ax, [cs:ft_date]
+    mov [cs:si+handles+H_DATE], ax
+    call flush_handle_dir_entry
+    jc .ft_io_err_saved
+    pop si
+    jmp iret_nc
+.ft_io_err_saved:
+    pop si
+    mov ax, 5
+    jmp iret_cy
+.ft_bad_handle_saved:
+    pop si
+.ft_bad_handle:
+    mov ax, 6
+    jmp iret_cy
+
 int23_handler:
     iret
 
@@ -2934,6 +3373,16 @@ find_in_dir_from:
     mov dx, 32
     mul dx
     mov di, ax
+    mov ax, cx
+    push cx
+    mov cl, 4
+    shr ax, cl
+    pop cx
+    add ax, [cs:krsta]
+    mov [cs:ff_entry_lba], ax
+    mov ax, di
+    and ax, 511
+    mov [cs:ff_entry_off], ax
     cmp di, ROOT_ENT_CNT * 32
     jae .rid_notfound
     cmp byte [es:di], 0
@@ -2966,6 +3415,7 @@ find_in_dir_from:
     mov cl, [cs:kspc]
     mul cx
     add ax, [cs:kdsta]
+    mov [cs:rid_lba], ax
     xor bx, bx
     mov dx, SEC_BUF
     mov es, dx
@@ -3006,6 +3456,10 @@ find_in_dir_from:
     mov word [cs:fid_idx], 0
     jmp .rid_sec_loop
 .rid_found_subdir:
+    mov ax, [cs:rid_lba]
+    mov [cs:ff_entry_lba], ax
+    mov ax, di
+    mov [cs:ff_entry_off], ax
     pop dx
     pop bx
 .rid_found:
@@ -3051,6 +3505,53 @@ find_in_dir_from:
     pop cx
     pop ax
     stc
+    ret
+
+find_root_free:
+    push ax
+    mov ax, ROOT_SEG
+    mov es, ax
+    xor di, di
+    xor cx, cx
+.loop:
+    cmp cx, ROOT_ENT_CNT
+    jae .full
+    cmp byte [es:di], 0
+    je .found
+    cmp byte [es:di], 0xE5
+    je .found
+    add di, 32
+    inc cx
+    jmp .loop
+.found:
+    pop ax
+    clc
+    ret
+.full:
+    pop ax
+    stc
+    ret
+
+root_entry_loc_from_cx:
+    push ax
+    push cx
+    push dx
+    mov ax, cx
+    mov dx, ax
+    shr ax, 1
+    shr ax, 1
+    shr ax, 1
+    shr ax, 1
+    add ax, [cs:krsta]
+    mov [cs:ff_entry_lba], ax
+    mov ax, dx
+    and ax, 0x000F
+    mov dx, 32
+    mul dx
+    mov [cs:ff_entry_off], ax
+    pop dx
+    pop cx
+    pop ax
     ret
 
 parse_83name:
@@ -3130,6 +3631,62 @@ parse_83name:
     pop cx
     pop bx
     pop ax
+    ret
+
+parse_root_path:
+    push ax
+    push bx
+    push dx
+    mov byte [cs:pr_abs], 0
+    cmp byte [ds:si], 'A'
+    jb .check_sep
+    cmp byte [ds:si], 'Z'
+    ja .check_sep
+    cmp byte [ds:si+1], ':'
+    jne .check_sep
+    add si, 2
+.check_sep:
+    cmp byte [ds:si], '\'
+    je .sep
+    cmp byte [ds:si], '/'
+    jne .after_sep
+.sep:
+    mov byte [cs:pr_abs], 1
+    inc si
+    jmp .check_sep
+.after_sep:
+    cmp byte [cs:pr_abs], 0
+    jne .have_dir
+    cmp word [cs:cur_dir_cluster], ROOT_CLUSTER
+    jne .err
+.have_dir:
+    cmp byte [ds:si], 0
+    je .err
+    mov [cs:pr_name_off], si
+    mov bx, si
+.scan:
+    mov al, [ds:bx]
+    test al, al
+    jz .parse
+    cmp al, '\'
+    je .err
+    cmp al, '/'
+    je .err
+    inc bx
+    jmp .scan
+.parse:
+    mov si, [cs:pr_name_off]
+    call parse_83name
+    pop dx
+    pop bx
+    pop ax
+    clc
+    ret
+.err:
+    pop dx
+    pop bx
+    pop ax
+    stc
     ret
 
 name_matches:
@@ -3373,6 +3930,150 @@ fat_next:
     pop bx
     ret
 
+fat_set:
+    push bx
+    push dx
+    push ds
+    mov dx, ax
+    mov bx, si
+    shr bx, 1
+    add bx, si
+    mov ax, FAT_SEG
+    mov ds, ax
+    mov ax, dx
+    and ax, 0x0FFF
+    test si, 1
+    jnz .odd
+    mov [bx], al
+    mov dl, ah
+    and dl, 0x0F
+    and byte [bx+1], 0xF0
+    or [bx+1], dl
+    jmp .done
+.odd:
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    and byte [bx], 0x0F
+    or [bx], al
+    mov [bx+1], ah
+.done:
+    mov byte [cs:fat_dirty], 1
+    pop ds
+    pop dx
+    pop bx
+    ret
+
+fat_alloc_cluster:
+    push cx
+    push si
+    mov cx, 2
+.loop:
+    cmp cx, [cs:kmax_cluster]
+    jae .none
+    mov si, cx
+    call fat_next
+    test ax, ax
+    jz .found
+    inc cx
+    jmp .loop
+.found:
+    mov si, cx
+    mov ax, 0x0FFF
+    call fat_set
+    mov ax, cx
+    pop si
+    pop cx
+    clc
+    ret
+.none:
+    pop si
+    pop cx
+    stc
+    ret
+
+fat_free_chain:
+    push ax
+    push bx
+    push si
+    cmp si, 2
+    jb .done
+.loop:
+    mov bx, si
+    call fat_next
+    push ax
+    mov si, bx
+    xor ax, ax
+    call fat_set
+    pop ax
+    cmp ax, 0x0FF8
+    jae .done
+    cmp ax, 2
+    jb .done
+    mov si, ax
+    jmp .loop
+.done:
+    pop si
+    pop bx
+    pop ax
+    ret
+
+flush_fat:
+    cmp byte [cs:fat_dirty], 0
+    je .clean
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+    mov byte [cs:fat_copy_idx], 0
+    mov ax, [cs:kfat_start]
+    mov [cs:fat_flush_lba], ax
+.copy_loop:
+    xor ax, ax
+    mov al, [cs:knum_fats]
+    cmp [cs:fat_copy_idx], al
+    jae .done
+    mov word [cs:fat_flush_off], 0
+    mov cx, [cs:kfat_secs]
+.sector_loop:
+    test cx, cx
+    jz .next_copy
+    mov ax, FAT_SEG
+    mov es, ax
+    mov bx, [cs:fat_flush_off]
+    mov ax, [cs:fat_flush_lba]
+    push cx
+    call write_sector
+    pop cx
+    jc .err
+    inc word [cs:fat_flush_lba]
+    add word [cs:fat_flush_off], 512
+    dec cx
+    jmp .sector_loop
+.next_copy:
+    inc byte [cs:fat_copy_idx]
+    jmp .copy_loop
+.done:
+    mov byte [cs:fat_dirty], 0
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+.clean:
+    clc
+    ret
+.err:
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
+
 read_sector:
     mov [cs:klba], ax
     mov byte [cs:kcnt], 1
@@ -3417,6 +4118,215 @@ read_sector:
     dec byte [cs:kcnt]
     jnz .r1
     clc
+    ret
+
+write_sector:
+    mov [cs:klba], ax
+    mov byte [cs:kcnt], 1
+    mov byte [cs:kret], 3
+.w1:
+    push ds
+    mov ax, BPB_SEG
+    mov ds, ax
+    mov ax, [cs:klba]
+    xor dx, dx
+    div word [BPB_OFF+24]
+    inc dl
+    mov [cs:ksc], dl
+    xor dx, dx
+    div word [BPB_OFF+26]
+    mov [cs:khd], dl
+    mov [cs:kcy], al
+    pop ds
+    mov ah, 3
+    mov al, 1
+    mov ch, [cs:kcy]
+    mov cl, [cs:ksc]
+    mov dh, [cs:khd]
+    mov dl, [cs:kdrv]
+    int 0x13
+    jnc .ok
+    xor ax, ax
+    mov dl, [cs:kdrv]
+    int 0x13
+    dec byte [cs:kret]
+    jnz .w1
+    stc
+    ret
+.ok:
+    add bx, 512
+    jnc .wnb
+    mov ax, es
+    add ax, 0x1000
+    mov es, ax
+.wnb:
+    inc word [cs:klba]
+    dec byte [cs:kcnt]
+    jnz .w1
+    clc
+    ret
+
+flush_root_sector:
+    push ax
+    push bx
+    push es
+    mov [cs:dir_flush_lba], ax
+    sub ax, [cs:krsta]
+    mov bx, ax
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    mov ax, ROOT_SEG
+    mov es, ax
+    mov ax, [cs:dir_flush_lba]
+    call write_sector
+    pop es
+    pop bx
+    pop ax
+    ret
+
+flush_handle_dir_entry:
+    push ax
+    push bx
+    push dx
+    push es
+    push di
+    mov [cs:dir_update_hoff], si
+    mov ax, [cs:si+handles+H_DIR_LBA]
+    test ax, ax
+    jz .ok
+    mov [cs:dir_flush_lba], ax
+    cmp ax, [cs:krsta]
+    jb .subdir
+    cmp ax, [cs:kdsta]
+    jae .subdir
+    sub ax, [cs:krsta]
+    mov bx, ax
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    mov ax, ROOT_SEG
+    mov es, ax
+    mov di, bx
+    mov si, [cs:dir_update_hoff]
+    add di, [cs:si+handles+H_DIR_OFF]
+    call store_handle_dir_fields
+    mov ax, [cs:dir_flush_lba]
+    call flush_root_sector
+    jmp .done
+.subdir:
+    mov ax, SEC_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:dir_flush_lba]
+    call read_sector
+    jc .done
+    mov si, [cs:dir_update_hoff]
+    mov di, [cs:si+handles+H_DIR_OFF]
+    call store_handle_dir_fields
+    mov ax, [cs:dir_flush_lba]
+    mov bx, 0
+    call write_sector
+.done:
+    pop di
+    pop es
+    pop dx
+    pop bx
+    pop ax
+    ret
+.ok:
+    pop di
+    pop es
+    pop dx
+    pop bx
+    pop ax
+    clc
+    ret
+
+store_handle_dir_fields:
+    push ax
+    mov ax, [cs:si+handles+H_TIME]
+    mov [es:di+22], ax
+    mov ax, [cs:si+handles+H_DATE]
+    mov [es:di+24], ax
+    mov ax, [cs:si+handles+H_CLUSTER]
+    mov [es:di+26], ax
+    mov ax, [cs:si+handles+H_SIZE_LO]
+    mov [es:di+28], ax
+    mov ax, [cs:si+handles+H_SIZE_HI]
+    mov [es:di+30], ax
+    pop ax
+    ret
+
+wf_get_cluster:
+    push ax
+    push bx
+    push cx
+    push dx
+    mov bx, [cs:wf_hoff]
+    mov si, [cs:bx+handles+H_LAST_CLUSTER]
+    mov cx, [cs:bx+handles+H_LAST_INDEX]
+    cmp si, 0
+    je .from_start
+    cmp cx, [cs:wf_cluster_index]
+    jbe .walk
+.from_start:
+    mov bx, [cs:wf_hoff]
+    mov si, [cs:bx+handles+H_CLUSTER]
+    xor cx, cx
+.walk:
+    cmp cx, [cs:wf_cluster_index]
+    je .found
+    mov bx, si
+    call fat_next
+    cmp ax, 0x0FF8
+    jae .extend
+    cmp ax, 0x0FF0
+    jae .err
+    cmp ax, 2
+    jb .err
+    cmp ax, [cs:kmax_cluster]
+    jae .err
+    jmp .have_next
+.extend:
+    call fat_alloc_cluster
+    jc .err
+    push ax
+    mov si, bx
+    call fat_set
+    pop ax
+.have_next:
+    mov si, ax
+    inc cx
+    jmp .walk
+.found:
+    mov bx, [cs:wf_hoff]
+    mov [cs:bx+handles+H_LAST_CLUSTER], si
+    mov [cs:bx+handles+H_LAST_INDEX], cx
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.err:
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    stc
     ret
 
 load_exec_program:
@@ -4634,6 +5544,10 @@ krsta: dw 0
 krsc:  dw 0
 kdsta: dw 0
 kspc:  db 0
+kfat_start: dw 0
+kfat_secs: dw 0
+knum_fats: db 0
+kmax_cluster: dw 0
 kclus: dw 0
 kfsize: dw 0
 klba:  dw 0
@@ -4672,6 +5586,16 @@ rf_cache_valid: db 0
 rf_buf_off:    dw 0
 rf_buf_seg:    dw 0
 wf_count:      dw 0
+wf_req:        dw 0
+wf_written:    dw 0
+wf_buf_off:    dw 0
+wf_buf_seg:    dw 0
+wf_hoff:       dw 0
+wf_cluster_index: dw 0
+wf_sec_in_cluster: dw 0
+wf_sector_lba: dw 0
+wf_cluster:    dw 0
+wf_status:     dw 0
 
 sf_origin: db 0
 sf_ret_lo: dw 0
@@ -4681,6 +5605,36 @@ cur_dir_cluster: dw 0
 cur_dir_path: times 64 db 0
 cd_path_off: dw 0
 cd_path_seg: dw 0
+of_mode: db 0
+
+cf_attr: db 0
+cf_handle: dw 0
+cf_entry_idx: dw 0
+cf_entry_off: dw 0
+cf_found: db 0
+cf_status: dw 0
+
+rn_new_off: dw 0
+rn_new_seg: dw 0
+rn_src_idx: dw 0
+rn_src_off: dw 0
+rn_src_lba: dw 0
+rn_status: dw 0
+
+ft_mode: db 0
+ft_time: dw 0
+ft_date: dw 0
+
+pr_abs: db 0
+pr_name_off: dw 0
+
+dir_flush_lba: dw 0
+dir_update_hoff: dw 0
+
+fat_dirty: db 0
+fat_copy_idx: db 0
+fat_flush_lba: dw 0
+fat_flush_off: dw 0
 
 rp_path: dw 0
 rp_path_seg: dw 0
@@ -4694,6 +5648,8 @@ ff_entry_size: dw 0
 ff_entry_size_hi: dw 0
 ff_entry_attr: db 0
 ff_entry_name: times 11 db 0
+ff_entry_lba: dw 0
+ff_entry_off: dw 0
 ff_attr_mask: db 0
 ff_path_off: dw 0
 ff_path_seg: dw 0
@@ -4704,6 +5660,7 @@ ff_res_di: dw 0
 fid_cluster: dw 0
 fid_idx: dw 0
 rid_clus: dw 0
+rid_lba: dw 0
 
 find_di: dw 0
 

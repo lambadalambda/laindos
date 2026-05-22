@@ -24,6 +24,7 @@ OVERLAY   := $(BUILDDIR)/overlay.exe
 SHELLCOM  := $(BUILDDIR)/shell.com
 EXECTEST  := $(BUILDDIR)/exectest.com
 CONSOLETEST := $(BUILDDIR)/console.com
+SAVEWR    := $(BUILDDIR)/savewr.com
 TESTFILE  := $(BUILDDIR)/testfile.dat
 SUBTEST   := $(BUILDDIR)/subtest.dat
 DISK_IMG := $(BUILDDIR)/disk.img
@@ -108,6 +109,10 @@ $(CONSOLETEST): $(SRCDIR)/consoletest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
+$(SAVEWR): $(SRCDIR)/savewr.asm
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
 $(TESTFILE): scripts/mktestfile.py
 	@mkdir -p $(BUILDDIR)
 	$(PYTHON) $< $@
@@ -116,8 +121,8 @@ $(SUBTEST): scripts/mksubtest.py
 	@mkdir -p $(BUILDDIR)
 	$(PYTHON) $< $@
 
-$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(CONSOLETEST) $(TESTFILE) $(SUBTEST)
-	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(CONSOLETEST) $(TESTFILE) MIDEMO:$(SUBTEST)
+$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(CONSOLETEST) $(SAVEWR) $(TESTFILE) $(SUBTEST)
+	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(CONSOLETEST) $(SAVEWR) $(TESTFILE) MIDEMO:$(SUBTEST)
 
 run: $(DISK_IMG)
 	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic
@@ -130,6 +135,7 @@ test: $(DISK_IMG)
 	$(PYTHON) scripts/test_overlay.py
 	$(PYTHON) scripts/test_shell.py
 	$(PYTHON) scripts/test_console.py
+	$(PYTHON) scripts/test_savewrite.py
 
 clean:
 	rm -rf $(BUILDDIR)
