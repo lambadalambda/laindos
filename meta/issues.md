@@ -1,5 +1,4 @@
 - [ ] [Phase 9: Save-Game Writes](issues/phase9-save-game-writes.md)
-- [ ] [Phase 10: Minimal Command Shell](issues/phase10-minimal-command-shell.md)
 - [ ] [Phase 13: General Writable FAT Filesystem](issues/phase13-general-writable-fat.md)
 - [ ] [Phase 14: Directory Mutation](issues/phase14-directory-mutation.md)
 - [ ] [Phase 15: Environment and PATH](issues/phase15-environment-path.md)

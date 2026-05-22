@@ -35,6 +35,8 @@ def build_image():
     run(["nasm", "-f", "bin", "src/hello.asm", "-o", os.path.join(BUILDDIR, "hello.com")])
     run(["nasm", "-f", "bin", "src/helloexe.asm", "-o", os.path.join(BUILDDIR, "helloexe.exe")])
     run(["nasm", "-f", "bin", "src/exectest.asm", "-o", os.path.join(BUILDDIR, "exectest.com")])
+    run(["python3", "scripts/mktestfile.py", os.path.join(BUILDDIR, "testfile.dat")])
+    run(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
@@ -44,6 +46,8 @@ def build_image():
         os.path.join(BUILDDIR, "hello.com"),
         os.path.join(BUILDDIR, "helloexe.exe"),
         os.path.join(BUILDDIR, "exectest.com"),
+        os.path.join(BUILDDIR, "testfile.dat"),
+        f"MIDEMO:{os.path.join(BUILDDIR, 'subtest.dat')}",
     ])
 
 
@@ -61,11 +65,19 @@ def send_keys():
     sock.recv(4096)
     for key in [
         "v", "e", "r", "ret",
+        "c", "l", "s", "ret",
         "d", "i", "r", "ret",
+        "t", "y", "p", "e", "spc", "t", "e", "s", "t", "f", "i", "l", "e", "dot", "d", "a", "t", "ret",
         "h", "e", "l", "l", "o", "ret",
         "h", "e", "l", "l", "o", "ret",
         "h", "e", "l", "l", "o", "e", "x", "e", "ret",
         "e", "x", "e", "c", "t", "e", "s", "t", "ret",
+        "m", "e", "m", "ret",
+        "c", "d", "spc", "m", "i", "d", "e", "m", "o", "ret",
+        "d", "i", "r", "ret",
+        "t", "y", "p", "e", "spc", "s", "u", "b", "t", "e", "s", "t", "dot", "d", "a", "t", "ret",
+        "c", "d", "spc", "slash", "ret",
+        "t", "y", "p", "e", "spc", "t", "e", "s", "t", "f", "i", "l", "e", "dot", "d", "a", "t", "ret",
         "n", "o", "p", "e", "ret",
         "e", "x", "i", "t", "ret",
     ]:
@@ -119,9 +131,14 @@ def main():
         "SHELL.COM",
         "HELLO.COM",
         "HELLOEXE.EXE",
+        "Hello from TESTFILE.DAT! This is test data for LainDOS file I/O.",
         "PASS: HELLO.EXE",
         "EXECTEST.COM",
         "PASS: EXECTEST",
+        "Largest free block: ",
+        "A:\\MIDEMO>",
+        "SUBTEST.DAT",
+        "Hello from MIDEMO subdirectory!",
         "Bad command or file name",
         "Program exited, code=00",
     ]:
@@ -134,6 +151,11 @@ def main():
         print("  PASS: found three HELLO.COM runs")
     else:
         print("  FAIL: expected three HELLO.COM runs")
+        failed = True
+    if output.count("Hello from TESTFILE.DAT! This is test data for LainDOS file I/O.") >= 2:
+        print("  PASS: found root TYPE before and after CD /")
+    else:
+        print("  FAIL: expected root TYPE before and after CD /")
         failed = True
     for marker in ["FAIL:", "EXC ", "INT 21h AH="]:
         if marker in output:

@@ -1787,6 +1787,43 @@ int21_handler:
     mov [cs:cd_path_off], dx
     mov [cs:cd_path_seg], ds
     mov si, dx
+    cmp byte [ds:si], 'A'
+    jb .cd_check_root
+    cmp byte [ds:si], 'Z'
+    ja .cd_check_root
+    cmp byte [ds:si+1], ':'
+    jne .cd_check_root
+    add si, 2
+.cd_check_root:
+    cmp byte [ds:si], '\'
+    je .cd_root_sep
+    cmp byte [ds:si], '/'
+    je .cd_root_sep
+    jmp .cd_resolve
+.cd_root_sep:
+    inc si
+.cd_root_skip:
+    cmp byte [ds:si], '\'
+    je .cd_root_advance
+    cmp byte [ds:si], '/'
+    je .cd_root_advance
+    cmp byte [ds:si], 0
+    je .cd_root
+    jmp .cd_resolve
+.cd_root_advance:
+    inc si
+    jmp .cd_root_skip
+.cd_root:
+    mov word [cs:cur_dir_cluster], ROOT_CLUSTER
+    mov byte [cs:cur_dir_path], 0
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+    jmp iret_nc
+.cd_resolve:
+    mov si, dx
     call resolve_path
     jc .cd_err
     test byte [es:di+11], ATTR_DIR
@@ -1799,6 +1836,13 @@ int21_handler:
     mov cx, 62
     mov ds, [cs:cd_path_seg]
     mov si, [cs:cd_path_off]
+    cmp byte [ds:si], 'A'
+    jb .cd_skip_sep
+    cmp byte [ds:si], 'Z'
+    ja .cd_skip_sep
+    cmp byte [ds:si+1], ':'
+    jne .cd_skip_sep
+    add si, 2
 .cd_skip_sep:
     cmp byte [ds:si], '\'
     je .cd_ss
@@ -4304,8 +4348,15 @@ serial_putchar:
 
 console_putchar:
     push ax
+    cmp al, 12
+    je .clear
     call serial_putchar
     call vga_putchar
+    pop ax
+    ret
+.clear:
+    call serial_putchar
+    call vga_clear
     pop ax
     ret
 

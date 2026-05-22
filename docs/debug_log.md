@@ -250,3 +250,28 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - `python3 scripts/build_monkey.py` plus a 15-second direct Monkey serial smoke passed, reaching `INT 33h AX=0000`.
 - `python3 scripts/build_mi2.py` plus a 15-second direct MI2 serial smoke passed.
 - `python3 scripts/test_console.py`, `make test`, and direct Monkey/MI2 serial smokes passed again after the review fixes.
+
+## 2026-05-22 Minimal Shell Built-Ins
+
+### Confirmed Facts
+
+- Phase 10 still lacked `CD`, `TYPE`, `CLS`, and `MEM` in `SHELL.COM`.
+- `CD MIDEMO` works through DOS `AH=3Bh` with the existing FAT subdirectory image support.
+- `TYPE` can use DOS `AH=3Dh`, `AH=3Fh`, `AH=40h`, and `AH=3Eh` without kernel-specific file access.
+- `CLS` needed a DOS-output path that updates the kernel VGA cursor state; shell-side BIOS clearing would leave the kernel console cursor stale.
+
+### Fixes Made During Investigation
+
+- Added command/argument matching in `SHELL.COM` while preserving `.COM` then `.EXE` fallback for external commands.
+- Added `CD`, `TYPE`, `CLS`, and `MEM` built-ins.
+- Made the shell prompt display the current directory via `AH=47h`.
+- Added form-feed handling in `console_putchar` so `CLS` clears VGA text and resets the kernel cursor.
+- Added root-path handling to DOS `AH=3Bh` for `CD \`-style paths.
+- Made the default `Makefile` build `build/subtest.dat` explicitly instead of depending on a stale generated file.
+
+### Tests Run
+
+- `python3 scripts/test_shell.py` passed with coverage for `CLS`, root `TYPE`, `MEM`, `CD MIDEMO`, subdirectory `DIR`, subdirectory `TYPE`, and `CD /` back to root.
+- `make test` passed.
+- `python3 scripts/build_monkey.py` plus a 15-second direct Monkey serial smoke passed, reaching `INT 33h AX=0000`.
+- `python3 scripts/build_mi2.py` plus a 15-second direct MI2 serial smoke passed with no serial failure markers.
