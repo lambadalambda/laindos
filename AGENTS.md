@@ -36,11 +36,18 @@ LainDOS is a tiny single-tasking DOS implementation targeting x86 real mode. Its
 - When a phase is complete and acceptance criteria are satisfied, move its entry from `meta/issues.md` to `meta/issues_archive.md`, changing `- [ ]` to `- [x]`.
 - Do not delete issue detail files when archiving.
 
-### Non-native tools run in Podman
+### Keep a debug log
 
-- This project requires tools that are not native to the host (NASM, Open Watcom, DOS-format disk image utilities, etc.). Run them inside **Podman** containers.
-- Build and test commands should be containerized. Do not install these toolchains directly on the host.
-- If a `Containerfile` or `podman` compose setup does not yet exist, create one before needing the toolchain.
+- Maintain `docs/debug_log.md` while debugging non-trivial issues.
+- Record current symptoms, confirmed facts, failed hypotheses, tests run, and next probes before switching approaches.
+- Update the log whenever an investigation produces useful information, even if the result is negative.
+- Prefer concise dated entries with commands and observed output markers so future agents do not repeat the same probes.
+
+### Toolchain workflow
+
+- Use the host tools that are already available in this workspace. NASM, Python, QEMU, and Bochs may be invoked directly.
+- Do not install missing toolchains or package-manager dependencies yourself. If a required tool is missing, stop and ask the user for it.
+- Prefer small NASM-built 16-bit test programs plus QEMU/Bochs runs for regression coverage.
 
 ### QEMU for running x86 code
 
@@ -57,8 +64,8 @@ LainDOS is a tiny single-tasking DOS implementation targeting x86 real mode. Its
 ### Build and run workflow
 
 - If a Makefile or build script does not yet exist, create one before writing implementation code.
-- Build: `podman run --rm -v $(pwd):/src <container> make` (once a Makefile exists)
-- Test: `podman run --rm -v $(pwd):/src <container> make test`
+- Build: `make`
+- Test: `make test`
 - Run: `qemu-system-i386 -drive file=disk.img,format=raw -serial stdio -monitor none -nographic`
 
 ### License hygiene
@@ -69,7 +76,7 @@ LainDOS is a tiny single-tasking DOS implementation targeting x86 real mode. Its
 
 ### Sandbox constraints
 
-- This agent runs in a sandboxed environment. If you need to install software (Podman, QEMU, NASM, Open Watcom toolchain, etc.) and cannot do so, **stop and ask the user for help** rather than failing silently or working around the constraint.
+- This agent runs in a sandboxed environment. If you need software that is not already available, **stop and ask the user for help** rather than failing silently or working around the constraint.
 - Do not attempt `sudo`, `brew install`, `apt-get install`, or similar package-manager commands unless you have confirmed the environment permits it.
 - If a required tool is missing and you cannot obtain it, report exactly what is needed and why.
 
