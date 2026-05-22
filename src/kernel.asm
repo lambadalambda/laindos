@@ -2,6 +2,9 @@
 [org 0x0000]
 
 COM1_PORT equ 0x3F8
+VGA_TEXT_SEG equ 0xB800
+VGA_COLS equ 80
+VGA_ROWS equ 25
 
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
@@ -24,6 +27,7 @@ H_LAST_CLUSTER equ 12
 H_LAST_INDEX   equ 14
 MAX_HANDLES equ 20
 SMALL_ALLOC_HIGH_MAX equ 0x0020
+COM_EXTRA_PAR equ 0x0110
 
 ATTR_VOLUME equ 0x08
 ATTR_DIR equ 0x10
@@ -51,6 +55,7 @@ kernel_entry:
     cld
 
     call serial_init
+    call vga_clear
 
     mov si, msg_booted
     call serial_print
@@ -141,7 +146,7 @@ kernel_entry:
     shl ax, 1
     rcl dx, 1
     loop .shl5c
-    add ax, 0x12
+    add ax, COM_EXTRA_PAR
     adc dx, 0
     test dx, dx
     jnz .halt
@@ -929,14 +934,7 @@ int21_handler:
     lodsb
     cmp al, '$'
     je .dn
-    mov ah, al
-    mov dx, COM1_PORT + 5
-.w: in al, dx
-    test al, 0x20
-    jz .w
-    mov al, ah
-    mov dx, COM1_PORT
-    out dx, al
+    call console_putchar
     jmp .lp
 .dn:
     pop ax
@@ -947,7 +945,7 @@ int21_handler:
 .print_char:
     push ax
     mov al, dl
-    call serial_putchar
+    call console_putchar
     pop ax
     mov al, dl
     jmp iret_nc
@@ -1544,7 +1542,14 @@ int21_handler:
     mov [cs:exec_path_seg], ds
     call load_exec_program
     jc .exec_program_err
+    call update_exec_environment_path
+    cmp byte [cs:exec_is_exe], 0
+    jne .exec_run_exe
     call exec_com_dyn
+    jmp .exec_program_returned
+.exec_run_exe:
+    call setup_exe_dyn
+.exec_program_returned:
     pop ax
     mov [cs:saved_sp], ax
     pop ax
@@ -2074,7 +2079,7 @@ int21_handler:
 .wf_loop:
     jcxz .wf_done
     lodsb
-    call serial_putchar
+    call console_putchar
     loop .wf_loop
 .wf_done:
     mov ax, [cs:wf_count]
@@ -2522,6 +2527,49 @@ alloc_mem_direct:
     mov si, ax
     jmp .amd_walk
 .amd_nomem:
+    stc
+    pop si
+    pop ds
+    ret
+
+alloc_all_mem_direct:
+    push ds
+    push si
+    mov [cs:am_req], bx
+    mov si, [cs:mcb_first]
+.aad_walk:
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .aad_check
+    cmp byte [ds:0], MCB_SIG_Z
+    je .aad_check
+    stc
+    pop si
+    pop ds
+    ret
+.aad_check:
+    cmp word [ds:1], 0
+    jne .aad_next
+    mov ax, [ds:3]
+    cmp ax, [cs:am_req]
+    jb .aad_next
+    mov ax, [cs:cur_psp]
+    mov word [ds:1], ax
+    mov ax, si
+    inc ax
+    pop si
+    pop ds
+    clc
+    ret
+.aad_next:
+    cmp byte [ds:0], MCB_SIG_Z
+    je .aad_nomem
+    mov ax, si
+    inc ax
+    add ax, [ds:3]
+    mov si, ax
+    jmp .aad_walk
+.aad_nomem:
     stc
     pop si
     pop ds
@@ -3199,6 +3247,7 @@ load_exec_program:
     stc
     ret
 .found:
+    mov byte [cs:exec_is_exe], 0
     mov ax, [es:di+26]
     mov [cs:exec_cluster], ax
     mov ax, [es:di+28]
@@ -3211,9 +3260,48 @@ load_exec_program:
     mov ds, ax
     cmp word [0], 0x5A4D
     jne .com_size
-    mov ax, 1
+    mov byte [cs:exec_is_exe], 1
+    mov ax, [cs:kfsize]
+    mov dx, [cs:kfsize_hi]
+    add ax, 15
+    adc dx, 0
+    mov cx, 4
+.exe_min_shift:
+    shr dx, 1
+    rcr ax, 1
+    loop .exe_min_shift
+    sub ax, [0x08]
+    add ax, [0x0A]
+    add ax, 0x10
+    mov [cs:exe_min_par], ax
+    mov ax, [cs:kfsize]
+    mov dx, [cs:kfsize_hi]
+    add ax, 511
+    adc dx, 0
+    mov cx, 9
+.exe_file_shr:
+    shr dx, 1
+    rcr ax, 1
+    loop .exe_file_shr
+    mov cx, 5
+.exe_file_shl:
+    shl ax, 1
+    rcl dx, 1
+    loop .exe_file_shl
+    add ax, 0x12
+    adc dx, 0
+    test dx, dx
+    jz .exe_size_ok
+    mov ax, 8
     stc
     ret
+.exe_size_ok:
+    cmp ax, [cs:exe_min_par]
+    jae .exe_use_file
+    mov ax, [cs:exe_min_par]
+.exe_use_file:
+    mov [cs:prog_par], ax
+    jmp .alloc
 .com_size:
     mov ax, [cs:kfsize]
     mov dx, [cs:kfsize_hi]
@@ -3229,7 +3317,7 @@ load_exec_program:
     shl ax, 1
     rcl dx, 1
     loop .shl5
-    add ax, 0x12
+    add ax, COM_EXTRA_PAR
     adc dx, 0
     test dx, dx
     jz .com_size_ok
@@ -3238,9 +3326,18 @@ load_exec_program:
     ret
 .com_size_ok:
     mov [cs:prog_par], ax
+.alloc:
     push cs
     pop ds
     mov bx, [cs:prog_par]
+    cmp byte [cs:exec_is_exe], 0
+    je .alloc_fixed
+    call alloc_all_mem_direct
+    jnc .alloc_ok
+    mov ax, 8
+    stc
+    ret
+.alloc_fixed:
     call alloc_mem_direct
     jnc .alloc_ok
     mov ax, 8
@@ -3267,9 +3364,12 @@ load_exec_program:
     stc
     ret
 .loaded:
+    cmp byte [cs:exec_is_exe], 0
+    jne .loaded_done
     mov ax, [cs:prog_seg]
     call build_psp
     call exec_copy_command_tail
+.loaded_done:
     xor ax, ax
     clc
     ret
@@ -3339,6 +3439,72 @@ exec_copy_command_tail:
     pop ds
     pop cx
     pop bx
+    pop ax
+    ret
+
+update_exec_environment_path:
+    push ax
+    push cx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, ENV_SEG
+    mov es, ax
+    xor di, di
+    xor ax, ax
+    stosb
+    stosb
+    mov ax, 1
+    stosw
+    mov al, 'A'
+    stosb
+    mov al, ':'
+    stosb
+    mov al, '\'
+    stosb
+    mov ds, [cs:exec_path_seg]
+    mov si, [cs:exec_path_off]
+    cmp byte [ds:si+1], ':'
+    jne .skip_sep
+    add si, 2
+.skip_sep:
+    cmp byte [ds:si], '\'
+    je .skip_one_sep
+    cmp byte [ds:si], '/'
+    jne .copy
+.skip_one_sep:
+    inc si
+    jmp .skip_sep
+.copy:
+    mov cx, 80
+.copy_loop:
+    lodsb
+    test al, al
+    jz .done
+    cmp al, '/'
+    je .slash
+    cmp al, '\'
+    je .slash
+    cmp al, 'a'
+    jb .store
+    cmp al, 'z'
+    ja .store
+    sub al, 32
+    jmp .store
+.slash:
+    mov al, '\'
+.store:
+    stosb
+    loop .copy_loop
+.done:
+    xor al, al
+    stosb
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop cx
     pop ax
     ret
 
@@ -3692,8 +3858,14 @@ build_psp:
 
     mov byte [es:0x00], 0xCD
     mov byte [es:0x01], 0x20
-    mov ax, 0xA000
+    push ds
+    mov ax, es
+    dec ax
+    mov ds, ax
+    mov ax, es
+    add ax, [ds:3]
     mov [es:0x02], ax
+    pop ds
 
     push ds
     xor ax, ax
@@ -3817,6 +3989,7 @@ setup_exe_dyn:
 
     mov ax, [cs:prog_seg]
     call build_psp
+    call exec_copy_command_tail
 
     mov ax, [cs:prog_seg]
     add ax, 0x10
@@ -3905,10 +4078,27 @@ exec_com_dyn:
     mov [cs:saved_sp], sp
 
     mov ax, [cs:prog_seg]
+    dec ax
+    mov ds, ax
+    mov ax, [ds:3]
+    cmp ax, 0x1000
+    jb .small_stack
+    mov ax, 0xFFFE
+    jmp .stack_ready
+.small_stack:
+    mov cx, 4
+.stack_shift:
+    shl ax, 1
+    loop .stack_shift
+    sub ax, 2
+.stack_ready:
+    mov [cs:com_stack_top], ax
+
+    mov ax, [cs:prog_seg]
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov sp, 0xFFFE
+    mov sp, [cs:com_stack_top]
     push word 0x0000
     push ax
     push word 0x0100
@@ -3973,6 +4163,143 @@ serial_putchar:
     mov dx, COM1_PORT
     out dx, al
     pop dx
+    ret
+
+console_putchar:
+    push ax
+    call serial_putchar
+    call vga_putchar
+    pop ax
+    ret
+
+vga_putchar:
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+    push di
+    cmp al, 13
+    je .cr
+    cmp al, 10
+    je .lf
+    cmp al, 8
+    je .bs
+    push ax
+    mov ax, [cs:vga_row]
+    mov bx, VGA_COLS
+    mul bx
+    add ax, [cs:vga_col]
+    shl ax, 1
+    mov di, ax
+    mov ax, VGA_TEXT_SEG
+    mov es, ax
+    pop ax
+    mov ah, 0x07
+    stosw
+    inc word [cs:vga_col]
+    cmp word [cs:vga_col], VGA_COLS
+    jb .update
+    mov word [cs:vga_col], 0
+    jmp .advance_row
+.cr:
+    mov word [cs:vga_col], 0
+    jmp .update
+.lf:
+    jmp .advance_row
+.bs:
+    cmp word [cs:vga_col], 0
+    je .update
+    dec word [cs:vga_col]
+    jmp .update
+.advance_row:
+    inc word [cs:vga_row]
+    cmp word [cs:vga_row], VGA_ROWS
+    jb .update
+    call vga_scroll
+    mov word [cs:vga_row], VGA_ROWS - 1
+.update:
+    call vga_update_cursor
+    pop di
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+vga_clear:
+    push ax
+    push cx
+    push es
+    push di
+    mov ax, VGA_TEXT_SEG
+    mov es, ax
+    xor di, di
+    mov ax, 0x0720
+    mov cx, VGA_COLS * VGA_ROWS
+    cld
+    rep stosw
+    mov word [cs:vga_row], 0
+    mov word [cs:vga_col], 0
+    call vga_update_cursor
+    pop di
+    pop es
+    pop cx
+    pop ax
+    ret
+
+vga_scroll:
+    push ax
+    push cx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, VGA_TEXT_SEG
+    mov ds, ax
+    mov es, ax
+    mov si, VGA_COLS * 2
+    xor di, di
+    mov cx, VGA_COLS * (VGA_ROWS - 1)
+    cld
+    rep movsw
+    mov ax, 0x0720
+    mov cx, VGA_COLS
+    mov di, VGA_COLS * (VGA_ROWS - 1) * 2
+    rep stosw
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop cx
+    pop ax
+    ret
+
+vga_update_cursor:
+    push ax
+    push bx
+    push dx
+    mov ax, [cs:vga_row]
+    mov bx, VGA_COLS
+    mul bx
+    add ax, [cs:vga_col]
+    mov bx, ax
+    mov dx, 0x03D4
+    mov al, 0x0F
+    out dx, al
+    inc dx
+    mov al, bl
+    out dx, al
+    dec dx
+    mov al, 0x0E
+    out dx, al
+    inc dx
+    mov al, bh
+    out dx, al
+    pop dx
+    pop bx
+    pop ax
     ret
 
 serial_print:
@@ -4107,6 +4434,9 @@ ret_code:  db 0
 running:   dw 0
 saved_ss:  dw 0
 saved_sp:  dw 0
+com_stack_top: dw 0
+vga_row:   dw 0
+vga_col:   dw 0
 
 load_name: dw 0
 load_seg:  dw 0
@@ -4222,6 +4552,7 @@ exec_path_off: dw 0
 exec_path_seg: dw 0
 exec_cluster: dw 0
 exec_status: dw 0
+exec_is_exe: db 0
 
 prog_seg: dw 0
 prog_par: dw 0

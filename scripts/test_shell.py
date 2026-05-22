@@ -33,6 +33,7 @@ def build_image():
     ])
     run(["nasm", "-f", "bin", "src/shell.asm", "-o", os.path.join(BUILDDIR, "shell.com")])
     run(["nasm", "-f", "bin", "src/hello.asm", "-o", os.path.join(BUILDDIR, "hello.com")])
+    run(["nasm", "-f", "bin", "src/helloexe.asm", "-o", os.path.join(BUILDDIR, "helloexe.exe")])
     run(["nasm", "-f", "bin", "src/exectest.asm", "-o", os.path.join(BUILDDIR, "exectest.com")])
     run([
         "python3", "scripts/mkimage.py",
@@ -41,6 +42,7 @@ def build_image():
         IMG,
         os.path.join(BUILDDIR, "shell.com"),
         os.path.join(BUILDDIR, "hello.com"),
+        os.path.join(BUILDDIR, "helloexe.exe"),
         os.path.join(BUILDDIR, "exectest.com"),
     ])
 
@@ -62,6 +64,7 @@ def send_keys():
         "d", "i", "r", "ret",
         "h", "e", "l", "l", "o", "ret",
         "h", "e", "l", "l", "o", "ret",
+        "h", "e", "l", "l", "o", "e", "x", "e", "ret",
         "e", "x", "e", "c", "t", "e", "s", "t", "ret",
         "n", "o", "p", "e", "ret",
         "e", "x", "i", "t", "ret",
@@ -115,6 +118,8 @@ def main():
         "A:\\>",
         "SHELL.COM",
         "HELLO.COM",
+        "HELLOEXE.EXE",
+        "PASS: HELLO.EXE",
         "EXECTEST.COM",
         "PASS: EXECTEST",
         "Bad command or file name",

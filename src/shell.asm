@@ -126,9 +126,9 @@ uppercase_line:
 prepare_command:
     push ds
     pop es
+    mov byte [command_has_ext], 0
     mov si, line_buf
     mov di, command_name
-    xor bx, bx
 .copy:
     lodsb
     cmp al, ' '
@@ -137,15 +137,16 @@ prepare_command:
     jz .end_name
     cmp al, '.'
     jne .not_dot
-    mov bl, 1
+    mov byte [command_has_ext], 1
 .not_dot:
     stosb
     jmp .copy
 .end_name:
-    test bl, bl
-    jnz .terminate
+    cmp byte [command_has_ext], 0
+    jne .terminate
     mov al, '.'
     stosb
+    mov [command_ext_off], di
     mov al, 'C'
     stosb
     mov al, 'O'
@@ -160,6 +161,27 @@ prepare_command:
     ret
 
 run_command:
+    call run_current_command
+    jnc .ok
+    cmp byte [command_has_ext], 0
+    jne .bad
+    mov di, [command_ext_off]
+    mov byte [di], 'E'
+    mov byte [di+1], 'X'
+    mov byte [di+2], 'E'
+    call run_current_command
+    jc .bad
+.ok:
+    mov ah, 0x4D
+    int 0x21
+    ret
+.bad:
+    mov dx, bad_cmd_msg
+    mov ah, 0x09
+    int 0x21
+    ret
+
+run_current_command:
     mov word [exec_params], 0
     mov word [exec_params+2], cmd_tail
     mov word [exec_params+4], cs
@@ -172,14 +194,6 @@ run_command:
     mov bx, exec_params
     mov dx, command_name
     mov ax, 0x4B00
-    int 0x21
-    jc .bad
-    mov ah, 0x4D
-    int 0x21
-    ret
-.bad:
-    mov dx, bad_cmd_msg
-    mov ah, 0x09
     int 0x21
     ret
 
@@ -224,6 +238,8 @@ dir_pattern: db "*.*", 0
 
 line_buf: times 64 db 0
 command_name: times 64 db 0
+command_has_ext: db 0
+command_ext_off: dw 0
 cmd_tail: times 128 db 0
 exec_params: times 14 db 0
 dir_dta: times 64 db 0
