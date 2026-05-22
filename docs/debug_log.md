@@ -328,3 +328,35 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - Actual Monkey save/load validation likely needs a full game install or a demo build that exposes save/load, not the bundled contest demo.
 - Continue writable FAT work with automated DOS API regressions until interactive save/load media is available.
+
+## 2026-05-22 Subdirectory FAT Writes
+
+### Confirmed Facts
+
+- The first subdirectory write regression failed at `AH=3Ch` after `CD MIDEMO`, confirming create/write support was still root-only.
+- Existing handle metadata and close-time directory flushing were already sufficient for subdirectory file handles once create/open/delete/rename recorded the subdirectory sector LBA and entry offset.
+
+### Fixes Made During Investigation
+
+- Extended `SAVEWR.COM` to `CD MIDEMO`, create `SUBSAVE.DAT`, write and read back a 700-byte pattern, rename to `SUBDONE.DAT`, delete it, then create `SUBUSED.DAT`.
+- Extended `scripts/test_savewrite.py` to include a `MIDEMO` directory in the test image and host-verify `MIDEMO/SUBUSED.DAT` persisted with the expected contents.
+- Generalized file create/delete/rename from root-only paths to bare filenames in the current directory, including subdirectory sector lookup and flushing.
+- Added subdirectory free-entry scanning for existing directory clusters; directory extension remains deferred.
+- Review fix: made subdirectory free-slot search return a real entry index instead of the `loop` counter remainder.
+- Review fixes: preserve `AX` across subdirectory directory-sector flushes, and host-check that `SUBSAVE.DAT` is absent after rename.
+- Review coverage: `SAVEWR.COM` now checks unsupported multi-component create fails, confirms `SUBTEST.DAT` survived subdirectory mutations, and `CD \` restores access to root files.
+
+### Tests Run
+
+- `python3 scripts/test_savewrite.py` failed before implementation at `FAIL: CREATE` after `CD MIDEMO`, then passed after subdirectory support was added.
+- `make test` passed.
+- Rebuilt direct and shell-boot Monkey/MI2 images with current scripts.
+- Direct Monkey and MI2 serial smokes passed.
+- Shell-launched Monkey and MI2 serial smokes passed.
+- After review fixes, reran `python3 scripts/test_savewrite.py`, `make test`, rebuilt game images, and reran direct/shell Monkey and MI2 serial smokes; all passed.
+
+### Follow-Ups
+
+- Directory extension is still not implemented; subdirectory writes require an existing free entry in an existing directory cluster.
+- Multi-component write paths such as `MIDEMO\FILE.DAT` remain unsupported; callers can `CD MIDEMO` and use bare filenames.
+- Seek-past-EOF zero filling remains deferred.

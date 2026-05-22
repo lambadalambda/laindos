@@ -30,12 +30,14 @@ def build_image():
         "-o", KERNEL,
     ])
     run(["nasm", "-f", "bin", "src/savewr.asm", "-o", os.path.join(BUILDDIR, "savewr.com")])
+    run(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
         KERNEL,
         IMG,
         os.path.join(BUILDDIR, "savewr.com"),
+        f"MIDEMO:{os.path.join(BUILDDIR, 'subtest.dat')}",
     ])
 
 
@@ -74,6 +76,25 @@ def get_fat12(fat, cluster):
     if cluster & 1:
         return ((fat[off] >> 4) | (fat[off + 1] << 4)) & 0xFFF
     return (fat[off] | ((fat[off + 1] & 0x0F) << 8)) & 0xFFF
+
+
+def read_cluster_chain(image, fat, data_start, bps, spc, cluster):
+    data = bytearray()
+    while 2 <= cluster < 0xFF8:
+        off = (data_start + (cluster - 2) * spc) * bps
+        data.extend(image[off:off + spc * bps])
+        cluster = get_fat12(fat, cluster)
+    return bytes(data)
+
+
+def find_entry(directory, name):
+    for off in range(0, len(directory), 32):
+        first = directory[off]
+        if first == 0:
+            break
+        if first != 0xE5 and directory[off:off + 11] == name:
+            return directory[off:off + 32]
+    return None
 
 
 def verify_disk_file():
@@ -122,16 +143,50 @@ def verify_disk_file():
     if size != 700:
         print(f"  FAIL: bad entry size/date: size={size} time={time_word:04X} date={date_word:04X}")
         return False
-    data = bytearray()
-    while 2 <= cluster < 0xFF8:
-        off = (data_start + (cluster - 2) * spc) * bps
-        data.extend(image[off:off + spc * bps])
-        cluster = get_fat12(fat, cluster)
+    data = read_cluster_chain(image, fat, data_start, bps, spc, cluster)
     expected = bytes([i & 0xFF for i in range(700)])
-    if bytes(data[:700]) != expected:
+    if data[:700] != expected:
         print("  FAIL: disk file contents mismatch")
         return False
     print("  PASS: disk image contains REUSED.DAT contents after delete")
+
+    midemo = find_entry(root, b"MIDEMO  " + b"   ")
+    if midemo is None:
+        print("  FAIL: MIDEMO directory missing")
+        return False
+    midemo_cluster = struct.unpack_from("<H", midemo, 26)[0]
+    midemo_dir = read_cluster_chain(image, fat, data_start, bps, spc, midemo_cluster)
+    subtest_entry = find_entry(midemo_dir, b"SUBTEST " + b"DAT")
+    if subtest_entry is None:
+        print("  FAIL: MIDEMO/SUBTEST.DAT missing after subdirectory operations")
+        return False
+    subtest_cluster = struct.unpack_from("<H", subtest_entry, 26)[0]
+    subtest_size = struct.unpack_from("<I", subtest_entry, 28)[0]
+    subtest_data = read_cluster_chain(image, fat, data_start, bps, spc, subtest_cluster)
+    expected_subtest = b"Hello from MIDEMO subdirectory!\n"
+    if subtest_size != len(expected_subtest) or subtest_data[:subtest_size] != expected_subtest:
+        print("  FAIL: MIDEMO/SUBTEST.DAT contents changed")
+        return False
+    if find_entry(midemo_dir, b"SUBSAVE " + b"DAT") is not None:
+        print("  FAIL: MIDEMO/SUBSAVE.DAT still present after rename")
+        return False
+    if find_entry(midemo_dir, b"SUBDONE " + b"DAT") is not None:
+        print("  FAIL: MIDEMO/SUBDONE.DAT still present after delete")
+        return False
+    sub_entry = find_entry(midemo_dir, b"SUBUSED " + b"DAT")
+    if sub_entry is None:
+        print("  FAIL: MIDEMO/SUBUSED.DAT missing")
+        return False
+    sub_cluster = struct.unpack_from("<H", sub_entry, 26)[0]
+    sub_size = struct.unpack_from("<I", sub_entry, 28)[0]
+    if sub_size != 700:
+        print(f"  FAIL: bad MIDEMO/SUBUSED.DAT size: {sub_size}")
+        return False
+    sub_data = read_cluster_chain(image, fat, data_start, bps, spc, sub_cluster)
+    if sub_data[:700] != expected:
+        print("  FAIL: MIDEMO/SUBUSED.DAT contents mismatch")
+        return False
+    print("  PASS: disk image contains MIDEMO/SUBUSED.DAT contents after delete")
     return True
 
 

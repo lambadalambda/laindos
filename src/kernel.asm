@@ -1927,14 +1927,14 @@ int21_handler:
     call parse_root_path
     jc .cr_path_err
     mov byte [cs:ff_attr_mask], 0
-    mov ax, ROOT_CLUSTER
+    mov ax, [cs:pr_dir_cluster]
     call find_in_dir
     jnc .cr_existing
-    call find_root_free
+    mov ax, [cs:pr_dir_cluster]
+    call find_dir_free
     jc .cr_no_slot
     mov [cs:cf_entry_idx], cx
     mov [cs:cf_entry_off], di
-    call root_entry_loc_from_cx
     mov byte [cs:cf_found], 0
     jmp .cr_alloc_handle
 .cr_existing:
@@ -1943,14 +1943,15 @@ int21_handler:
     mov ax, [cs:ff_entry_idx]
     mov [cs:cf_entry_idx], ax
     mov [cs:cf_entry_off], di
-    mov cx, ax
-    call root_entry_loc_from_cx
     mov byte [cs:cf_found], 1
 .cr_alloc_handle:
+    mov ax, es
+    mov [cs:cf_entry_seg], ax
+    mov [cs:cf_entry_off], di
     call alloc_handle
     jc .cr_no_handles
     mov [cs:cf_handle], ax
-    mov ax, ROOT_SEG
+    mov ax, [cs:cf_entry_seg]
     mov es, ax
     mov di, [cs:cf_entry_off]
     cmp byte [cs:cf_found], 0
@@ -1982,7 +1983,7 @@ int21_handler:
     mov word [es:di+28], 0
     mov word [es:di+30], 0
     mov ax, [cs:ff_entry_lba]
-    call flush_root_sector
+    call flush_dir_sector
     jc .cr_io_err
     mov ax, [cs:cf_handle]
     mov cx, HANDLE_SIZE
@@ -2606,14 +2607,11 @@ int21_handler:
     call parse_root_path
     jc .df_path_err
     mov byte [cs:ff_attr_mask], 0
-    mov ax, ROOT_CLUSTER
+    mov ax, [cs:pr_dir_cluster]
     call find_in_dir
     jc .df_not_found
     test byte [es:di+11], ATTR_DIR
     jnz .df_access
-    mov ax, [cs:ff_entry_idx]
-    mov cx, ax
-    call root_entry_loc_from_cx
     test byte [es:di+11], ATTR_RDONLY
     jnz .df_access
     call entry_has_open_handle
@@ -2622,7 +2620,7 @@ int21_handler:
     mov [cs:df_first_cluster], si
     mov byte [es:di], 0xE5
     mov ax, [cs:ff_entry_lba]
-    call flush_root_sector
+    call flush_dir_sector
     jc .df_io_err
     mov si, [cs:df_first_cluster]
     call fat_free_chain
@@ -3001,8 +2999,10 @@ int21_handler:
     mov si, dx
     call parse_root_path
     jc .rn_path_err
+    mov ax, [cs:pr_dir_cluster]
+    mov [cs:rn_dir_cluster], ax
     mov byte [cs:ff_attr_mask], 0
-    mov ax, ROOT_CLUSTER
+    mov ax, [cs:rn_dir_cluster]
     call find_in_dir
     jc .rn_not_found
     test byte [es:di+11], ATTR_DIR
@@ -3010,29 +3010,47 @@ int21_handler:
     mov ax, [cs:ff_entry_idx]
     mov [cs:rn_src_idx], ax
     mov [cs:rn_src_off], di
-    mov cx, ax
-    call root_entry_loc_from_cx
     mov ax, [cs:ff_entry_lba]
     mov [cs:rn_src_lba], ax
+    mov ax, [cs:ff_entry_off]
+    mov [cs:rn_src_dir_off], ax
     mov ax, [cs:rn_new_seg]
     mov ds, ax
     mov si, [cs:rn_new_off]
     call parse_root_path
     jc .rn_path_err
+    mov ax, [cs:pr_dir_cluster]
+    cmp ax, [cs:rn_dir_cluster]
+    jne .rn_access
     mov byte [cs:ff_attr_mask], 0
-    mov ax, ROOT_CLUSTER
+    mov ax, [cs:rn_dir_cluster]
     call find_in_dir
     jnc .rn_access
+    mov ax, [cs:rn_src_lba]
+    cmp ax, [cs:krsta]
+    jb .rn_load_subdir
+    cmp ax, [cs:kdsta]
+    jae .rn_load_subdir
     mov ax, ROOT_SEG
     mov es, ax
     mov di, [cs:rn_src_off]
+    jmp .rn_write_name
+.rn_load_subdir:
+    mov ax, SEC_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:rn_src_lba]
+    call read_sector
+    jc .rn_access
+    mov di, [cs:rn_src_dir_off]
+.rn_write_name:
     push cs
     pop ds
     mov si, name_buf
     mov cx, 11
     rep movsb
     mov ax, [cs:rn_src_lba]
-    call flush_root_sector
+    call flush_dir_sector
     jc .rn_access
     pop cx
     pop bx
@@ -3619,6 +3637,68 @@ root_entry_loc_from_cx:
     pop ax
     ret
 
+find_dir_free:
+    cmp ax, ROOT_CLUSTER
+    jne .subdir
+    call find_root_free
+    jc .err
+    call root_entry_loc_from_cx
+    clc
+    ret
+.subdir:
+    push bx
+    push dx
+    push si
+    mov [cs:rid_clus], ax
+    mov word [cs:ff_entry_idx], 0
+.sd_sector:
+    mov si, [cs:rid_clus]
+    cmp si, 0x0FF8
+    jae .sd_full
+    cmp si, 2
+    jb .sd_full
+    mov ax, si
+    sub ax, 2
+    xor ch, ch
+    mov cl, [cs:kspc]
+    mul cx
+    add ax, [cs:kdsta]
+    mov [cs:ff_entry_lba], ax
+    mov dx, SEC_BUF
+    mov es, dx
+    xor bx, bx
+    call read_sector
+    jc .sd_full
+    xor di, di
+    mov cx, 16
+.sd_entry:
+    cmp byte [es:di], 0
+    je .sd_found
+    cmp byte [es:di], 0xE5
+    je .sd_found
+    add di, 32
+    inc word [cs:ff_entry_idx]
+    loop .sd_entry
+    mov si, [cs:rid_clus]
+    call fat_next
+    mov [cs:rid_clus], ax
+    jmp .sd_sector
+.sd_found:
+    mov [cs:ff_entry_off], di
+    mov cx, [cs:ff_entry_idx]
+    pop si
+    pop dx
+    pop bx
+    clc
+    ret
+.sd_full:
+    pop si
+    pop dx
+    pop bx
+.err:
+    stc
+    ret
+
 parse_83name:
     push ax
     push bx
@@ -3703,6 +3783,8 @@ parse_root_path:
     push bx
     push dx
     mov byte [cs:pr_abs], 0
+    mov ax, [cs:cur_dir_cluster]
+    mov [cs:pr_dir_cluster], ax
     cmp byte [ds:si], 'A'
     jb .check_sep
     cmp byte [ds:si], 'Z'
@@ -3717,14 +3799,10 @@ parse_root_path:
     jne .after_sep
 .sep:
     mov byte [cs:pr_abs], 1
+    mov word [cs:pr_dir_cluster], ROOT_CLUSTER
     inc si
     jmp .check_sep
 .after_sep:
-    cmp byte [cs:pr_abs], 0
-    jne .have_dir
-    cmp word [cs:cur_dir_cluster], ROOT_CLUSTER
-    jne .err
-.have_dir:
     cmp byte [ds:si], 0
     je .err
     mov [cs:pr_name_off], si
@@ -4249,6 +4327,28 @@ flush_root_sector:
     shl bx, 1
     mov ax, ROOT_SEG
     mov es, ax
+    mov ax, [cs:dir_flush_lba]
+    call write_sector
+    pop es
+    pop bx
+    pop ax
+    ret
+
+flush_dir_sector:
+    mov [cs:dir_flush_lba], ax
+    cmp ax, [cs:krsta]
+    jb .subdir
+    cmp ax, [cs:kdsta]
+    jae .subdir
+    call flush_root_sector
+    ret
+.subdir:
+    push ax
+    push bx
+    push es
+    mov ax, SEC_BUF
+    mov es, ax
+    xor bx, bx
     mov ax, [cs:dir_flush_lba]
     call write_sector
     pop es
@@ -5705,6 +5805,7 @@ of_mode: db 0
 cf_attr: db 0
 cf_handle: dw 0
 cf_entry_idx: dw 0
+cf_entry_seg: dw 0
 cf_entry_off: dw 0
 cf_found: db 0
 cf_status: dw 0
@@ -5713,7 +5814,9 @@ rn_new_off: dw 0
 rn_new_seg: dw 0
 rn_src_idx: dw 0
 rn_src_off: dw 0
+rn_src_dir_off: dw 0
 rn_src_lba: dw 0
+rn_dir_cluster: dw 0
 rn_status: dw 0
 
 ft_mode: db 0
@@ -5724,6 +5827,7 @@ df_first_cluster: dw 0
 
 pr_abs: db 0
 pr_name_off: dw 0
+pr_dir_cluster: dw 0
 
 dir_flush_lba: dw 0
 dir_update_hoff: dw 0
