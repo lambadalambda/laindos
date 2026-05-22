@@ -34,6 +34,7 @@ Implement a minimal built-in DOS mouse service so Monkey Island can detect and u
 
 ## Notes
 
-- Current kernel behavior is a stub `INT 33h` handler that returns zeros, so software sees no installed mouse.
 - CTMouse is not the first implementation path because it is a TSR-style DOS driver and would require more program-loading, resident-memory, vector-preservation, and hardware support before it helps.
-- INT 33h AX=000Ch event callbacks are common in DOS games; add support if the Monkey Island trace shows it is required.
+- Implemented in commit `bd49ca5` with a built-in INT 33h API, PS/2 IRQ12 backend, packet decoder, motion counters, and button press latches.
+- Verified: `make test` passes; `PASS: MOUSE` and `PASS: MOUSEHW` were confirmed via targeted QEMU runs, including monitor `mouse_move`; graphical Monkey Island run has working mouse input.
+- INT 33h AX=000Ch event callback addresses are stored but callback invocation remains a future compatibility enhancement if another program requires it.

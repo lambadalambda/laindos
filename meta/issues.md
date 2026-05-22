@@ -1,4 +1,3 @@
 - [ ] [Phase 6: Direct Boot into Monkey Island](issues/phase6-boot-monkey-island.md)
 - [ ] [Phase 7: Implement Missing Calls Until Visible Start](issues/phase7-missing-calls-for-start.md)
-- [ ] [Phase 8: Built-in INT 33h Mouse Support](issues/phase8-built-in-int33h-mouse-support.md)
 - [ ] [Phase 9: Save-Game Writes](issues/phase9-save-game-writes.md)
