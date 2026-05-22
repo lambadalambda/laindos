@@ -308,3 +308,23 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - Phase 9 remains open until actual Monkey save/load is verified interactively.
 - General writable FAT work still needs subdirectory create/write/rename/delete support, directory extension, and seek-gap zero filling.
+
+## 2026-05-22 Shell Monkey Save Probe
+
+### Confirmed Facts
+
+- `scripts/build_shell_monkey.py` rebuilds `build/shell_monkey.img` with current `SHELL.COM`, preserving the on-disk `SHELL.COM` filename while using isolated intermediate build paths.
+- The shell-boot Monkey image launches `midemo` from the shell and reaches the playable scene.
+- Sending `F5` during the intro and again after skipping to the playable scene did not open a save/load dialog or produce save-related DOS calls.
+- The bundled `vendor/readme` identifies this as an interactive contest demo and documents movement plus `Control-C` to exit, but does not document save/load controls.
+
+### Tests And Probes Run
+
+- Built `build/shell_monkey.img` with `python3 scripts/build_shell_monkey.py`.
+- Used QEMU HMP key injection to launch `midemo`, send `Esc` to reach the playable scene, send `F5`, and capture screenshots.
+- Captured playable-scene screenshot at `/var/folders/_k/0yhtrj754g59m75jw73827q80000gn/T/opencode/monkey-save-probe2.png`.
+
+### Follow-Ups
+
+- Actual Monkey save/load validation likely needs a full game install or a demo build that exposes save/load, not the bundled contest demo.
+- Continue writable FAT work with automated DOS API regressions until interactive save/load media is available.
