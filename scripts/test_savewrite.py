@@ -10,7 +10,7 @@ BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
 IMG = os.path.join(BUILDDIR, "savewrite.img")
 KERNEL = os.path.join(BUILDDIR, "savewrite_kernel.bin")
 TIMEOUT = 8
-FILLER_COUNT = 14
+FILLER_COUNT = 29
 
 
 def run(cmd):
@@ -197,8 +197,8 @@ def verify_disk_file():
         print("  FAIL: MIDEMO/SUBDONE.DAT still present after delete")
         return False
     sub_entry_off = find_entry_offset(midemo_dir, b"SUBUSED " + b"DAT")
-    if sub_entry_off is not None and sub_entry_off < bps:
-        print("  FAIL: MIDEMO/SUBUSED.DAT was not created in the second directory sector")
+    if sub_entry_off is not None and sub_entry_off < bps * spc:
+        print("  FAIL: MIDEMO/SUBUSED.DAT was not created in an extended directory cluster")
         return False
     sub_entry = None if sub_entry_off is None else midemo_dir[sub_entry_off:sub_entry_off + 32]
     if sub_entry is None:

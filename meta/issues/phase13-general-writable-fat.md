@@ -28,4 +28,5 @@ Generalize FAT writes beyond minimal std-handle support so shell commands and ga
 - Root create/write/delete/rename/date support is implemented and covered by `SAVEWR.COM`.
 - Bare-filename create/write/delete/rename now also works in the current subdirectory, covered by `CD MIDEMO` regression coverage in `SAVEWR.COM`.
 - Subdirectory lookup and free-entry scanning now cover every sector in each directory cluster, covered by a 2.88 MB `SAVEWR.COM` image that forces entries into the second directory sector.
-- Remaining gaps include actual Monkey load validation, directory extension, seek-past-EOF zero filling, and multi-component write paths such as `DIR\FILE.DAT`.
+- Full subdirectories now extend by allocating, zeroing, linking, and flushing a new directory cluster; covered by forcing `MIDEMO/SUBUSED.DAT` into an extended directory cluster.
+- Remaining gaps include actual Monkey load validation, seek-past-EOF zero filling, and multi-component write paths such as `DIR\FILE.DAT`.

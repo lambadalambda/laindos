@@ -386,3 +386,24 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Directory extension is still not implemented; subdirectory writes require an existing free entry in an existing directory cluster.
 - Seek-past-EOF zero filling remains deferred.
 - Multi-component write paths such as `DIR\FILE.DAT` remain unsupported.
+
+## 2026-05-22 Subdirectory Extension
+
+### Confirmed Facts
+
+- Increasing the 2.88 MB save-write image to preload 29 filler files puts `SUBTEST.DAT` at the last slot of `MIDEMO`'s initial two-sector directory cluster.
+- With the initial subdirectory cluster full, `python3 scripts/test_savewrite.py` failed at `FAIL: CREATE` before directory extension was implemented.
+
+### Fixes Made During Investigation
+
+- Extended `find_dir_free` so a full subdirectory ending at FAT EOC allocates a new cluster, links it from the previous directory cluster, zeroes all sectors in the new directory cluster, flushes the FAT, and returns the first slot of the new cluster.
+- Tightened the `SAVEWR` host verification so `MIDEMO/SUBUSED.DAT` must be created beyond the original directory cluster.
+
+### Tests Run
+
+- `python3 scripts/test_savewrite.py` reproduced the full-subdirectory failure before the implementation and passed after directory extension was added.
+
+### Follow-Ups
+
+- Seek-past-EOF zero filling remains deferred.
+- Multi-component write paths such as `DIR\FILE.DAT` remain unsupported.
