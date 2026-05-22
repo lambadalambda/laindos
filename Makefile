@@ -21,6 +21,8 @@ BIGRELOC  := $(BUILDDIR)/bigreloc.exe
 KEYTEST   := $(BUILDDIR)/keytest.com
 OVLTEST   := $(BUILDDIR)/ovltest.com
 OVERLAY   := $(BUILDDIR)/overlay.exe
+SHELLCOM  := $(BUILDDIR)/shell.com
+EXECTEST  := $(BUILDDIR)/exectest.com
 TESTFILE  := $(BUILDDIR)/testfile.dat
 DISK_IMG := $(BUILDDIR)/disk.img
 
@@ -92,12 +94,20 @@ $(OVERLAY): $(SRCDIR)/overlay.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
+$(SHELLCOM): $(SRCDIR)/shell.asm
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
+$(EXECTEST): $(SRCDIR)/exectest.asm
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
 $(TESTFILE): scripts/mktestfile.py
 	@mkdir -p $(BUILDDIR)
 	$(PYTHON) $< $@
 
-$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(OVLTEST) $(OVERLAY) $(TESTFILE)
-	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(OVLTEST) $(OVERLAY) $(TESTFILE) MIDEMO:build/subtest.dat
+$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(TESTFILE)
+	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(TESTFILE) MIDEMO:build/subtest.dat
 
 run: $(DISK_IMG)
 	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic
@@ -108,6 +118,7 @@ test: $(DISK_IMG)
 	$(PYTHON) scripts/test_bigreloc.py
 	$(PYTHON) scripts/test_keyboard.py
 	$(PYTHON) scripts/test_overlay.py
+	$(PYTHON) scripts/test_shell.py
 
 clean:
 	rm -rf $(BUILDDIR)
