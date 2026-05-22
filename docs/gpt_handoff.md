@@ -485,15 +485,18 @@ No sound required.
 Mouse may report absent.
 ```
 
-### Phase 8 — mouse shim
+### Phase 8 — built-in INT 33h mouse support
 
 Deliverable:
 
 ```text
-INT 33h exists.
-Game sees a mouse.
-Pointer position/buttons work well enough.
+Trace Monkey Island INT 33h calls.
+Implement the minimal built-in INT 33h API it needs.
+Initialize a QEMU PS/2 mouse backend and decode 3-byte packets.
+Game detects mouse movement/buttons without CTMouse or TSR support.
 ```
+
+See `meta/issues/phase8-built-in-int33h-mouse-support.md` for the current scoped requirements and acceptance criteria.
 
 ### Phase 9 — save-game writes
 
@@ -585,4 +588,3 @@ The most important discipline is this: every time you are tempted to implement �
 [7]: https://github.com/fdos/kernel "GitHub - FDOS/kernel: FreeDOS kernel - implements the core MS-DOS/PC-DOS (R) compatible operating system. It is derived from Pat Villani's DOS-C kernel and released under the GPL v2 or later. Please see http://www.freedos.org/ for more details about the FreeDOS (TM) Project. · GitHub"
 [8]: https://wiki.osdev.org/Ralf_Brown%27s_Interrupt_List "Ralf Brown's Interrupt List - OSDev Wiki"
 [9]: https://www.ctyme.com/rbrown.htm "Ralf Brown's Interrupt List - HTML Version"
-
