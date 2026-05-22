@@ -419,7 +419,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Fixes Made During Investigation
 
-- Added an `hd10m` `mkimage.py` format with hard-disk media byte and CHS geometry.
+- Added an `hd10m` `mkimage.py` format with hard-disk media byte and 20/16/63 CHS geometry.
 - Added `scripts/build_monkey_full.py` to extract `vendor/monkey_full.zip` into `build/` and build `build/monkey_full.img` without committing game data.
 - Added `scripts/test_monkey_full.py` to build the image, boot it as a hard disk, and assert serial startup markers.
 - Added `mise run run-monkey-full` for launching the full VGA image interactively.
@@ -477,3 +477,25 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - Seek-past-EOF zero filling remains deferred.
 - Multi-component write paths such as `DIR\FILE.DAT` remain unsupported.
+
+## 2026-05-22 Bochs Full Monkey Launcher
+
+### Confirmed Facts
+
+- Bochs rejects `hd10m` geometry when the declared CHS capacity exceeds the raw image size.
+- Exact 40/16/32 geometry starts in Bochs, but QEMU hard-disk boot then fails before LainDOS prints `MiniDOS booted`.
+- A 20/16/63 geometry with 20,160 total sectors preserves the QEMU hard-disk boot path and fits Bochs' geometry check.
+- Timed-out Bochs runs can leave an image lock behind, so the launcher boots a per-run copy of `build/monkey_full.img` and removes that copy after Bochs exits.
+
+### Fixes Made During Investigation
+
+- Added `scripts/run_monkey_full_bochs.py` to build the full Monkey image, generate `build/monkey_full.bochsrc`, and launch Bochs with SDL2 VGA output by default.
+- Added `mise run run-monkey-full-bochs` for interactive Bochs launch.
+- Added COM1 file logging and a `--smoke-seconds` mode for bounded non-interactive Bochs startup checks that require the `MiniDOS booted` serial marker.
+
+### Tests Run
+
+- `BOCHS_DISPLAY=nogui python3 scripts/run_monkey_full_bochs.py --smoke-seconds 5`
+- `python3 scripts/test_monkey_full.py`
+- `mise tasks`
+- `git diff --check`

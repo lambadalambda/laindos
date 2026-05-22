@@ -28,7 +28,7 @@ FORMATS = {
         'drive': 0x00,
     },
     'hd10m': {
-        'total_sectors': 20480,
+        'total_sectors': 20160,
         'sec_per_clus': 8,
         'root_ent_cnt': 224,
         'fat_sz': 8,

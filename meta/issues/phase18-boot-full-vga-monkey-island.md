@@ -24,6 +24,6 @@ Boot the full VGA version of The Secret of Monkey Island from `vendor/monkey_ful
 - The archive is gitignored under `vendor/`; do not commit extracted game files.
 - The full VGA version is expected to be larger than current floppy demo media and may require extending image-building and disk-access support.
 - Initial bring-up uses an unpartitioned 10 MB FAT12 hard-disk-style image (`--format=hd10m`) booted as BIOS drive `80h`.
-- Image parameters: 20,480 sectors, 8 sectors per cluster, 224 root entries, 8 sectors per FAT, CHS 63 sectors/track and 16 heads, media byte `0xF8`, drive byte `0x80`.
+- Image parameters: 20,160 sectors, 8 sectors per cluster, 224 root entries, 8 sectors per FAT, CHS 20 cylinders / 16 heads / 63 sectors per track, media byte `0xF8`, drive byte `0x80`.
 - `scripts/test_monkey_full.py` currently verifies boot, `MONKEY.EXE` load, and `INT 33h AX=0000` mouse initialization in serial output.
 - Interactive visible gameplay is verified. Full save/load validation remains under Phase 9 because `F5` did not open the save menu in the user's full VGA run.

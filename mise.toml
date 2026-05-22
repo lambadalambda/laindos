@@ -14,6 +14,10 @@ run = "make run"
 description = "Boot full VGA Monkey Island in QEMU"
 run = "python3 scripts/build_monkey_full.py && qemu-system-i386 -drive file=build/monkey_full.img,format=raw -boot order=c -serial stdio -monitor none"
 
+[tasks.run-monkey-full-bochs]
+description = "Boot full VGA Monkey Island in Bochs"
+run = "python3 scripts/run_monkey_full_bochs.py"
+
 [tasks.clean]
 description = "Remove build artifacts"
 run = "make clean"
