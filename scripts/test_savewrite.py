@@ -10,6 +10,7 @@ BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
 IMG = os.path.join(BUILDDIR, "savewrite.img")
 KERNEL = os.path.join(BUILDDIR, "savewrite_kernel.bin")
 TIMEOUT = 8
+FILLER_COUNT = 14
 
 
 def run(cmd):
@@ -31,12 +32,20 @@ def build_image():
     ])
     run(["nasm", "-f", "bin", "src/savewr.asm", "-o", os.path.join(BUILDDIR, "savewr.com")])
     run(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
+    filler_files = []
+    for i in range(FILLER_COUNT):
+        path = os.path.join(BUILDDIR, f"fill{i:02d}.dat")
+        with open(path, "wb") as f:
+            f.write(f"filler {i:02d}\n".encode("ascii"))
+        filler_files.append(path)
     run([
         "python3", "scripts/mkimage.py",
+        "--format=2880k",
         os.path.join(BUILDDIR, "boot.bin"),
         KERNEL,
         IMG,
         os.path.join(BUILDDIR, "savewr.com"),
+        *[f"MIDEMO:{path}" for path in filler_files],
         f"MIDEMO:{os.path.join(BUILDDIR, 'subtest.dat')}",
     ])
 
@@ -88,12 +97,19 @@ def read_cluster_chain(image, fat, data_start, bps, spc, cluster):
 
 
 def find_entry(directory, name):
+    off = find_entry_offset(directory, name)
+    if off is None:
+        return None
+    return directory[off:off + 32]
+
+
+def find_entry_offset(directory, name):
     for off in range(0, len(directory), 32):
         first = directory[off]
         if first == 0:
             break
         if first != 0xE5 and directory[off:off + 11] == name:
-            return directory[off:off + 32]
+            return off
     return None
 
 
@@ -111,6 +127,9 @@ def verify_disk_file():
     data_start = root_start + root_secs
     fat = image[reserved * bps:(reserved + fat_secs) * bps]
     root = image[root_start * bps:(root_start + root_secs) * bps]
+    if spc != 2:
+        print(f"  FAIL: expected sec_per_clus=2 for multi-sector directory test, got {spc}")
+        return False
     deleted = b"SAVEDONE" + b"DAT"
     target = b"REUSED  " + b"DAT"
     readonly = b"READONLY" + b"DAT"
@@ -156,7 +175,11 @@ def verify_disk_file():
         return False
     midemo_cluster = struct.unpack_from("<H", midemo, 26)[0]
     midemo_dir = read_cluster_chain(image, fat, data_start, bps, spc, midemo_cluster)
-    subtest_entry = find_entry(midemo_dir, b"SUBTEST " + b"DAT")
+    subtest_off = find_entry_offset(midemo_dir, b"SUBTEST " + b"DAT")
+    if subtest_off is not None and subtest_off < bps:
+        print("  FAIL: MIDEMO/SUBTEST.DAT was not placed in the second directory sector")
+        return False
+    subtest_entry = None if subtest_off is None else midemo_dir[subtest_off:subtest_off + 32]
     if subtest_entry is None:
         print("  FAIL: MIDEMO/SUBTEST.DAT missing after subdirectory operations")
         return False
@@ -173,7 +196,11 @@ def verify_disk_file():
     if find_entry(midemo_dir, b"SUBDONE " + b"DAT") is not None:
         print("  FAIL: MIDEMO/SUBDONE.DAT still present after delete")
         return False
-    sub_entry = find_entry(midemo_dir, b"SUBUSED " + b"DAT")
+    sub_entry_off = find_entry_offset(midemo_dir, b"SUBUSED " + b"DAT")
+    if sub_entry_off is not None and sub_entry_off < bps:
+        print("  FAIL: MIDEMO/SUBUSED.DAT was not created in the second directory sector")
+        return False
+    sub_entry = None if sub_entry_off is None else midemo_dir[sub_entry_off:sub_entry_off + 32]
     if sub_entry is None:
         print("  FAIL: MIDEMO/SUBUSED.DAT missing")
         return False

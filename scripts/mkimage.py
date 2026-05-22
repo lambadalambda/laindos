@@ -126,13 +126,13 @@ class Fat12Image:
             'entries': [],
         }
         dot = bytearray(32)
-        dot[0:8] = dirname.ljust(8)[:8].encode('ascii')
+        dot[0:8] = b'.       '
         dot[8:11] = b'   '
         dot[11] = DIR_ATTR
         struct.pack_into('<H', dot, 26, first_cluster)
         self.subdirs[dirname]['entries'].append(dot)
         dotdot = bytearray(32)
-        dotdot[0:8] = b'.      '
+        dotdot[0:8] = b'..      '
         dotdot[8:11] = b'   '
         dotdot[11] = DIR_ATTR
         struct.pack_into('<H', dotdot, 26, 0)
@@ -162,10 +162,10 @@ class Fat12Image:
             root_offset += 32
 
         for dirname, sd in self.subdirs.items():
-            dir_data = bytearray(SECTOR_SIZE)
+            dir_data = bytearray(SECTOR_SIZE * SEC_PER_CLUS)
             off = 0
             for entry in sd['entries']:
-                if off + 32 > SECTOR_SIZE:
+                if off + 32 > len(dir_data):
                     break
                 dir_data[off:off + 32] = entry
                 off += 32
@@ -271,10 +271,10 @@ def main():
         root_offset += 32
 
     for dirname, sd in img.subdirs.items():
-        dir_data = bytearray(SECTOR_SIZE)
+        dir_data = bytearray(SECTOR_SIZE * SEC_PER_CLUS)
         off = 0
         for entry in sd['entries']:
-            if off + 32 > SECTOR_SIZE:
+            if off + 32 > len(dir_data):
                 break
             dir_data[off:off + 32] = entry
             off += 32

@@ -27,4 +27,5 @@ Generalize FAT writes beyond minimal std-handle support so shell commands and ga
 - This overlaps with Phase 9 save-game writes; Phase 13 is the broader shell/filesystem version.
 - Root create/write/delete/rename/date support is implemented and covered by `SAVEWR.COM`.
 - Bare-filename create/write/delete/rename now also works in the current subdirectory, covered by `CD MIDEMO` regression coverage in `SAVEWR.COM`.
-- Remaining gaps include actual Monkey save/load validation, directory extension, seek-past-EOF zero filling, and multi-component write paths such as `DIR\FILE.DAT`.
+- Subdirectory lookup and free-entry scanning now cover every sector in each directory cluster, covered by a 2.88 MB `SAVEWR.COM` image that forces entries into the second directory sector.
+- Remaining gaps include actual Monkey load validation, directory extension, seek-past-EOF zero filling, and multi-component write paths such as `DIR\FILE.DAT`.

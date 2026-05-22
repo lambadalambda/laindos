@@ -20,3 +20,7 @@ Implement file creation, writing, closing, renaming, and date/time functions so 
 - Create/write/close cycle works without corruption
 - Rename and date/time functions return correct values
 - FAT and directory entries are correctly updated and flushed
+
+## Notes
+
+- User reported an interactive save attempt produced a working record file, confirming practical game-side file creation/write behavior. Keep the phase open until load behavior is verified and the saved-file format/flow is understood.

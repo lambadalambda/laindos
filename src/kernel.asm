@@ -3487,35 +3487,39 @@ find_in_dir_from:
     push bx
     push dx
     mov [cs:rid_clus], ax
-.rid_sec_loop:
+    xor cx, cx
+.rid_cluster_loop:
     mov si, [cs:rid_clus]
     cmp si, 0xFF8
     jae .rid_notfound_pop
-    push si
     mov ax, si
     sub ax, 2
+    push cx
     xor ch, ch
     mov cl, [cs:kspc]
     mul cx
+    pop cx
     add ax, [cs:kdsta]
     mov [cs:rid_lba], ax
+    mov byte [cs:rid_sec_idx], 0
+.rid_sec_loop:
     xor bx, bx
     mov dx, SEC_BUF
     mov es, dx
+    mov ax, [cs:rid_lba]
+    push cx
     call read_sector
-    pop si
+    pop cx
     jc .rid_notfound_pop
     mov ax, SEC_BUF
     mov es, ax
-    mov cx, [cs:fid_idx]
+    xor di, di
+    mov bx, 16
 .rid_entry:
-    mov ax, cx
-    and ax, (512 / 32) - 1
-    mov dx, 32
-    mul dx
-    mov di, ax
     cmp byte [es:di], 0
     je .rid_notfound_pop
+    cmp cx, [cs:fid_idx]
+    jb .rid_subdir_next
     cmp byte [es:di], 0xE5
     je .rid_subdir_next
     test byte [es:di+11], ATTR_VOLUME
@@ -3529,15 +3533,19 @@ find_in_dir_from:
     jnc .rid_found_subdir
 .rid_subdir_next:
     inc cx
-    mov [cs:fid_idx], cx
-    test cx, (512 / 32) - 1
+    add di, 32
+    dec bx
     jnz .rid_entry
 .rid_next_sec:
+    inc word [cs:rid_lba]
+    inc byte [cs:rid_sec_idx]
+    mov al, [cs:rid_sec_idx]
+    cmp al, [cs:kspc]
+    jb .rid_sec_loop
     mov si, [cs:rid_clus]
     call fat_next
     mov [cs:rid_clus], ax
-    mov word [cs:fid_idx], 0
-    jmp .rid_sec_loop
+    jmp .rid_cluster_loop
 .rid_found_subdir:
     mov ax, [cs:rid_lba]
     mov [cs:ff_entry_lba], ax
@@ -3651,7 +3659,7 @@ find_dir_free:
     push si
     mov [cs:rid_clus], ax
     mov word [cs:ff_entry_idx], 0
-.sd_sector:
+.sd_cluster_loop:
     mov si, [cs:rid_clus]
     cmp si, 0x0FF8
     jae .sd_full
@@ -3663,12 +3671,17 @@ find_dir_free:
     mov cl, [cs:kspc]
     mul cx
     add ax, [cs:kdsta]
-    mov [cs:ff_entry_lba], ax
+    mov [cs:rid_lba], ax
+    mov byte [cs:rid_sec_idx], 0
+.sd_sector:
     mov dx, SEC_BUF
     mov es, dx
     xor bx, bx
+    mov ax, [cs:rid_lba]
     call read_sector
     jc .sd_full
+    mov ax, SEC_BUF
+    mov es, ax
     xor di, di
     mov cx, 16
 .sd_entry:
@@ -3679,11 +3692,18 @@ find_dir_free:
     add di, 32
     inc word [cs:ff_entry_idx]
     loop .sd_entry
+    inc word [cs:rid_lba]
+    inc byte [cs:rid_sec_idx]
+    mov al, [cs:rid_sec_idx]
+    cmp al, [cs:kspc]
+    jb .sd_sector
     mov si, [cs:rid_clus]
     call fat_next
     mov [cs:rid_clus], ax
-    jmp .sd_sector
+    jmp .sd_cluster_loop
 .sd_found:
+    mov ax, [cs:rid_lba]
+    mov [cs:ff_entry_lba], ax
     mov [cs:ff_entry_off], di
     mov cx, [cs:ff_entry_idx]
     pop si
@@ -5862,6 +5882,7 @@ fid_cluster: dw 0
 fid_idx: dw 0
 rid_clus: dw 0
 rid_lba: dw 0
+rid_sec_idx: db 0
 
 find_di: dw 0
 

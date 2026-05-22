@@ -360,3 +360,29 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Directory extension is still not implemented; subdirectory writes require an existing free entry in an existing directory cluster.
 - Multi-component write paths such as `MIDEMO\FILE.DAT` remain unsupported; callers can `CD MIDEMO` and use bare filenames.
 - Seek-past-EOF zero filling remains deferred.
+
+## 2026-05-22 Multi-Sector Subdirectory Scan
+
+### Confirmed Facts
+
+- User reported an interactive save attempt produced a working record file. Exact game save/load semantics are still not fully classified, but this confirms writable game-side file creation is working in practice.
+- `find_in_dir` and `find_dir_free` only scanned the first sector of each subdirectory cluster, which is incomplete for 2.88 MB images where `sec_per_clus=2`.
+- After changing `SAVEWR`'s regression image to 2.88 MB and preloading 14 filler files before `SUBTEST.DAT`, the first subdirectory sector was full and `python3 scripts/test_savewrite.py` failed at `FAIL: CREATE` before the scanner fix.
+
+### Fixes Made During Investigation
+
+- Updated `scripts/mkimage.py` to write a full cluster of directory entries for subdirectories instead of truncating subdirectory contents at one sector.
+- Updated `scripts/test_savewrite.py` to build the save-write regression image as 2.88 MB, force `SUBTEST.DAT` and `SUBUSED.DAT` into the second directory sector, and host-verify that layout.
+- Updated subdirectory lookup and free-slot scanning to walk every sector in each directory cluster before following the FAT chain.
+- Review fixes: re-establish `ES=SEC_BUF` after subdirectory free-slot sector reads, and generate exact FAT `.` / `..` subdirectory entry names in `mkimage.py`.
+
+### Tests Run
+
+- `python3 scripts/test_savewrite.py` reproduced the bug before the kernel fix with `FAIL: CREATE`.
+- `python3 scripts/test_savewrite.py` passed after the scanner fix.
+
+### Follow-Ups
+
+- Directory extension is still not implemented; subdirectory writes require an existing free entry in an existing directory cluster.
+- Seek-past-EOF zero filling remains deferred.
+- Multi-component write paths such as `DIR\FILE.DAT` remain unsupported.
