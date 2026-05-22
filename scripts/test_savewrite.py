@@ -133,6 +133,8 @@ def verify_disk_file():
     deleted = b"SAVEDONE" + b"DAT"
     target = b"REUSED  " + b"DAT"
     readonly = b"READONLY" + b"DAT"
+    stale = b"STALE   " + b"DAT"
+    gap = b"GAP     " + b"DAT"
     entry = None
     deleted_seen = False
     readonly_seen = False
@@ -168,6 +170,20 @@ def verify_disk_file():
         print("  FAIL: disk file contents mismatch")
         return False
     print("  PASS: disk image contains REUSED.DAT contents after delete")
+
+    if find_entry(root, stale) is not None:
+        print("  FAIL: STALE.DAT still present after delete")
+        return False
+    gap_entry = find_entry(root, gap)
+    if gap_entry is None:
+        print("  FAIL: GAP.DAT missing from disk image")
+        return False
+    gap_cluster = struct.unpack_from("<H", gap_entry, 26)[0]
+    gap_size = struct.unpack_from("<I", gap_entry, 28)[0]
+    gap_data = read_cluster_chain(image, fat, data_start, bps, spc, gap_cluster)
+    if gap_size != 601 or gap_data[:1] != b"A" or gap_data[1:600] != bytes(599) or gap_data[600:601] != b"Z":
+        print("  FAIL: GAP.DAT sparse write gap was not zero-filled")
+        return False
 
     midemo = find_entry(root, b"MIDEMO  " + b"   ")
     if midemo is None:

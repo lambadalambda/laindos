@@ -387,6 +387,28 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Seek-past-EOF zero filling remains deferred.
 - Multi-component write paths such as `DIR\FILE.DAT` remain unsupported.
 
+## 2026-05-22 Seek Gap Zero Fill
+
+### Confirmed Facts
+
+- A sparse-write regression that deleted a non-zero `STALE.DAT`, reused its freed cluster for `GAP.DAT`, wrote `A`, sought to offset 600, and wrote `Z` failed before the fix with stale non-zero bytes in the gap.
+- Host-side verification also detected that `GAP.DAT` was not zero-filled between offsets 1 and 599 before the fix.
+
+### Fixes Made During Investigation
+
+- Added a pre-write zero-fill pass for regular file handles when `H_POS` is beyond `H_SIZE`.
+- The zero-fill pass temporarily writes from EOF to the target position using `SEC_BUF`, allocating clusters through the normal write cluster walker, then resumes the caller's original write without counting gap bytes in the returned byte count.
+- Extended `SAVEWR.COM` and `scripts/test_savewrite.py` to verify the zero-filled gap through DOS reads and host FAT inspection.
+- Review fix: return an error if the first gap-fill cluster allocation fails.
+
+### Tests Run
+
+- `python3 scripts/test_savewrite.py` reproduced the stale-gap failure before the implementation and passed after zero-fill support was added.
+
+### Follow-Ups
+
+- Multi-component write paths such as `DIR\FILE.DAT` remain unsupported.
+
 ## 2026-05-22 Subdirectory Extension
 
 ### Confirmed Facts

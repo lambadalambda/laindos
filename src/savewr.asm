@@ -153,6 +153,96 @@ start:
     int 0x21
     jnc fail_delete_readonly
 
+    mov dx, stale_name
+    xor cx, cx
+    mov ah, 0x3C
+    int 0x21
+    jc fail_create
+    mov [handle], ax
+
+    mov bx, ax
+    mov dx, pattern
+    mov cx, pattern_size
+    mov ah, 0x40
+    int 0x21
+    jc fail_write
+    cmp ax, pattern_size
+    jne fail_write
+
+    mov bx, [handle]
+    mov ah, 0x3E
+    int 0x21
+    jc fail_close
+
+    mov dx, stale_name
+    mov ah, 0x41
+    int 0x21
+    jc fail_delete
+
+    mov dx, gap_name
+    xor cx, cx
+    mov ah, 0x3C
+    int 0x21
+    jc fail_create
+    mov [handle], ax
+
+    mov bx, ax
+    mov dx, gap_head
+    mov cx, 1
+    mov ah, 0x40
+    int 0x21
+    jc fail_write
+    cmp ax, 1
+    jne fail_write
+
+    mov bx, [handle]
+    mov ax, 0x4200
+    xor cx, cx
+    mov dx, gap_pos
+    int 0x21
+    jc fail_seek
+    cmp dx, 0
+    jne fail_seek
+    cmp ax, gap_pos
+    jne fail_seek
+
+    mov bx, [handle]
+    mov dx, gap_tail
+    mov cx, 1
+    mov ah, 0x40
+    int 0x21
+    jc fail_write
+    cmp ax, 1
+    jne fail_write
+
+    mov bx, [handle]
+    mov ah, 0x3E
+    int 0x21
+    jc fail_close
+
+    mov dx, gap_name
+    xor al, al
+    mov ah, 0x3D
+    int 0x21
+    jc fail_open
+    mov [handle], ax
+
+    mov bx, ax
+    mov dx, read_buf
+    mov cx, gap_size
+    mov ah, 0x3F
+    int 0x21
+    jc fail_read
+    cmp ax, gap_size
+    jne fail_read
+    call compare_gap
+    jc fail_compare
+
+    mov bx, [handle]
+    mov ah, 0x3E
+    int 0x21
+    jc fail_close
+
     mov dx, subdir_name
     mov ah, 0x3B
     int 0x21
@@ -367,6 +457,25 @@ compare_subtest:
     stc
     ret
 
+compare_gap:
+    cmp byte [read_buf], 'A'
+    jne .bad
+    cmp byte [read_buf + gap_pos], 'Z'
+    jne .bad
+    mov si, read_buf + 1
+    mov cx, gap_pos - 1
+    xor al, al
+.loop:
+    cmp [si], al
+    jne .bad
+    inc si
+    loop .loop
+    clc
+    ret
+.bad:
+    stc
+    ret
+
 fail_create:
     mov dx, fail_create_msg
     jmp print_fail
@@ -391,6 +500,9 @@ fail_rename:
 fail_date:
     mov dx, fail_date_msg
     jmp print_fail
+fail_seek:
+    mov dx, fail_seek_msg
+    jmp print_fail
 fail_delete:
     mov dx, fail_delete_msg
     jmp print_fail
@@ -412,6 +524,8 @@ src_name: db "SAVEWR.DAT", 0
 dst_name: db "SAVEDONE.DAT", 0
 reuse_name: db "REUSED.DAT", 0
 readonly_name: db "READONLY.DAT", 0
+stale_name: db "STALE.DAT", 0
+gap_name: db "GAP.DAT", 0
 subdir_name: db "MIDEMO", 0
 root_path: db "\", 0
 subtest_name: db "SUBTEST.DAT", 0
@@ -421,6 +535,8 @@ sub_reuse_name: db "SUBUSED.DAT", 0
 sub_multi_name: db "MIDEMO\BOGUS.DAT", 0
 subtest_text: db "Hello from MIDEMO subdirectory!", 10
 subtest_size equ $ - subtest_text
+gap_head: db "A"
+gap_tail: db "Z"
 pass_msg: db "PASS: SAVEWRITE", 13, 10, "$"
 fail_create_msg: db "FAIL: CREATE", 13, 10, "$"
 fail_write_msg: db "FAIL: WRITEFILE", 13, 10, "$"
@@ -430,11 +546,14 @@ fail_read_msg: db "FAIL: READ", 13, 10, "$"
 fail_compare_msg: db "FAIL: COMPARE", 13, 10, "$"
 fail_rename_msg: db "FAIL: RENAME", 13, 10, "$"
 fail_date_msg: db "FAIL: DATE", 13, 10, "$"
+fail_seek_msg: db "FAIL: SEEK", 13, 10, "$"
 fail_delete_msg: db "FAIL: DELETE", 13, 10, "$"
 fail_delete_readonly_msg: db "FAIL: DELETE READONLY", 13, 10, "$"
 fail_cd_msg: db "FAIL: CD", 13, 10, "$"
 fail_path_msg: db "FAIL: PATH", 13, 10, "$"
 handle: dw 0
+gap_pos equ 600
+gap_size equ gap_pos + 1
 pattern_size equ 700
 pattern: times pattern_size db 0
 read_buf: times pattern_size db 0

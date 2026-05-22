@@ -2445,6 +2445,107 @@ int21_handler:
     je .wf_file_invalid_pop
     cmp byte [cs:si+handles+H_MODE], 0
     je .wf_file_access_pop
+    mov ax, [cs:si+handles+H_POS_HI]
+    cmp ax, [cs:si+handles+H_SIZE_HI]
+    ja .wf_gap_start
+    jb .wf_file_loop
+    mov ax, [cs:si+handles+H_POS_LO]
+    cmp ax, [cs:si+handles+H_SIZE_LO]
+    ja .wf_gap_start
+    jmp .wf_file_loop
+.wf_gap_start:
+    mov ax, [cs:si+handles+H_POS_LO]
+    mov [cs:wf_target_lo], ax
+    mov ax, [cs:si+handles+H_POS_HI]
+    mov [cs:wf_target_hi], ax
+    mov ax, [cs:si+handles+H_SIZE_LO]
+    mov [cs:si+handles+H_POS_LO], ax
+    mov ax, [cs:si+handles+H_SIZE_HI]
+    mov [cs:si+handles+H_POS_HI], ax
+.wf_gap_loop:
+    mov si, [cs:wf_hoff]
+    mov ax, [cs:wf_target_hi]
+    cmp [cs:si+handles+H_POS_HI], ax
+    jb .wf_gap_more
+    ja .wf_file_loop
+    mov ax, [cs:wf_target_lo]
+    cmp [cs:si+handles+H_POS_LO], ax
+    jb .wf_gap_more
+    jmp .wf_file_loop
+.wf_gap_more:
+    cmp word [cs:si+handles+H_CLUSTER], 0
+    jne .wf_gap_have_start
+    call fat_alloc_cluster
+    jc .wf_file_io_pop
+    mov si, [cs:wf_hoff]
+    mov [cs:si+handles+H_CLUSTER], ax
+    mov [cs:si+handles+H_LAST_CLUSTER], ax
+    mov word [cs:si+handles+H_LAST_INDEX], 0
+.wf_gap_have_start:
+    mov ax, [cs:si+handles+H_POS_LO]
+    mov dx, [cs:si+handles+H_POS_HI]
+    mov cx, 9
+.wf_gap_sector_shift:
+    shr dx, 1
+    rcr ax, 1
+    loop .wf_gap_sector_shift
+    xor ch, ch
+    mov cl, [cs:kspc]
+    div cx
+    mov [cs:wf_cluster_index], ax
+    mov [cs:wf_sec_in_cluster], dx
+    call wf_get_cluster
+    jc .wf_file_io_pop
+    mov ax, si
+    sub ax, 2
+    xor ch, ch
+    mov cl, [cs:kspc]
+    mul cx
+    add ax, [cs:wf_sec_in_cluster]
+    add ax, [cs:kdsta]
+    mov [cs:wf_sector_lba], ax
+    mov ax, SEC_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:wf_sector_lba]
+    call read_sector
+    jc .wf_file_io_pop
+    mov ax, SEC_BUF
+    mov es, ax
+    mov si, [cs:wf_hoff]
+    mov di, [cs:si+handles+H_POS_LO]
+    and di, 511
+    mov cx, 512
+    sub cx, di
+    mov ax, [cs:wf_target_hi]
+    cmp ax, [cs:si+handles+H_POS_HI]
+    jne .wf_gap_chunk_ok
+    mov ax, [cs:wf_target_lo]
+    sub ax, [cs:si+handles+H_POS_LO]
+    cmp cx, ax
+    jbe .wf_gap_chunk_ok
+    mov cx, ax
+.wf_gap_chunk_ok:
+    push cx
+    xor ax, ax
+    cld
+    rep stosb
+    pop cx
+    push cx
+    xor bx, bx
+    mov ax, [cs:wf_sector_lba]
+    call write_sector
+    pop cx
+    jc .wf_file_io_pop
+    mov byte [cs:rf_cache_valid], 0
+    mov si, [cs:wf_hoff]
+    add [cs:si+handles+H_POS_LO], cx
+    adc word [cs:si+handles+H_POS_HI], 0
+    mov ax, [cs:si+handles+H_POS_LO]
+    mov [cs:si+handles+H_SIZE_LO], ax
+    mov ax, [cs:si+handles+H_POS_HI]
+    mov [cs:si+handles+H_SIZE_HI], ax
+    jmp .wf_gap_loop
 .wf_file_loop:
     cmp word [cs:wf_count], 0
     je .wf_file_done
@@ -5867,6 +5968,8 @@ wf_sec_in_cluster: dw 0
 wf_sector_lba: dw 0
 wf_cluster:    dw 0
 wf_status:     dw 0
+wf_target_lo:  dw 0
+wf_target_hi:  dw 0
 
 sf_origin: db 0
 sf_ret_lo: dw 0
