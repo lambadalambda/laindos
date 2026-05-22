@@ -14,6 +14,8 @@ FORMATS = {
         'fat_sz': 9,
         'sec_per_trk': 18,
         'num_heads': 2,
+        'media': 0xF0,
+        'drive': 0x00,
     },
     '2880k': {
         'total_sectors': 5760,
@@ -22,6 +24,18 @@ FORMATS = {
         'fat_sz': 9,
         'sec_per_trk': 36,
         'num_heads': 2,
+        'media': 0xF0,
+        'drive': 0x00,
+    },
+    'hd10m': {
+        'total_sectors': 20480,
+        'sec_per_clus': 8,
+        'root_ent_cnt': 224,
+        'fat_sz': 8,
+        'sec_per_trk': 63,
+        'num_heads': 16,
+        'media': 0xF8,
+        'drive': 0x80,
     },
 }
 
@@ -33,6 +47,8 @@ ROOT_ENT_CNT = fmt['root_ent_cnt']
 FAT_SZ = fmt['fat_sz']
 SEC_PER_TRK = fmt['sec_per_trk']
 NUM_HEADS = fmt['num_heads']
+MEDIA = fmt['media']
+DRIVE = fmt['drive']
 IMAGE_SIZE = SECTOR_SIZE * TOTAL_SECTORS
 FAT_START = RSVD_SEC_CNT
 ROOT_START = FAT_START + NUM_FATS * FAT_SZ
@@ -83,7 +99,7 @@ class Fat12Image:
     def __init__(self):
         self.image = bytearray(IMAGE_SIZE)
         self.fat = bytearray(FAT_SZ * SECTOR_SIZE)
-        set_fat12_entry(self.fat, 0, 0xFF0)
+        set_fat12_entry(self.fat, 0, 0xF00 | MEDIA)
         set_fat12_entry(self.fat, 1, 0xFFF)
         self.next_cluster = 2
         self.root_entries = []
@@ -187,11 +203,11 @@ class Fat12Image:
 
 def main():
     global fmt, TOTAL_SECTORS, SEC_PER_CLUS, ROOT_ENT_CNT, FAT_SZ
-    global SEC_PER_TRK, NUM_HEADS, IMAGE_SIZE, ROOT_START, ROOT_SECS, DATA_START
+    global SEC_PER_TRK, NUM_HEADS, MEDIA, DRIVE, IMAGE_SIZE, ROOT_START, ROOT_SECS, DATA_START
     if len(sys.argv) < 4:
         print(f"Usage: {sys.argv[0]} boot.bin kernel.bin disk.img [file1 ...]",
               file=sys.stderr)
-        print("  Optional first argument: --format=1440k or --format=2880k",
+        print("  Optional first argument: --format=1440k, --format=2880k, or --format=hd10m",
               file=sys.stderr)
         print(f"  Files can be: FILE.EXT (root) or DIR/FILE.EXT (subdir)",
               file=sys.stderr)
@@ -209,6 +225,8 @@ def main():
         FAT_SZ = fmt['fat_sz']
         SEC_PER_TRK = fmt['sec_per_trk']
         NUM_HEADS = fmt['num_heads']
+        MEDIA = fmt['media']
+        DRIVE = fmt['drive']
         IMAGE_SIZE = SECTOR_SIZE * TOTAL_SECTORS
         ROOT_START = FAT_START + NUM_FATS * FAT_SZ
         ROOT_SECS = (ROOT_ENT_CNT * 32 + BYTES_PER_SEC - 1) // BYTES_PER_SEC
@@ -232,11 +250,12 @@ def main():
     boot_data[0x10] = NUM_FATS
     struct.pack_into('<H', boot_data, 0x11, ROOT_ENT_CNT)
     struct.pack_into('<H', boot_data, 0x13, TOTAL_SECTORS if TOTAL_SECTORS <= 0xFFFF else 0)
-    boot_data[0x15] = 0xF0
+    boot_data[0x15] = MEDIA
     struct.pack_into('<H', boot_data, 0x16, FAT_SZ)
     struct.pack_into('<H', boot_data, 0x18, SEC_PER_TRK)
     struct.pack_into('<H', boot_data, 0x1A, NUM_HEADS)
     struct.pack_into('<I', boot_data, 0x20, 0 if TOTAL_SECTORS <= 0xFFFF else TOTAL_SECTORS)
+    boot_data[0x24] = DRIVE
 
     with open(kernel_path, 'rb') as f:
         kernel_data = f.read()

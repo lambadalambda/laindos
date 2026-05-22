@@ -407,6 +407,33 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - Actual Monkey load validation remains open.
 
+## 2026-05-22 Full VGA Monkey Island Image
+
+### Confirmed Facts
+
+- `vendor/monkey_full.zip` contains 11 files totaling 4,534,333 bytes: `MONKEY.EXE`, `DISK01.LEC` through `DISK04.LEC`, LFL files, and `passwd.txt`.
+- The full VGA files do not fit in the existing 2.88 MB floppy format.
+- A 10 MB FAT12 image with 8 sectors per cluster keeps the cluster count within FAT12 limits and fits the full game files.
+- Booting the 10 MB raw image as a hard disk works with the existing BIOS-drive boot path: SeaBIOS loads sector 0 as `DL=80h`, LainDOS boots, loads `MONKEY.EXE`, and the full game reaches `INT 33h AX=0000` mouse initialization.
+
+### Fixes Made During Investigation
+
+- Added an `hd10m` `mkimage.py` format with hard-disk media byte and CHS geometry.
+- Added `scripts/build_monkey_full.py` to extract `vendor/monkey_full.zip` into `build/` and build `build/monkey_full.img` without committing game data.
+- Added `scripts/test_monkey_full.py` to build the image, boot it as a hard disk, and assert serial startup markers.
+
+### Tests Run
+
+- `unzip -l vendor/monkey_full.zip`
+- `python3 scripts/build_monkey_full.py`
+- `qemu-system-i386 -drive file=build/monkey_full.img,format=raw -boot order=c -serial stdio -monitor none -nographic`
+- `python3 scripts/test_monkey_full.py`
+
+### Follow-Ups
+
+- Run interactively without `-nographic` to validate visible gameplay and real save/load behavior on the full VGA image.
+- Decide whether a partitioned hard-disk image is needed later; current startup works as an unpartitioned FAT12 hard-disk-style image.
+
 ## 2026-05-22 Seek Gap Zero Fill
 
 ### Confirmed Facts

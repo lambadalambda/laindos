@@ -4,3 +4,4 @@
 - [ ] [Phase 15: Environment and PATH](issues/phase15-environment-path.md)
 - [ ] [Phase 16: Batch Files and AUTOEXEC](issues/phase16-batch-files-autoexec.md)
 - [ ] [Phase 17: DOS Device Names](issues/phase17-dos-device-names.md)
+- [ ] [Phase 18: Boot Full VGA Monkey Island](issues/phase18-boot-full-vga-monkey-island.md)

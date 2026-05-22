@@ -29,7 +29,7 @@ TESTFILE  := $(BUILDDIR)/testfile.dat
 SUBTEST   := $(BUILDDIR)/subtest.dat
 DISK_IMG := $(BUILDDIR)/disk.img
 
-.PHONY: all clean run test
+.PHONY: all clean run test test-monkey-full
 
 all: $(DISK_IMG)
 
@@ -136,6 +136,9 @@ test: $(DISK_IMG)
 	$(PYTHON) scripts/test_shell.py
 	$(PYTHON) scripts/test_console.py
 	$(PYTHON) scripts/test_savewrite.py
+
+test-monkey-full: vendor/monkey_full.zip
+	$(PYTHON) scripts/test_monkey_full.py
 
 clean:
 	rm -rf $(BUILDDIR)
