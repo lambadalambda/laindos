@@ -9,11 +9,11 @@ VGA_ROWS equ 25
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x1000
-ROOT_SEG  equ 0x2000
+ROOT_SEG  equ 0x1200
 PSP_SEG   equ 0x3000
 TEMP_SEG  equ 0x4000
-SEC_BUF   equ 0x21C0
-ENV_SEG   equ 0x21E0
+SEC_BUF   equ 0x13C0
+ENV_SEG   equ 0x13E0
 
 HANDLE_SIZE equ 24
 H_USED      equ 0
@@ -40,7 +40,7 @@ ROOT_ENT_CNT equ 224
 
 MCB_SIG_M equ 'M'
 MCB_SIG_Z equ 'Z'
-MCB_START equ 0x2200
+MCB_START equ 0x1400
 MEM_TOP   equ 0xA000
 
 CF equ 0x0001
@@ -59,7 +59,7 @@ kernel_entry:
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov sp, 0xFFFE
+    mov sp, 0x7000
     cld
 
     call serial_init
@@ -347,6 +347,13 @@ init_bpb_geometry:
     mov al, [0x500]
     pop ds
     mov [cs:kdrv], al
+    mov byte [cs:dos_drive_num], 0
+    mov byte [cs:dos_drive_letter], 'A'
+    cmp al, 0x80
+    jb .drive_done
+    mov byte [cs:dos_drive_num], 2
+    mov byte [cs:dos_drive_letter], 'C'
+.drive_done:
     ret
 
 init_environment:
@@ -366,7 +373,7 @@ init_environment:
     stosb
     mov ax, 1
     stosw
-    mov al, 'A'
+    mov al, [cs:dos_drive_letter]
     stosb
     mov al, ':'
     stosb
@@ -438,9 +445,37 @@ int20_handler:
     jmp do_terminate
 
 exc01_handler:
-    mov al, 0x01
-    jmp exc_noerr
+    push bp
+    mov bp, sp
+    and word [bp+6], ~0x0100
+    pop bp
+    iret
 exc06_handler:
+    push bp
+    mov bp, sp
+    push ax
+    push ds
+    push si
+    mov ax, [bp+4]
+    mov ds, ax
+    mov si, [bp+2]
+    cmp si, 2
+    jb .real_invalid
+    cmp byte [si], 0x0F
+    je .real_invalid
+    sub si, 2
+    cmp word [si], 0x06CD
+    jne .real_invalid
+    pop si
+    pop ds
+    pop ax
+    pop bp
+    iret
+.real_invalid:
+    pop si
+    pop ds
+    pop ax
+    pop bp
     mov al, 0x06
     jmp exc_noerr
 exc0d_handler:
@@ -467,6 +502,22 @@ exc_noerr:
     call serial_print
     mov ax, [bp+2]
     call serial_print_hex_word
+    mov si, msg_crlf
+    call serial_print
+    mov si, msg_exc_bytes
+    call serial_print
+    mov ax, [bp+4]
+    mov ds, ax
+    mov si, [bp+2]
+    mov cx, 16
+.dump_bytes:
+    lodsb
+    call serial_print_hex
+    mov al, ' '
+    call serial_putchar
+    loop .dump_bytes
+    push cs
+    pop ds
     mov si, msg_crlf
     call serial_print
     cli
@@ -580,6 +631,7 @@ int33_handler:
     xor bx, bx
     xor cx, cx
     xor dx, dx
+    call mouse_trace_return
     iret
 .get_left_press:
     mov ax, [cs:mouse_buttons]
@@ -587,6 +639,7 @@ int33_handler:
     mov cx, [cs:mouse_press_x_l]
     mov dx, [cs:mouse_press_y_l]
     mov word [cs:mouse_press_count_l], 0
+    call mouse_trace_return
     iret
 .get_right_press:
     mov ax, [cs:mouse_buttons]
@@ -594,18 +647,49 @@ int33_handler:
     mov cx, [cs:mouse_press_x_r]
     mov dx, [cs:mouse_press_y_r]
     mov word [cs:mouse_press_count_r], 0
+    call mouse_trace_return
     iret
 .get_motion:
     mov cx, [cs:mouse_motion_x]
     mov dx, [cs:mouse_motion_y]
     mov word [cs:mouse_motion_x], 0
     mov word [cs:mouse_motion_y], 0
+    call mouse_trace_return
     iret
 .set_callback:
     mov [cs:mouse_callback_mask], cx
     mov [cs:mouse_callback_off], dx
     mov [cs:mouse_callback_seg], es
     iret
+
+mouse_trace_return:
+    cmp word [cs:mouse_trace_left], 0
+    je .done
+    pusha
+    push ds
+    push cs
+    pop ds
+    mov si, msg_int33_ret
+    call serial_print
+    call serial_print_hex_word
+    mov si, msg_reg_bx
+    call serial_print
+    mov ax, bx
+    call serial_print_hex_word
+    mov si, msg_reg_cx
+    call serial_print
+    mov ax, cx
+    call serial_print_hex_word
+    mov si, msg_reg_dx
+    call serial_print
+    mov ax, dx
+    call serial_print_hex_word
+    mov si, msg_crlf
+    call serial_print
+    pop ds
+    popa
+.done:
+    ret
 
 mouse_clamp_position:
     mov ax, [cs:mouse_x]
@@ -1147,12 +1231,27 @@ int21_handler:
 .stdin_empty:
     mov ax, 0x0B00
 .stdin_done:
+    cmp word [cs:trace_left], 0
+    je .stdin_no_trace
+    dec word [cs:trace_left]
+    pusha
+    push ds
+    push cs
+    pop ds
+    mov si, msg_trace_stdin
+    call serial_print
+    call serial_print_hex_word
+    mov si, msg_crlf
+    call serial_print
+    pop ds
+    popa
+.stdin_no_trace:
     pop dx
     pop cx
     pop bx
     jmp iret_nc
 .get_drive:
-    mov al, 0
+    mov al, [cs:dos_drive_num]
     jmp iret_nc
 .set_dta:
     mov [cs:dta_off], dx
@@ -1163,6 +1262,30 @@ int21_handler:
     mov es, [cs:dta_seg]
     jmp iret_nc
 .set_vector:
+    cmp word [cs:trace_left], 0
+    je .sv_no_trace
+    dec word [cs:trace_left]
+    pusha
+    push ds
+    push cs
+    pop ds
+    mov si, msg_trace_setvec
+    call serial_print
+    call serial_print_hex
+    mov si, msg_trace_eq
+    call serial_print
+    pop ax
+    push ax
+    call serial_print_hex_word
+    mov si, msg_colon
+    call serial_print
+    mov ax, dx
+    call serial_print_hex_word
+    mov si, msg_crlf
+    call serial_print
+    pop ds
+    popa
+.sv_no_trace:
     push ds
     push bx
     push ax
@@ -1198,6 +1321,31 @@ int21_handler:
     mov es, bx
     mov bx, si
     pop ax
+    cmp word [cs:trace_left], 0
+    je .gv_no_trace
+    dec word [cs:trace_left]
+    pusha
+    push ds
+    push es
+    push cs
+    pop ds
+    mov si, msg_trace_getvec
+    call serial_print
+    call serial_print_hex
+    mov si, msg_trace_ret
+    call serial_print
+    mov ax, es
+    call serial_print_hex_word
+    mov si, msg_colon
+    call serial_print
+    mov ax, bx
+    call serial_print_hex_word
+    mov si, msg_crlf
+    call serial_print
+    pop es
+    pop ds
+    popa
+.gv_no_trace:
     jmp iret_nc
 .get_psp:
     mov bx, [cs:cur_psp]
@@ -1708,10 +1856,60 @@ int21_handler:
     mov dl, 21
     jmp iret_nc
 .get_time:
-    mov ch, 12
-    mov cl, 0
-    mov dh, 0
-    mov dl, 0
+    push ax
+    push bx
+    push si
+    xor ah, ah
+    int 0x1A
+    xor si, si
+.gt_hour_loop:
+    cmp cx, 0
+    jne .gt_sub_hour
+    cmp dx, 0xFFF0
+    jb .gt_hour_done
+.gt_sub_hour:
+    sub dx, 0xFFF0
+    sbb cx, 0
+    inc si
+    cmp si, 24
+    jb .gt_hour_loop
+    xor si, si
+.gt_hour_done:
+    mov ax, si
+    mov [cs:time_hour], al
+    xor si, si
+.gt_min_loop:
+    cmp cx, 0
+    jne .gt_sub_min
+    cmp dx, 0x0444
+    jb .gt_min_done
+.gt_sub_min:
+    sub dx, 0x0444
+    sbb cx, 0
+    inc si
+    cmp si, 60
+    jb .gt_min_loop
+    xor si, si
+.gt_min_done:
+    mov ax, si
+    mov [cs:time_min], al
+    mov ax, dx
+    mov bx, 6000
+    mul bx
+    mov bx, 0x0444
+    div bx
+    xor dx, dx
+    mov bx, 100
+    div bx
+    mov [cs:time_sec], al
+    mov [cs:time_hund], dl
+    mov ch, [cs:time_hour]
+    mov cl, [cs:time_min]
+    mov dh, [cs:time_sec]
+    mov dl, [cs:time_hund]
+    pop si
+    pop bx
+    pop ax
     jmp iret_nc
 .exec:
     cmp al, 0
@@ -2635,6 +2833,14 @@ int21_handler:
     jbe .rf_copy
     mov cx, ax
 .rf_copy:
+    mov ax, [cs:rf_buf_off]
+    test ax, ax
+    jz .rf_copy_now
+    neg ax
+    cmp cx, ax
+    jbe .rf_copy_now
+    mov cx, ax
+.rf_copy_now:
     push cx
     rep movsb
     pop cx
@@ -5477,14 +5683,6 @@ load_exec_program:
     push cs
     pop ds
     mov bx, [cs:prog_par]
-    cmp byte [cs:exec_is_exe], 0
-    je .alloc_fixed
-    call alloc_all_mem_direct
-    jnc .alloc_ok
-    mov ax, 8
-    stc
-    ret
-.alloc_fixed:
     call alloc_mem_direct
     jnc .alloc_ok
     mov ax, 8
@@ -5604,7 +5802,7 @@ update_exec_environment_path:
     stosb
     mov ax, 1
     stosw
-    mov al, 'A'
+    mov al, [cs:dos_drive_letter]
     stosb
     mov al, ':'
     stosb
@@ -6584,6 +6782,7 @@ msg_mouse_ps2_off: db "PS2 mouse unavailable", 13, 10, 0
 msg_colon:     db ":", 0
 msg_exc:       db "EXC ", 0
 msg_at:        db " at ", 0
+msg_exc_bytes: db "BYTES ", 0
 msg_trace_open: db "OPEN ", 0
 msg_trace_handle: db " -> H=", 0
 msg_trace_size: db " SIZE=", 0
@@ -6600,6 +6799,11 @@ msg_trace_alloc: db "ALLOC ", 0
 msg_trace_strategy: db " STRAT=", 0
 msg_trace_strategy_call: db "STRATEGY AX=", 0
 msg_trace_resize: db "RESIZE ", 0
+msg_trace_stdin: db "STDIN ", 0
+msg_trace_setvec: db "SETVEC ", 0
+msg_trace_getvec: db "GETVEC ", 0
+msg_trace_eq: db " = ", 0
+msg_int33_ret: db "INT33 RET AX=", 0
 msg_reg_ax:    db " AX=", 0
 msg_reg_bx:    db " BX=", 0
 msg_reg_cx:    db " CX=", 0
@@ -6640,6 +6844,8 @@ ksc:   db 0
 khd:   db 0
 kcy:   db 0
 kdrv:  db 0
+dos_drive_num: db 0
+dos_drive_letter: db 'A'
 kret:  db 3
 
 exe_hdr_par:    dw 0
@@ -6653,6 +6859,10 @@ exe_load_seg:   dw 0
 
 dta_seg: dw 0
 dta_off: dw 0
+time_hour: db 0
+time_min: db 0
+time_sec: db 0
+time_hund: db 0
 
 rf_count:      dw 0
 rf_read:       dw 0
@@ -6842,7 +7052,7 @@ mouse_buttons: dw 0
 mouse_motion_x: dw 0
 mouse_motion_y: dw 0
 mouse_visible_count: dw 0xFFFF
-mouse_trace_left: dw 80
+mouse_trace_left: dw 0
 mouse_log_ax: dw 0
 mouse_callback_mask: dw 0
 mouse_callback_off: dw 0

@@ -1,6 +1,7 @@
 build/
 vendor/
 .DS_Store
+__pycache__/
 scripts/unlzexe.py
 src/boot
 src/subdirtest.asm

@@ -98,9 +98,7 @@ do_cd:
     jc .err
     jmp prompt
 .show:
-    mov dx, prompt_drive
-    mov ah, 0x09
-    int 0x21
+    call print_drive_root
     mov si, cwd_buf
     xor dl, dl
     mov ah, 0x47
@@ -235,9 +233,7 @@ do_mem:
     jmp prompt
 
 print_prompt:
-    mov dx, prompt_drive
-    mov ah, 0x09
-    int 0x21
+    call print_drive_root
     mov si, cwd_buf
     xor dl, dl
     mov ah, 0x47
@@ -249,6 +245,18 @@ print_prompt:
     call print_asciiz
 .end:
     mov dx, prompt_end
+    mov ah, 0x09
+    int 0x21
+    ret
+
+print_drive_root:
+    mov ah, 0x19
+    int 0x21
+    add al, 'A'
+    mov dl, al
+    mov ah, 0x02
+    int 0x21
+    mov dx, prompt_drive
     mov ah, 0x09
     int 0x21
     ret
@@ -440,7 +448,7 @@ print_hex_word:
     ret
 
 banner: db "LainDOS Shell", 13, 10, "$"
-prompt_drive: db "A:\$"
+prompt_drive: db ":\$"
 prompt_end: db ">$"
 crlf: db 13, 10, "$"
 bad_cmd_msg: db "Bad command or file name", 13, 10, "$"

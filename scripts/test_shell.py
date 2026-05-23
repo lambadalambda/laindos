@@ -35,6 +35,8 @@ def build_image():
     run(["nasm", "-f", "bin", "src/hello.asm", "-o", os.path.join(BUILDDIR, "hello.com")])
     run(["nasm", "-f", "bin", "src/helloexe.asm", "-o", os.path.join(BUILDDIR, "helloexe.exe")])
     run(["nasm", "-f", "bin", "src/exectest.asm", "-o", os.path.join(BUILDDIR, "exectest.com")])
+    run(["nasm", "-f", "bin", "src/keytest.asm", "-o", os.path.join(BUILDDIR, "keytest.com")])
+    run(["nasm", "-f", "bin", "src/timetest.asm", "-o", os.path.join(BUILDDIR, "timetest.com")])
     run(["python3", "scripts/mktestfile.py", os.path.join(BUILDDIR, "testfile.dat")])
     run(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
     run([
@@ -46,6 +48,8 @@ def build_image():
         os.path.join(BUILDDIR, "hello.com"),
         os.path.join(BUILDDIR, "helloexe.exe"),
         os.path.join(BUILDDIR, "exectest.com"),
+        os.path.join(BUILDDIR, "keytest.com"),
+        os.path.join(BUILDDIR, "timetest.com"),
         os.path.join(BUILDDIR, "testfile.dat"),
         f"MIDEMO:{os.path.join(BUILDDIR, 'helloexe.exe')}",
         f"MIDEMO:{os.path.join(BUILDDIR, 'subtest.dat')}",
@@ -70,6 +74,8 @@ def send_keys():
         "d", "i", "r", "ret",
         "t", "y", "p", "e", "spc", "t", "e", "s", "t", "f", "i", "l", "e", "dot", "d", "a", "t", "ret",
         "h", "e", "l", "l", "o", "ret",
+        "k", "e", "y", "t", "e", "s", "t", "ret",
+        "t", "i", "m", "e", "t", "e", "s", "t", "ret",
         "h", "e", "l", "l", "o", "ret",
         "h", "e", "l", "l", "o", "e", "x", "e", "ret",
         "e", "x", "e", "c", "t", "e", "s", "t", "ret",
@@ -144,6 +150,8 @@ def main():
         "PASS: HELLO.EXE",
         "EXECTEST.COM",
         "PASS: EXECTEST",
+        "PASS: KEY",
+        "PASS: TIME",
         "Largest free block: ",
         "A:\\SHDIR>",
         "Path not found",

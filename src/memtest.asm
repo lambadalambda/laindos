@@ -23,6 +23,9 @@ image_start:
     push cs
     pop ds
 
+    int 0x01
+    int 0x06
+
     mov bx, 0x0100
     mov ah, 0x48
     int 0x21

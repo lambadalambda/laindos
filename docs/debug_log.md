@@ -2,6 +2,46 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-23 Full MI2 Shell EXEC Follow-Up
+
+### Symptoms
+
+- Full MI2 from the shell still does not reach a stable usable copy-protection flow.
+- Before the latest probes, shell-root `MONKEY2` could reach copy-protection graphics and then halt with `EXC 06` or exit through `Thanks for using this INC Crack!` depending on tracing/timing.
+- QEMU monitor `screendump` can perturb the crack path; runs with repeated screenshots tend to exit sooner than no-screenshot serial runs.
+
+### Confirmed Facts
+
+- MI2's EXE header has `MaxAlloc=FFFF`, `MinAlloc=05D2`, `cparhdr=00E0`, and size 110811 bytes.
+- Giving `MaxAlloc=FFFF` EXEs the entire free MCB did not improve the later largest allocation after MI2 shrinks its PSP; shell residency still dominated the final largest block.
+- Shrinking the shell MCB is not sufficient by itself. Too little retained stack corrupts `EXEC`; a larger retained stack changed MI2 into a purple-screen stall.
+- The original buffer layout left a large unused gap between `FAT_SEG=1000` and `ROOT_SEG=2000`. Moving `ROOT_SEG` to `1200`, `SEC_BUF` to `13C0`, `ENV_SEG` to `13E0`, and `MCB_START` to `1400` raises the shell-run largest MI2 allocation from about `5206` to `6006` paragraphs.
+- Lowering `MCB_START` initially overlapped the kernel's saved stack at `0800:FFFE`; moving the kernel stack to `0800:7000` fixed the shell `exit` regression.
+- A traced low-arena run reached `EXC 06 at 15A2:FEC2`; bytes at the saved return IP were valid code (`03 E9 CC FE ...`), indicating the vector was reached by a software `INT 06h`, not a CPU invalid-opcode fault.
+- Treating software `INT 06h` (`CD 06` at `CS:IP-2`) as an `iret` removes that fatal exception path.
+- `INT 21h AH=2Ch` was frozen at 12:00:00. It now derives time from the BIOS tick counter, and `TIMETEST.COM` verifies DOS time changes after a BIOS tick.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_shell.py` passes after the low-arena move, kernel stack move, software `INT 06h` handling, and DOS time regression.
+- Low-arena trace build command used: `nasm -DTRACE_DOS=900 -DBOOT_FILE='"SHELL   COM"' -f bin src/kernel.asm -o build/mi2root_int06_trace_kernel.bin`.
+- Low-arena traced MI2 now opens `MONKEY2.001`, performs the large `READ H=0005 REQ=9756 POS=00868A49 ... -> 9756`, polls stdin as empty, and then in traced runs may print `Thanks for using this INC Crack!` and return to the shell.
+- Low-arena no-screenshot MI2 serial runs can stay running for 60 seconds with no `EXC`, no `Thanks`, and no shell prompt, but the one late framebuffer capture was still all black.
+
+### Failed Or Weakened Hypotheses
+
+- The `EXC 06` path was not necessarily bad decoded code; at least one captured case was a deliberate software `INT 06h`.
+- Honoring `MaxAlloc=FFFF` alone did not solve the shell runtime behavior.
+- More conventional DOS time did not by itself make MI2 reach copy-protection graphics.
+- More free memory removes one constraint but does not by itself fix black-screen/exit behavior.
+
+### Next Probes
+
+- Keep using no-screenshot serial runs for runtime stability checks; take at most one late screenshot because HMP screendumps perturb the crack.
+- Add a targeted trace for `INT 10h` mode/palette calls or VGA writes after the large `MONKEY2.001` read to distinguish a render stall from a black-but-running game loop.
+- Consider temporary tracing for software `INT 06h` hit counts and call sites without halting.
+- Re-check whether `SPEAKER.IMS` timer chaining or the crack's timer loop depends on BIOS/DOS time differently from DOSBox-X.
+
 ## 2026-05-22 Monkey Island Black Screen
 
 ### Symptom
