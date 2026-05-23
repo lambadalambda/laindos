@@ -10,6 +10,15 @@
     int 0x16
     jnz fail_bios
 
+    push ds
+    mov ax, 0x0040
+    mov ds, ax
+    cmp word [0x001A], 0x001E
+    jne fail_bda_pop
+    cmp word [0x001C], 0x001E
+    jne fail_bda_pop
+    pop ds
+
     mov dx, pass_msg
     mov ah, 0x09
     int 0x21
@@ -30,6 +39,16 @@ fail_bios:
     mov ax, 0x4C01
     int 0x21
 
+fail_bda_pop:
+    pop ds
+fail_bda:
+    mov dx, fail_bda_msg
+    mov ah, 0x09
+    int 0x21
+    mov ax, 0x4C01
+    int 0x21
+
 pass_msg: db "PASS: KEY", 13, 10, "$"
 fail_status_msg: db "FAIL: KEY STATUS", 13, 10, "$"
 fail_bios_msg: db "FAIL: BIOS KEY STATUS", 13, 10, "$"
+fail_bda_msg: db "FAIL: BIOS KEY BDA", 13, 10, "$"

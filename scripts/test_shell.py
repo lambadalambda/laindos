@@ -35,6 +35,8 @@ def build_image():
     run(["nasm", "-f", "bin", "src/hello.asm", "-o", os.path.join(BUILDDIR, "hello.com")])
     run(["nasm", "-f", "bin", "src/helloexe.asm", "-o", os.path.join(BUILDDIR, "helloexe.exe")])
     run(["nasm", "-f", "bin", "src/exectest.asm", "-o", os.path.join(BUILDDIR, "exectest.com")])
+    run(["nasm", "-f", "bin", "src/psptest.asm", "-o", os.path.join(BUILDDIR, "psptest.com")])
+    run(["nasm", "-f", "bin", "src/pspchild.asm", "-o", os.path.join(BUILDDIR, "pspchild.com")])
     run(["nasm", "-f", "bin", "src/keytest.asm", "-o", os.path.join(BUILDDIR, "keytest.com")])
     run(["nasm", "-f", "bin", "src/timetest.asm", "-o", os.path.join(BUILDDIR, "timetest.com")])
     run(["python3", "scripts/mktestfile.py", os.path.join(BUILDDIR, "testfile.dat")])
@@ -48,6 +50,8 @@ def build_image():
         os.path.join(BUILDDIR, "hello.com"),
         os.path.join(BUILDDIR, "helloexe.exe"),
         os.path.join(BUILDDIR, "exectest.com"),
+        os.path.join(BUILDDIR, "psptest.com"),
+        os.path.join(BUILDDIR, "pspchild.com"),
         os.path.join(BUILDDIR, "keytest.com"),
         os.path.join(BUILDDIR, "timetest.com"),
         os.path.join(BUILDDIR, "testfile.dat"),
@@ -79,6 +83,7 @@ def send_keys():
         "h", "e", "l", "l", "o", "ret",
         "h", "e", "l", "l", "o", "e", "x", "e", "ret",
         "e", "x", "e", "c", "t", "e", "s", "t", "ret",
+        "p", "s", "p", "t", "e", "s", "t", "ret",
         "m", "e", "m", "ret",
         "m", "d", "spc", "s", "h", "d", "i", "r", "ret",
         "d", "i", "r", "ret",
@@ -150,6 +155,7 @@ def main():
         "PASS: HELLO.EXE",
         "EXECTEST.COM",
         "PASS: EXECTEST",
+        "PASS: PSP",
         "PASS: KEY",
         "PASS: TIME",
         "Largest free block: ",

@@ -24,6 +24,8 @@ OVLTEST   := $(BUILDDIR)/ovltest.com
 OVERLAY   := $(BUILDDIR)/overlay.exe
 SHELLCOM  := $(BUILDDIR)/shell.com
 EXECTEST  := $(BUILDDIR)/exectest.com
+PSPTEST   := $(BUILDDIR)/psptest.com
+PSPCHILD  := $(BUILDDIR)/pspchild.com
 CONSOLETEST := $(BUILDDIR)/console.com
 SAVEWR    := $(BUILDDIR)/savewr.com
 DIRMUT    := $(BUILDDIR)/dirmut.com
@@ -112,6 +114,14 @@ $(EXECTEST): $(SRCDIR)/exectest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
+$(PSPTEST): $(SRCDIR)/psptest.asm
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
+$(PSPCHILD): $(SRCDIR)/pspchild.asm
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
 $(CONSOLETEST): $(SRCDIR)/consoletest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
@@ -136,8 +146,8 @@ $(SUBTEST): scripts/mksubtest.py
 	@mkdir -p $(BUILDDIR)
 	$(PYTHON) $< $@
 
-$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(TIMETEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(CONSOLETEST) $(SAVEWR) $(DIRMUT) $(READWRAP) $(TESTFILE) $(SUBTEST)
-	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(TIMETEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(CONSOLETEST) $(SAVEWR) $(DIRMUT) $(READWRAP) $(TESTFILE) MIDEMO:$(SUBTEST)
+$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(TIMETEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(PSPTEST) $(PSPCHILD) $(CONSOLETEST) $(SAVEWR) $(DIRMUT) $(READWRAP) $(TESTFILE) $(SUBTEST)
+	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(TIMETEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(PSPTEST) $(PSPCHILD) $(CONSOLETEST) $(SAVEWR) $(DIRMUT) $(READWRAP) $(TESTFILE) MIDEMO:$(SUBTEST)
 
 run: $(DISK_IMG)
 	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic

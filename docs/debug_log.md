@@ -6,8 +6,8 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Symptoms
 
-- Full MI2 from the shell still does not reach a stable usable copy-protection flow.
-- Before the latest probes, shell-root `MONKEY2` could reach copy-protection graphics and then halt with `EXC 06` or exit through `Thanks for using this INC Crack!` depending on tracing/timing.
+- Full MI2 from the shell now reaches the same purple startup/copy-protection screen as direct boot in a 60-second smoke, but interactive copy-protection/save-load validation remains incomplete.
+- Before the latest fixes, shell-root `MONKEY2` could reach copy-protection graphics and then halt with `EXC 06` or exit through `Thanks for using this INC Crack!` depending on tracing/timing.
 - QEMU monitor `screendump` can perturb the crack path; runs with repeated screenshots tend to exit sooner than no-screenshot serial runs.
 
 ### Confirmed Facts
@@ -20,6 +20,12 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - A traced low-arena run reached `EXC 06 at 15A2:FEC2`; bytes at the saved return IP were valid code (`03 E9 CC FE ...`), indicating the vector was reached by a software `INT 06h`, not a CPU invalid-opcode fault.
 - Treating software `INT 06h` (`CD 06` at `CS:IP-2`) as an `iret` removes that fatal exception path.
 - `INT 21h AH=2Ch` was frozen at 12:00:00. It now derives time from the BIOS tick counter, and `TIMETEST.COM` verifies DOS time changes after a BIOS tick.
+- One-shot `TRACE_EXEC_STATE` showed shell MI2 originally differed from direct boot in `PSP:16`, BIOS keyboard buffer head/tail, and child load address/MCB chain.
+- `PSP:16` is now set to the previous `cur_psp`; `PSPTEST.COM`/`PSPCHILD.COM` verify nested `EXEC` children see their parent PSP.
+- `reset_keyboard_buffer` now rewinds BDA keyboard head/tail to `001E` only when the buffer is already empty; `KEYTEST.COM` verifies DOS/BIOS empty status plus BDA head/tail.
+- Direct boot with artificial `MCB_START=1591` reproduced the crack exit (`Thanks for using this INC Crack!`, code `83`), confirming MI2 is sensitive to the child load address/top-of-block state.
+- Booting the shell COM high but leaving its MCB visible still made shell MI2 stall in text mode. Hiding the high shell reservation from the DOS MCB chain made shell-launched `C:\MI2\MONKEY2` match direct boot at entry (`PSP=1401`, `TOP=3411`, `ENTRY=23C0:2688`, child MCB followed by a free `Z` block).
+- A 60-second VNC/screendump run of shell-launched `C:\MI2\MONKEY2` with the hidden high shell reached the same purple MI2 screen color distribution as direct boot, with no crack exit and no `EXC 06`.
 
 ### Tests And Probes Run
 
@@ -27,6 +33,11 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Low-arena trace build command used: `nasm -DTRACE_DOS=900 -DBOOT_FILE='"SHELL   COM"' -f bin src/kernel.asm -o build/mi2root_int06_trace_kernel.bin`.
 - Low-arena traced MI2 now opens `MONKEY2.001`, performs the large `READ H=0005 REQ=9756 POS=00868A49 ... -> 9756`, polls stdin as empty, and then in traced runs may print `Thanks for using this INC Crack!` and return to the shell.
 - Low-arena no-screenshot MI2 serial runs can stay running for 60 seconds with no `EXC`, no `Thanks`, and no shell prompt, but the one late framebuffer capture was still all black.
+- `python3 scripts/test_shell.py` failed before the PSP parent fix with `FAIL: PSP`, then passed after `build_psp` wrote `PSP:16`.
+- `python3 scripts/test_shell.py` failed before the keyboard reset with `FAIL: BIOS KEY BDA`, then passed after empty-buffer pointer reset before child transfer.
+- `python3 scripts/test_shell.py` passes after moving boot COM programs to a hidden high reservation.
+- MI2 probe commands used current generated images such as `build/trace_mi2_shell.img`, `build/mi2_hidden_shell.img`, and one late screenshot per run. `build/mi2_hidden_shell_60.ppm` matched direct boot's purple-screen color distribution.
+- Final verification after review follow-ups: `make test`, `python3 scripts/test_monkey_full.py`, `git diff --check`, and `python3 scripts/build_games_hd_all.py` plus a 60-second `C:\MI2\MONKEY2` VNC smoke all passed. The MI2 smoke reported `HAS_THANKS False`, `HAS_EXC False`, and a 42-color purple-screen capture.
 
 ### Failed Or Weakened Hypotheses
 
@@ -34,13 +45,28 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Honoring `MaxAlloc=FFFF` alone did not solve the shell runtime behavior.
 - More conventional DOS time did not by itself make MI2 reach copy-protection graphics.
 - More free memory removes one constraint but does not by itself fix black-screen/exit behavior.
+- Setting only `PSP:16` fixed a real DOS compatibility bug but did not remove the MI2 crack exit.
+- Resetting the empty BIOS keyboard buffer removed the immediate crack exit, but low-resident shell still later reached purple plus `EXC 06` in long runs.
+- Moving the shell high without hiding its MCB did not work; MI2 still saw a non-direct MCB chain and stalled before graphics.
 
 ### Next Probes
 
+- Preserve the hidden-high-shell behavior while continuing from the purple MI2 screen.
 - Keep using no-screenshot serial runs for runtime stability checks; take at most one late screenshot because HMP screendumps perturb the crack.
-- Add a targeted trace for `INT 10h` mode/palette calls or VGA writes after the large `MONKEY2.001` read to distinguish a render stall from a black-but-running game loop.
-- Consider temporary tracing for software `INT 06h` hit counts and call sites without halting.
-- Re-check whether `SPEAKER.IMS` timer chaining or the crack's timer loop depends on BIOS/DOS time differently from DOSBox-X.
+- Continue from the purple MI2 screen with careful single-input probes only after preserving the current stable shell-entry behavior.
+
+### Advisor Follow-Up Ideas
+
+- First probe should be a low-perturbation child-entry state diff between direct boot and shell `EXEC`, emitted once before transferring to MI2.
+- Log child `PSP`, `PSP:02`, `PSP:16`, `PSP:2C`, `PSP:80`, entry `CS:IP`, intended `SS:SP`, `DS`, `ES`, and current DTA.
+- Log the first few MCBs from `MCB_START`, plus `ENV_SEG-1` signature/owner/size and first environment bytes, because LainDOS currently points `PSP:2C` outside the MCB arena.
+- Log BDA hardware/timing state: equipment word `40:10`, video mode `40:49`, keyboard flags/head/tail, and tick dword `40:6C`.
+- Log IVT entries for `06`, `08`, `09`, `10`, `16`, `1A`, `1C`, `22`, `23`, and `24`, plus PIC masks `21h` and `A1h`.
+- If the state diff points at `PSP:16`, try setting the child parent PSP to the shell PSP for shell-launched programs.
+- If the state diff points at environment semantics, allocate/copy a real child environment block with an MCB instead of using fixed `ENV_SEG` directly.
+- If the state diff is not enough, add a RAM ring-buffer flight recorder dumped only on `AH=4Ch`: recent `INT 21h` entry/exit registers, memory calls, overlay calls, `MONKEY2.001` read checksums, software `INT 06h` call sites, and `INT 10h` mode calls.
+- Verify whether shell MI2 reaches any `INT 10h AH=00h/1Ah`; if no, keep debugging pre-graphics crack/process state rather than VGA rendering.
+- Compare high-offset `MONKEY2.001` read checksums against host bytes if execution diverges after the large `REQ=9756` read.
 
 ## 2026-05-22 Monkey Island Black Screen
 

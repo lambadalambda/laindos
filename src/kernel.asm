@@ -40,7 +40,9 @@ ROOT_ENT_CNT equ 224
 
 MCB_SIG_M equ 'M'
 MCB_SIG_Z equ 'Z'
-MCB_START equ 0x1400
+%ifndef MCB_START
+%define MCB_START 0x1400
+%endif
 MEM_TOP   equ 0xA000
 
 CF equ 0x0001
@@ -52,6 +54,10 @@ FAT_DATE equ 0x5CB6
 
 %ifndef TRACE_DOS
 %define TRACE_DOS 0
+%endif
+
+%ifndef TRACE_EXEC_STATE
+%define TRACE_EXEC_STATE 0
 %endif
 
 kernel_entry:
@@ -97,7 +103,7 @@ kernel_entry:
     mov ax, MEM_TOP - MCB_START - 1
     mov word [es:3], ax
     mov word [mcb_first], MCB_START
-    mov word [cur_psp], PSP_SEG
+    mov word [cur_psp], 0
 
     call init_bpb_geometry
 
@@ -159,7 +165,7 @@ kernel_entry:
     test dx, dx
     jnz .halt
     mov [cs:prog_par], ax
-    jmp .alloc
+    jmp .alloc_com
 
 .peek_mz:
     mov ax, [cs:kfsize]
@@ -201,6 +207,13 @@ kernel_entry:
     pop ds
     mov bx, [cs:prog_par]
     call alloc_mem_direct
+    jmp .alloc_done
+.alloc_com:
+    push cs
+    pop ds
+    mov bx, [cs:prog_par]
+    call alloc_mem_direct_high
+.alloc_done:
     jc .halt
     mov [cs:prog_seg], ax
     push ax
@@ -3761,6 +3774,13 @@ do_terminate:
     mov si, ax
     jmp .dt_mcb_walk
 .dt_mcb_done:
+    mov ax, [cs:cur_psp]
+    test ax, ax
+    jz .dt_parent_done
+    mov ds, ax
+    mov ax, [0x16]
+    mov [cs:cur_psp], ax
+.dt_parent_done:
     pop ax
     pop si
     pop ds
@@ -3836,6 +3856,74 @@ alloc_mem_direct:
     mov si, ax
     jmp .amd_walk
 .amd_nomem:
+    stc
+    pop si
+    pop ds
+    ret
+
+alloc_mem_direct_high:
+    push ds
+    push si
+    mov [cs:am_req], bx
+    mov word [cs:am_best_seg], 0
+    mov si, [cs:mcb_first]
+.amdh_walk:
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .amdh_check
+    cmp byte [ds:0], MCB_SIG_Z
+    je .amdh_check
+    stc
+    pop si
+    pop ds
+    ret
+.amdh_check:
+    cmp word [ds:1], 0
+    jne .amdh_next
+    mov ax, [ds:3]
+    cmp ax, [cs:am_req]
+    jb .amdh_next
+    mov [cs:am_best_seg], si
+.amdh_next:
+    cmp byte [ds:0], MCB_SIG_Z
+    je .amdh_choose
+    mov ax, si
+    inc ax
+    add ax, [ds:3]
+    mov si, ax
+    jmp .amdh_walk
+.amdh_choose:
+    mov si, [cs:am_best_seg]
+    test si, si
+    jz .amdh_nomem
+    mov ds, si
+    mov cx, [ds:3]
+    sub cx, [cs:am_req]
+    cmp cx, 2
+    jb .amdh_exact
+    mov di, si
+    add di, cx
+    mov al, [ds:0]
+    dec cx
+    mov [ds:3], cx
+    mov es, di
+    mov byte [es:0], al
+    mov ax, [cs:cur_psp]
+    mov [es:1], ax
+    mov ax, [cs:am_req]
+    mov [es:3], ax
+    mov si, di
+    mov ds, di
+.amdh_exact:
+    mov ax, [cs:cur_psp]
+    mov word [ds:1], ax
+    mov ax, si
+    inc ax
+    pop si
+    pop ds
+    clc
+    ret
+.amdh_nomem:
     stc
     pop si
     pop ds
@@ -6209,6 +6297,7 @@ exec_com:
     pop ax
     mov [cs:saved_ss], ax
     mov [cs:saved_sp], sp
+    call reset_keyboard_buffer
 
     mov ax, PSP_SEG
     mov ds, ax
@@ -6258,6 +6347,8 @@ build_psp:
     pop ds
 
     pop ax
+    mov bx, [cs:cur_psp]
+    mov [es:0x16], bx
     mov word [es:0x2C], ENV_SEG
     mov [cs:dta_seg], ax
     mov word [cs:dta_off], 0x0080
@@ -6426,6 +6517,10 @@ exec_exe_dyn:
     pop ax
     mov [cs:saved_ss], ax
     mov [cs:saved_sp], sp
+    call reset_keyboard_buffer
+%if TRACE_EXEC_STATE
+    call trace_exec_state
+%endif
 
     mov ax, [cs:prog_seg]
     mov ds, ax
@@ -6449,6 +6544,7 @@ exec_com_dyn:
     pop ax
     mov [cs:saved_ss], ax
     mov [cs:saved_sp], sp
+    call reset_keyboard_buffer
 
     mov ax, [cs:prog_seg]
     dec ax
@@ -6484,6 +6580,7 @@ exec_exe:
     pop ax
     mov [cs:saved_ss], ax
     mov [cs:saved_sp], sp
+    call reset_keyboard_buffer
 
     mov ax, PSP_SEG
     mov ds, ax
@@ -6499,6 +6596,357 @@ exec_exe:
     push ax
     push word [cs:exe_ip]
     retf
+
+reset_keyboard_buffer:
+    push ax
+    push es
+    mov ax, 0x0040
+    mov es, ax
+    mov ax, [es:0x001A]
+    cmp ax, [es:0x001C]
+    jne .done
+    cmp ax, 0x001E
+    je .done
+    mov word [es:0x001A], 0x001E
+    mov word [es:0x001C], 0x001E
+.done:
+    pop es
+    pop ax
+    ret
+
+%if TRACE_EXEC_STATE
+trace_exec_state:
+    pusha
+    push ds
+    push es
+    mov ax, [cs:prog_seg]
+    mov ds, ax
+    mov ax, [0x02]
+    mov [cs:trace_psp_top], ax
+    mov ax, [0x16]
+    mov [cs:trace_parent_psp], ax
+    mov ax, [0x2C]
+    mov [cs:trace_env_seg], ax
+    mov ax, [0x80]
+    mov [cs:trace_cmd_tail], ax
+    mov ax, [cs:exe_load_seg]
+    add ax, [cs:exe_cs]
+    mov [cs:trace_entry_cs], ax
+    mov ax, [cs:exe_load_seg]
+    add ax, [cs:exe_ss]
+    mov [cs:trace_entry_ss], ax
+    push cs
+    pop ds
+    mov si, msg_xstate
+    call serial_print
+    mov si, msg_x_psp
+    call serial_print
+    mov ax, [cs:prog_seg]
+    call serial_print_hex_word
+    mov si, msg_x_top
+    call serial_print
+    mov ax, [cs:trace_psp_top]
+    call serial_print_hex_word
+    mov si, msg_x_parent
+    call serial_print
+    mov ax, [cs:trace_parent_psp]
+    call serial_print_hex_word
+    mov si, msg_x_env
+    call serial_print
+    mov ax, [cs:trace_env_seg]
+    call serial_print_hex_word
+    mov si, msg_x_cmd
+    call serial_print
+    mov ax, [cs:trace_cmd_tail]
+    call serial_print_hex_word
+    mov si, msg_x_entry
+    call serial_print
+    mov ax, [cs:trace_entry_cs]
+    call serial_print_hex_word
+    mov si, msg_colon
+    call serial_print
+    mov ax, [cs:exe_ip]
+    call serial_print_hex_word
+    mov si, msg_x_sssp
+    call serial_print
+    mov ax, [cs:trace_entry_ss]
+    call serial_print_hex_word
+    mov si, msg_colon
+    call serial_print
+    mov ax, [cs:exe_sp]
+    call serial_print_hex_word
+    mov si, msg_x_dta
+    call serial_print
+    mov ax, [cs:dta_seg]
+    call serial_print_hex_word
+    mov si, msg_colon
+    call serial_print
+    mov ax, [cs:dta_off]
+    call serial_print_hex_word
+    mov si, msg_crlf
+    call serial_print
+    call trace_exec_env
+    call trace_exec_bda
+    call trace_exec_ivt
+    call trace_exec_mcb
+    pop es
+    pop ds
+    popa
+    ret
+
+trace_exec_env:
+    push ax
+    push cx
+    push ds
+    push si
+    mov ax, ENV_SEG
+    dec ax
+    mov ds, ax
+    mov al, [0]
+    mov [cs:trace_sig], al
+    mov ax, [1]
+    mov [cs:trace_owner], ax
+    mov ax, [3]
+    mov [cs:trace_size], ax
+    push cs
+    pop ds
+    mov si, msg_xenv
+    call serial_print
+    mov ax, ENV_SEG - 1
+    call serial_print_hex_word
+    mov si, msg_x_sig
+    call serial_print
+    mov al, [cs:trace_sig]
+    call serial_print_hex
+    mov si, msg_x_owner
+    call serial_print
+    mov ax, [cs:trace_owner]
+    call serial_print_hex_word
+    mov si, msg_x_size
+    call serial_print
+    mov ax, [cs:trace_size]
+    call serial_print_hex_word
+    mov si, msg_x_bytes
+    call serial_print
+    mov ax, ENV_SEG
+    mov ds, ax
+    xor si, si
+    mov cx, 8
+.bytes:
+    lodsb
+    call serial_print_hex
+    mov al, ' '
+    call serial_putchar
+    loop .bytes
+    push cs
+    pop ds
+    mov si, msg_crlf
+    call serial_print
+    pop si
+    pop ds
+    pop cx
+    pop ax
+    ret
+
+trace_exec_bda:
+    push ax
+    push bx
+    push ds
+    mov ax, 0x0040
+    mov ds, ax
+    mov ax, [0x0010]
+    mov [cs:trace_bda_equip], ax
+    xor ax, ax
+    mov al, [0x0049]
+    mov [cs:trace_bda_mode], ax
+    xor ax, ax
+    mov al, [0x0017]
+    mov [cs:trace_bda_keyflags], ax
+    mov ax, [0x001A]
+    mov [cs:trace_bda_keyhead], ax
+    mov ax, [0x001C]
+    mov [cs:trace_bda_keytail], ax
+    mov ax, [0x006C]
+    mov [cs:trace_bda_tick_lo], ax
+    mov ax, [0x006E]
+    mov [cs:trace_bda_tick_hi], ax
+    in al, 0x21
+    xor ah, ah
+    mov [cs:trace_pic1], ax
+    in al, 0xA1
+    xor ah, ah
+    mov [cs:trace_pic2], ax
+    push cs
+    pop ds
+    mov si, msg_xbda
+    call serial_print
+    mov si, msg_x_eq
+    call serial_print
+    mov ax, [cs:trace_bda_equip]
+    call serial_print_hex_word
+    mov si, msg_x_mode
+    call serial_print
+    mov ax, [cs:trace_bda_mode]
+    call serial_print_hex_word
+    mov si, msg_x_key
+    call serial_print
+    mov ax, [cs:trace_bda_keyflags]
+    call serial_print_hex_word
+    mov si, msg_colon
+    call serial_print
+    mov ax, [cs:trace_bda_keyhead]
+    call serial_print_hex_word
+    mov si, msg_colon
+    call serial_print
+    mov ax, [cs:trace_bda_keytail]
+    call serial_print_hex_word
+    mov si, msg_x_tick
+    call serial_print
+    mov ax, [cs:trace_bda_tick_hi]
+    call serial_print_hex_word
+    mov si, msg_colon
+    call serial_print
+    mov ax, [cs:trace_bda_tick_lo]
+    call serial_print_hex_word
+    mov si, msg_x_pic
+    call serial_print
+    mov ax, [cs:trace_pic1]
+    call serial_print_hex_word
+    mov si, msg_colon
+    call serial_print
+    mov ax, [cs:trace_pic2]
+    call serial_print_hex_word
+    mov si, msg_crlf
+    call serial_print
+    pop ds
+    pop bx
+    pop ax
+    ret
+
+trace_exec_ivt:
+    push ax
+    push bx
+    push ds
+    push si
+    push cs
+    pop ds
+    mov si, msg_xivt
+    call serial_print
+    mov al, 0x06
+    call trace_print_vector
+    mov al, 0x08
+    call trace_print_vector
+    mov al, 0x09
+    call trace_print_vector
+    mov al, 0x10
+    call trace_print_vector
+    mov al, 0x16
+    call trace_print_vector
+    mov al, 0x1A
+    call trace_print_vector
+    mov al, 0x1C
+    call trace_print_vector
+    mov al, 0x22
+    call trace_print_vector
+    mov al, 0x23
+    call trace_print_vector
+    mov al, 0x24
+    call trace_print_vector
+    mov si, msg_crlf
+    call serial_print
+    pop si
+    pop ds
+    pop bx
+    pop ax
+    ret
+
+trace_print_vector:
+    push ax
+    push bx
+    push ds
+    mov [cs:trace_vec_num], al
+    mov bl, al
+    xor bh, bh
+    shl bx, 1
+    shl bx, 1
+    xor ax, ax
+    mov ds, ax
+    mov ax, [bx]
+    mov [cs:trace_vec_off], ax
+    mov ax, [bx+2]
+    mov [cs:trace_vec_seg], ax
+    push cs
+    pop ds
+    mov al, ' '
+    call serial_putchar
+    mov al, [cs:trace_vec_num]
+    call serial_print_hex
+    mov al, '='
+    call serial_putchar
+    mov ax, [cs:trace_vec_seg]
+    call serial_print_hex_word
+    mov si, msg_colon
+    call serial_print
+    mov ax, [cs:trace_vec_off]
+    call serial_print_hex_word
+    pop ds
+    pop bx
+    pop ax
+    ret
+
+trace_exec_mcb:
+    push ax
+    push cx
+    push ds
+    push si
+    mov word [cs:trace_mcb_seg], MCB_START
+    mov cx, 6
+.loop:
+    mov ax, [cs:trace_mcb_seg]
+    mov ds, ax
+    mov al, [0]
+    mov [cs:trace_sig], al
+    mov ax, [1]
+    mov [cs:trace_owner], ax
+    mov ax, [3]
+    mov [cs:trace_size], ax
+    push cs
+    pop ds
+    mov si, msg_xmcb
+    call serial_print
+    mov ax, [cs:trace_mcb_seg]
+    call serial_print_hex_word
+    mov si, msg_x_sig
+    call serial_print
+    mov al, [cs:trace_sig]
+    call serial_print_hex
+    mov si, msg_x_owner
+    call serial_print
+    mov ax, [cs:trace_owner]
+    call serial_print_hex_word
+    mov si, msg_x_size
+    call serial_print
+    mov ax, [cs:trace_size]
+    call serial_print_hex_word
+    mov si, msg_crlf
+    call serial_print
+    mov al, [cs:trace_sig]
+    cmp al, MCB_SIG_Z
+    je .done
+    cmp al, MCB_SIG_M
+    jne .done
+    mov ax, [cs:trace_mcb_seg]
+    inc ax
+    add ax, [cs:trace_size]
+    mov [cs:trace_mcb_seg], ax
+    loop .loop
+.done:
+    pop si
+    pop ds
+    pop cx
+    pop ax
+    ret
+%endif
 
 serial_init:
     mov dx, COM1_PORT + 1
@@ -6808,6 +7256,30 @@ msg_reg_ax:    db " AX=", 0
 msg_reg_bx:    db " BX=", 0
 msg_reg_cx:    db " CX=", 0
 msg_reg_dx:    db " DX=", 0
+%if TRACE_EXEC_STATE
+msg_xstate: db "XSTATE", 0
+msg_x_psp: db " PSP=", 0
+msg_x_top: db " TOP=", 0
+msg_x_parent: db " PARENT=", 0
+msg_x_env: db " ENV=", 0
+msg_x_cmd: db " CMD=", 0
+msg_x_entry: db " ENTRY=", 0
+msg_x_sssp: db " SSSP=", 0
+msg_x_dta: db " DTA=", 0
+msg_xenv: db "XENV ", 0
+msg_xbda: db "XBDA", 0
+msg_xivt: db "XIVT", 0
+msg_xmcb: db "XMCB ", 0
+msg_x_sig: db " SIG=", 0
+msg_x_owner: db " OWNER=", 0
+msg_x_size: db " SIZE=", 0
+msg_x_bytes: db " BYTES=", 0
+msg_x_eq: db " EQ=", 0
+msg_x_mode: db " MODE=", 0
+msg_x_key: db " KEY=", 0
+msg_x_tick: db " TICK=", 0
+msg_x_pic: db " PIC=", 0
+%endif
 
 fname_hello:  db "HELLO   COM", 0
 %ifndef BOOT_FILE
@@ -7041,6 +7513,30 @@ log_cx: dw 0
 log_dx: dw 0
 trace_left: dw 0
 exc_vec: db 0
+%if TRACE_EXEC_STATE
+trace_psp_top: dw 0
+trace_parent_psp: dw 0
+trace_env_seg: dw 0
+trace_cmd_tail: dw 0
+trace_entry_cs: dw 0
+trace_entry_ss: dw 0
+trace_sig: db 0
+trace_owner: dw 0
+trace_size: dw 0
+trace_bda_equip: dw 0
+trace_bda_mode: dw 0
+trace_bda_keyflags: dw 0
+trace_bda_keyhead: dw 0
+trace_bda_keytail: dw 0
+trace_bda_tick_lo: dw 0
+trace_bda_tick_hi: dw 0
+trace_pic1: dw 0
+trace_pic2: dw 0
+trace_vec_num: db 0
+trace_vec_off: dw 0
+trace_vec_seg: dw 0
+trace_mcb_seg: dw 0
+%endif
 
 mouse_x: dw 320
 mouse_y: dw 100
