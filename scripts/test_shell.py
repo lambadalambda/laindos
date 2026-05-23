@@ -47,6 +47,7 @@ def build_image():
         os.path.join(BUILDDIR, "helloexe.exe"),
         os.path.join(BUILDDIR, "exectest.com"),
         os.path.join(BUILDDIR, "testfile.dat"),
+        f"MIDEMO:{os.path.join(BUILDDIR, 'helloexe.exe')}",
         f"MIDEMO:{os.path.join(BUILDDIR, 'subtest.dat')}",
     ])
 
@@ -73,10 +74,18 @@ def send_keys():
         "h", "e", "l", "l", "o", "e", "x", "e", "ret",
         "e", "x", "e", "c", "t", "e", "s", "t", "ret",
         "m", "e", "m", "ret",
+        "m", "d", "spc", "s", "h", "d", "i", "r", "ret",
+        "d", "i", "r", "ret",
+        "c", "d", "spc", "s", "h", "d", "i", "r", "ret",
+        "c", "d", "spc", "slash", "ret",
+        "c", "d", "spc", "dot", "dot", "ret",
+        "r", "d", "spc", "s", "h", "d", "i", "r", "ret",
+        "c", "d", "spc", "s", "h", "d", "i", "r", "ret",
         "c", "d", "spc", "m", "i", "d", "e", "m", "o", "ret",
         "d", "i", "r", "ret",
         "t", "y", "p", "e", "spc", "s", "u", "b", "t", "e", "s", "t", "dot", "d", "a", "t", "ret",
-        "c", "d", "spc", "slash", "ret",
+        "h", "e", "l", "l", "o", "e", "x", "e", "ret",
+        "c", "d", "spc", "dot", "dot", "ret",
         "t", "y", "p", "e", "spc", "t", "e", "s", "t", "f", "i", "l", "e", "dot", "d", "a", "t", "ret",
         "n", "o", "p", "e", "ret",
         "e", "x", "i", "t", "ret",
@@ -136,6 +145,8 @@ def main():
         "EXECTEST.COM",
         "PASS: EXECTEST",
         "Largest free block: ",
+        "A:\\SHDIR>",
+        "Path not found",
         "A:\\MIDEMO>",
         "SUBTEST.DAT",
         "Hello from MIDEMO subdirectory!",
@@ -153,9 +164,14 @@ def main():
         print("  FAIL: expected three HELLO.COM runs")
         failed = True
     if output.count("Hello from TESTFILE.DAT! This is test data for LainDOS file I/O.") >= 2:
-        print("  PASS: found root TYPE before and after CD /")
+        print("  PASS: found root TYPE before and after CD ..")
     else:
-        print("  FAIL: expected root TYPE before and after CD /")
+        print("  FAIL: expected root TYPE before and after CD ..")
+        failed = True
+    if output.count("Path not found") == 1:
+        print("  PASS: CD .. at root did not error")
+    else:
+        print("  FAIL: expected exactly one Path not found")
         failed = True
     for marker in ["FAIL:", "EXC ", "INT 21h AH="]:
         if marker in output:

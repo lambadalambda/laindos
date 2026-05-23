@@ -35,6 +35,14 @@ prompt:
     call cmd_match
     jc do_cd
     mov si, line_buf
+    mov di, md_cmd
+    call cmd_match
+    jc do_md
+    mov si, line_buf
+    mov di, rd_cmd
+    call cmd_match
+    jc do_rd
+    mov si, line_buf
     mov di, type_cmd
     call cmd_match
     jc do_type
@@ -109,6 +117,44 @@ do_cd:
     jmp prompt
 .err:
     mov dx, path_not_found_msg
+    mov ah, 0x09
+    int 0x21
+    jmp prompt
+
+do_md:
+    cmp byte [si], 0
+    je .missing
+    mov dx, si
+    mov ah, 0x39
+    int 0x21
+    jc .err
+    jmp prompt
+.err:
+    mov dx, path_not_found_msg
+    mov ah, 0x09
+    int 0x21
+    jmp prompt
+.missing:
+    mov dx, missing_arg_msg
+    mov ah, 0x09
+    int 0x21
+    jmp prompt
+
+do_rd:
+    cmp byte [si], 0
+    je .missing
+    mov dx, si
+    mov ah, 0x3A
+    int 0x21
+    jc .err
+    jmp prompt
+.err:
+    mov dx, path_not_found_msg
+    mov ah, 0x09
+    int 0x21
+    jmp prompt
+.missing:
+    mov dx, missing_arg_msg
     mov ah, 0x09
     int 0x21
     jmp prompt
@@ -409,6 +455,8 @@ exit_cmd: db "EXIT", 0
 ver_cmd: db "VER", 0
 dir_cmd: db "DIR", 0
 cd_cmd: db "CD", 0
+md_cmd: db "MD", 0
+rd_cmd: db "RD", 0
 type_cmd: db "TYPE", 0
 cls_cmd: db "CLS", 0
 mem_cmd: db "MEM", 0

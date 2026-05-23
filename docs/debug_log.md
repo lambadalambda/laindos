@@ -499,3 +499,74 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - `python3 scripts/test_monkey_full.py`
 - `mise tasks`
 - `git diff --check`
+
+## 2026-05-23 Directory Mutation
+
+### Confirmed Facts
+
+- A new `DIRMUT.COM` regression failed before implementation with unhandled `INT 21h AH=39h` while creating `VISIBLE`.
+- `MIDEMO` can be pre-filled so `MIDEMO\MAKEDIR` exercises directory creation in an extended subdirectory cluster.
+- `RD` must reload the parent directory sector after scanning the target directory because the emptiness scan uses `SEC_BUF` and can overwrite the parent slot buffer.
+
+### Fixes Made During Investigation
+
+- Implemented `INT 21h AH=39h` create-directory with FAT12 cluster allocation, zeroed directory contents, valid `.` and `..` entries, parent entry flush, and FAT flush.
+- Implemented `INT 21h AH=3Ah` remove-directory with directory-attribute checks, current-directory rejection, non-empty rejection, parent entry deletion, cluster-chain free, and FAT flush.
+- Added `MD` and `RD` shell built-ins.
+- Added `scripts/test_dirmut.py` and `DIRMUT.COM` to verify FindFirst visibility, CD into created directories, duplicate-name rejection, rmdir-on-file rejection, current-directory rejection, empty-directory removal, non-empty rejection, nested directory removal, subdirectory parent creation, valid dot entries including non-root `..`, root-directory-full rejection, and no leaked FAT clusters.
+
+### Tests Run
+
+- `python3 scripts/test_dirmut.py` reproduced missing `AH=39h` before implementation and passed after the directory mutation handlers were added.
+- `python3 scripts/test_shell.py`
+- `make test`
+- `python3 scripts/test_monkey_full.py`
+
+## 2026-05-23 Combined Games Hard Disk Shell Bugs
+
+### Confirmed Facts
+
+- The combined all-games hard disk image needs a larger FAT12-compatible geometry than `hd10m`; it was generated as 40/16/63 with 16 sectors per cluster.
+- `CD ..` failed from game subdirectories because path resolution treated `..` as an ordinary dotted 8.3 name rather than the directory entry named `..`.
+- Game EXEs in the 20 MB image initially returned `Bad command or file name` because executable loading copied whole FAT clusters. With 8 KB clusters this overran the memory allocated from exact file size calculations.
+- After size-limited EXE loading, full MI2 started but searched for `A:\speaker.ims`; the EXEC environment path for a relative launch from a current subdirectory was missing the current directory prefix.
+- The MI2 demo and full MI2 directories list correctly under QEMU; no directory-entry corruption was reproduced there.
+
+### Fixes Made During Investigation
+
+- Taught `resolve_path` to resolve `.` and `..` directory entries and updated `CD ..` prompt handling for parent traversal.
+- Changed `load_file_direct` to copy only `kfsize` bytes instead of every sector in the file's cluster chain.
+- Updated EXEC environment path construction so relative launches from a subdirectory produce paths like `A:\MI2\MONKEY2.EXE`.
+- Extended the shell regression to run `HELLOEXE.EXE` from `MIDEMO` and return to root with `CD ..`.
+
+### Tests Run
+
+- Reproduced `CD ..` failure and subdirectory game EXE launch failure on `build/games_hd_all.img` before the fixes.
+- Rebuilt `build/games_hd_all.img`; verified `CD MI2DEMO`, `DIR`, `CD ..`, `CD MI2`, `DIR`, and `MONKEY2` under QEMU. Full MI2 reached mouse polling instead of `A:\speaker.ims` failure.
+- `python3 scripts/test_shell.py`
+- `make test`
+- `python3 scripts/test_monkey_full.py`
+
+## 2026-05-23 Full MI2 Overlay Allocation
+
+### Confirmed Facts
+
+- Full MI2 from `build/games_hd_all.img` reached the crack intro, but after pressing Space it printed `Overlay Alloc failed for A:\MI2\speaker.ims`.
+- A trace build confirmed the path was resolving and opening correctly; the failure was the subsequent `INT 21h AH=48h` request for `0687h` paragraphs.
+- Compact memory trace before the fix showed MI2 resizing its PSP from `2804h` to `23DFh`, allocating the first `SPEAKER.IMS` block at `4B97h`, probing heap sizes, then keeping a final `4DE1h` block at `521Fh`; the later second `0687h` allocation failed.
+- The first PSP shrink created a large free MCB, and the second shrink created a `0424h` free MCB immediately before it. `AH=4Ah` did not coalesce that newly freed tail with the following free MCB, leaving avoidable fragmentation exactly before the sound/heap allocation sequence.
+
+### Fixes Made During Investigation
+
+- Updated `INT 21h AH=4Ah` shrink handling to merge the newly-created free tail with the immediately following free MCB when that following block is also free.
+- Extended `MEMTEST.EXE` with a shrink-merge regression: allocate A/B/C, free B, shrink A, then require an allocation spanning A's freed tail plus B's free block.
+
+### Tests Run
+
+- Rebuilt a `TRACE_DOS` all-games image and reproduced the failing `ALLOC 0687 FAIL` sequence before the fix.
+- After the fix, the trace run moved the first `0687h` sound allocation to `4772h`, completed the larger heap probe without the later `0687h` failure, and continued into mouse polling.
+- Rebuilt production `build/games_hd_all.img`; QEMU shell launch sequence `CD MI2`, `MONKEY2`, Space reached repeated `INT 33h AX=0005` / `AX=000B` polling with no `Overlay Alloc failed`, `File not found`, unhandled `INT 21h`, runtime error, or exception markers.
+- `python3 scripts/test_boot.py`
+- `make test`
+- `python3 scripts/test_monkey_full.py`
+- `git diff --check`

@@ -79,6 +79,60 @@ image_start:
     int 0x21
     jc .fail3
 
+    mov bx, 0x0100
+    mov ah, 0x48
+    int 0x21
+    jc .fail8
+    mov [block_a - image_start], ax
+
+    mov bx, 0x0100
+    mov ah, 0x48
+    int 0x21
+    jc .fail8
+    mov [block_b - image_start], ax
+
+    mov bx, 0x0100
+    mov ah, 0x48
+    int 0x21
+    jc .fail8
+    mov [block_c - image_start], ax
+
+    mov es, [block_b - image_start]
+    mov ah, 0x49
+    int 0x21
+    jc .fail8
+
+    mov es, [block_a - image_start]
+    mov bx, 0x0080
+    mov ah, 0x4A
+    int 0x21
+    jc .fail8
+
+    mov bx, 0x0180
+    mov ah, 0x48
+    int 0x21
+    jc .fail8
+    mov dx, [block_a - image_start]
+    add dx, 0x0081
+    cmp ax, dx
+    jne .fail8
+    mov [block_d - image_start], ax
+
+    mov es, [block_d - image_start]
+    mov ah, 0x49
+    int 0x21
+    jc .fail8
+
+    mov es, [block_c - image_start]
+    mov ah, 0x49
+    int 0x21
+    jc .fail8
+
+    mov es, [block_a - image_start]
+    mov ah, 0x49
+    int 0x21
+    jc .fail8
+
     mov bx, 0x0080
     mov ah, 0x48
     int 0x21
@@ -160,6 +214,9 @@ image_start:
     jmp .print_fail
 .fail7:
     mov dx, fail7_msg - image_start
+    jmp .print_fail
+.fail8:
+    mov dx, fail8_msg - image_start
 .print_fail:
     mov ah, 0x09
     int 0x21
@@ -170,6 +227,7 @@ image_start:
 block_a: dw 0
 block_b: dw 0
 block_c: dw 0
+block_d: dw 0
 
 pass_msg:  db 13, 10, "PASS: MEM$"
 fail1_msg: db "FAIL: ALLOC1$"
@@ -181,5 +239,6 @@ fail4b_msg: db "FAIL: ALLOC2B$"
 fail5_msg: db "FAIL: FREE2$"
 fail6_msg: db "FAIL: MERGE$"
 fail7_msg: db "FAIL: STRATEGY$"
+fail8_msg: db "FAIL: SHRINK MERGE$"
 
 file_end:

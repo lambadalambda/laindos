@@ -18,6 +18,14 @@ run = "python3 scripts/build_monkey_full.py && qemu-system-i386 -drive file=buil
 description = "Boot full VGA Monkey Island in Bochs"
 run = "python3 scripts/run_monkey_full_bochs.py"
 
+[tasks.build-games-hd-all]
+description = "Build all-games hard disk image"
+run = "python3 scripts/build_games_hd_all.py"
+
+[tasks.run-games-hd-all]
+description = "Boot all-games hard disk image in QEMU"
+run = "python3 scripts/build_games_hd_all.py && qemu-system-i386 -drive file=build/games_hd_all.img,format=raw -boot order=c -serial stdio -monitor none"
+
 [tasks.clean]
 description = "Remove build artifacts"
 run = "make clean"

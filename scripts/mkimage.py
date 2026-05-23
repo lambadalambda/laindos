@@ -37,6 +37,16 @@ FORMATS = {
         'media': 0xF8,
         'drive': 0x80,
     },
+    'hd20m': {
+        'total_sectors': 40320,
+        'sec_per_clus': 16,
+        'root_ent_cnt': 224,
+        'fat_sz': 8,
+        'sec_per_trk': 63,
+        'num_heads': 16,
+        'media': 0xF8,
+        'drive': 0x80,
+    },
 }
 
 fmt = FORMATS['1440k']
@@ -207,7 +217,7 @@ def main():
     if len(sys.argv) < 4:
         print(f"Usage: {sys.argv[0]} boot.bin kernel.bin disk.img [file1 ...]",
               file=sys.stderr)
-        print("  Optional first argument: --format=1440k, --format=2880k, or --format=hd10m",
+        print("  Optional first argument: --format=1440k, --format=2880k, --format=hd10m, or --format=hd20m",
               file=sys.stderr)
         print(f"  Files can be: FILE.EXT (root) or DIR/FILE.EXT (subdir)",
               file=sys.stderr)
