@@ -2,6 +2,54 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-24 86Box Directory Corruption
+
+### Symptoms
+
+- 86Box could boot the all-games image but directory listings could turn into garbage on higher-LBA subdirectories.
+- The same generated `hd20m` images listed directories correctly under QEMU and Bochs.
+
+### Confirmed Facts
+
+- Isolated 86Box VM path: `build/86box-serial-file`.
+- COM1 capture works with `[Ports (COM & LPT)] serial1_device = stdio` and `[Virtual Console (COM) #1] mode = 0`.
+- COM1 file capture using `serial1_device = file` created the file but captured no bytes in this setup.
+- A fresh isolated 86Box VM needed the existing `monkey` VM NVR copied into `build/86box-serial-file/nvr` before it booted unattended.
+- Focused temporary `DIRLIST.COM` image enumerated root, `\M1DEMO`, `\MI2`, and `\SIMON` through DOS `FindFirst`/`FindNext`.
+- Before the fix, `DIRLIST` passed under QEMU but failed under 86Box at `\MI2` with a bad first DTA name.
+- BIOS `INT 13h AH=08` geometry differs by emulator for the same `hd20m` image:
+- QEMU reports `CX=263F DX=0F01`, which decodes as 63 sectors/track and 16 heads.
+- 86Box reports `CX=123F DX=1F01`, which decodes as 63 sectors/track and 32 heads.
+- The `\MI2` directory cluster in the temporary image was at LBA `14639`; BPB geometry maps that to CHS `14/8/24`, while 86Box BIOS translation requires CHS `7/8/24`.
+- Root cause: LainDOS used BPB sectors-per-track/head-count for BIOS CHS conversion. That is only safe when BIOS translation matches the BPB.
+- Fixed by storing BIOS-reported geometry for hard-disk INT 13h reads/writes, falling back to BPB values if `AH=08` fails or reports invalid SPT.
+- Also fixed latent CHS encoding by storing the cylinder as a word and encoding cylinder bits 8-9 into `CL[7:6]` for `INT 13h AH=02h/03h`.
+
+### Tests And Probes Run
+
+- A temporary `build/build_dirlist_image.py` built a direct-boot `DIRLIST.COM` hard-disk image.
+- QEMU control: `qemu-system-i386 -drive file=build/dirlist.img,format=raw -boot order=c -serial stdio -monitor none -nographic`.
+- 86Box probe: `/Applications/86Box.app/Contents/MacOS/86Box -P /Users/lainsoykaf/repos/laindos/build/86box-serial-file -N`.
+- Pre-fix 86Box `DIRLIST` output reached `\MI2` then printed a corrupted name and `FAIL: DIRLIST`.
+- Post-fix 86Box `DIRLIST` output lists `\MI2` and `\SIMON` correctly and prints `PASS: DIRLIST`.
+- `make test` passes after the fix.
+- `python3 scripts/build_games_hd_all.py` rebuilt `build/games_hd_all.img` with the fixed kernel.
+- QEMU all-games boot reaches `LainDOS Shell` at `C:\>`.
+- `python3 scripts/test_monkey_full.py` passes with framebuffer active (`110 colors`, `209876 nonblack pixels`).
+- 86Box all-games boot reaches `LainDOS Shell` at `C:\>` using the isolated VM.
+
+### Failed Or Weakened Hypotheses
+
+- Not a FAT directory mutation bug: the focused image passed QEMU and failed only under 86Box before the geometry fix.
+- Not a COM1 logging failure: 86Box `stdio` virtual console captures LainDOS serial output reliably.
+- Not fixed by trying `INT 13h AH=42h` from the temporary harness; the robust minimal fix is querying BIOS CHS geometry for the existing AH=02h/03h path.
+
+### Follow-Ups
+
+- Keep using the isolated 86Box VM under `build/86box-serial-file` for future probes instead of mutating user VMs.
+- If larger hard-disk images are introduced, revisit the current 16-bit LBA and CHS limits or add a proper EDD path with a CHS fallback.
+- Verify actual MI2 save/load behavior from the now-working F5 overlay.
+
 ## 2026-05-23 Full MI2 Shell EXEC Follow-Up
 
 ### Symptoms

@@ -329,6 +329,10 @@ init_bpb_geometry:
     push ax
     mov al, [bx+13]
     mov [cs:kspc], al
+    mov ax, [bx+24]
+    mov [cs:kbio_spt], ax
+    mov ax, [bx+26]
+    mov [cs:kbio_heads], ax
     pop ax
     mov bx, 32
     mul bx
@@ -364,9 +368,50 @@ init_bpb_geometry:
     mov byte [cs:dos_drive_letter], 'A'
     cmp al, 0x80
     jb .drive_done
+    call query_bios_disk_geometry
     mov byte [cs:dos_drive_num], 2
     mov byte [cs:dos_drive_letter], 'C'
 .drive_done:
+    ret
+
+query_bios_disk_geometry:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    push cs
+    pop es
+    mov di, int13_scratch
+    mov dl, [cs:kdrv]
+    mov ah, 0x08
+    int 0x13
+    jc .done
+    test ah, ah
+    jnz .done
+    mov al, cl
+    and al, 0x3F
+    jz .done
+    cmp al, 63
+    ja .done
+    xor ah, ah
+    mov [cs:kbio_spt], ax
+    mov al, dh
+    xor ah, ah
+    inc ax
+    mov [cs:kbio_heads], ax
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
     ret
 
 init_environment:
@@ -5377,23 +5422,30 @@ read_sector:
     mov byte [cs:kcnt], 1
     mov byte [cs:kret], 3
 .r1:
-    push ds
-    mov ax, BPB_SEG
-    mov ds, ax
+    cmp word [cs:kbio_spt], 0
+    je .geom_err
+    cmp word [cs:kbio_heads], 0
+    je .geom_err
     mov ax, [cs:klba]
     xor dx, dx
-    div word [BPB_OFF+24]
+    div word [cs:kbio_spt]
     inc dl
     mov [cs:ksc], dl
     xor dx, dx
-    div word [BPB_OFF+26]
+    div word [cs:kbio_heads]
+    cmp ax, 1024
+    jae .geom_err
     mov [cs:khd], dl
-    mov [cs:kcy], al
-    pop ds
+    mov [cs:kcy], ax
+    mov ax, [cs:kcy]
+    mov ch, al
+    mov cl, [cs:ksc]
+    mov al, ah
+    and al, 0x03
+    shl al, 6
+    or cl, al
     mov ah, 2
     mov al, 1
-    mov ch, [cs:kcy]
-    mov cl, [cs:ksc]
     mov dh, [cs:khd]
     mov dl, [cs:kdrv]
     int 0x13
@@ -5403,6 +5455,7 @@ read_sector:
     int 0x13
     dec byte [cs:kret]
     jnz .r1
+.geom_err:
     stc
     ret
 .ok:
@@ -5423,23 +5476,30 @@ write_sector:
     mov byte [cs:kcnt], 1
     mov byte [cs:kret], 3
 .w1:
-    push ds
-    mov ax, BPB_SEG
-    mov ds, ax
+    cmp word [cs:kbio_spt], 0
+    je .geom_err
+    cmp word [cs:kbio_heads], 0
+    je .geom_err
     mov ax, [cs:klba]
     xor dx, dx
-    div word [BPB_OFF+24]
+    div word [cs:kbio_spt]
     inc dl
     mov [cs:ksc], dl
     xor dx, dx
-    div word [BPB_OFF+26]
+    div word [cs:kbio_heads]
+    cmp ax, 1024
+    jae .geom_err
     mov [cs:khd], dl
-    mov [cs:kcy], al
-    pop ds
+    mov [cs:kcy], ax
+    mov ax, [cs:kcy]
+    mov ch, al
+    mov cl, [cs:ksc]
+    mov al, ah
+    and al, 0x03
+    shl al, 6
+    or cl, al
     mov ah, 3
     mov al, 1
-    mov ch, [cs:kcy]
-    mov cl, [cs:ksc]
     mov dh, [cs:khd]
     mov dl, [cs:kdrv]
     int 0x13
@@ -5449,6 +5509,7 @@ write_sector:
     int 0x13
     dec byte [cs:kret]
     jnz .w1
+.geom_err:
     stc
     ret
 .ok:
@@ -7341,6 +7402,8 @@ krsta: dw 0
 krsc:  dw 0
 kdsta: dw 0
 kspc:  db 0
+kbio_spt: dw 0
+kbio_heads: dw 0
 kfat_start: dw 0
 kfat_secs: dw 0
 knum_fats: db 0
@@ -7351,8 +7414,9 @@ klba:  dw 0
 kcnt:  db 0
 ksc:   db 0
 khd:   db 0
-kcy:   db 0
+kcy:   dw 0
 kdrv:  db 0
+int13_scratch: times 32 db 0
 dos_drive_num: db 0
 dos_drive_letter: db 'A'
 kret:  db 3
