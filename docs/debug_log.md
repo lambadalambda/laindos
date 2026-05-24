@@ -2,6 +2,37 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-24 MI2 Save-Game Automation
+
+### Symptoms
+
+- User reported full Monkey Island 2 save games appear not to work correctly.
+- Manual QEMU probing reached the MI2 save dialog, but clicking `OK` after entering a new slot-2 name produced `The game was NOT saved (disk full?)` and no `SAVEGAME.002` appeared in `C:\MI2`.
+
+### Confirmed Facts
+
+- Full MI2 can still be driven to the F5 save/load overlay from `build/games_hd_all.img` using the current QEMU monitor flow.
+- The bundled full MI2 files already include `SAVEGAME.001` with display name `123`; this is why slot 1 appears pre-populated in the save UI.
+- A new automated probe in `scripts/test_mi2_save.py` rebuilds `build/games_hd_all.img`, drives full MI2 to the save dialog, selects slot 2, types `auto`, clicks `OK`, and then inspects the FAT image for `C:\MI2\SAVEGAME.002` with an `auto` name prefix.
+- Current result after the BPB geometry fix: `python3 scripts/test_mi2_save.py` passes and creates `SAVEGAME.002`.
+- Diagnostic screenshots from the original failing run are `build/mi2_save_dialog.ppm` and `build/mi2_save_after_ok.ppm`; the latter showed `The game was NOT saved (disk full?)` with slot 2 containing `auto_`.
+- The generated `hd20m` all-games FAT image is not actually full after the failing run: it has 218 free clusters, about 1.7 MB free with 16 sectors per cluster.
+- Temporary create/write/FAT tracing showed MI2 successfully created `SAVEGAME.002`, but the first write returned zero bytes because `fat_alloc_cluster` found no free clusters below an incorrect `kmax_cluster=0x08E1`.
+- Root cause: `init_bpb_geometry` lost `bx=bpb_copy` while calculating root directory sectors, so it read total sectors from stale offset `0x0200+19` instead of the BPB copy. Restoring `bx` before reading total sectors gives the correct FAT cluster range.
+
+### Tests And Probes Run
+
+- `python3 scripts/build_games_hd_all.py` rebuilt the all-games image before each probe.
+- Focused save-dialog probes confirmed the correct input sequence to reach the save UI: launch `C:\MI2\MONKEY2`, type `1234`/Enter at the copy-protection flow, click the top `all the puzzles` choice, skip intro with `Esc`, press `F5`, then click `Save`.
+- `python3 scripts/test_mi2_save.py` originally failed with `FAIL: MI2 did not create C:\MI2\SAVEGAME.002`.
+- A direct FAT scan after the failure counted `clusters=2518`, `used=2300`, `free=218`, so the in-game `disk full?` message is likely reporting a failed save path, not literal media exhaustion.
+- After restoring `bx=bpb_copy` in `init_bpb_geometry`, `python3 scripts/test_mi2_save.py` passes with `SAVEGAME.002 created, size=31358`.
+
+### Follow-Ups
+
+- Verify load behavior separately; this test only proves that a new save file is created and receives the expected display-name prefix.
+- Keep `scripts/test_mi2_save.py` standalone for now because it is long-running and requires the full MI2 vendor archive.
+
 ## 2026-05-24 Simon RUNVGA Memory Compatibility
 
 ### Symptoms

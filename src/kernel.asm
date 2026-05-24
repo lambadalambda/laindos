@@ -397,6 +397,7 @@ init_bpb_geometry:
     add ax, [cs:krsta]
     mov [cs:kdsta], ax
 
+    mov bx, bpb_copy
     mov ax, [bx+19]
     test ax, ax
     jnz .have_total
