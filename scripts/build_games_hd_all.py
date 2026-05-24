@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a shell-booting hard disk image with all local Monkey Island sets."""
+"""Build a shell-booting hard disk image with all local game sets."""
 import os
 import shutil
 import subprocess
@@ -15,9 +15,11 @@ IMG = os.path.join(BUILDDIR, "games_hd_all.img")
 MONKEY_FULL_ZIP = "vendor/monkey_full.zip"
 MI2_DEMO_ZIP = "vendor/mi2demo.zip"
 MI2_FULL_ZIP = "vendor/Monkey_Island_2_-_LeChucks_Revenge_1991.zip"
+SIMON_DEMO_ZIP = "vendor/simon1demo.zip"
 MONKEY_FULL_DIR = os.path.join(BUILDDIR, "monkey_full_files")
 MI2_DEMO_DIR = os.path.join(BUILDDIR, "mi2demo")
 MI2_FULL_DIR = os.path.join(BUILDDIR, "mi2full")
+SIMON_DEMO_DIR = os.path.join(BUILDDIR, "simon1demo")
 
 
 def run(cmd):
@@ -91,6 +93,7 @@ def main():
     extract_flat(MONKEY_FULL_ZIP, MONKEY_FULL_DIR)
     safe_extract(MI2_DEMO_ZIP, MI2_DEMO_DIR)
     safe_extract(MI2_FULL_ZIP, MI2_FULL_DIR)
+    extract_flat(SIMON_DEMO_ZIP, SIMON_DEMO_DIR)
 
     run(["nasm", "-f", "bin", "src/boot.asm", "-o", BOOT])
     run([
@@ -127,6 +130,7 @@ def main():
     cmd.extend(f"MONKEY:{path}" for path in files_in(MONKEY_FULL_DIR))
     cmd.extend(f"MI2DEMO:{path}" for path in files_in(MI2_DEMO_DIR))
     cmd.extend(f"MI2:{path}" for path in mi2_full_files)
+    cmd.extend(f"SIMON:{path}" for path in files_in(SIMON_DEMO_DIR))
     run(cmd)
 
 
