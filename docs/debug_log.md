@@ -9,12 +9,13 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - After minimal BAT support, `C:\SIMON\SIMON.BAT` could launch `RUNVGA GDEMO /3`, but Simon either returned to the shell or crashed before a stable VGA frame.
 - A lower-resident-memory build reached `GDEMO` reads and then hit `EXC 06 at 1607:0FA8`; the bytes at that address were ASCII text from resource data, indicating execution had been redirected into data.
 - `RUNVGA.EXE` has `MaxAlloc=FFFF`; LainDOS previously allocated only the computed minimum/image size for EXE loads.
+- After the RUNVGA path worked, `C:\SIMON\SETUP.EXE` printed `Packed file is corrupt` and returned to the shell.
 
 ### Confirmed Facts
 
 - DOSBox-X comparison showed `RUNVGA.EXE` resizing its PSP block to `0x416D` paragraphs and then opening/reading `GDEMO`.
 - LainDOS now honors EXE MZ `MaxAlloc` for both boot-time EXE loads and `INT 21h AH=4Bh` EXEC. `MaxAlloc=FFFF` uses the largest free MCB; finite values are capped by the largest available block and never below the minimum/file load size.
-- Lowering resident buffers made enough conventional memory available for Simon without the unstable partial bootloader low-load experiment. Current layout keeps the kernel loaded at `0x0800`, self-relocates it to `0x0340`, uses boot FAT/root buffers at `0x0060`/`0x0180`, runtime buffers at `0x0840`/`0x0860`, and starts the DOS MCB arena at `0x0900`.
+- Lowering resident buffers made enough conventional memory available for Simon without the unstable partial bootloader low-load experiment. Current layout keeps the kernel loaded at `0x0800`, self-relocates it to `0x0340`, uses boot FAT/root buffers at `0x0060`/`0x0180`, runtime buffers at `0x0840`/`0x0860`, and starts the DOS MCB arena at `0x1000`.
 - The partial bootloader low-load experiment was abandoned because it caused BIOS read failure/hang after 8 kernel sectors.
 - `GDEMO` data corruption was ruled out: host checksums for the first 12 sectors matched the runtime buffer dump, and Simon's first 512-byte `GDEMO` read matched the host file exactly.
 - Root cause of the Simon `EXC 06`: `INT 21h AH=48h` clobbered non-return registers while splitting MCBs, especially `ES`, `DI`, `CX`, and `DX`. Simon depended on those registers surviving allocation calls.
@@ -22,14 +23,18 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Successful `AH=4Ah` resize of a PSP-owned block now updates `PSP:0002` to the new top-of-memory value. `MEMREG.COM` verifies this.
 - Existing EXE tests with `MaxAlloc=FFFF` consumed the whole arena under the corrected loader behavior; their MZ headers were narrowed to finite maxalloc values where the test body still needs later DOS heap allocations.
 - Added minimal compatibility stubs for DOS probes seen during Simon bring-up: `AH=0Eh` select disk and `AH=36h` disk free. The IOCTL get-device-info file path returns the current drive in the low bits of `DX`, with bit 7 clear for disk files.
+- `SETUP.EXE` is a packed EXE whose decompressor normalizes backward source pointers by subtracting about `0x0FFF` paragraphs. With `MCB_START=0x0900`, shell-launched EXEs loaded around `0x0911`, causing the decompressor's source segment to wrap to `0xFEA6` and take its corrupt-file branch. Raising `MCB_START` to `0x1000` keeps the load segment around `0x1011` and avoids the wrap while preserving enough memory for RUNVGA.
+- Added `PACKSEG.EXE` to the shell regression to verify shell-launched EXEs load at or above segment `0x1000`, protecting the setup packer requirement.
 
 ### Tests And Probes Run
 
 - `make test` initially failed after MaxAlloc support because `MEMTEST.EXE` and later `READWRAP.EXE` requested all remaining memory before making explicit `AH=48h` allocations. Updating their MZ maxalloc values fixed those regressions.
-- Final `make test` passes, including `PASS: EXEMAX`, `PASS: MEMREG`, and `PASS: READWRAP`.
+- Final `make test` passes, including `PASS: EXEMAX`, `PASS: MEMREG`, `PASS: PACKSEG`, and `PASS: READWRAP`.
 - `python3 scripts/test_monkey_full.py` passes with framebuffer activity: `111 colors`, `209876 nonblack pixels`.
 - `python3 scripts/build_games_hd_all.py` rebuilt `build/games_hd_all.img` with the current kernel.
 - Focused QEMU/VNC Simon smoke booted `build/games_hd_all.img`, ran `CD SIMON`, `SIMON`, and captured `build/simon_review.ppm`: PPM `640x400`, `77 colors`, `219128` nonblack pixels, with no `EXC` in serial output.
+- Focused QEMU/VNC setup smoke booted `build/games_hd_all.img`, ran `CD SIMON`, `SETUP`, and reached the `Simon the Sorcerer Setup` music-card menu without `Packed file is corrupt` or `EXC`; `build/simon_setup_final.ppm` captured a `720x400` text screen with `4922` nonblack pixels.
+- Focused QEMU/VNC Simon smoke after raising `MCB_START` captured `build/simon_after_setupfix.ppm`: PPM `640x400`, `77 colors`, `219128` nonblack pixels, with no `EXC` in serial output.
 
 ### Failed Or Weakened Hypotheses
 
@@ -37,12 +42,14 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Not fixed by changing DOS version to `AX=0005`.
 - Not fixed by read/alloc ZF return experiments.
 - INT 21h internal stack switching was not a safe quick fix; the attempted version broke existing COM return flow and was reverted.
+- The setup failure was not actual file corruption; it was the packed decompressor's low-segment wrap caused by loading the EXE too low.
 
 ### Follow-Ups
 
 - Run a code review before committing the current memory/Simon compatibility changes.
-- Preserve `EXEMAX.EXE` and `MEMREG.COM` in the shell regression so EXE MaxAlloc and allocator register preservation do not regress.
+- Preserve `EXEMAX.EXE`, `MEMREG.COM`, and `PACKSEG.EXE` in the shell regression so EXE MaxAlloc, allocator register preservation, and packed-EXE load segment compatibility do not regress.
 - Actual Monkey/MI2/Simon save-load behavior still needs separate interactive verification.
+- `MCB_START=0x1000` leaves about 28 KB more gap above the fixed runtime buffers than `0x0900`; if a future game needs that memory, first consider moving `SEC_BUF`/`ENV_SEG` upward or representing the low reserved area explicitly.
 
 ## 2026-05-24 Minimal BAT Support
 

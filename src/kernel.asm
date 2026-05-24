@@ -42,7 +42,7 @@ ROOT_ENT_CNT equ 224
 MCB_SIG_M equ 'M'
 MCB_SIG_Z equ 'Z'
 %ifndef MCB_START
-%define MCB_START 0x0900
+%define MCB_START 0x1000
 %endif
 MEM_TOP   equ 0xA000
 
