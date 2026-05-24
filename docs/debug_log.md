@@ -2,6 +2,37 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-24 Minimal BAT Support
+
+### Symptoms
+
+- `C:\SIMON\SIMON.BAT` needs to run `RUNVGA GDEMO /3`, but the shell originally treated `.BAT` files as bad commands.
+- The first batch implementation repeatedly executed `TESTBAT` instead of the file's `ECHO OFF` and `ARGTEST GDEMO /3` lines.
+
+### Confirmed Facts
+
+- `TYPE TESTBAT.BAT` printed the expected file contents, so the DOS open/read path was not the primary failure.
+- Temporary shell tracing showed `run_batch` read `TESTBAT.BAT` correctly, then parsed `line_buf` as the stale top-level `TESTBAT` command.
+- Root cause: `batch_read_line` used `stosb` to copy into `line_buf` without setting `ES=DS`; parsed lines were written to whatever segment prior DOS calls left in `ES`.
+- Fix: set `ES` from `DS` before `batch_read_line` stores into `line_buf`.
+- Added batch coverage for command tails with both COM and EXE children: `ARGTEST.COM` and `ARGEXE.EXE` expect PSP tail ` GDEMO /3`.
+- A traced all-games QEMU run now shows `SIMON.BAT` being opened/read and `RUNVGA.EXE` executing DOS memory/vector calls.
+- `RUNVGA.EXE` still exits back to `C:\SIMON>` before a traced child `GDEMO` exec appears, so further Simon runtime compatibility remains a separate follow-up.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_shell.py` failed before the fix with repeated stale `TESTBAT` execution and passes after setting `ES=DS` in `batch_read_line`.
+- `make test` passes with the batch and command-tail regressions included.
+- `python3 scripts/build_games_hd_all.py` rebuilt `build/games_hd_all.img` with `SIMON.BAT` support.
+- `python3 scripts/test_monkey_full.py` still passes with framebuffer activity.
+- Focused QEMU Simon smoke: boot `build/games_hd_all.img`, `CD SIMON`, `SIMON`; result no shell bad-command error, but prompt returns after `RUNVGA.EXE` exits.
+- Temporary trace builds used `-DTRACE_DOS=180` and `-DTRACE_EXEC_STATE=1` to confirm `SIMON.BAT` reads and the `RUNVGA.EXE` child entry state.
+
+### Follow-Ups
+
+- Diagnose why `RUNVGA.EXE` exits before loading or transferring to `GDEMO`.
+- Keep the COM/EXE command-tail batch regressions when debugging Simon so tail handling does not regress.
+
 ## 2026-05-24 86Box Directory Corruption
 
 ### Symptoms

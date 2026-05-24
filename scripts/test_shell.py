@@ -41,8 +41,12 @@ def build_image():
     run(["nasm", "-f", "bin", "src/keytest.asm", "-o", os.path.join(BUILDDIR, "keytest.com")])
     run(["nasm", "-f", "bin", "src/extkey.asm", "-o", os.path.join(BUILDDIR, "extkey.com")])
     run(["nasm", "-f", "bin", "src/timetest.asm", "-o", os.path.join(BUILDDIR, "timetest.com")])
+    run(["nasm", "-f", "bin", "src/argtest.asm", "-o", os.path.join(BUILDDIR, "argtest.com")])
+    run(["nasm", "-f", "bin", "src/argexe.asm", "-o", os.path.join(BUILDDIR, "argexe.exe")])
     run(["python3", "scripts/mktestfile.py", os.path.join(BUILDDIR, "testfile.dat")])
     run(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
+    with open(os.path.join(BUILDDIR, "testbat.bat"), "wb") as f:
+        f.write(b"Echo off\r\nargtest gdemo /3\r\nargexe gdemo /3\r\nEcho on\r\n")
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
@@ -57,6 +61,9 @@ def build_image():
         os.path.join(BUILDDIR, "keytest.com"),
         os.path.join(BUILDDIR, "extkey.com"),
         os.path.join(BUILDDIR, "timetest.com"),
+        os.path.join(BUILDDIR, "argtest.com"),
+        os.path.join(BUILDDIR, "argexe.exe"),
+        os.path.join(BUILDDIR, "testbat.bat"),
         os.path.join(BUILDDIR, "testfile.dat"),
         f"MIDEMO:{os.path.join(BUILDDIR, 'helloexe.exe')}",
         f"MIDEMO:{os.path.join(BUILDDIR, 'subtest.dat')}",
@@ -105,6 +112,7 @@ def send_keys(output_chunks):
     send_monitor_key(sock, "f5")
     for key in [
         "t", "i", "m", "e", "t", "e", "s", "t", "ret",
+        "t", "e", "s", "t", "b", "a", "t", "ret",
         "h", "e", "l", "l", "o", "ret",
         "h", "e", "l", "l", "o", "e", "x", "e", "ret",
         "e", "x", "e", "c", "t", "e", "s", "t", "ret",
@@ -206,6 +214,8 @@ def main():
         "PASS: KEY",
         "PASS: EXTKEY",
         "PASS: TIME",
+        "PASS: ARGTEST",
+        "PASS: ARGEXE",
         "Largest free block: ",
         "A:\\SHDIR>",
         "Path not found",
