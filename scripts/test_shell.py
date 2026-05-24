@@ -43,6 +43,8 @@ def build_image():
     run(["nasm", "-f", "bin", "src/timetest.asm", "-o", os.path.join(BUILDDIR, "timetest.com")])
     run(["nasm", "-f", "bin", "src/argtest.asm", "-o", os.path.join(BUILDDIR, "argtest.com")])
     run(["nasm", "-f", "bin", "src/argexe.asm", "-o", os.path.join(BUILDDIR, "argexe.exe")])
+    run(["nasm", "-f", "bin", "src/exemax.asm", "-o", os.path.join(BUILDDIR, "exemax.exe")])
+    run(["nasm", "-f", "bin", "src/memreg.asm", "-o", os.path.join(BUILDDIR, "memreg.com")])
     run(["python3", "scripts/mktestfile.py", os.path.join(BUILDDIR, "testfile.dat")])
     run(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
     with open(os.path.join(BUILDDIR, "testbat.bat"), "wb") as f:
@@ -63,6 +65,8 @@ def build_image():
         os.path.join(BUILDDIR, "timetest.com"),
         os.path.join(BUILDDIR, "argtest.com"),
         os.path.join(BUILDDIR, "argexe.exe"),
+        os.path.join(BUILDDIR, "exemax.exe"),
+        os.path.join(BUILDDIR, "memreg.com"),
         os.path.join(BUILDDIR, "testbat.bat"),
         os.path.join(BUILDDIR, "testfile.dat"),
         f"MIDEMO:{os.path.join(BUILDDIR, 'helloexe.exe')}",
@@ -113,6 +117,8 @@ def send_keys(output_chunks):
     for key in [
         "t", "i", "m", "e", "t", "e", "s", "t", "ret",
         "t", "e", "s", "t", "b", "a", "t", "ret",
+        "e", "x", "e", "m", "a", "x", "ret",
+        "m", "e", "m", "r", "e", "g", "ret",
         "h", "e", "l", "l", "o", "ret",
         "h", "e", "l", "l", "o", "e", "x", "e", "ret",
         "e", "x", "e", "c", "t", "e", "s", "t", "ret",
@@ -216,6 +222,8 @@ def main():
         "PASS: TIME",
         "PASS: ARGTEST",
         "PASS: ARGEXE",
+        "PASS: EXEMAX",
+        "PASS: MEMREG",
         "Largest free block: ",
         "A:\\SHDIR>",
         "Path not found",

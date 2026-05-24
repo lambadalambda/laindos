@@ -5,15 +5,16 @@ COM1_PORT equ 0x3F8
 VGA_TEXT_SEG equ 0xB800
 VGA_COLS equ 80
 VGA_ROWS equ 25
+RELOC_SEG equ 0x0340
 
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
-FAT_SEG   equ 0x1000
-ROOT_SEG  equ 0x1200
+FAT_SEG   equ 0x0060
+ROOT_SEG  equ 0x0180
 PSP_SEG   equ 0x3000
 TEMP_SEG  equ 0x4000
-SEC_BUF   equ 0x13C0
-ENV_SEG   equ 0x13E0
+SEC_BUF   equ 0x0840
+ENV_SEG   equ 0x0860
 
 HANDLE_SIZE equ 24
 H_USED      equ 0
@@ -41,7 +42,7 @@ ROOT_ENT_CNT equ 224
 MCB_SIG_M equ 'M'
 MCB_SIG_Z equ 'Z'
 %ifndef MCB_START
-%define MCB_START 0x1400
+%define MCB_START 0x0900
 %endif
 MEM_TOP   equ 0xA000
 
@@ -62,10 +63,35 @@ FAT_DATE equ 0x5CB6
 
 kernel_entry:
     mov ax, cs
+    cmp ax, RELOC_SEG
+    je .relocated
+    cli
+    push ax
+    xor ax, ax
+    mov ds, ax
+    pop ax
+    mov es, ax
+    mov si, BPB_OFF
+    mov di, bpb_copy
+    mov cx, 64
+    cld
+    rep movsb
+    mov ds, ax
+    mov ax, RELOC_SEG
+    mov es, ax
+    xor si, si
+    xor di, di
+    mov cx, kernel_end
+    cld
+    rep movsb
+    jmp RELOC_SEG:.relocated
+.relocated:
+    mov ax, cs
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov sp, 0x7000
+    mov sp, 0x5C00
+    sti
     cld
 
     call serial_init
@@ -202,6 +228,34 @@ kernel_entry:
 .use_file:
     mov [cs:prog_par], ax
 
+    mov cx, [0x0C]
+    test cx, cx
+    jz .alloc
+    cmp cx, 0xFFFF
+    je .max_all
+    mov ax, [cs:exe_min_par]
+    sub ax, [0x0A]
+    add ax, cx
+    jc .max_all
+    cmp ax, [cs:prog_par]
+    jae .max_desired_ready
+    mov ax, [cs:prog_par]
+.max_desired_ready:
+    call find_largest_free_block
+    cmp bx, [cs:prog_par]
+    jb .alloc
+    cmp ax, bx
+    jbe .max_use_desired
+    mov ax, bx
+.max_use_desired:
+    mov [cs:prog_par], ax
+    jmp .alloc
+.max_all:
+    call find_largest_free_block
+    cmp bx, [cs:prog_par]
+    jb .alloc
+    mov [cs:prog_par], bx
+
 .alloc:
     push cs
     pop ds
@@ -310,9 +364,9 @@ iret_nc_nz:
 init_bpb_geometry:
     push ds
     push bx
-    mov ax, BPB_SEG
-    mov ds, ax
-    mov bx, BPB_OFF
+    push cs
+    pop ds
+    mov bx, bpb_copy
 
     mov ax, [bx+22]
     mov [cs:kfat_secs], ax
@@ -343,10 +397,10 @@ init_bpb_geometry:
     add ax, [cs:krsta]
     mov [cs:kdsta], ax
 
-    mov ax, [BPB_OFF+19]
+    mov ax, [bx+19]
     test ax, ax
     jnz .have_total
-    mov ax, [BPB_OFF+32]
+    mov ax, [bx+32]
 .have_total:
     sub ax, [cs:kdsta]
     xor dx, dx
@@ -1025,6 +1079,8 @@ int21_handler:
     je .read_line_buffered
     cmp ah, 0x0B
     je .stdin_status
+    cmp ah, 0x0E
+    je .select_disk
     cmp ah, 0x00
     je .terminate
     cmp ah, 0x39
@@ -1079,6 +1135,8 @@ int21_handler:
     je .get_version
     cmp ah, 0x35
     je .get_vector
+    cmp ah, 0x36
+    je .get_disk_free
     cmp ah, 0x4E
     je .find_first
     cmp ah, 0x4F
@@ -1310,6 +1368,10 @@ int21_handler:
 .get_drive:
     mov al, [cs:dos_drive_num]
     jmp iret_nc
+.select_disk:
+    mov al, [cs:dos_drive_num]
+    inc al
+    jmp iret_nc
 .set_dta:
     mov [cs:dta_off], dx
     mov [cs:dta_seg], ds
@@ -1404,6 +1466,14 @@ int21_handler:
     popa
 .gv_no_trace:
     jmp iret_nc
+.get_disk_free:
+    xor ax, ax
+    mov al, [cs:kspc]
+    mov bx, [cs:kmax_cluster]
+    sub bx, 2
+    mov dx, bx
+    mov cx, 512
+    jmp iret_nc
 .get_psp:
     mov bx, [cs:cur_psp]
     jmp iret_nc
@@ -1443,6 +1513,11 @@ int21_handler:
     mov [cs:alloc_strat], bl
     jmp iret_nc
 .alloc_mem:
+    push bx
+    push cx
+    push dx
+    push es
+    push di
     push ds
     push si
     mov [cs:am_req], bx
@@ -1531,8 +1606,15 @@ int21_handler:
     mov si, msg_crlf
     call serial_print
 .am_no_trace:
+    mov [cs:am_ret_seg], ax
     pop si
     pop ds
+    pop di
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    mov ax, [cs:am_ret_seg]
     jmp iret_nc
 .am_next:
     cmp byte [ds:0], MCB_SIG_Z
@@ -1673,8 +1755,17 @@ int21_handler:
     popa
     pop ax
 .am_err_no_trace:
+    mov [cs:am_ret_ax], ax
+    mov [cs:am_ret_bx], bx
     pop si
     pop ds
+    pop di
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    mov ax, [cs:am_ret_ax]
+    mov bx, [cs:am_ret_bx]
     jmp iret_cy
 .free_mem:
     push ds
@@ -1820,6 +1911,21 @@ int21_handler:
 .rm_shrink_merged:
     pop es
 .rm_done:
+    push ax
+    push cx
+    push es
+    mov ax, si
+    inc ax
+    cmp [ds:1], ax
+    jne .rm_psp_done
+    mov es, ax
+    mov cx, [ds:3]
+    add ax, cx
+    mov [es:0x02], ax
+.rm_psp_done:
+    pop es
+    pop cx
+    pop ax
     cmp word [cs:trace_left], 0
     je .rm_no_trace
     dec word [cs:trace_left]
@@ -3448,7 +3554,8 @@ int21_handler:
     cmp byte [cs:bx+handles+H_USED], 0
     pop bx
     je .ioctl_bad_handle
-    xor dx, dx
+    xor dh, dh
+    mov dl, [cs:dos_drive_num]
     jmp iret_nc
 .ioctl_stdio:
     mov dx, 0x80D3
@@ -3904,6 +4011,40 @@ alloc_mem_direct:
     stc
     pop si
     pop ds
+    ret
+
+find_largest_free_block:
+    push ax
+    push ds
+    push si
+    xor bx, bx
+    mov si, [cs:mcb_first]
+.flfb_walk:
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .flfb_check
+    cmp byte [ds:0], MCB_SIG_Z
+    je .flfb_check
+    jmp .flfb_done
+.flfb_check:
+    cmp word [ds:1], 0
+    jne .flfb_next
+    mov ax, [ds:3]
+    cmp ax, bx
+    jbe .flfb_next
+    mov bx, ax
+.flfb_next:
+    cmp byte [ds:0], MCB_SIG_Z
+    je .flfb_done
+    mov ax, si
+    inc ax
+    add ax, [ds:3]
+    mov si, ax
+    jmp .flfb_walk
+.flfb_done:
+    pop si
+    pop ds
+    pop ax
     ret
 
 alloc_mem_direct_high:
@@ -5803,6 +5944,33 @@ load_exec_program:
     mov ax, [cs:exe_min_par]
 .exe_use_file:
     mov [cs:prog_par], ax
+    mov cx, [0x0C]
+    test cx, cx
+    jz .alloc
+    cmp cx, 0xFFFF
+    je .exe_max_all
+    mov ax, [cs:exe_min_par]
+    sub ax, [0x0A]
+    add ax, cx
+    jc .exe_max_all
+    cmp ax, [cs:prog_par]
+    jae .exe_max_desired_ready
+    mov ax, [cs:prog_par]
+.exe_max_desired_ready:
+    call find_largest_free_block
+    cmp bx, [cs:prog_par]
+    jb .alloc
+    cmp ax, bx
+    jbe .exe_max_use_desired
+    mov ax, bx
+.exe_max_use_desired:
+    mov [cs:prog_par], ax
+    jmp .alloc
+.exe_max_all:
+    call find_largest_free_block
+    cmp bx, [cs:prog_par]
+    jb .alloc
+    mov [cs:prog_par], bx
     jmp .alloc
 .com_size:
     mov ax, [cs:kfsize]
@@ -7567,6 +7735,9 @@ alloc_strat: db 0
 am_req: dw 0
 am_best_seg: dw 0
 am_best_size: dw 0
+am_ret_ax: dw 0
+am_ret_bx: dw 0
+am_ret_seg: dw 0
 rm_req: dw 0
 
 ov_param_off: dw 0
@@ -7614,6 +7785,7 @@ log_cx: dw 0
 log_dx: dw 0
 trace_left: dw 0
 exc_vec: db 0
+bpb_copy: times 64 db 0
 %if TRACE_EXEC_STATE
 trace_psp_top: dw 0
 trace_parent_psp: dw 0
@@ -7668,3 +7840,4 @@ mouse_press_x_l: dw 320
 mouse_press_y_l: dw 100
 mouse_press_x_r: dw 320
 mouse_press_y_r: dw 100
+kernel_end:

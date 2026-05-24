@@ -2,8 +2,8 @@
 [org 0x7C00]
 
 LOAD_SEG equ 0x0800
-FAT_SEG  equ 0x1000
-ROOT_SEG equ 0x1200
+FAT_SEG  equ 0x0060
+ROOT_SEG equ 0x0180
 
 bpb:
     jmp short boot

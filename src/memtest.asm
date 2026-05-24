@@ -8,8 +8,8 @@ mz_header:
     dw ((file_end - mz_header) + 511) / 512
     dw 0
     dw hdr_size
-    dw 0x0010
-    dw 0xFFFF
+    dw 0x1000
+    dw 0x1000
     dw 0x0000
     dw 0xFFFE
     dw 0x0000

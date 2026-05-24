@@ -9,7 +9,7 @@ mz_header:
     dw 0
     dw hdr_size
     dw 0x1100
-    dw 0xFFFF
+    dw 0x1100
     dw 0x0000
     dw 0xFFFE
     dw 0x0000
