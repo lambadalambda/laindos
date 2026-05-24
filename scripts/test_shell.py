@@ -5,6 +5,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 
 QEMU = "qemu-system-i386"
@@ -38,6 +39,7 @@ def build_image():
     run(["nasm", "-f", "bin", "src/psptest.asm", "-o", os.path.join(BUILDDIR, "psptest.com")])
     run(["nasm", "-f", "bin", "src/pspchild.asm", "-o", os.path.join(BUILDDIR, "pspchild.com")])
     run(["nasm", "-f", "bin", "src/keytest.asm", "-o", os.path.join(BUILDDIR, "keytest.com")])
+    run(["nasm", "-f", "bin", "src/extkey.asm", "-o", os.path.join(BUILDDIR, "extkey.com")])
     run(["nasm", "-f", "bin", "src/timetest.asm", "-o", os.path.join(BUILDDIR, "timetest.com")])
     run(["python3", "scripts/mktestfile.py", os.path.join(BUILDDIR, "testfile.dat")])
     run(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
@@ -53,6 +55,7 @@ def build_image():
         os.path.join(BUILDDIR, "psptest.com"),
         os.path.join(BUILDDIR, "pspchild.com"),
         os.path.join(BUILDDIR, "keytest.com"),
+        os.path.join(BUILDDIR, "extkey.com"),
         os.path.join(BUILDDIR, "timetest.com"),
         os.path.join(BUILDDIR, "testfile.dat"),
         f"MIDEMO:{os.path.join(BUILDDIR, 'helloexe.exe')}",
@@ -60,7 +63,22 @@ def build_image():
     ])
 
 
-def send_keys():
+def wait_for_output(chunks, marker, timeout=8):
+    needle = marker.encode()
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if needle in b"".join(chunks):
+            return
+        time.sleep(0.05)
+    raise TimeoutError(f"timed out waiting for {marker!r}")
+
+
+def send_monitor_key(sock, key):
+    sock.sendall(f"sendkey {key}\n".encode())
+    time.sleep(0.15)
+
+
+def send_keys(output_chunks):
     deadline = time.time() + 8
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     while True:
@@ -72,13 +90,20 @@ def send_keys():
                 raise
             time.sleep(0.1)
     sock.recv(4096)
-    for key in [
+    initial_keys = [
         "v", "e", "r", "ret",
         "c", "l", "s", "ret",
         "d", "i", "r", "ret",
         "t", "y", "p", "e", "spc", "t", "e", "s", "t", "f", "i", "l", "e", "dot", "d", "a", "t", "ret",
         "h", "e", "l", "l", "o", "ret",
         "k", "e", "y", "t", "e", "s", "t", "ret",
+        "e", "x", "t", "k", "e", "y", "ret",
+    ]
+    for key in initial_keys:
+        send_monitor_key(sock, key)
+    wait_for_output(output_chunks, "READY: EXTKEY")
+    send_monitor_key(sock, "f5")
+    for key in [
         "t", "i", "m", "e", "t", "e", "s", "t", "ret",
         "h", "e", "l", "l", "o", "ret",
         "h", "e", "l", "l", "o", "e", "x", "e", "ret",
@@ -101,9 +126,16 @@ def send_keys():
         "n", "o", "p", "e", "ret",
         "e", "x", "i", "t", "ret",
     ]:
-        sock.sendall(f"sendkey {key}\n".encode())
-        time.sleep(0.15)
+        send_monitor_key(sock, key)
     sock.close()
+
+
+def read_stream(stream, chunks):
+    while True:
+        data = os.read(stream.fileno(), 1024)
+        if not data:
+            return
+        chunks.append(data)
 
 
 def run_qemu():
@@ -123,19 +155,34 @@ def run_qemu():
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
+    stdout_chunks = []
+    stderr_chunks = []
+    stdout_thread = threading.Thread(target=read_stream, args=(proc.stdout, stdout_chunks), daemon=True)
+    stderr_thread = threading.Thread(target=read_stream, args=(proc.stderr, stderr_chunks), daemon=True)
+    stdout_thread.start()
+    stderr_thread.start()
     time.sleep(3)
-    send_keys()
     try:
-        stdout, stderr = proc.communicate(timeout=8)
+        send_keys(stdout_chunks)
+    except Exception:
+        proc.kill()
+        proc.wait()
+        stdout_thread.join(timeout=1)
+        stderr_thread.join(timeout=1)
+        raise
+    try:
+        proc.wait(timeout=8)
     except subprocess.TimeoutExpired:
         proc.send_signal(signal.SIGTERM)
         try:
-            stdout, stderr = proc.communicate(timeout=3)
+            proc.wait(timeout=3)
         except subprocess.TimeoutExpired:
             proc.kill()
-            stdout, stderr = proc.communicate()
-    output = stdout.decode("utf-8", errors="replace")
-    err = stderr.decode("utf-8", errors="replace")
+            proc.wait()
+    stdout_thread.join(timeout=1)
+    stderr_thread.join(timeout=1)
+    output = b"".join(stdout_chunks).decode("utf-8", errors="replace")
+    err = b"".join(stderr_chunks).decode("utf-8", errors="replace")
     if err:
         print(err, end="", file=sys.stderr)
     return output
@@ -157,6 +204,7 @@ def main():
         "PASS: EXECTEST",
         "PASS: PSP",
         "PASS: KEY",
+        "PASS: EXTKEY",
         "PASS: TIME",
         "Largest free block: ",
         "A:\\SHDIR>",

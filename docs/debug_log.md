@@ -28,11 +28,15 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - A 60-second VNC/screendump run of shell-launched `C:\MI2\MONKEY2` with the hidden high shell reached the same purple MI2 screen color distribution as direct boot, with no crack exit and no `EXC 06`.
 - MI2 reaches the playable bridge scene after copy-protection: `Enter`, `1234`, click the top `all the puzzles` choice, then repeated `Esc` through the intro.
 - Gameplay keyboard input is alive for letter shortcuts. At the bridge, `p`, `l`, and `u` visibly select `Pick up`, `Look at`, and `Use`.
-- F5 does not open save/load at the bridge via HMP `sendkey f5`, repeated HMP `sendkey f5` commands, HMP `sendkey f5 1000`, or QMP `input-send-event` with F5 held across frames.
+- Before the extended-key fix, F5 did not open save/load at the bridge via HMP `sendkey f5`, repeated HMP `sendkey f5` commands, HMP `sendkey f5 1000`, or QMP `input-send-event` with F5 held across frames.
 - QEMU IRQ counters prove F5 generates IRQ1 make/break at the bridge (`IRQ1 64 -> 66` for one HMP F5; QMP held F5 increments once on down and once on up).
 - QEMU PS/2 trace with `-trace enable=ps2_*` shows `p` as set-2 keycode `4D` and F5 as set-2 keycode `03` with translation enabled; the i8042 set-2 to set-1 table maps these to guest set-1 `19` (`p`) and `3F` (F5), but the actual byte MI2 reads from port `60h` is not yet confirmed.
-- The INC crack's effect on the F5/save-load path is unknown; some cracked builds patch save/load menus to avoid disk-check or copy-protection code tied to saves.
-- LainDOS delegates `INT 09h` and `INT 16h` to SeaBIOS; MI2's custom `INT 09h` installation is expected by SCUMM convention but has not yet been confirmed by `SETVEC` trace for this full MI2 build.
+- QEMU `pckbd_kbd_read_data` trace at the MI2 bridge confirms the guest reads set-1 `19/99` for `p` and `3F/BF` for F5 from port `60h`; the F5 failure is therefore downstream of i8042 translation and IRQ delivery.
+- `TRACE_DOS` confirmed full MI2 installs a custom keyboard handler with `GETVEC 09 -> F000:E987` followed by `SETVEC 09 = 23C0:189A`.
+- Disassembling the handler showed it consumes arrows/keypad and selected Ctrl combinations itself, but F5 (`3Fh`) falls through to the previous BIOS `INT 09h` handler.
+- QEMU BDA dumps after bridge F5 showed the BIOS keyboard buffer receiving `3F00` and head/tail advancing, so MI2 consumed the F5 keystroke from the DOS/BIOS path.
+- Root cause for inactive F5: LainDOS `INT 21h AH=07h/08h` returned the first extended-key byte (`AL=00`) but discarded the scan code in BIOS `AH`; DOS callers expect a pending second byte (`AL=3Fh` for F5) on the next character read, and `AH=0Bh` should report that pending byte as available.
+- After adding an extended-key pending byte for DOS console input, F5 opens the full MI2 bridge save/load overlay with `Save`, `Load`, `Play`, and `Quit` buttons.
 
 ### Tests And Probes Run
 
@@ -46,6 +50,9 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - MI2 probe commands used current generated images such as `build/trace_mi2_shell.img`, `build/mi2_hidden_shell.img`, and one late screenshot per run. `build/mi2_hidden_shell_60.ppm` matched direct boot's purple-screen color distribution.
 - Final verification after review follow-ups: `make test`, `python3 scripts/test_monkey_full.py`, `git diff --check`, and `python3 scripts/build_games_hd_all.py` plus a 60-second `C:\MI2\MONKEY2` VNC smoke all passed. The MI2 smoke reported `HAS_THANKS False`, `HAS_EXC False`, and a 42-color purple-screen capture.
 - F5 investigation screenshots include `build/mi2_keys_02_p.jpg`, `build/mi2_keys_03_l.jpg`, `build/mi2_keys_04_u.jpg`, and `build/mi2_qmp_f5_after.jpg`. QEMU PS/2 trace output is in `build/qemu_ps2_f5_trace.log`.
+- `python3 scripts/test_shell.py` reproduced the DOS extended-key bug with the new `EXTKEY.COM` regression before the fix (`FAIL: EXTKEY PENDING`) and passes after the fix (`PASS: EXTKEY`).
+- `python3 scripts/build_games_hd_all.py` rebuilt `build/games_hd_all.img`; a bridge run captured `build/mi2_f5_fixed_after.jpg`, showing the F5 save/load overlay open.
+- After review follow-ups, pending extended-key state is cleared on process termination and before buffered line input; `test_shell.py` now waits for `READY: EXTKEY` before sending F5. Final checks passed: `make test`, `python3 scripts/test_monkey_full.py`, `git diff --check`, and a final all-games MI2 bridge F5 capture at `build/mi2_f5_final_after.jpg`.
 
 ### Failed Or Weakened Hypotheses
 
@@ -58,13 +65,14 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Moving the shell high without hiding its MCB did not work; MI2 still saw a non-direct MCB chain and stalled before graphics.
 - F5 failure is not a general gameplay keyboard failure; letter shortcuts work and F5 generates IRQ1.
 - F5 failure is not just HMP key timing; QMP held F5 also has no visible effect.
+- F5 failure is not caused by the INC crack disabling the menu in this build; once DOS extended-key two-byte reads are implemented, the menu opens.
 
 ### Next Probes
 
 - Preserve the hidden-high-shell behavior while continuing from the purple MI2 screen.
 - Keep using no-screenshot serial runs for runtime stability checks; take at most one late screenshot because HMP screendumps perturb the crack.
 - Continue from the purple MI2 screen with careful single-input probes only after preserving the current stable shell-entry behavior.
-- For F5/save-load, next useful probes are either a guest-side wrapper around MI2's installed `INT 09h` that records the translated byte read from port `60h`, or a comparison against the same game state in DOSBox-X/real DOS to confirm whether this cracked build expects F5 there.
+- For save/load, next useful probes are testing actual MI2 save and load operations from the now-opening F5 overlay, including resulting `SAVEGAME.xxx` file mutation and reload behavior.
 
 ### Advisor Follow-Up Ideas
 

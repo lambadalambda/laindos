@@ -1112,10 +1112,11 @@ int21_handler:
     push bx
     push cx
     push dx
-    xor ah, ah
-    int 0x16
+    call console_read_char
+    jc .read_char_echo_no_echo
     mov dl, al
     call console_putchar
+.read_char_echo_no_echo:
     mov ah, 0x01
     pop dx
     pop cx
@@ -1134,11 +1135,10 @@ int21_handler:
     push bx
     push cx
     push dx
-    mov ah, 0x01
-    int 0x16
+    call console_input_status
+    test al, al
     jz .direct_console_empty
-    xor ah, ah
-    int 0x16
+    call console_read_char
     mov ah, 0x06
     pop dx
     pop cx
@@ -1154,8 +1154,7 @@ int21_handler:
     push bx
     push cx
     push dx
-    xor ah, ah
-    int 0x16
+    call console_read_char
     mov ah, 0x07
     pop dx
     pop cx
@@ -1165,8 +1164,7 @@ int21_handler:
     push bx
     push cx
     push dx
-    xor ah, ah
-    int 0x16
+    call console_read_char
     mov ah, 0x08
     pop dx
     pop cx
@@ -1179,6 +1177,7 @@ int21_handler:
     push dx
     push si
     push di
+    mov byte [cs:console_ext_pending], 0
     mov si, dx
     xor cx, cx
     mov cl, [si]
@@ -1236,8 +1235,8 @@ int21_handler:
     push bx
     push cx
     push dx
-    mov ah, 0x01
-    int 0x16
+    call console_input_status
+    test al, al
     jz .stdin_empty
     mov ax, 0x0BFF
     jmp .stdin_done
@@ -3752,6 +3751,7 @@ do_terminate:
     push ds
     push si
     push ax
+    mov byte [cs:console_ext_pending], 0
     mov si, [cs:mcb_first]
 .dt_mcb_walk:
     mov ds, si
@@ -6600,6 +6600,7 @@ exec_exe:
 reset_keyboard_buffer:
     push ax
     push es
+    mov byte [cs:console_ext_pending], 0
     mov ax, 0x0040
     mov es, ax
     mov ax, [es:0x001A]
@@ -6986,6 +6987,41 @@ serial_putchar:
     pop dx
     ret
 
+console_input_status:
+    cmp byte [cs:console_ext_pending], 0
+    jne .ready
+    mov ah, 0x01
+    int 0x16
+    jz .empty
+.ready:
+    mov al, 0xFF
+    ret
+.empty:
+    xor al, al
+    ret
+
+console_read_char:
+    cmp byte [cs:console_ext_pending], 0
+    je .read_bios
+    mov al, [cs:console_ext_pending]
+    mov byte [cs:console_ext_pending], 0
+    stc
+    ret
+.read_bios:
+    xor ah, ah
+    int 0x16
+    test al, al
+    jnz .normal
+    test ah, ah
+    jz .normal
+    mov [cs:console_ext_pending], ah
+    xor al, al
+    stc
+    ret
+.normal:
+    clc
+    ret
+
 console_putchar:
     push ax
     cmp al, 12
@@ -7295,6 +7331,7 @@ saved_sp:  dw 0
 com_stack_top: dw 0
 vga_row:   dw 0
 vga_col:   dw 0
+console_ext_pending: db 0
 
 load_name: dw 0
 load_seg:  dw 0
