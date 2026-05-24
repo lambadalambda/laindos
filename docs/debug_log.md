@@ -26,6 +26,13 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Direct boot with artificial `MCB_START=1591` reproduced the crack exit (`Thanks for using this INC Crack!`, code `83`), confirming MI2 is sensitive to the child load address/top-of-block state.
 - Booting the shell COM high but leaving its MCB visible still made shell MI2 stall in text mode. Hiding the high shell reservation from the DOS MCB chain made shell-launched `C:\MI2\MONKEY2` match direct boot at entry (`PSP=1401`, `TOP=3411`, `ENTRY=23C0:2688`, child MCB followed by a free `Z` block).
 - A 60-second VNC/screendump run of shell-launched `C:\MI2\MONKEY2` with the hidden high shell reached the same purple MI2 screen color distribution as direct boot, with no crack exit and no `EXC 06`.
+- MI2 reaches the playable bridge scene after copy-protection: `Enter`, `1234`, click the top `all the puzzles` choice, then repeated `Esc` through the intro.
+- Gameplay keyboard input is alive for letter shortcuts. At the bridge, `p`, `l`, and `u` visibly select `Pick up`, `Look at`, and `Use`.
+- F5 does not open save/load at the bridge via HMP `sendkey f5`, repeated HMP `sendkey f5` commands, HMP `sendkey f5 1000`, or QMP `input-send-event` with F5 held across frames.
+- QEMU IRQ counters prove F5 generates IRQ1 make/break at the bridge (`IRQ1 64 -> 66` for one HMP F5; QMP held F5 increments once on down and once on up).
+- QEMU PS/2 trace with `-trace enable=ps2_*` shows `p` as set-2 keycode `4D` and F5 as set-2 keycode `03` with translation enabled; the i8042 set-2 to set-1 table maps these to guest set-1 `19` (`p`) and `3F` (F5), but the actual byte MI2 reads from port `60h` is not yet confirmed.
+- The INC crack's effect on the F5/save-load path is unknown; some cracked builds patch save/load menus to avoid disk-check or copy-protection code tied to saves.
+- LainDOS delegates `INT 09h` and `INT 16h` to SeaBIOS; MI2's custom `INT 09h` installation is expected by SCUMM convention but has not yet been confirmed by `SETVEC` trace for this full MI2 build.
 
 ### Tests And Probes Run
 
@@ -38,6 +45,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - `python3 scripts/test_shell.py` passes after moving boot COM programs to a hidden high reservation.
 - MI2 probe commands used current generated images such as `build/trace_mi2_shell.img`, `build/mi2_hidden_shell.img`, and one late screenshot per run. `build/mi2_hidden_shell_60.ppm` matched direct boot's purple-screen color distribution.
 - Final verification after review follow-ups: `make test`, `python3 scripts/test_monkey_full.py`, `git diff --check`, and `python3 scripts/build_games_hd_all.py` plus a 60-second `C:\MI2\MONKEY2` VNC smoke all passed. The MI2 smoke reported `HAS_THANKS False`, `HAS_EXC False`, and a 42-color purple-screen capture.
+- F5 investigation screenshots include `build/mi2_keys_02_p.jpg`, `build/mi2_keys_03_l.jpg`, `build/mi2_keys_04_u.jpg`, and `build/mi2_qmp_f5_after.jpg`. QEMU PS/2 trace output is in `build/qemu_ps2_f5_trace.log`.
 
 ### Failed Or Weakened Hypotheses
 
@@ -48,12 +56,15 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Setting only `PSP:16` fixed a real DOS compatibility bug but did not remove the MI2 crack exit.
 - Resetting the empty BIOS keyboard buffer removed the immediate crack exit, but low-resident shell still later reached purple plus `EXC 06` in long runs.
 - Moving the shell high without hiding its MCB did not work; MI2 still saw a non-direct MCB chain and stalled before graphics.
+- F5 failure is not a general gameplay keyboard failure; letter shortcuts work and F5 generates IRQ1.
+- F5 failure is not just HMP key timing; QMP held F5 also has no visible effect.
 
 ### Next Probes
 
 - Preserve the hidden-high-shell behavior while continuing from the purple MI2 screen.
 - Keep using no-screenshot serial runs for runtime stability checks; take at most one late screenshot because HMP screendumps perturb the crack.
 - Continue from the purple MI2 screen with careful single-input probes only after preserving the current stable shell-entry behavior.
+- For F5/save-load, next useful probes are either a guest-side wrapper around MI2's installed `INT 09h` that records the translated byte read from port `60h`, or a comparison against the same game state in DOSBox-X/real DOS to confirm whether this cracked build expects F5 there.
 
 ### Advisor Follow-Up Ideas
 
