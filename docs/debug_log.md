@@ -2,6 +2,44 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 MI2 Load Invalid Saved Game
+
+### Symptoms
+
+- User reported MI2 saved-game loading was intermittent and provided a screenshot showing `Invalid Saved Game (4379, 8224)` while loading slot 3 `rtrst`.
+- `4379` is `0x111B`, matching the save-file header word at offset `0x28`; `8224` is `0x2020`, two spaces.
+
+### Confirmed Facts
+
+- `SAVEGAME.003` in `build/games_hd_all.img` starts with name `rtrst`, has `0x111B` at offset `0x28`, and does not contain `0x2020` in its early data.
+- Reproduced the screenshot under QEMU by opening MI2, selecting Load, and clicking slot 3.
+- A traced image showed the load dialog scans each save with `READ REQ=0028 POS=00000000` followed by `READ REQ=0002 POS=00000028`; during the actual load of `SAVEGAME.003`, the second read returned count `2` but the target word was `0x2020`.
+- Temporary source/destination tracing showed `SEC_BUF` itself contained `0x2020`, so this was not a copy-to-application-buffer issue.
+- Root cause: the read-file sector cache marked `SEC_BUF` as containing the save file's data sector, but later directory scanning during `open_file` reused `SEC_BUF` without clearing `rf_cache_valid`. Reopening the same save then skipped the disk read and copied stale directory-sector bytes.
+
+### Tests And Probes Run
+
+- Manual QEMU load-slot-3 reproduction produced the invalid-save dialog before the fix.
+- After invalidating `rf_cache_valid` in `read_sector`, the same slot loads past the invalid-save check and reaches MI2's `Sound Card Changed... may invalidate savegame` warning.
+- `scripts/test_readcache.py` covers the stale-cache pattern with a small subdirectory file: read magic word, close, reopen, read the same word again.
+
+## 2026-05-24 AH=36h Disk-Free Reporting
+
+### Symptoms
+
+- `INT 21h AH=36h` returned total data clusters in both `BX` and `DX`, so callers could not distinguish free space from total capacity.
+
+### Confirmed Facts
+
+- A new regression in `src/diskfree.asm` deletes any stale `FREECHK.DAT`, calls `AH=36h`, writes a 600-byte file, calls `AH=36h` again, verifies requested-drive handling, deletes the file, and verifies free clusters return to the original count.
+- Before the fix, `python3 scripts/test_diskfree.py` failed with `FAIL: DISKFREE FREE` because `BX >= DX` on a non-empty image.
+- The fixed handler validates the requested drive, scans FAT entries from cluster 2 up to `kmax_cluster`, counts zero entries into `BX`, returns total clusters in `DX`, sectors per cluster in `AX`, and bytes per sector from the BPB in `CX`.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_diskfree.py` now passes.
+- `make test` now includes `scripts/test_diskfree.py` and passes.
+
 ## 2026-05-24 MI2 Save-Game Automation
 
 ### Symptoms

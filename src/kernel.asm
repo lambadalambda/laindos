@@ -1468,12 +1468,35 @@ int21_handler:
 .gv_no_trace:
     jmp iret_nc
 .get_disk_free:
+    test dl, dl
+    jz .gdf_valid_drive
+    mov al, [cs:dos_drive_num]
+    inc al
+    cmp dl, al
+    je .gdf_valid_drive
+    mov ax, 0xFFFF
+    jmp iret_nc
+.gdf_valid_drive:
+    push si
+    xor bx, bx
+    mov si, 2
+.gdf_loop:
+    cmp si, [cs:kmax_cluster]
+    jae .gdf_done
+    call fat_next
+    test ax, ax
+    jnz .gdf_next
+    inc bx
+.gdf_next:
+    inc si
+    jmp .gdf_loop
+.gdf_done:
     xor ax, ax
     mov al, [cs:kspc]
-    mov bx, [cs:kmax_cluster]
-    sub bx, 2
-    mov dx, bx
-    mov cx, 512
+    mov dx, [cs:kmax_cluster]
+    sub dx, 2
+    mov cx, [cs:bpb_copy+11]
+    pop si
     jmp iret_nc
 .get_psp:
     mov bx, [cs:cur_psp]
@@ -5560,6 +5583,7 @@ flush_fat:
     ret
 
 read_sector:
+    mov byte [cs:rf_cache_valid], 0
     mov [cs:klba], ax
     mov byte [cs:kcnt], 1
     mov byte [cs:kret], 3

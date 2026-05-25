@@ -165,6 +165,8 @@ test: $(DISK_IMG)
 	$(PYTHON) scripts/test_overlay.py
 	$(PYTHON) scripts/test_shell.py
 	$(PYTHON) scripts/test_console.py
+	$(PYTHON) scripts/test_diskfree.py
+	$(PYTHON) scripts/test_readcache.py
 	$(PYTHON) scripts/test_savewrite.py
 	$(PYTHON) scripts/test_dirmut.py
 	$(PYTHON) scripts/test_readwrap.py
