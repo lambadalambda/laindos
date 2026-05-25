@@ -16,3 +16,4 @@
 - [x] [Invalidate Read Cache On SEC_BUF Overwrites](issues/invalidate-read-cache-on-secbuf-overwrites.md)
 - [x] [Fix FindFirst Attribute Filtering](issues/fix-findfirst-attribute-filtering.md)
 - [x] [Return FindFirst Timestamps](issues/return-findfirst-timestamps.md)
+- [x] [Audit INT 21h Register Preservation](issues/audit-int21-register-preservation.md)

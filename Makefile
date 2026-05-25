@@ -170,6 +170,7 @@ test: $(DISK_IMG)
 	$(PYTHON) scripts/test_findnext.py
 	$(PYTHON) scripts/test_findtime.py
 	$(PYTHON) scripts/test_readcache.py
+	$(PYTHON) scripts/test_regpres.py
 	$(PYTHON) scripts/test_savewrite.py
 	$(PYTHON) scripts/test_dirmut.py
 	$(PYTHON) scripts/test_readwrap.py

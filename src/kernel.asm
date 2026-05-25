@@ -1796,6 +1796,9 @@ int21_handler:
 .free_mem:
     push ds
     push si
+    push es
+    push di
+    push cx
     mov si, es
     dec si
     mov ds, si
@@ -1827,10 +1830,16 @@ int21_handler:
     mov byte [ds:0], al
     jmp .fm_fwd_merge
 .fm_done:
+    pop cx
+    pop di
+    pop es
     pop si
     pop ds
     jmp iret_nc
 .fm_err:
+    pop cx
+    pop di
+    pop es
     pop si
     pop ds
     jmp iret_cy
@@ -2744,18 +2753,24 @@ int21_handler:
     pop ds
     popa
 .of_no_path_trace:
+    push es
     push ds
-    push si
+    push bx
     push cx
+    push dx
+    push si
     push di
     mov [cs:of_mode], al
     mov si, dx
     call resolve_path
     jnc .of_found
     pop di
-    pop cx
     pop si
+    pop dx
+    pop cx
+    pop bx
     pop ds
+    pop es
     mov ax, 2
     jmp iret_cy
 .of_found:
@@ -2812,15 +2827,21 @@ int21_handler:
     popa
 .of_no_handle_trace:
     pop di
-    pop cx
     pop si
+    pop dx
+    pop cx
+    pop bx
     pop ds
+    pop es
     jmp iret_nc
 .of_no_handles:
     pop di
-    pop cx
     pop si
+    pop dx
+    pop cx
+    pop bx
     pop ds
+    pop es
     mov ax, 4
     jmp iret_cy
 .close_file:
@@ -2845,6 +2866,9 @@ int21_handler:
     cmp bx, 5
     jb .cf_std_handle
     push bx
+    push cx
+    push dx
+    push si
     mov ax, bx
     mov cx, HANDLE_SIZE
     mul cx
@@ -2861,13 +2885,22 @@ int21_handler:
 .cf_mark_free:
     mov byte [cs:bx+handles+H_USED], 0
     mov byte [cs:bx+handles+H_MODE], 0
+    pop si
+    pop dx
+    pop cx
     pop bx
     jmp iret_nc
 .cf_flush_err_pop:
+    pop si
+    pop dx
+    pop cx
     pop bx
     mov ax, 5
     jmp iret_cy
 .cf_invalid_pop:
+    pop si
+    pop dx
+    pop cx
     pop bx
     jmp .cf_err
 .cf_std_handle:
@@ -3530,34 +3563,76 @@ int21_handler:
     mov ax, 1
     jmp iret_cy
 .fa_get:
+    push es
     push ds
+    push bx
+    push cx
+    push dx
     push si
     push di
     mov si, dx
     call resolve_path
-    jc .fa_nf
+    jc .fa_get_nf
     xor ch, ch
     mov cl, [es:di+11]
+    mov [cs:fa_ret_attr], cx
     pop di
     pop si
+    pop dx
+    pop cx
+    pop bx
     pop ds
+    pop es
+    mov cx, [cs:fa_ret_attr]
     jmp iret_nc
 .fa_set:
+    mov [cs:fa_attr], cl
+    push es
     push ds
+    push bx
+    push cx
+    push dx
     push si
     push di
     mov si, dx
     call resolve_path
-    jc .fa_nf
+    jc .fa_set_nf
+    mov al, [cs:fa_attr]
+    mov [es:di+11], al
+    mov ax, [cs:ff_entry_lba]
+    call flush_dir_sector
+    jc .fa_set_io_err
     pop di
     pop si
+    pop dx
+    pop cx
+    pop bx
     pop ds
+    pop es
     jmp iret_nc
-.fa_nf:
+.fa_get_nf:
     pop di
     pop si
+    pop dx
+    pop cx
+    pop bx
     pop ds
+    pop es
     mov ax, 2
+    jmp iret_cy
+.fa_set_io_err:
+    mov ax, 5
+    jmp .fa_set_err
+.fa_set_nf:
+    mov ax, 2
+.fa_set_err:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ds
+    pop es
     jmp iret_cy
 
 .ioctl:
@@ -7743,6 +7818,8 @@ cur_dir_path: times 64 db 0
 cd_path_off: dw 0
 cd_path_seg: dw 0
 of_mode: db 0
+fa_attr: db 0
+fa_ret_attr: dw 0
 
 cf_attr: db 0
 cf_handle: dw 0

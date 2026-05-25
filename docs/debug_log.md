@@ -2,6 +2,26 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 Review Follow-Up: INT 21h Register Preservation
+
+### Symptoms
+
+- Reviewers flagged additional DOS API handlers that could still clobber caller-visible registers after the Simon `AH=48h` allocator fix.
+- The highest-risk paths were `AH=3Dh` open, `AH=3Eh` close, `AH=43h` get/set attributes, and `AH=49h` free memory.
+
+### Confirmed Facts
+
+- `scripts/test_regpres.py` boots `src/regpres.asm`, which sets sentinel values in `ES`, `BX`, `CX`, `DX`, `SI`, and `DI` across the flagged calls, including representative success and error paths.
+- Before the fix, the regression failed immediately with `FAIL: REGPRES OPEN REGS` because `AH=3Dh` did not preserve the caller's `ES`/`DX` across `resolve_path`/handle setup.
+- `AH=3Eh` non-stdio close paths could clobber `CX`, `DX`, and `SI` while converting the handle to a table offset and flushing writable handles.
+- `AH=43h` get/set attribute paths did not preserve `ES`/`DX` around `resolve_path`; get-attribute errors also needed to restore caller `CX`, while success still returns attributes in `CX`. `AH=43h/1` also returned success without writing the new attribute byte.
+- `AH=49h` used `ES`, `DI`, and `CX` while walking/merging MCBs and now restores them before returning.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_regpres.py` failed before the fix with `FAIL: REGPRES OPEN REGS` and passes after the fix.
+- `make test` passes with `scripts/test_regpres.py` included.
+
 ## 2026-05-25 Review Follow-Up: FindFirst Attribute Filtering
 
 ### Symptoms
