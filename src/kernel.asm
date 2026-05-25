@@ -16,7 +16,7 @@ TEMP_SEG  equ 0x4000
 SEC_BUF   equ 0x0840
 ENV_SEG   equ 0x0860
 
-HANDLE_SIZE equ 24
+HANDLE_SIZE equ 26
 H_USED      equ 0
 H_MODE      equ 1
 H_CLUSTER   equ 2
@@ -30,6 +30,7 @@ H_DIR_LBA   equ 16
 H_DIR_OFF   equ 18
 H_TIME      equ 20
 H_DATE      equ 22
+H_OWNER     equ 24
 MAX_HANDLES equ 20
 SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
@@ -2696,6 +2697,8 @@ int21_handler:
     mov [cs:bx+handles+H_DIR_OFF], ax
     mov word [cs:bx+handles+H_TIME], FAT_TIME
     mov word [cs:bx+handles+H_DATE], FAT_DATE
+    mov ax, [cs:cur_psp]
+    mov [cs:bx+handles+H_OWNER], ax
     pop cx
     pop bx
     pop di
@@ -2804,6 +2807,8 @@ int21_handler:
     mov [cs:di+handles+H_TIME], ax
     mov ax, [es:si+24]
     mov [cs:di+handles+H_DATE], ax
+    mov ax, [cs:cur_psp]
+    mov [cs:di+handles+H_OWNER], ax
     pop ax
     cmp word [cs:trace_left], 0
     je .of_no_handle_trace
@@ -2885,6 +2890,7 @@ int21_handler:
 .cf_mark_free:
     mov byte [cs:bx+handles+H_USED], 0
     mov byte [cs:bx+handles+H_MODE], 0
+    mov word [cs:bx+handles+H_OWNER], 0
     pop si
     pop dx
     pop cx
@@ -4017,6 +4023,7 @@ do_terminate:
     push ds
     push si
     push ax
+    call close_owned_handles
     mov byte [cs:console_ext_pending], 0
     mov si, [cs:mcb_first]
 .dt_mcb_walk:
@@ -4060,6 +4067,54 @@ do_terminate:
     mov sp, [cs:saved_sp]
     sti
     jmp exec_com.back
+
+close_owned_handles:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, [cs:cur_psp]
+    test ax, ax
+    jz .done
+    mov word [cs:coh_index], 5
+.loop:
+    mov ax, [cs:coh_index]
+    cmp ax, MAX_HANDLES
+    jae .done
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov bx, ax
+    cmp byte [cs:bx+handles+H_USED], 0
+    je .next
+    mov ax, [cs:cur_psp]
+    cmp [cs:bx+handles+H_OWNER], ax
+    jne .next
+    cmp byte [cs:bx+handles+H_MODE], 0
+    je .mark_free
+    mov si, bx
+    call flush_handle_dir_entry
+    call flush_fat
+.mark_free:
+    mov byte [cs:bx+handles+H_USED], 0
+    mov byte [cs:bx+handles+H_MODE], 0
+    mov word [cs:bx+handles+H_OWNER], 0
+.next:
+    inc word [cs:coh_index]
+    jmp .loop
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
 
 alloc_mem_direct:
     push ds
@@ -7938,6 +7993,7 @@ am_ret_ax: dw 0
 am_ret_bx: dw 0
 am_ret_seg: dw 0
 rm_req: dw 0
+coh_index: dw 0
 
 ov_param_off: dw 0
 ov_param_seg: dw 0

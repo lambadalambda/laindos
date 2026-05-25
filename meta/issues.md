@@ -4,4 +4,3 @@
 - [ ] [Phase 16: Batch Files and AUTOEXEC](issues/phase16-batch-files-autoexec.md)
 - [ ] [Phase 17: DOS Device Names](issues/phase17-dos-device-names.md)
 - [ ] [Phase 19: DOS Compatibility Matrix](issues/phase19-dos-compatibility-matrix.md)
-- [ ] [Close Written Handles On Termination](issues/close-written-handles-on-termination.md)

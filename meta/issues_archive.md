@@ -18,3 +18,4 @@
 - [x] [Return FindFirst Timestamps](issues/return-findfirst-timestamps.md)
 - [x] [Audit INT 21h Register Preservation](issues/audit-int21-register-preservation.md)
 - [x] [Roll Back Directory Extension Failures](issues/rollback-directory-extension-failures.md)
+- [x] [Close Written Handles On Termination](issues/close-written-handles-on-termination.md)

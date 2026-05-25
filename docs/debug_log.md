@@ -2,6 +2,24 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 Review Follow-Up: Close Written Handles On Termination
+
+### Symptoms
+
+- Reviewers flagged that a program could create/write a file and terminate without closing the handle, leaving FAT and directory-entry updates unflushed.
+
+### Confirmed Facts
+
+- `scripts/test_termflush.py` boots `src/termflush.asm`, which creates `TERMOUT.DAT`, writes a payload, prints `PASS: TERMFLUSH`, and exits through `INT 21h AH=4Ch` without closing the handle.
+- Before the fix, the program exited successfully but host FAT inspection found `TERMOUT.DAT` with size `0` instead of `27`.
+- Handle records now include an owner PSP field. `AH=3Ch`/`AH=3Dh` assign owner `cur_psp`, explicit close clears the owner, and `do_terminate` flushes/closes handles owned by the terminating PSP before freeing its memory or restoring the parent PSP.
+- Parent-owned or kernel-owned handles are not closed during a child termination because the sweep only closes handles whose owner matches the current PSP.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_termflush.py` fails before the fix with `FAIL: TERMOUT.DAT size 0, expected 27` and passes after the fix.
+- `make test` passes with `scripts/test_termflush.py` included.
+
 ## 2026-05-25 Review Follow-Up: Directory Extension Rollback
 
 ### Symptoms
