@@ -1,7 +1,7 @@
 [bits 16]
 [org 0x7C00]
 
-LOAD_SEG equ 0x0800
+LOAD_SEG equ 0x1000
 FAT_SEG  equ 0x0060
 ROOT_SEG equ 0x0180
 

@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+import os
+import signal
+import socket
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+
+QEMU = "qemu-system-i386"
+BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
+IMG = os.path.join(BUILDDIR, "devnames.img")
+KERNEL = os.path.join(BUILDDIR, "devnames_kernel.bin")
+MONITOR = os.path.join(tempfile.gettempdir(), "laindos-devnames.sock")
+
+
+def run(cmd):
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+
+
+def build_image():
+    os.makedirs(BUILDDIR, exist_ok=True)
+    run(["nasm", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run([
+        "nasm", '-DBOOT_FILE="DEVNAMESCOM"', "-f", "bin", "src/kernel.asm",
+        "-o", KERNEL,
+    ])
+    run(["nasm", "-f", "bin", "src/devnames.asm", "-o", os.path.join(BUILDDIR, "devnames.com")])
+    with open(os.path.join(BUILDDIR, "nulfile.dat"), "wb") as f:
+        f.write(b"REAL")
+    run([
+        "python3", "scripts/mkimage.py",
+        os.path.join(BUILDDIR, "boot.bin"),
+        KERNEL,
+        IMG,
+        os.path.join(BUILDDIR, "devnames.com"),
+        os.path.join(BUILDDIR, "nulfile.dat"),
+    ])
+
+
+def wait_for_output(chunks, marker, timeout=10):
+    needle = marker.encode()
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        output = b"".join(chunks)
+        if needle in output:
+            return True
+        if b"FAIL:" in output or b"HALT" in output:
+            return False
+        time.sleep(0.05)
+    return False
+
+
+def send_monitor_key(sock, key):
+    sock.sendall(f"sendkey {key}\n".encode())
+    time.sleep(0.15)
+
+
+def send_key_after_ready(output_chunks):
+    deadline = time.time() + 8
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    while True:
+        try:
+            sock.connect(MONITOR)
+            break
+        except OSError:
+            if time.time() > deadline:
+                raise
+            time.sleep(0.1)
+    sock.recv(4096)
+    if wait_for_output(output_chunks, "READY: DEVREAD"):
+        send_monitor_key(sock, "z")
+    sock.close()
+
+
+def read_stream(stream, chunks):
+    while True:
+        data = os.read(stream.fileno(), 1024)
+        if not data:
+            return
+        chunks.append(data)
+
+
+def root_has_name(raw_name):
+    with open(IMG, "rb") as f:
+        data = f.read()
+    bytes_per_sector = int.from_bytes(data[11:13], "little")
+    reserved = int.from_bytes(data[14:16], "little")
+    fats = data[16]
+    root_entries = int.from_bytes(data[17:19], "little")
+    sectors_per_fat = int.from_bytes(data[22:24], "little")
+    root_start = (reserved + fats * sectors_per_fat) * bytes_per_sector
+    for index in range(root_entries):
+        entry = data[root_start + index * 32:root_start + (index + 1) * 32]
+        if not entry or entry[0] == 0:
+            return False
+        if entry[0] == 0xE5:
+            continue
+        if entry[:11] == raw_name:
+            return True
+    return False
+
+
+def run_qemu():
+    try:
+        os.unlink(MONITOR)
+    except FileNotFoundError:
+        pass
+    proc = subprocess.Popen(
+        [
+            QEMU,
+            "-drive", f"file={IMG},format=raw,if=floppy",
+            "-boot", "order=a",
+            "-serial", "stdio",
+            "-monitor", f"unix:{MONITOR},server,nowait",
+            "-nographic",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout_chunks = []
+    stderr_chunks = []
+    stdout_thread = threading.Thread(target=read_stream, args=(proc.stdout, stdout_chunks), daemon=True)
+    stderr_thread = threading.Thread(target=read_stream, args=(proc.stderr, stderr_chunks), daemon=True)
+    stdout_thread.start()
+    stderr_thread.start()
+    try:
+        send_key_after_ready(stdout_chunks)
+    except Exception:
+        proc.kill()
+        proc.wait()
+        stdout_thread.join(timeout=1)
+        stderr_thread.join(timeout=1)
+        raise
+    try:
+        proc.wait(timeout=8)
+    except subprocess.TimeoutExpired:
+        proc.send_signal(signal.SIGTERM)
+        try:
+            proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+    stdout_thread.join(timeout=1)
+    stderr_thread.join(timeout=1)
+    output = b"".join(stdout_chunks).decode("utf-8", errors="replace")
+    err = b"".join(stderr_chunks).decode("utf-8", errors="replace")
+    if err:
+        print(err, end="", file=sys.stderr)
+    return output
+
+
+def main():
+    build_image()
+    output = run_qemu()
+    failed = False
+    for marker in [
+        "PASS: CONWRITE",
+        "READY: DEVREAD",
+        "PASS: DEVNAMES",
+        "Program exited, code=00",
+    ]:
+        if marker in output:
+            print(f"  PASS: found '{marker}'")
+        else:
+            print(f"  FAIL: missing '{marker}'")
+            failed = True
+    for marker in ["FAIL:", "EXC ", "INT 21h AH="]:
+        if marker in output:
+            print(f"  FAIL: unexpected '{marker}'")
+            failed = True
+    if root_has_name(b"NUL        "):
+        print("  FAIL: real NUL file was created")
+        failed = True
+    else:
+        print("  PASS: no real NUL file created")
+    if failed:
+        print("\n--- QEMU serial output ---")
+        print(output)
+        print("--- end ---")
+        sys.exit(1)
+    print("\nDevice name test passed.")
+
+
+if __name__ == "__main__":
+    main()

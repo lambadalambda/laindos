@@ -55,6 +55,10 @@ ZF equ 0x0040
 ROOT_CLUSTER equ 0
 FAT_TIME equ 0x6000
 FAT_DATE equ 0x5CB6
+DEV_CON equ 1
+DEV_NUL equ 2
+DEV_AUX equ 3
+DEV_PRN equ 4
 
 %ifndef TRACE_DOS
 %define TRACE_DOS 0
@@ -2668,6 +2672,9 @@ int21_handler:
     push cx
     mov [cs:cf_attr], cl
     mov si, dx
+    call detect_device_path
+    jnc .cr_device
+    mov si, dx
     call parse_root_path
     jc .cr_path_err
     mov byte [cs:ff_attr_mask], 0
@@ -2758,6 +2765,28 @@ int21_handler:
     pop ds
     mov ax, [cs:cf_handle]
     jmp iret_nc
+.cr_device:
+    call alloc_device_handle
+    jc .cr_device_err
+    mov [cs:cf_handle], ax
+    pop cx
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+    mov ax, [cs:cf_handle]
+    jmp iret_nc
+.cr_device_err:
+    mov [cs:cf_status], ax
+    pop cx
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+    mov ax, [cs:cf_status]
+    jmp iret_cy
 .cr_path_err:
     mov ax, 3
     jmp .cr_err
@@ -2815,6 +2844,9 @@ int21_handler:
     push si
     push di
     mov [cs:of_mode], al
+    mov si, dx
+    call detect_device_path
+    jnc .of_device
     mov si, dx
     call resolve_path
     jnc .of_found
@@ -2890,6 +2922,45 @@ int21_handler:
     pop ds
     pop es
     jmp iret_nc
+.of_device:
+    call alloc_device_handle
+    jc .of_device_err
+    push ax
+    cmp word [cs:trace_left], 0
+    je .of_device_no_trace
+    dec word [cs:trace_left]
+    pusha
+    push ds
+    push cs
+    pop ds
+    mov si, msg_trace_handle
+    call serial_print
+    call serial_print_hex_word
+    mov si, msg_crlf
+    call serial_print
+    pop ds
+    popa
+.of_device_no_trace:
+    pop ax
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ds
+    pop es
+    jmp iret_nc
+.of_device_err:
+    mov [cs:of_status], ax
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ds
+    pop es
+    mov ax, [cs:of_status]
+    jmp iret_cy
 .of_no_handles:
     pop di
     pop si
@@ -2931,6 +3002,8 @@ int21_handler:
     mov bx, ax
     cmp byte [cs:bx+handles+H_USED], 0
     je .cf_invalid_pop
+    cmp word [cs:bx+handles+H_DIR_LBA], 0
+    je .cf_mark_free
     cmp byte [cs:bx+handles+H_MODE], 0
     je .cf_mark_free
     mov si, bx
@@ -2987,11 +3060,15 @@ int21_handler:
     mul cx
     mov [cs:rf_hoff], ax
     mov si, ax
+    mov word [cs:rf_read], 0
+    cmp byte [cs:si+handles+H_USED], 0
+    je .rf_err_pop
+    cmp word [cs:si+handles+H_DIR_LBA], 0
+    je .rf_device
     mov ax, [cs:si+handles+H_POS_LO]
     mov [cs:rf_start_lo], ax
     mov ax, [cs:si+handles+H_POS_HI]
     mov [cs:rf_start_hi], ax
-    mov word [cs:rf_read], 0
 .rf_loop:
     mov cx, [cs:rf_count]
     test cx, cx
@@ -3191,6 +3268,31 @@ int21_handler:
     pop cx
     pop bx
     jmp iret_nc
+.rf_device:
+    mov ax, [cs:si+handles+H_DIR_OFF]
+    cmp ax, DEV_NUL
+    je .rf_done
+    cmp ax, DEV_CON
+    je .rf_con
+    jmp .rf_err_pop
+.rf_con:
+    cmp word [cs:rf_count], 0
+    je .rf_done
+    mov ax, [cs:rf_buf_seg]
+    mov es, ax
+    mov di, [cs:rf_buf_off]
+    call console_read_char
+    stosb
+    inc word [cs:rf_read]
+    mov bx, [cs:rf_hoff]
+    add word [cs:bx+handles+H_POS_LO], 1
+    adc word [cs:bx+handles+H_POS_HI], 0
+    add word [cs:rf_buf_off], 1
+    jnc .rf_con_no_wrap
+    add word [cs:rf_buf_seg], 0x1000
+.rf_con_no_wrap:
+    sub word [cs:rf_count], 1
+    jmp .rf_con
 .rf_err_pop:
     pop di
     pop si
@@ -3227,6 +3329,8 @@ int21_handler:
     mov si, ax
     cmp byte [cs:si+handles+H_USED], 0
     je .wf_file_invalid_pop
+    cmp word [cs:si+handles+H_DIR_LBA], 0
+    je .wf_device
     cmp byte [cs:si+handles+H_MODE], 0
     je .wf_file_access_pop
     mov ax, [cs:si+handles+H_POS_HI]
@@ -3433,6 +3537,41 @@ int21_handler:
     jmp .wf_file_loop
 .wf_file_done:
     mov ax, [cs:wf_written]
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    jmp iret_nc
+.wf_device:
+    mov ax, [cs:si+handles+H_DIR_OFF]
+    cmp ax, DEV_NUL
+    je .wf_device_done
+    cmp ax, DEV_CON
+    je .wf_device_con
+    mov ax, 5
+    jmp .wf_file_err_pop
+.wf_device_con:
+    cmp word [cs:wf_count], 0
+    je .wf_device_done
+    mov ax, [cs:wf_buf_seg]
+    mov ds, ax
+    mov si, [cs:wf_buf_off]
+    lodsb
+    call console_putchar
+    mov bx, [cs:wf_hoff]
+    add word [cs:bx+handles+H_POS_LO], 1
+    adc word [cs:bx+handles+H_POS_HI], 0
+    add word [cs:wf_buf_off], 1
+    jnc .wf_device_con_no_wrap
+    add word [cs:wf_buf_seg], 0x1000
+.wf_device_con_no_wrap:
+    sub word [cs:wf_count], 1
+    jmp .wf_device_con
+.wf_device_done:
+    mov ax, [cs:wf_req]
     pop di
     pop si
     pop es
@@ -3710,14 +3849,18 @@ int21_handler:
     mov bx, ax
     pop ax
     cmp byte [cs:bx+handles+H_USED], 0
+    je .ioctl_bad_handle_pop
+    cmp word [cs:bx+handles+H_DIR_LBA], 0
     pop bx
-    je .ioctl_bad_handle
+    je .ioctl_stdio
     xor dh, dh
     mov dl, [cs:dos_drive_num]
     jmp iret_nc
 .ioctl_stdio:
     mov dx, 0x80D3
     jmp iret_nc
+.ioctl_bad_handle_pop:
+    pop bx
 .ioctl_bad_handle:
     mov ax, 6
     jmp iret_cy
@@ -4144,6 +4287,8 @@ close_owned_handles:
     mov ax, [cs:cur_psp]
     cmp [cs:bx+handles+H_OWNER], ax
     jne .next
+    cmp word [cs:bx+handles+H_DIR_LBA], 0
+    je .mark_free
     cmp byte [cs:bx+handles+H_MODE], 0
     je .mark_free
     mov si, bx
@@ -4403,6 +4548,142 @@ alloc_handle:
     pop si
     pop bx
     stc
+    ret
+
+alloc_device_handle:
+    cmp al, DEV_CON
+    je .supported
+    cmp al, DEV_NUL
+    je .supported
+    mov ax, 5
+    stc
+    ret
+.supported:
+    mov [cs:dev_type], al
+    call alloc_handle
+    jc .full
+    push ax
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov bx, ax
+    mov byte [cs:bx+handles+H_USED], 1
+    mov byte [cs:bx+handles+H_MODE], 2
+    mov word [cs:bx+handles+H_CLUSTER], 0
+    mov word [cs:bx+handles+H_POS_LO], 0
+    mov word [cs:bx+handles+H_POS_HI], 0
+    mov word [cs:bx+handles+H_SIZE_LO], 0
+    mov word [cs:bx+handles+H_SIZE_HI], 0
+    mov word [cs:bx+handles+H_LAST_CLUSTER], 0
+    mov word [cs:bx+handles+H_LAST_INDEX], 0
+    mov word [cs:bx+handles+H_DIR_LBA], 0
+    xor ah, ah
+    mov al, [cs:dev_type]
+    mov [cs:bx+handles+H_DIR_OFF], ax
+    mov word [cs:bx+handles+H_TIME], 0
+    mov word [cs:bx+handles+H_DATE], 0
+    mov ax, [cs:cur_psp]
+    mov [cs:bx+handles+H_OWNER], ax
+    pop ax
+    clc
+    ret
+.full:
+    mov ax, 4
+    stc
+    ret
+
+detect_device_path:
+    push bx
+    push dx
+    push si
+    cmp byte [ds:si+1], ':'
+    jne .skip_sep
+    add si, 2
+.skip_sep:
+    cmp byte [ds:si], '\'
+    je .skip_one
+    cmp byte [ds:si], '/'
+    jne .read_name
+.skip_one:
+    inc si
+    jmp .skip_sep
+.read_name:
+    call dev_upper_lodsb
+    mov bl, al
+    call dev_upper_lodsb
+    mov bh, al
+    call dev_upper_lodsb
+    mov dl, al
+    call dev_name_end
+    jc .not_found
+    cmp bl, 'C'
+    jne .try_nul
+    cmp bh, 'O'
+    jne .try_nul
+    cmp dl, 'N'
+    jne .try_nul
+    mov al, DEV_CON
+    jmp .found
+.try_nul:
+    cmp bl, 'N'
+    jne .try_aux
+    cmp bh, 'U'
+    jne .try_aux
+    cmp dl, 'L'
+    jne .try_aux
+    mov al, DEV_NUL
+    jmp .found
+.try_aux:
+    cmp bl, 'A'
+    jne .try_prn
+    cmp bh, 'U'
+    jne .try_prn
+    cmp dl, 'X'
+    jne .try_prn
+    mov al, DEV_AUX
+    jmp .found
+.try_prn:
+    cmp bl, 'P'
+    jne .not_found
+    cmp bh, 'R'
+    jne .not_found
+    cmp dl, 'N'
+    jne .not_found
+    mov al, DEV_PRN
+.found:
+    pop si
+    pop dx
+    pop bx
+    clc
+    ret
+.not_found:
+    pop si
+    pop dx
+    pop bx
+    stc
+    ret
+
+dev_upper_lodsb:
+    lodsb
+    cmp al, 'a'
+    jb .done
+    cmp al, 'z'
+    ja .done
+    sub al, 32
+.done:
+    ret
+
+dev_name_end:
+    mov al, [ds:si]
+    test al, al
+    jz .yes
+    cmp al, '.'
+    je .yes
+    cmp al, ' '
+    je .yes
+    stc
+    ret
+.yes:
+    clc
     ret
 
 cur_dir_path_parent:
@@ -7944,6 +8225,8 @@ cur_dir_path: times 64 db 0
 cd_path_off: dw 0
 cd_path_seg: dw 0
 of_mode: db 0
+of_status: dw 0
+dev_type: db 0
 fa_attr: db 0
 fa_ret_attr: dw 0
 

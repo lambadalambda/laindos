@@ -166,6 +166,7 @@ test: $(DISK_IMG)
 	$(PYTHON) scripts/test_overlay.py
 	$(PYTHON) scripts/test_shell.py
 	$(PYTHON) scripts/test_console.py
+	$(PYTHON) scripts/test_devnames.py
 	$(PYTHON) scripts/test_diskfree.py
 	$(PYTHON) scripts/test_dirextfail.py
 	$(PYTHON) scripts/test_envpath.py

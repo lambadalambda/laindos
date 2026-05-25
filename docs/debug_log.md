@@ -2,6 +2,32 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 Phase 17 DOS Device Names
+
+### Symptoms
+
+- `scripts/test_devnames.py` passed for direct-boot `DEVNAMES.COM`, but shell-launched COM programs regressed after adding DOS device handles.
+- `scripts/test_envpath.py` printed binary garbage at `A:\>envtest`, exited with code `01`, and missed `PASS: ENVTEST`/`PASS: PATHRUN`.
+- `scripts/test_shell.py` reached `A:\>hello` and then stalled before `PASS: HELLO.COM`, eventually timing out waiting for `READY: EXTKEY`.
+
+### Confirmed Facts
+
+- The device-name handler now recognizes `CON`, `NUL`, `AUX`, and `PRN` case-insensitively and before normal file lookup for `AH=3Ch`/`AH=3Dh`.
+- `CON` and `NUL` are represented as ordinary handle-table entries with `H_DIR_LBA=0` and a device type in `H_DIR_OFF`; `NUL` reads EOF and accepts writes, while `CON` reads/writes through the console path.
+- Unsupported `AUX`/`PRN` are recognized but return access denied (`AX=5`) instead of falling through to ordinary file lookup.
+- The shell/EXEC regression was not caused by device I/O. Phase 17 grew `kernel_end` past the old relocation gap from boot `LOAD_SEG=0x0800` to `RELOC_SEG=0x0340`; boot-time relocation could overwrite the source instruction stream after `rep movsb`.
+- Moving the boot load segment to `0x1000` makes the source and relocated destination non-overlapping for the current kernel size and fixed the dynamic COM corruption.
+- Review found that device reads branched before `rf_read` was reset, so a file read could leak a stale byte count into later `NUL`/`CON` reads. `rf_read` is now cleared before the device branch, and `DEVNAMES.COM` reads `NUL` after a real file read to cover it.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_devnames.py` passes and covers `NUL` open/create write/read, confirms `AH=3Ch NUL` does not create a real root directory entry, `CON` write/read, unsupported `PRN`/`AUX`, extension/case-insensitive device names, a normal `NULFILE.DAT` lookup, and `NUL` read after real file I/O.
+- `python3 scripts/test_envpath.py` failed before the load-segment move and passes after it.
+- `python3 scripts/test_shell.py` failed before the load-segment move and passes after it.
+- `python3 scripts/test_boot.py` passes after the boot load-segment move.
+- `make test` passes with `scripts/test_devnames.py` included.
+- `git diff --check` and `python3 -m py_compile scripts/test_devnames.py` pass.
+
 ## 2026-05-25 Phase 16 AUTOEXEC Startup
 
 ### Symptoms
