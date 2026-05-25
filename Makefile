@@ -31,6 +31,7 @@ CONSOLETEST := $(BUILDDIR)/console.com
 SAVEWR    := $(BUILDDIR)/savewr.com
 DIRMUT    := $(BUILDDIR)/dirmut.com
 READWRAP  := $(BUILDDIR)/readwrap.exe
+FREECOM   := $(BUILDDIR)/free.com
 TESTFILE  := $(BUILDDIR)/testfile.dat
 SUBTEST   := $(BUILDDIR)/subtest.dat
 DISK_IMG := $(BUILDDIR)/disk.img
@@ -143,6 +144,10 @@ $(READWRAP): $(SRCDIR)/readwrap.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
+$(FREECOM): $(SRCDIR)/free.asm $(SRCDIR)/memory.inc
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
 $(TESTFILE): scripts/mktestfile.py
 	@mkdir -p $(BUILDDIR)
 	$(PYTHON) $< $@
@@ -151,8 +156,8 @@ $(SUBTEST): scripts/mksubtest.py
 	@mkdir -p $(BUILDDIR)
 	$(PYTHON) $< $@
 
-$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(EXTKEY) $(TIMETEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(PSPTEST) $(PSPCHILD) $(CONSOLETEST) $(SAVEWR) $(DIRMUT) $(READWRAP) $(TESTFILE) $(SUBTEST)
-	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(EXTKEY) $(TIMETEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(PSPTEST) $(PSPCHILD) $(CONSOLETEST) $(SAVEWR) $(DIRMUT) $(READWRAP) $(TESTFILE) MIDEMO:$(SUBTEST)
+$(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(EXTKEY) $(TIMETEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(PSPTEST) $(PSPCHILD) $(CONSOLETEST) $(SAVEWR) $(DIRMUT) $(READWRAP) $(FREECOM) $(TESTFILE) $(SUBTEST)
+	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(EXTKEY) $(TIMETEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(PSPTEST) $(PSPCHILD) $(CONSOLETEST) $(SAVEWR) $(DIRMUT) $(READWRAP) $(FREECOM) $(TESTFILE) MIDEMO:$(SUBTEST)
 
 run: $(DISK_IMG)
 	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic
@@ -170,6 +175,7 @@ test: $(DISK_IMG)
 	$(PYTHON) scripts/test_devnames.py
 	$(PYTHON) scripts/test_diskfree.py
 	$(PYTHON) scripts/test_drive.py
+	$(PYTHON) scripts/test_free.py
 	$(PYTHON) scripts/test_dirextfail.py
 	$(PYTHON) scripts/test_envpath.py
 	$(PYTHON) scripts/test_findattr.py

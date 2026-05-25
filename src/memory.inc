@@ -5,4 +5,7 @@ RELOC_SEG equ 0x0340
 SEC_BUF equ 0x0840
 ENV_SEG equ 0x0860
 MCB_START equ 0x1000
+MEM_TOP equ 0xA000
+MCB_SIG_M equ 'M'
+MCB_SIG_Z equ 'Z'
 %endif

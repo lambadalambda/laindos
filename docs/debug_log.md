@@ -2,6 +2,37 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 FREE.COM Memory Report
+
+### Symptoms
+
+- The shell `MEM` built-in only probes `INT 21h AH=48h BX=FFFFh` and prints the largest free block in paragraphs.
+- The user wanted a more useful DOS-style memory tool showing where blocks are loaded and overall free memory.
+
+### Confirmed Facts
+
+- Added `FREE.COM`, a small external utility that walks LainDOS's MCB chain from `MCB_START` and prints each block's MCB segment, status, owner PSP, data segment, size in paragraphs, and size in KB.
+- The report marks free blocks as `FREE`, the utility's own PSP-owned block as `SELF`, and other allocated blocks as `USED`.
+- The summary prints total managed memory, used memory, total free memory, and largest free block.
+- The first version corrupted the status string pointer while printing row spacing; preserving the status pointer fixed the garbled row output.
+- `FREE.COM` is included in the default build image and is exercised both as a direct boot target and through `SHELL.COM` command execution.
+- Code review found no utility correctness bugs; follow-up hardening added MCB chain bounds checks, centralized MCB constants in `memory.inc`, checked `Invalid MCB chain` as a shell-test failure marker, and validated focused-test summary totals with paragraph-to-KB truncation tolerance.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_free.py` passes.
+- `python3 scripts/test_shell.py` passes with `FREE.COM` in the shell image.
+- `python3 -m py_compile scripts/test_free.py scripts/test_shell.py` passes.
+- `make test` passes with `scripts/test_free.py` included.
+- `git diff --check` passes.
+- After review follow-ups, `python3 scripts/test_free.py`, `python3 scripts/test_shell.py`, `python3 -m py_compile scripts/test_free.py scripts/test_shell.py`, `make test`, and `git diff --check` pass.
+- An intermediate focused-test run caught a Python helper shadowing bug in `scripts/test_free.py`; renaming the local summary variable fixed it before the final full run.
+
+### Follow-Ups
+
+- MCB owner names are not yet available because LainDOS does not populate DOS-style MCB name fields.
+- Environment blocks are still outside the MCB arena until the existing environment-MCB issue is handled, so they do not appear as separate report rows.
+
 ## 2026-05-25 Drive Selection Compatibility
 
 ### Symptoms

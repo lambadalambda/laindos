@@ -46,6 +46,7 @@ def build_image():
     run(["nasm", "-f", "bin", "src/exemax.asm", "-o", os.path.join(BUILDDIR, "exemax.exe")])
     run(["nasm", "-f", "bin", "src/memreg.asm", "-o", os.path.join(BUILDDIR, "memreg.com")])
     run(["nasm", "-f", "bin", "src/packseg.asm", "-o", os.path.join(BUILDDIR, "packseg.exe")])
+    run(["nasm", "-f", "bin", "src/free.asm", "-o", os.path.join(BUILDDIR, "free.com")])
     run(["python3", "scripts/mktestfile.py", os.path.join(BUILDDIR, "testfile.dat")])
     run(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
     with open(os.path.join(BUILDDIR, "testbat.bat"), "wb") as f:
@@ -69,6 +70,7 @@ def build_image():
         os.path.join(BUILDDIR, "exemax.exe"),
         os.path.join(BUILDDIR, "memreg.com"),
         os.path.join(BUILDDIR, "packseg.exe"),
+        os.path.join(BUILDDIR, "free.com"),
         os.path.join(BUILDDIR, "testbat.bat"),
         os.path.join(BUILDDIR, "testfile.dat"),
         f"DIRONLY:{os.path.join(BUILDDIR, 'subtest.dat')}",
@@ -128,6 +130,7 @@ def send_keys(output_chunks):
         "e", "x", "e", "c", "t", "e", "s", "t", "ret",
         "p", "s", "p", "t", "e", "s", "t", "ret",
         "m", "e", "m", "ret",
+        "f", "r", "e", "e", "ret",
         "m", "d", "spc", "s", "h", "d", "i", "r", "ret",
         "d", "i", "r", "ret",
         "c", "d", "spc", "s", "h", "d", "i", "r", "ret",
@@ -231,6 +234,9 @@ def main():
         "PASS: MEMREG",
         "PASS: PACKSEG",
         "Largest free block: ",
+        "LainDOS memory report",
+        "Total managed memory:",
+        "Total free memory:",
         "A:\\SHDIR>",
         "Path not found",
         "A:\\MIDEMO>",
@@ -259,7 +265,7 @@ def main():
     else:
         print("  FAIL: expected exactly one Path not found")
         failed = True
-    for marker in ["FAIL:", "EXC ", "INT 21h AH="]:
+    for marker in ["FAIL:", "EXC ", "INT 21h AH=", "Invalid MCB chain"]:
         if marker in output:
             print(f"  FAIL: unexpected '{marker}'")
             failed = True

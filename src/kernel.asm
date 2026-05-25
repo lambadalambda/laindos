@@ -40,10 +40,6 @@ ATTR_VOLUME equ 0x08
 ATTR_DIR equ 0x10
 ROOT_ENT_CNT equ 224
 
-MCB_SIG_M equ 'M'
-MCB_SIG_Z equ 'Z'
-MEM_TOP   equ 0xA000
-
 CF equ 0x0001
 ZF equ 0x0040
 
