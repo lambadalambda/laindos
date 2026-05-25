@@ -35,6 +35,8 @@ SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
 
 ATTR_RDONLY equ 0x01
+ATTR_HIDDEN equ 0x02
+ATTR_SYSTEM equ 0x04
 ATTR_VOLUME equ 0x08
 ATTR_DIR equ 0x10
 ROOT_ENT_CNT equ 224
@@ -3721,7 +3723,7 @@ int21_handler:
     rep movsb
     mov ax, [cs:ff_dir_cluster]
     xor dx, dx
-    call find_in_dir
+    call find_in_dir_filtered
     jnc .ff_found
     pop di
     pop es
@@ -4432,7 +4434,15 @@ resolve_path:
 
 find_in_dir:
     xor bx, bx
+    mov byte [cs:ff_filter_attrs], 0
+    jmp find_in_dir_from_common
+find_in_dir_filtered:
+    xor bx, bx
+    mov byte [cs:ff_filter_attrs], 1
+    jmp find_in_dir_from_common
 find_in_dir_from:
+    mov byte [cs:ff_filter_attrs], 1
+find_in_dir_from_common:
     push ax
     push cx
     push ds
@@ -4468,10 +4478,14 @@ find_in_dir_from:
     je .rid_notfound
     cmp byte [es:di], 0xE5
     je .rid_root_next
+    cmp byte [cs:ff_filter_attrs], 0
+    jne .rid_root_filtered
     test byte [es:di+11], ATTR_VOLUME
-    jz .rid_root_matchable
-    test byte [cs:ff_attr_mask], ATTR_VOLUME
-    jz .rid_root_next
+    jnz .rid_root_next
+    jmp .rid_root_matchable
+.rid_root_filtered:
+    call dir_entry_attr_match
+    jc .rid_root_next
 .rid_root_matchable:
     call name_matches
     jnc .rid_found
@@ -4518,10 +4532,14 @@ find_in_dir_from:
     jb .rid_subdir_next
     cmp byte [es:di], 0xE5
     je .rid_subdir_next
+    cmp byte [cs:ff_filter_attrs], 0
+    jne .rid_subdir_filtered
     test byte [es:di+11], ATTR_VOLUME
-    jz .rid_subdir_matchable
-    test byte [cs:ff_attr_mask], ATTR_VOLUME
-    jz .rid_subdir_next
+    jnz .rid_subdir_next
+    jmp .rid_subdir_matchable
+.rid_subdir_filtered:
+    call dir_entry_attr_match
+    jc .rid_subdir_next
 .rid_subdir_matchable:
     mov ax, SEC_BUF
     mov es, ax
@@ -4558,6 +4576,10 @@ find_in_dir_from:
 .rid_found:
     mov al, [es:di+11]
     mov [cs:ff_entry_attr], al
+    mov ax, [es:di+22]
+    mov [cs:ff_entry_time], ax
+    mov ax, [es:di+24]
+    mov [cs:ff_entry_date], ax
     mov ax, [es:di+26]
     mov [cs:ff_entry_cluster], ax
     mov ax, [es:di+28]
@@ -5217,6 +5239,41 @@ name_matches:
     pop ax
     ret
 
+dir_entry_attr_match:
+    push ax
+    mov al, [es:di+11]
+    mov ah, [cs:ff_attr_mask]
+    test ah, ATTR_VOLUME
+    jz .not_volume_search
+    test al, ATTR_VOLUME
+    jnz .yes
+    jmp .no
+.not_volume_search:
+    test al, ATTR_VOLUME
+    jnz .no
+    test al, ATTR_HIDDEN
+    jz .check_system
+    test ah, ATTR_HIDDEN
+    jz .no
+.check_system:
+    test al, ATTR_SYSTEM
+    jz .check_dir
+    test ah, ATTR_SYSTEM
+    jz .no
+.check_dir:
+    test al, ATTR_DIR
+    jz .yes
+    test ah, ATTR_DIR
+    jz .no
+.yes:
+    pop ax
+    clc
+    ret
+.no:
+    pop ax
+    stc
+    ret
+
 store_find_dta:
     push ax
     push bx
@@ -5234,8 +5291,10 @@ store_find_dta:
     mov [es:di+15], ax
     mov al, [cs:ff_entry_attr]
     mov [es:di+21], al
-    mov word [es:di+22], 0
-    mov word [es:di+24], 0
+    mov ax, [cs:ff_entry_time]
+    mov [es:di+22], ax
+    mov ax, [cs:ff_entry_date]
+    mov [es:di+24], ax
     mov ax, [cs:ff_entry_size]
     mov [es:di+26], ax
     mov ax, [cs:ff_entry_size_hi]
@@ -7751,10 +7810,13 @@ ff_entry_cluster: dw 0
 ff_entry_size: dw 0
 ff_entry_size_hi: dw 0
 ff_entry_attr: db 0
+ff_entry_time: dw 0
+ff_entry_date: dw 0
 ff_entry_name: times 11 db 0
 ff_entry_lba: dw 0
 ff_entry_off: dw 0
 ff_attr_mask: db 0
+ff_filter_attrs: db 0
 ff_path_off: dw 0
 ff_path_seg: dw 0
 ff_sep_off: dw 0

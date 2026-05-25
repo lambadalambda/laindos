@@ -14,3 +14,5 @@
 - [x] [Phase 14: Directory Mutation](issues/phase14-directory-mutation.md)
 - [x] [Fix FindNext DTA Search State](issues/fix-findnext-dta-search-state.md)
 - [x] [Invalidate Read Cache On SEC_BUF Overwrites](issues/invalidate-read-cache-on-secbuf-overwrites.md)
+- [x] [Fix FindFirst Attribute Filtering](issues/fix-findfirst-attribute-filtering.md)
+- [x] [Return FindFirst Timestamps](issues/return-findfirst-timestamps.md)

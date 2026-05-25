@@ -2,6 +2,42 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 Review Follow-Up: FindFirst Attribute Filtering
+
+### Symptoms
+
+- Reviewers flagged that `FindFirst`/`FindNext` filtered only volume-label entries and could return hidden, system, or directory entries even when the search mask did not request them.
+
+### Confirmed Facts
+
+- `scripts/test_findattr.py` builds an image with normal, hidden, system, directory, and volume-label entries.
+- Before the fix, the test failed with `FAIL: FINDATTR MISSING` because an entry that should have been filtered out was returned.
+- `find_in_dir` remains unfiltered for ordinary path resolution except for the existing volume-label exclusion, while `FindFirst`/`FindNext` use a filtered search path that applies the active DTA/search attribute mask.
+- Review of the initial fix found that unfiltered path resolution could match volume-label entries; `find_in_dir` now skips volume labels again, and the regression tries to open the volume-label name to ensure it fails.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_findattr.py` initially failed with `FAIL: FINDATTR MISSING`; after extending the regression, it failed with `FAIL: FINDATTR VOLUME OPEN` until unfiltered lookups skipped volume labels again.
+- `python3 scripts/test_findattr.py` passes after the fix.
+- `make test` passes with `scripts/test_findattr.py` included.
+
+## 2026-05-25 Review Follow-Up: FindFirst Timestamps
+
+### Symptoms
+
+- Reviewers flagged that `store_find_dta` returned zero time/date fields for all `FindFirst`/`FindNext` matches.
+
+### Confirmed Facts
+
+- `scripts/test_findtime.py` creates `TIMECHK.DAT`, closes it, then calls `FindFirst` and expects DTA offsets `+22` and `+24` to match the directory entry values `FAT_TIME` and `FAT_DATE`.
+- Before the fix, the test failed with `FAIL: FINDTIME TIME` because DTA time/date were zero.
+- `find_in_dir` now captures matched directory entry time/date and `store_find_dta` writes those values to the DTA.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_findtime.py` fails before the fix and passes after the fix.
+- `make test` passes with `scripts/test_findtime.py` included.
+
 ## 2026-05-25 Review Follow-Up: FindNext And SEC_BUF Cache
 
 ### Symptoms
