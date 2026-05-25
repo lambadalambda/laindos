@@ -15,6 +15,86 @@ start:
     push cs
     pop ds
 
+    mov ax, ds
+    mov [saved_ds], ax
+    mov ax, ES_SENT
+    mov es, ax
+    mov bx, BX_SENT
+    mov si, SI_SENT
+    mov di, DI_SENT
+    mov ah, 0x2C
+    int 0x21
+    mov ax, ds
+    cmp ax, [saved_ds]
+    jne fail_time_regs
+    mov ax, es
+    cmp ax, ES_SENT
+    jne fail_time_regs
+    cmp bx, BX_SENT
+    jne fail_time_regs
+    cmp si, SI_SENT
+    jne fail_time_regs
+    cmp di, DI_SENT
+    jne fail_time_regs
+
+    push cs
+    pop ds
+    mov ax, ds
+    mov [saved_ds], ax
+    mov cx, CX_SENT
+    mov dx, DX_SENT
+    mov si, SI_SENT
+    mov di, DI_SENT
+    mov ax, 0x3500
+    int 0x21
+    mov ax, ds
+    cmp ax, [saved_ds]
+    jne fail_getvec_regs
+    cmp cx, CX_SENT
+    jne fail_getvec_regs
+    cmp dx, DX_SENT
+    jne fail_getvec_regs
+    cmp si, SI_SENT
+    jne fail_getvec_regs
+    cmp di, DI_SENT
+    jne fail_getvec_regs
+    mov ax, es
+    or ax, bx
+    jz fail_getvec_output
+
+    push cs
+    pop ds
+    mov ax, ds
+    mov [saved_ds], ax
+    mov ax, ES_SENT
+    mov es, ax
+    mov bx, BX_SENT
+    mov cx, CX_SENT
+    mov dx, DX_SENT
+    mov si, SI_SENT
+    mov di, DI_SENT
+    mov ah, 0x0B
+    int 0x21
+    mov ax, ds
+    cmp ax, [saved_ds]
+    jne fail_stdin_status_regs
+    mov ax, es
+    cmp ax, ES_SENT
+    jne fail_stdin_status_regs
+    cmp bx, BX_SENT
+    jne fail_stdin_status_regs
+    cmp cx, CX_SENT
+    jne fail_stdin_status_regs
+    cmp dx, DX_SENT
+    jne fail_stdin_status_regs
+    cmp si, SI_SENT
+    jne fail_stdin_status_regs
+    cmp di, DI_SENT
+    jne fail_stdin_status_regs
+
+    push cs
+    pop ds
+
     mov ax, ES_SENT
     mov es, ax
     mov bx, BX_SENT
@@ -221,6 +301,90 @@ start:
     mov [block], ax
 
     mov es, ax
+    push cs
+    pop ds
+    mov ax, ds
+    mov [saved_ds], ax
+    mov bx, 0x0020
+    mov cx, CX_SENT
+    mov dx, DX_SENT
+    mov si, SI_SENT
+    mov di, DI_SENT
+    mov ah, 0x4A
+    int 0x21
+    jc fail_resize
+    mov ax, ds
+    cmp ax, [saved_ds]
+    jne fail_resize_regs
+    mov ax, es
+    cmp ax, [block]
+    jne fail_resize_regs
+    cmp cx, CX_SENT
+    jne fail_resize_regs
+    cmp dx, DX_SENT
+    jne fail_resize_regs
+    cmp si, SI_SENT
+    jne fail_resize_regs
+    cmp di, DI_SENT
+    jne fail_resize_regs
+
+    mov es, [block]
+    push cs
+    pop ds
+    mov ax, ds
+    mov [saved_ds], ax
+    mov bx, 0x0030
+    mov cx, CX_SENT
+    mov dx, DX_SENT
+    mov si, SI_SENT
+    mov di, DI_SENT
+    mov ah, 0x4A
+    int 0x21
+    jc fail_resize
+    mov ax, ds
+    cmp ax, [saved_ds]
+    jne fail_resize_regs
+    mov ax, es
+    cmp ax, [block]
+    jne fail_resize_regs
+    cmp cx, CX_SENT
+    jne fail_resize_regs
+    cmp dx, DX_SENT
+    jne fail_resize_regs
+    cmp si, SI_SENT
+    jne fail_resize_regs
+    cmp di, DI_SENT
+    jne fail_resize_regs
+
+    mov es, [block]
+    push cs
+    pop ds
+    mov ax, ds
+    mov [saved_ds], ax
+    mov bx, 0xFFFF
+    mov cx, CX_SENT
+    mov dx, DX_SENT
+    mov si, SI_SENT
+    mov di, DI_SENT
+    mov ah, 0x4A
+    int 0x21
+    jnc fail_resize_error
+    mov ax, ds
+    cmp ax, [saved_ds]
+    jne fail_resize_regs
+    mov ax, es
+    cmp ax, [block]
+    jne fail_resize_regs
+    cmp cx, CX_SENT
+    jne fail_resize_regs
+    cmp dx, DX_SENT
+    jne fail_resize_regs
+    cmp si, SI_SENT
+    jne fail_resize_regs
+    cmp di, DI_SENT
+    jne fail_resize_regs
+
+    mov es, ax
     mov bx, BX_SENT
     mov cx, CX_SENT
     mov dx, DX_SENT
@@ -300,11 +464,32 @@ fail_attr_missing_regs:
 fail_alloc:
     mov dx, fail_alloc_msg
     jmp fail
+fail_resize:
+    mov dx, fail_resize_msg
+    jmp fail
+fail_resize_error:
+    mov dx, fail_resize_error_msg
+    jmp fail
+fail_resize_regs:
+    mov dx, fail_resize_regs_msg
+    jmp fail
 fail_free:
     mov dx, fail_free_msg
     jmp fail
 fail_free_regs:
     mov dx, fail_free_regs_msg
+    jmp fail
+fail_time_regs:
+    mov dx, fail_time_regs_msg
+    jmp fail
+fail_getvec_regs:
+    mov dx, fail_getvec_regs_msg
+    jmp fail
+fail_getvec_output:
+    mov dx, fail_getvec_output_msg
+    jmp fail
+fail_stdin_status_regs:
+    mov dx, fail_stdin_status_regs_msg
 fail:
     push cs
     pop ds
@@ -315,6 +500,7 @@ fail:
 
 handle: dw 0
 block: dw 0
+saved_ds: dw 0
 file_name: db "TESTFILE.DAT", 0
 missing_name: db "MISSING.DAT", 0
 pass_msg: db "PASS: REGPRES", 13, 10, "$"
@@ -337,3 +523,10 @@ fail_attr_missing_regs_msg: db "FAIL: REGPRES ATTR MISSING REGS", 13, 10, "$"
 fail_alloc_msg: db "FAIL: REGPRES ALLOC", 13, 10, "$"
 fail_free_msg: db "FAIL: REGPRES FREE", 13, 10, "$"
 fail_free_regs_msg: db "FAIL: REGPRES FREE REGS", 13, 10, "$"
+fail_time_regs_msg: db "FAIL: REGPRES TIME REGS", 13, 10, "$"
+fail_getvec_regs_msg: db "FAIL: REGPRES GETVEC REGS", 13, 10, "$"
+fail_getvec_output_msg: db "FAIL: REGPRES GETVEC OUTPUT", 13, 10, "$"
+fail_stdin_status_regs_msg: db "FAIL: REGPRES STDIN STATUS REGS", 13, 10, "$"
+fail_resize_msg: db "FAIL: REGPRES RESIZE", 13, 10, "$"
+fail_resize_error_msg: db "FAIL: REGPRES RESIZE ERROR", 13, 10, "$"
+fail_resize_regs_msg: db "FAIL: REGPRES RESIZE REGS", 13, 10, "$"

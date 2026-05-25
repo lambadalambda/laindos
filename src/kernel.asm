@@ -1484,6 +1484,7 @@ int21_handler:
     jmp iret_nc
 .get_vector:
     push ax
+    push si
     mov bl, al
     xor bh, bh
     xor ax, ax
@@ -1493,6 +1494,7 @@ int21_handler:
     mov bx, [es:bx+2]
     mov es, bx
     mov bx, si
+    pop si
     pop ax
     cmp word [cs:trace_left], 0
     je .gv_no_trace
@@ -1899,6 +1901,8 @@ int21_handler:
     push si
     push es
     push di
+    push dx
+    push cx
     mov [cs:rm_req], bx
     mov si, es
     dec si
@@ -2048,6 +2052,8 @@ int21_handler:
     pop ds
     popa
 .rm_no_trace:
+    pop cx
+    pop dx
     pop di
     pop es
     pop si
@@ -2093,6 +2099,8 @@ int21_handler:
     pop ds
     popa
 .rm_err_no_trace:
+    pop cx
+    pop dx
     pop di
     pop es
     pop si

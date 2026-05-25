@@ -2,6 +2,40 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 Simon RUNVGA Resize Register Preservation
+
+### Symptoms
+
+- `C:\SIMON>RUNVGA GDEMO /3` opened and read `GDEMO`, then stopped making DOS calls and appeared stuck in the Watcom heap/runtime path.
+- A CPU sample from the old failure had `DS=F000` while executing in the RUNVGA heap allocator path, suggesting corrupted caller state rather than a bad file read.
+- The first post-fix screenshot artifact used a misleading PNG path; QEMU `screendump` was recaptured as native PPM and converted to a real PNG.
+
+### Confirmed Facts
+
+- Temporary INT 21h DS tracing did not find a DOS return with `DS=F000`; the bad segment came from RUNVGA's own far heap list after prior state corruption.
+- `INT 21h AH=4Ah` resize used `DL` for the MCB signature and modified `CX`, so successful resize calls did not preserve caller `CX/DX`.
+- `INT 21h AH=35h` get-vector returned the vector in `ES:BX` but also clobbered `SI` while reading the IVT.
+- `REGPRES.COM` now covers register preservation for `AH=2Ch`, `AH=35h`, `AH=0Bh`, successful `AH=4Ah` shrink/grow paths, and the `AH=4Ah` failure path. It also sanity-checks that `AH=35h` returns a nonzero `ES:BX` vector.
+- Rebuilt `build/games_hd_all.img`, booted QEMU/VNC, ran `CD SIMON` and `RUNVGA GDEMO /3`, and captured `build/simon_resizefix.ppm` plus a converted real `build/simon_resizefix.png`. The PNG shows Simon in-game with the verb UI visible.
+- The post-capture CPU sample is in BIOS code with `DS=SS=416E`, not the earlier bad `DS=F000` heap-loop state.
+
+### Tests And Probes Run
+
+- `python3 scripts/build_games_hd_all.py` rebuilt the all-games image.
+- Focused QEMU Simon smoke captured `build/simon_resizefix.png` and `build/simon_resizefix_serial.log`; serial output shows launch through `C:\SIMON>runvga gdemo /3` with no `EXC` or DOS failure markers.
+- `python3 scripts/test_regpres.py` passes.
+- `python3 scripts/test_shell.py` passes.
+- `make test` passes.
+- `git diff --check` passes.
+- `python3 scripts/test_monkey_full.py` passes with framebuffer activity.
+- `python3 scripts/test_mi2_save.py` passes and creates `SAVEGAME.002`.
+- Code review found no kernel defects, but identified the missing `AH=4Ah` error-path coverage and `AH=35h` output sanity check; both were added and `python3 scripts/test_regpres.py`, `make test`, and `git diff --check` still pass afterward.
+
+### Follow-Ups
+
+- Get code review before committing the INT 21h register-preservation changes.
+- Keep the recreated Simon screenshot as PPM plus converted PNG if more visual inspection is needed; QEMU's native screendump format is PPM.
+
 ## 2026-05-25 HD Games DIR Listing
 
 ### Symptoms
