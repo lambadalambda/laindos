@@ -2,6 +2,31 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 Phase 16 AUTOEXEC Startup
+
+### Symptoms
+
+- Minimal `.BAT` execution already worked interactively, but the shell did not run `AUTOEXEC.BAT` during startup.
+- `scripts/test_autoexec.py` initially booted to `A:\>` and exited without printing any `AUTOEXEC.BAT` output.
+
+### Confirmed Facts
+
+- `scripts/test_autoexec.py` builds a shell image containing `AUTOEXEC.BAT` with `ECHO`, `REM`, a blank line, `MD`, `CD`, a `HELLO.COM` child launch, a bad command, and a final `ECHO` marker.
+- Before the fix, the regression missed `AUTOEXEC START`, `IN STARTUP DIR`, `PASS: HELLO.COM`, `Bad command or file name`, and `AUTOEXEC DONE`.
+- The shell now calls `run_autoexec` after printing the banner and before entering the interactive prompt.
+- Missing `AUTOEXEC.BAT` remains non-fatal because `run_batch_named` returns carry on open failure and startup ignores that status.
+- A bad command inside the startup batch prints `Bad command or file name`, then batch execution continues to the following line and returns to the interactive prompt.
+- `run_autoexec` normalizes carry before returning so missing `AUTOEXEC.BAT` does not leak status into the prompt path.
+- Nested `.BAT` execution is still unsupported, but `run_batch_named` now rejects nested batch entry while a batch is active instead of overwriting the active `batch_buf` state.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_autoexec.py` fails before the fix and passes after startup runs `AUTOEXEC.BAT`.
+- `scripts/test_autoexec.py` also covers the no-`AUTOEXEC.BAT` startup path and asserts that no file-not-found diagnostic is printed.
+- `python3 scripts/test_shell.py` passes, covering the no-`AUTOEXEC.BAT` startup path and existing interactive batch behavior.
+- `make test` passes with `scripts/test_autoexec.py` included.
+- `git diff --check` and `python3 -m py_compile scripts/test_autoexec.py` pass.
+
 ## 2026-05-25 Phase 15 Environment And PATH
 
 ### Symptoms

@@ -7,6 +7,7 @@ start:
     mov dx, banner
     mov ah, 0x09
     int 0x21
+    call run_autoexec
 
 prompt:
     call print_prompt
@@ -531,16 +532,29 @@ run_batch:
     mov dx, command_name
     jmp run_batch_named
 
+run_autoexec:
+    push cs
+    pop ds
+    mov dx, autoexec_name
+    call run_batch_named
+    push cs
+    pop ds
+    clc
+    ret
+
 run_batch_path:
     push cs
     pop ds
     mov dx, path_command_name
 
 run_batch_named:
+    cmp byte [batch_active], 0
+    jne .busy
+    mov byte [batch_active], 1
     xor al, al
     mov ah, 0x3D
     int 0x21
-    jc .err
+    jc .err_clear
     mov [batch_handle], ax
     push cs
     pop ds
@@ -556,7 +570,7 @@ run_batch_named:
     mov bx, [batch_handle]
     mov ah, 0x3E
     int 0x21
-    jc .err
+    jc .err_clear
     push cs
     pop ds
     mov si, batch_buf
@@ -573,13 +587,16 @@ run_batch_named:
     mov si, [batch_ptr]
     jmp .next
 .done:
+    mov byte [batch_active], 0
     clc
     ret
 .read_err:
     mov bx, [batch_handle]
     mov ah, 0x3E
     int 0x21
-.err:
+.err_clear:
+    mov byte [batch_active], 0
+.busy:
     stc
     ret
 
@@ -922,6 +939,7 @@ echo_cmd: db "ECHO", 0
 rem_cmd: db "REM", 0
 echo_off_arg: db "OFF", 0
 echo_on_arg: db "ON", 0
+autoexec_name: db "AUTOEXEC.BAT", 0
 dir_pattern: db "*.*", 0
 type_buf_size equ 128
 batch_buf_size equ 512
@@ -950,4 +968,5 @@ type_handle: dw 0
 type_buf: times type_buf_size db 0
 batch_handle: dw 0
 batch_ptr: dw 0
+batch_active: db 0
 batch_buf: times batch_buf_size db 0

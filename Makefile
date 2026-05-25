@@ -158,6 +158,7 @@ run: $(DISK_IMG)
 	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic
 
 test: $(DISK_IMG)
+	$(PYTHON) scripts/test_autoexec.py
 	$(PYTHON) scripts/test_boot.py
 	$(PYTHON) scripts/test_write.py
 	$(PYTHON) scripts/test_bigreloc.py
