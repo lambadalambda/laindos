@@ -423,11 +423,13 @@ init_bpb_geometry:
     mov [cs:kdrv], al
     mov byte [cs:dos_drive_num], 0
     mov byte [cs:dos_drive_letter], 'A'
+    mov byte [cs:dos_drive_count], 1
     cmp al, 0x80
     jb .drive_done
     call query_bios_disk_geometry
     mov byte [cs:dos_drive_num], 2
     mov byte [cs:dos_drive_letter], 'C'
+    mov byte [cs:dos_drive_count], 3
 .drive_done:
     ret
 
@@ -1429,8 +1431,15 @@ int21_handler:
     mov al, [cs:dos_drive_num]
     jmp iret_nc
 .select_disk:
-    mov al, [cs:dos_drive_num]
-    inc al
+    mov al, [cs:dos_drive_count]
+    cmp dl, al
+    jae .select_disk_return
+    mov [cs:dos_drive_num], dl
+    mov al, 'A'
+    add al, dl
+    mov [cs:dos_drive_letter], al
+.select_disk_return:
+    mov al, [cs:dos_drive_count]
     jmp iret_nc
 .set_dta:
     mov [cs:dta_off], dx
@@ -1531,10 +1540,9 @@ int21_handler:
 .get_disk_free:
     test dl, dl
     jz .gdf_valid_drive
-    mov al, [cs:dos_drive_num]
-    inc al
+    mov al, [cs:dos_drive_count]
     cmp dl, al
-    je .gdf_valid_drive
+    jbe .gdf_valid_drive
     mov ax, 0xFFFF
     jmp iret_nc
 .gdf_valid_drive:
@@ -3879,6 +3887,13 @@ int21_handler:
     jmp iret_cy
 
 .get_curdir:
+    test dl, dl
+    jz .gc_drive_ok
+    mov al, [cs:dos_drive_count]
+    cmp dl, al
+    jbe .gc_drive_ok
+    jmp .gc_bad_drive
+.gc_drive_ok:
     push ds
     push si
     push es
@@ -3899,6 +3914,9 @@ int21_handler:
     pop si
     pop ds
     jmp iret_nc
+.gc_bad_drive:
+    mov ax, 0x000F
+    jmp iret_cy
 
 .find_first:
     push ds
@@ -8201,6 +8219,7 @@ kdrv:  db 0
 int13_scratch: times 32 db 0
 dos_drive_num: db 0
 dos_drive_letter: db 'A'
+dos_drive_count: db 1
 kret:  db 3
 
 exe_hdr_par:    dw 0

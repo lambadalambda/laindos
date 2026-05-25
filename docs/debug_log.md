@@ -2,6 +2,33 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 Drive Selection Compatibility
+
+### Symptoms
+
+- `INT 21h AH=0Eh` selected disk returned a drive count but ignored caller `DL`, so `AH=19h` never reflected the requested default drive.
+- `INT 21h AH=47h` get current directory ignored `DL` and succeeded for unsupported drive numbers.
+
+### Confirmed Facts
+
+- New hard-disk regression `DRIVE.COM` starts on `C:`, verifies `AH=47h` succeeds for default and `C:`, rejects invalid `D:`, selects `A:`, verifies `AH=19h` reports `A:`, verifies `AH=36h` still accepts `C:` while `A:` is selected, then selects `C:` again and rejects invalid select `D:` without changing the current drive.
+- Before the fix, `python3 scripts/test_drive.py` failed with `FAIL: DRIVE CURDIR INVALID`.
+- LainDOS now stores a stable logical drive count separately from the selected drive number. Floppy boots expose one logical drive; hard-disk boots expose `A:` through `C:` while still mapping all supported letters to the boot image.
+- `AH=47h` now returns invalid-drive error `AX=000F` with carry set when `DL` names a drive beyond the logical drive count.
+- `AH=36h` now validates requested 1-based drives against the stable logical drive count instead of the currently selected drive number.
+- Review found no correctness bugs and suggested adding floppy-path and extra disk-free coverage; `DRIVE.COM` now branches on initial boot drive and tests both hard-disk and floppy images.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_drive.py` passes after the fix for both hard-disk and floppy images.
+- `python3 -m py_compile scripts/test_drive.py` passes.
+- `make test` passes with the expanded `scripts/test_drive.py` included.
+- `git diff --check` passes.
+
+### Follow-Ups
+
+- Broader per-drive current directories and actual multi-drive media remain out of scope; all supported logical drive letters still use the boot image.
+
 ## 2026-05-25 Register Preservation Follow-Ups
 
 ### Symptoms

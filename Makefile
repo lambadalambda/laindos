@@ -169,6 +169,7 @@ test: $(DISK_IMG)
 	$(PYTHON) scripts/test_console.py
 	$(PYTHON) scripts/test_devnames.py
 	$(PYTHON) scripts/test_diskfree.py
+	$(PYTHON) scripts/test_drive.py
 	$(PYTHON) scripts/test_dirextfail.py
 	$(PYTHON) scripts/test_envpath.py
 	$(PYTHON) scripts/test_findattr.py

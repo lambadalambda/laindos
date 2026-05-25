@@ -62,7 +62,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
-| `AH=39h/3Ah/3Bh/47h` | implemented/partial | high | Directory mutation tests cover core behavior. |
+| `AH=39h/3Ah/3Bh/47h` | implemented/partial | high | Directory mutation tests cover core behavior; `AH=47h` validates requested drives against the supported logical drive count. |
 | `AH=4Eh/4Fh` find first/next | implemented/partial | high | Preserve DTA layout and wildcard behavior. |
 | `AH=56h` rename | implemented/partial | medium | Strengthen cross-directory and overwrite failure behavior. |
 | DOS device names `CON`, `NUL`, `AUX`, `PRN` | missing/partial | high | Tracked by Phase 17. |
@@ -72,7 +72,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
-| `AH=0Eh/19h` current drive | implemented/minimal | medium | Single-drive assumptions still visible. |
+| `AH=0Eh/19h` current drive | implemented/partial | medium | Tracks selected logical drive and returns a stable logical drive count; still maps all supported drive letters to the boot image. |
 | `AH=1Ah/2Fh` DTA | implemented | high | Covered by find-first/find-next behavior. |
 | `AH=25h/35h` vectors | implemented | high | Required by games. |
 | `AH=2Ah/2Ch` date/time | implemented/partial | medium | Time advances from BIOS ticks; set-date/time missing. |
