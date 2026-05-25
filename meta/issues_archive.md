@@ -21,3 +21,4 @@
 - [x] [Close Written Handles On Termination](issues/close-written-handles-on-termination.md)
 - [x] [Phase 9: Save-Game Writes](issues/phase9-save-game-writes.md)
 - [x] [Phase 13: General Writable FAT Filesystem](issues/phase13-general-writable-fat.md)
+- [x] [Phase 15: Environment and PATH](issues/phase15-environment-path.md)

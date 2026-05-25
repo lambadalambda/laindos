@@ -2,6 +2,28 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 Phase 15 Environment And PATH
+
+### Symptoms
+
+- The shell could launch programs from the current directory, but not through `PATH` when the current directory changed.
+- Child programs received an environment segment whose block contained only the double-null terminator and executable path tail, so `COMSPEC`, `PATH`, and `PROMPT` were absent.
+
+### Confirmed Facts
+
+- `scripts/test_envpath.py` initially failed with `FAIL: ENVTEST COMSPEC` and `Bad command or file name` for `PATHRUN` from `A:\WORK`.
+- The kernel now writes `COMSPEC=<drive>:\SHELL.COM`, `PATH=<drive>:\;<drive>:\BIN`, and `PROMPT=$P$G` before the double-null terminator for both the boot shell and `EXEC` children.
+- `update_exec_environment_path` still writes the DOS executable-path tail after the double-null terminator, using the current drive/current directory logic already used for child path reporting.
+- The shell now tries current directory `.COM`, `.EXE`, and `.BAT` first, then searches each `PATH` element from the PSP environment when the command name has no explicit drive or directory component.
+- A failed interim run exposed a bug in the new `ENVTEST.COM` helper: after skipping `COMSPEC`, it advanced its search key and looked for `ATH=` instead of `PATH=`. The helper now preserves the original key pointer across environment strings.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_envpath.py` failed before the fix and passes after the environment/PATH implementation.
+- `python3 scripts/test_shell.py` passes after the shell lookup changes.
+- `make test` passes with `scripts/test_envpath.py` included.
+- `git diff --check` and `python3 -m py_compile scripts/test_envpath.py` pass.
+
 ## 2026-05-25 Review Follow-Up: Close Written Handles On Termination
 
 ### Symptoms

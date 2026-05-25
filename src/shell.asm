@@ -334,6 +334,7 @@ prepare_command:
     push ds
     pop es
     mov byte [command_has_ext], 0
+    mov byte [command_has_path], 0
     mov word [command_ext_off], 0
     mov byte [tail_has_args], 0
     mov si, line_buf
@@ -352,6 +353,15 @@ prepare_command:
     mov [command_ext_off], di
     jmp .copy
 .not_dot:
+    cmp al, '\'
+    je .path_char
+    cmp al, '/'
+    je .path_char
+    cmp al, ':'
+    jne .store_char
+.path_char:
+    mov byte [command_has_path], 1
+.store_char:
     stosb
     jmp .copy
 .end_name_space:
@@ -428,6 +438,24 @@ run_command:
     mov byte [di+2], 'T'
     call run_batch
     jnc .ok
+    mov di, [command_ext_off]
+    mov byte [di], 'C'
+    mov byte [di+1], 'O'
+    mov byte [di+2], 'M'
+    call run_path_exec
+    jnc .ok_exec
+    mov di, [command_ext_off]
+    mov byte [di], 'E'
+    mov byte [di+1], 'X'
+    mov byte [di+2], 'E'
+    call run_path_exec
+    jnc .ok_exec
+    mov di, [command_ext_off]
+    mov byte [di], 'B'
+    mov byte [di+1], 'A'
+    mov byte [di+2], 'T'
+    call run_path_batch
+    jnc .ok
     jmp .bad
 .explicit_ext:
     call command_ext_is_bat
@@ -436,9 +464,13 @@ run_command:
     push cs
     pop ds
     jnc .ok_exec
+    call run_path_exec
+    jnc .ok_exec
     jmp .bad
 .run_bat:
     call run_batch
+    jnc .ok
+    call run_path_batch
     jc .bad
 .ok:
     push cs
@@ -497,6 +529,14 @@ run_batch:
     push cs
     pop ds
     mov dx, command_name
+    jmp run_batch_named
+
+run_batch_path:
+    push cs
+    pop ds
+    mov dx, path_command_name
+
+run_batch_named:
     xor al, al
     mov ah, 0x3D
     int 0x21
@@ -541,6 +581,196 @@ run_batch:
     int 0x21
 .err:
     stc
+    ret
+
+run_path_exec:
+    mov byte [path_run_mode], 0
+    jmp run_path_command
+
+run_path_batch:
+    mov byte [path_run_mode], 1
+
+run_path_command:
+    cmp byte [command_has_path], 0
+    jne .err
+    call find_path_value
+    jc .err
+.next:
+    call build_path_candidate
+    jc .err
+    cmp byte [path_run_mode], 0
+    jne .batch
+    call run_candidate_exec
+    jmp .after_try
+.batch:
+    call run_batch_path
+.after_try:
+    push cs
+    pop ds
+    jnc .ok
+    cmp byte [path_more], 0
+    jne .next
+.err:
+    push cs
+    pop ds
+    stc
+    ret
+.ok:
+    clc
+    ret
+
+run_candidate_exec:
+    mov word [exec_params], 0
+    mov word [exec_params+2], cmd_tail
+    mov word [exec_params+4], cs
+    mov word [exec_params+6], 0
+    mov word [exec_params+8], 0
+    mov word [exec_params+10], 0
+    mov word [exec_params+12], 0
+    push cs
+    pop es
+    mov bx, exec_params
+    mov dx, path_command_name
+    mov ax, 0x4B00
+    int 0x21
+    ret
+
+find_path_value:
+    push ax
+    push bx
+    push dx
+    push si
+    push di
+    push es
+    mov ah, 0x62
+    int 0x21
+    push cs
+    pop ds
+    mov ax, bx
+    mov es, ax
+    mov ax, [es:0x2C]
+    test ax, ax
+    jz .not_found
+    mov es, ax
+    xor bx, bx
+.next_string:
+    cmp byte [es:bx], 0
+    je .not_found
+    mov si, path_env_name
+    mov di, bx
+.compare:
+    lodsb
+    test al, al
+    jz .found
+    cmp al, [es:di]
+    jne .skip_string
+    inc di
+    jmp .compare
+.skip_string:
+    mov di, bx
+.skip_loop:
+    cmp byte [es:di], 0
+    je .skipped
+    inc di
+    jmp .skip_loop
+.skipped:
+    lea bx, [di+1]
+    jmp .next_string
+.found:
+    mov ax, es
+    mov [path_env_seg], ax
+    mov [path_ptr], di
+    pop es
+    pop di
+    pop si
+    pop dx
+    pop bx
+    pop ax
+    clc
+    ret
+.not_found:
+    pop es
+    pop di
+    pop si
+    pop dx
+    pop bx
+    pop ax
+    stc
+    ret
+
+build_path_candidate:
+    push ax
+    push bx
+    push ds
+    push es
+    push si
+    push di
+.next_element:
+    mov ax, [cs:path_env_seg]
+    mov ds, ax
+    push cs
+    pop es
+    mov si, [cs:path_ptr]
+    mov di, path_command_name
+    xor bx, bx
+    mov byte [cs:path_last_char], 0
+.copy_path:
+    lodsb
+    test al, al
+    jz .end_zero
+    cmp al, ';'
+    je .end_sep
+    cmp di, path_command_name + 128
+    jae .err
+    stosb
+    mov [cs:path_last_char], al
+    inc bl
+    jmp .copy_path
+.end_sep:
+    mov [cs:path_ptr], si
+    mov byte [cs:path_more], 1
+    jmp .finish_element
+.end_zero:
+    mov [cs:path_ptr], si
+    mov byte [cs:path_more], 0
+.finish_element:
+    test bl, bl
+    jnz .have_element
+    cmp byte [cs:path_more], 0
+    jne .next_element
+    jmp .err
+.have_element:
+    mov al, [cs:path_last_char]
+    cmp al, '\'
+    je .append_command
+    cmp al, '/'
+    je .append_command
+    mov al, '\'
+    cmp di, path_command_name + 128
+    jae .err
+    stosb
+.append_command:
+    push cs
+    pop ds
+    mov si, command_name
+.copy_command:
+    lodsb
+    cmp di, path_command_name + 128
+    jae .err
+    stosb
+    test al, al
+    jnz .copy_command
+    clc
+    jmp .done
+.err:
+    stc
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop bx
+    pop ax
     ret
 
 batch_read_line:
@@ -702,11 +932,19 @@ times 64 db 0
 cwd_buf: times 64 db 0
 command_name: times 64 db 0
 command_has_ext: db 0
+command_has_path: db 0
 command_ext_off: dw 0
 tail_src: dw 0
 tail_has_args: db 0
 cmd_tail: times 128 db 0
 exec_params: times 14 db 0
+path_env_name: db "PATH=", 0
+path_env_seg: dw 0
+path_ptr: dw 0
+path_more: db 0
+path_last_char: db 0
+path_run_mode: db 0
+path_command_name: times 128 db 0
 dir_dta: times 64 db 0
 type_handle: dw 0
 type_buf: times type_buf_size db 0

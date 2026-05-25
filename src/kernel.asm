@@ -484,9 +484,7 @@ init_environment:
     mov ax, ENV_SEG
     mov es, ax
     xor di, di
-    xor ax, ax
-    stosb
-    stosb
+    call write_environment_vars
     mov ax, 1
     stosw
     mov al, [cs:dos_drive_letter]
@@ -522,6 +520,59 @@ init_environment:
     pop ds
     pop cx
     pop ax
+    ret
+
+write_environment_vars:
+    push ax
+    push ds
+    push si
+    push cs
+    pop ds
+    mov si, env_comspec_name
+    call env_copy_part
+    call env_copy_drive_root
+    mov si, env_shell_name
+    call env_copy_string
+    mov si, env_path_name
+    call env_copy_part
+    call env_copy_drive_root
+    mov al, ';'
+    stosb
+    call env_copy_drive_root
+    mov si, env_bin_dir
+    call env_copy_string
+    mov si, env_prompt
+    call env_copy_string
+    xor al, al
+    stosb
+    pop si
+    pop ds
+    pop ax
+    ret
+
+env_copy_part:
+    lodsb
+    test al, al
+    jz .done
+    stosb
+    jmp env_copy_part
+.done:
+    ret
+
+env_copy_string:
+    lodsb
+    stosb
+    test al, al
+    jnz env_copy_string
+    ret
+
+env_copy_drive_root:
+    mov al, [cs:dos_drive_letter]
+    stosb
+    mov al, ':'
+    stosb
+    mov al, '\'
+    stosb
     ret
 
 init_interrupts:
@@ -6361,9 +6412,7 @@ update_exec_environment_path:
     mov ax, ENV_SEG
     mov es, ax
     xor di, di
-    xor ax, ax
-    stosb
-    stosb
+    call write_environment_vars
     mov ax, 1
     stosw
     mov al, [cs:dos_drive_letter]
@@ -7735,6 +7784,11 @@ msg_exe_load: db "EXE loaded", 13, 10, 0
 msg_returned: db "Program exited, code=", 0
 msg_crlf:     db 13, 10, 0
 msg_halt:     db "HALT", 13, 10, 0
+env_comspec_name: db "COMSPEC=", 0
+env_path_name: db "PATH=", 0
+env_shell_name: db "SHELL.COM", 0
+env_bin_dir: db "BIN", 0
+env_prompt: db "PROMPT=$P$G", 0
 msg_unhandled: db "INT 21h AH=", 0
 msg_int33:     db "INT 33h AX=", 0
 msg_mouse_ps2_on: db "PS2 mouse enabled", 13, 10, 0

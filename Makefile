@@ -167,6 +167,7 @@ test: $(DISK_IMG)
 	$(PYTHON) scripts/test_console.py
 	$(PYTHON) scripts/test_diskfree.py
 	$(PYTHON) scripts/test_dirextfail.py
+	$(PYTHON) scripts/test_envpath.py
 	$(PYTHON) scripts/test_findattr.py
 	$(PYTHON) scripts/test_findnext.py
 	$(PYTHON) scripts/test_findtime.py
