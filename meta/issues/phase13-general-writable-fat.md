@@ -24,6 +24,8 @@ Generalize FAT writes beyond minimal std-handle support so shell commands and ga
 
 ## Notes
 
+- Completed after broad writable FAT coverage and Monkey Island 2 save/load validation.
+- Final closure checks: `make test` passed; `python3 scripts/test_mi2_save.py` passed with `SAVEGAME.002 created, size=31358`; user confirmed manual Monkey Island 2 savegames work.
 - This overlaps with Phase 9 save-game writes; Phase 13 is the broader shell/filesystem version.
 - Root create/write/delete/rename/date support is implemented and covered by `SAVEWR.COM`.
 - Bare-filename create/write/delete/rename now also works in the current subdirectory, covered by `CD MIDEMO` regression coverage in `SAVEWR.COM`.
@@ -31,4 +33,4 @@ Generalize FAT writes beyond minimal std-handle support so shell commands and ga
 - Full subdirectories now extend by allocating, zeroing, linking, and flushing a new directory cluster; covered by forcing `MIDEMO/SUBUSED.DAT` into an extended directory cluster.
 - Seek-past-EOF writes now zero-fill gaps before writing caller data, covered by `GAP.DAT` reusing a stale freed cluster.
 - Multi-component create/delete/rename paths such as `DIR\FILE.DAT` now resolve the parent directory and operate on the final path component; covered by `MIDEMO\PATHSAVE.DAT` regression coverage.
-- Remaining gap is actual Monkey load validation.
+- Actual game load validation is covered by the Monkey Island 2 manual save/load confirmation recorded at closure.
