@@ -2,6 +2,24 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 Review Follow-Up: Directory Extension Rollback
+
+### Symptoms
+
+- Reviewers flagged that subdirectory extension links a newly allocated cluster into the FAT chain before zeroing and writing that cluster.
+- If the zero-sector write fails, a later FAT flush can persist the extended directory chain even though the original create/mkdir returned an error.
+
+### Confirmed Facts
+
+- `scripts/test_dirextfail.py` builds a fault-injection kernel with `TEST_DIR_EXT_ZERO_FAIL`, fills `FULLDIR` so the next create must extend it, forces the first extension zero-sector write to fail, then closes a root file to force a later FAT flush.
+- Before rollback, the DOS program reported `PASS: DIREXTFAIL`, but host FAT inspection found `FULLDIR` extended from one cluster to `[40, 55]`.
+- `find_dir_free` now stores the old FAT EOC marker before linking the new cluster. On zero-sector write or FAT flush failure after extension, it restores the old link and clears the newly allocated cluster in the in-memory FAT before returning failure.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_dirextfail.py` fails before the rollback with `FAIL: FULLDIR chain was extended after failed write` and passes after the fix.
+- `make test` passes with `scripts/test_dirextfail.py` included.
+
 ## 2026-05-25 Review Follow-Up: INT 21h Register Preservation
 
 ### Symptoms

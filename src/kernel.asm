@@ -4807,6 +4807,7 @@ find_dir_free:
     mov [cs:rid_clus], ax
     jmp .sd_cluster_loop
 .sd_extend:
+    mov [cs:dir_ext_old_next], ax
     call fat_alloc_cluster
     jc .sd_full
     mov [cs:dir_ext_cluster], ax
@@ -4831,15 +4832,23 @@ find_dir_free:
     rep stosw
     xor bx, bx
     mov ax, [cs:rid_lba]
+%ifdef TEST_DIR_EXT_ZERO_FAIL
+    cmp byte [cs:dir_ext_fail_once], 0
+    jne .sd_write_sector
+    mov byte [cs:dir_ext_fail_once], 1
+    stc
+    jmp .sd_rollback
+.sd_write_sector:
+%endif
     call write_sector
-    jc .sd_full
+    jc .sd_rollback
     inc word [cs:rid_lba]
     inc byte [cs:rid_sec_idx]
     mov al, [cs:rid_sec_idx]
     cmp al, [cs:kspc]
     jb .sd_zero_sector
     call flush_fat
-    jc .sd_full
+    jc .sd_rollback
     mov ax, SEC_BUF
     mov es, ax
     xor di, di
@@ -4850,6 +4859,14 @@ find_dir_free:
     pop bx
     clc
     ret
+.sd_rollback:
+    mov si, [cs:rid_clus]
+    mov ax, [cs:dir_ext_old_next]
+    call fat_set
+    mov si, [cs:dir_ext_cluster]
+    xor ax, ax
+    call fat_set
+    jmp .sd_full
 .sd_found:
     mov ax, [cs:rid_lba]
     mov [cs:ff_entry_lba], ax
@@ -7867,6 +7884,8 @@ pr_sep_char: db 0
 
 dir_flush_lba: dw 0
 dir_update_hoff: dw 0
+dir_ext_old_next: dw 0
+dir_ext_fail_once: db 0
 
 fat_dirty: db 0
 fat_copy_idx: db 0
