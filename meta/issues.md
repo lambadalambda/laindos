@@ -8,3 +8,6 @@
 - [ ] [Improve FAT Write Durability And Rollback](issues/improve-fat-write-durability-and-rollback.md)
 - [ ] [Separate Sector Buffers From Read Cache](issues/separate-sector-buffers-from-read-cache.md)
 - [ ] [Fill Missing DOS Compatibility APIs](issues/fill-missing-dos-compatibility-apis.md)
+- [ ] [Fix INT 21h IOCTL Register Preservation](issues/fix-int21-ioctl-register-preservation.md)
+- [ ] [Fix INT 21h File Time Register Preservation](issues/fix-int21-file-time-register-preservation.md)
+- [ ] [Fix INT 33h Mouse Setter Register Preservation](issues/fix-int33-mouse-setter-register-preservation.md)
