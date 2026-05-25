@@ -92,6 +92,32 @@ start:
     cmp di, DI_SENT
     jne fail_stdin_status_regs
 
+    xor ax, ax
+    int 0x33
+    cmp ax, 0xFFFF
+    jne fail_mouse_reset
+
+    mov ax, 0x0004
+    mov cx, 123
+    mov dx, 45
+    int 0x33
+    cmp ax, 0x0004
+    jne fail_mouse_set_regs
+
+    mov ax, 0x0007
+    mov cx, 10
+    mov dx, 20
+    int 0x33
+    cmp ax, 0x0007
+    jne fail_mouse_set_regs
+
+    mov ax, 0x0008
+    mov cx, 30
+    mov dx, 40
+    int 0x33
+    cmp ax, 0x0008
+    jne fail_mouse_set_regs
+
     push cs
     pop ds
 
@@ -119,6 +145,192 @@ start:
     jne fail_open_regs
     cmp di, DI_SENT
     jne fail_open_regs
+
+    push cs
+    pop ds
+    mov ax, ds
+    mov [saved_ds], ax
+    mov ax, ES_SENT
+    mov es, ax
+    mov bx, [handle]
+    mov cx, CX_SENT
+    mov dx, DX_SENT
+    mov si, SI_SENT
+    mov di, DI_SENT
+    mov ax, 0x4400
+    int 0x21
+    jc fail_ioctl
+    mov ax, ds
+    cmp ax, [saved_ds]
+    jne fail_ioctl_regs
+    mov ax, es
+    cmp ax, ES_SENT
+    jne fail_ioctl_regs
+    cmp bx, [handle]
+    jne fail_ioctl_regs
+    cmp cx, CX_SENT
+    jne fail_ioctl_regs
+    cmp si, SI_SENT
+    jne fail_ioctl_regs
+    cmp di, DI_SENT
+    jne fail_ioctl_regs
+    test dx, 0x0080
+    jnz fail_ioctl_info
+
+    push cs
+    pop ds
+    mov ax, ds
+    mov [saved_ds], ax
+    mov ax, ES_SENT
+    mov es, ax
+    mov bx, 0x0006
+    mov cx, CX_SENT
+    mov dx, DX_SENT
+    mov si, SI_SENT
+    mov di, DI_SENT
+    mov ax, 0x4400
+    int 0x21
+    jnc fail_ioctl_invalid
+    mov ax, ds
+    cmp ax, [saved_ds]
+    jne fail_ioctl_regs
+    mov ax, es
+    cmp ax, ES_SENT
+    jne fail_ioctl_regs
+    cmp bx, 0x0006
+    jne fail_ioctl_regs
+    cmp cx, CX_SENT
+    jne fail_ioctl_regs
+    cmp dx, DX_SENT
+    jne fail_ioctl_regs
+    cmp si, SI_SENT
+    jne fail_ioctl_regs
+    cmp di, DI_SENT
+    jne fail_ioctl_regs
+
+    push cs
+    pop ds
+    mov ax, ds
+    mov [saved_ds], ax
+    mov ax, ES_SENT
+    mov es, ax
+    mov bx, 0x00FE
+    mov cx, CX_SENT
+    mov dx, DX_SENT
+    mov si, SI_SENT
+    mov di, DI_SENT
+    mov ax, 0x4400
+    int 0x21
+    jnc fail_ioctl_invalid
+    mov ax, ds
+    cmp ax, [saved_ds]
+    jne fail_ioctl_regs
+    mov ax, es
+    cmp ax, ES_SENT
+    jne fail_ioctl_regs
+    cmp bx, 0x00FE
+    jne fail_ioctl_regs
+    cmp cx, CX_SENT
+    jne fail_ioctl_regs
+    cmp dx, DX_SENT
+    jne fail_ioctl_regs
+    cmp si, SI_SENT
+    jne fail_ioctl_regs
+    cmp di, DI_SENT
+    jne fail_ioctl_regs
+
+    push cs
+    pop ds
+    mov ax, ds
+    mov [saved_ds], ax
+    mov ax, ES_SENT
+    mov es, ax
+    mov bx, [handle]
+    mov cx, CX_SENT
+    mov dx, DX_SENT
+    mov si, SI_SENT
+    mov di, DI_SENT
+    mov ax, 0x5701
+    int 0x21
+    jc fail_file_time_set
+    mov ax, ds
+    cmp ax, [saved_ds]
+    jne fail_file_time_regs
+    mov ax, es
+    cmp ax, ES_SENT
+    jne fail_file_time_regs
+    cmp bx, [handle]
+    jne fail_file_time_regs
+    cmp cx, CX_SENT
+    jne fail_file_time_regs
+    cmp dx, DX_SENT
+    jne fail_file_time_regs
+    cmp si, SI_SENT
+    jne fail_file_time_regs
+    cmp di, DI_SENT
+    jne fail_file_time_regs
+
+    push cs
+    pop ds
+    mov ax, ds
+    mov [saved_ds], ax
+    mov ax, ES_SENT
+    mov es, ax
+    mov bx, [handle]
+    xor cx, cx
+    xor dx, dx
+    mov si, SI_SENT
+    mov di, DI_SENT
+    mov ax, 0x5700
+    int 0x21
+    jc fail_file_time_get
+    cmp cx, CX_SENT
+    jne fail_file_time_value
+    cmp dx, DX_SENT
+    jne fail_file_time_value
+    mov ax, ds
+    cmp ax, [saved_ds]
+    jne fail_file_time_regs
+    mov ax, es
+    cmp ax, ES_SENT
+    jne fail_file_time_regs
+    cmp bx, [handle]
+    jne fail_file_time_regs
+    cmp si, SI_SENT
+    jne fail_file_time_regs
+    cmp di, DI_SENT
+    jne fail_file_time_regs
+
+    push cs
+    pop ds
+    mov ax, ds
+    mov [saved_ds], ax
+    mov ax, ES_SENT
+    mov es, ax
+    mov bx, 0x0006
+    mov cx, CX_SENT
+    mov dx, DX_SENT
+    mov si, SI_SENT
+    mov di, DI_SENT
+    mov ax, 0x5701
+    int 0x21
+    jnc fail_file_time_invalid
+    mov ax, ds
+    cmp ax, [saved_ds]
+    jne fail_file_time_regs
+    mov ax, es
+    cmp ax, ES_SENT
+    jne fail_file_time_regs
+    cmp bx, 0x0006
+    jne fail_file_time_regs
+    cmp cx, CX_SENT
+    jne fail_file_time_regs
+    cmp dx, DX_SENT
+    jne fail_file_time_regs
+    cmp si, SI_SENT
+    jne fail_file_time_regs
+    cmp di, DI_SENT
+    jne fail_file_time_regs
 
     mov ax, ES_SENT
     mov es, ax
@@ -490,6 +702,39 @@ fail_getvec_output:
     jmp fail
 fail_stdin_status_regs:
     mov dx, fail_stdin_status_regs_msg
+    jmp fail
+fail_mouse_reset:
+    mov dx, fail_mouse_reset_msg
+    jmp fail
+fail_mouse_set_regs:
+    mov dx, fail_mouse_set_regs_msg
+    jmp fail
+fail_ioctl:
+    mov dx, fail_ioctl_msg
+    jmp fail
+fail_ioctl_invalid:
+    mov dx, fail_ioctl_invalid_msg
+    jmp fail
+fail_ioctl_regs:
+    mov dx, fail_ioctl_regs_msg
+    jmp fail
+fail_ioctl_info:
+    mov dx, fail_ioctl_info_msg
+    jmp fail
+fail_file_time_set:
+    mov dx, fail_file_time_set_msg
+    jmp fail
+fail_file_time_get:
+    mov dx, fail_file_time_get_msg
+    jmp fail
+fail_file_time_value:
+    mov dx, fail_file_time_value_msg
+    jmp fail
+fail_file_time_invalid:
+    mov dx, fail_file_time_invalid_msg
+    jmp fail
+fail_file_time_regs:
+    mov dx, fail_file_time_regs_msg
 fail:
     push cs
     pop ds
@@ -527,6 +772,17 @@ fail_time_regs_msg: db "FAIL: REGPRES TIME REGS", 13, 10, "$"
 fail_getvec_regs_msg: db "FAIL: REGPRES GETVEC REGS", 13, 10, "$"
 fail_getvec_output_msg: db "FAIL: REGPRES GETVEC OUTPUT", 13, 10, "$"
 fail_stdin_status_regs_msg: db "FAIL: REGPRES STDIN STATUS REGS", 13, 10, "$"
+fail_mouse_reset_msg: db "FAIL: REGPRES MOUSE RESET", 13, 10, "$"
+fail_mouse_set_regs_msg: db "FAIL: REGPRES MOUSE SET REGS", 13, 10, "$"
+fail_ioctl_msg: db "FAIL: REGPRES IOCTL", 13, 10, "$"
+fail_ioctl_invalid_msg: db "FAIL: REGPRES IOCTL INVALID", 13, 10, "$"
+fail_ioctl_regs_msg: db "FAIL: REGPRES IOCTL REGS", 13, 10, "$"
+fail_ioctl_info_msg: db "FAIL: REGPRES IOCTL INFO", 13, 10, "$"
+fail_file_time_set_msg: db "FAIL: REGPRES FILE TIME SET", 13, 10, "$"
+fail_file_time_get_msg: db "FAIL: REGPRES FILE TIME GET", 13, 10, "$"
+fail_file_time_value_msg: db "FAIL: REGPRES FILE TIME VALUE", 13, 10, "$"
+fail_file_time_invalid_msg: db "FAIL: REGPRES FILE TIME INVALID", 13, 10, "$"
+fail_file_time_regs_msg: db "FAIL: REGPRES FILE TIME REGS", 13, 10, "$"
 fail_resize_msg: db "FAIL: REGPRES RESIZE", 13, 10, "$"
 fail_resize_error_msg: db "FAIL: REGPRES RESIZE ERROR", 13, 10, "$"
 fail_resize_regs_msg: db "FAIL: REGPRES RESIZE REGS", 13, 10, "$"

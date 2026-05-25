@@ -2,6 +2,33 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 Register Preservation Follow-Ups
+
+### Symptoms
+
+- Advisor review found three more concrete register-preservation hazards after the Simon `AH=4Ah` fix: IOCTL get-device-info, file timestamp set, and mouse setter calls.
+- A test-first `REGPRES.COM` update failed before the kernel fixes with `FAIL: REGPRES MOUSE SET REGS`, confirming at least one live clobber.
+
+### Confirmed Facts
+
+- `INT 33h AX=0004h`, `AX=0007h`, and `AX=0008h` called `mouse_clamp_position`, which used `AX` as scratch and returned with `AX` holding the clamped Y coordinate.
+- `INT 21h AH=44h AL=00h` used `CX` for `HANDLE_SIZE` and `mul cx` while computing handle offsets. The invalid-handle path also let `mul` clobber `DX` before returning an error.
+- `INT 21h AH=57h AL=01h` copied input `CX/DX` to temporary storage, then used `CX` for `HANDLE_SIZE` and `mul cx`; set-time success and error paths returned with caller `CX/DX` clobbered.
+- Fixes preserve `AX` around mouse clamping, preserve `CX/DX` around IOCTL handle offset computation, and keep saved `CX/DX` on the file-time stack frame while still returning timestamp outputs for `AH=57h AL=00h`.
+- Review found no correctness bugs and suggested two extra coverage checks; `REGPRES.COM` now also covers the IOCTL early invalid-handle path and `AH=57h AL=00h` get-time outputs after a set-time call.
+
+### Tests And Probes Run
+
+- Before the kernel fixes, `python3 scripts/test_regpres.py` failed with `FAIL: REGPRES MOUSE SET REGS`.
+- After the fixes and review follow-up coverage, `python3 scripts/test_regpres.py` passes.
+- `make test` passes after the review follow-up coverage.
+- `git diff --check` passes.
+- A focused direct QEMU boot of `MOUSE.EXE` passes with `PASS: MOUSE` and `Program exited, code=00`.
+
+### Follow-Ups
+
+- Request code review before committing or archiving the three focused register-preservation issues.
+
 ## 2026-05-25 Simon RUNVGA Resize Register Preservation
 
 ### Symptoms

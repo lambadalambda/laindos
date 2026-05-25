@@ -768,7 +768,9 @@ int33_handler:
 .set_pos:
     mov [cs:mouse_x], cx
     mov [cs:mouse_y], dx
+    push ax
     call mouse_clamp_position
+    pop ax
     iret
 .set_x_range:
     cmp cx, dx
@@ -777,7 +779,9 @@ int33_handler:
 .set_x_ordered:
     mov [cs:mouse_min_x], cx
     mov [cs:mouse_max_x], dx
+    push ax
     call mouse_clamp_position
+    pop ax
     iret
 .set_y_range:
     cmp cx, dx
@@ -786,7 +790,9 @@ int33_handler:
 .set_y_ordered:
     mov [cs:mouse_min_y], cx
     mov [cs:mouse_max_y], dx
+    push ax
     call mouse_clamp_position
+    pop ax
     iret
 .get_button_press:
     cmp bx, 0
@@ -3846,10 +3852,14 @@ int21_handler:
     jae .ioctl_bad_handle
     push bx
     push ax
+    push cx
+    push dx
     mov ax, bx
     mov cx, HANDLE_SIZE
     mul cx
     mov bx, ax
+    pop dx
+    pop cx
     pop ax
     cmp byte [cs:bx+handles+H_USED], 0
     je .ioctl_bad_handle_pop
@@ -4169,6 +4179,8 @@ int21_handler:
     cmp bx, MAX_HANDLES
     jae .ft_bad_handle
     push si
+    push cx
+    push dx
     mov [cs:ft_mode], al
     mov [cs:ft_time], cx
     mov [cs:ft_date], dx
@@ -4182,10 +4194,14 @@ int21_handler:
     je .ft_get
     cmp byte [cs:ft_mode], 1
     je .ft_set
+    pop dx
+    pop cx
     pop si
     mov ax, 1
     jmp iret_cy
 .ft_get:
+    pop ax
+    pop ax
     mov cx, [cs:si+handles+H_TIME]
     mov dx, [cs:si+handles+H_DATE]
     pop si
@@ -4197,13 +4213,19 @@ int21_handler:
     mov [cs:si+handles+H_DATE], ax
     call flush_handle_dir_entry
     jc .ft_io_err_saved
+    pop dx
+    pop cx
     pop si
     jmp iret_nc
 .ft_io_err_saved:
+    pop dx
+    pop cx
     pop si
     mov ax, 5
     jmp iret_cy
 .ft_bad_handle_saved:
+    pop dx
+    pop cx
     pop si
 .ft_bad_handle:
     mov ax, 6

@@ -27,3 +27,6 @@
 - [x] [Fix High-Allocation MCB Chain Split](issues/fix-high-allocation-mcb-chain-split.md)
 - [x] [Add Kernel Memory Layout Assertions](issues/add-kernel-memory-layout-assertions.md)
 - [x] [Harden DOS Device Path Parsing](issues/harden-dos-device-path-parsing.md)
+- [x] [Fix INT 21h IOCTL Register Preservation](issues/fix-int21-ioctl-register-preservation.md)
+- [x] [Fix INT 21h File Time Register Preservation](issues/fix-int21-file-time-register-preservation.md)
+- [x] [Fix INT 33h Mouse Setter Register Preservation](issues/fix-int33-mouse-setter-register-preservation.md)
