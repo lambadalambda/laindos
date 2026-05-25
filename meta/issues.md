@@ -1,4 +1,3 @@
-- [ ] [Phase 9: Save-Game Writes](issues/phase9-save-game-writes.md)
 - [ ] [Phase 13: General Writable FAT Filesystem](issues/phase13-general-writable-fat.md)
 - [ ] [Phase 15: Environment and PATH](issues/phase15-environment-path.md)
 - [ ] [Phase 16: Batch Files and AUTOEXEC](issues/phase16-batch-files-autoexec.md)

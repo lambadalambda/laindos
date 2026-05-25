@@ -23,6 +23,8 @@ Implement file creation, writing, closing, renaming, and date/time functions so 
 
 ## Notes
 
+- Completed after automated save/write coverage and manual Monkey Island 2 save/load confirmation.
+- Final closure checks: `make test` passed, and `python3 scripts/test_mi2_save.py` passed with `SAVEGAME.002 created, size=31358`.
 - User reported an interactive save attempt produced a working record file, confirming practical game-side file creation/write behavior. Keep the phase open until load behavior is verified and the saved-file format/flow is understood.
 - Full VGA Monkey Island boots and runs interactively from `build/monkey_full.img`, but user reported `F5` did not open the save menu. Save/load validation remains open.
 - Full Monkey Island 2 save automation now exists in `scripts/test_mi2_save.py`. It reaches the F5 save dialog, enters slot 2 name `auto`, clicks `OK`, then checks the disk image for `C:\MI2\SAVEGAME.002` with an `auto` name prefix.
