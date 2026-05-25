@@ -2,6 +2,26 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 HD Games DIR Listing
+
+### Symptoms
+
+- The all-games HD image appeared to contain only kernel files when viewed through the shell runner.
+- Rebuilding `build/games_hd_all.img` still produced a FAT image with root directories for `M1DEMO`, `MONKEY`, `MI2DEMO`, `MI2`, and `SIMON`, so the builder was adding game files correctly.
+
+### Confirmed Facts
+
+- A direct FAT directory scan showed `KERNEL.SYS`, `SHELL.COM`, and all game directories with populated subdirectories.
+- Running `DIR` inside LainDOS on `build/games_hd_all.img` initially printed only `KERNEL.SYS` and `SHELL.COM`.
+- The shell `DIR` command used `FindFirst` with `CX=0`, which excludes directory entries after the FindFirst attribute-filtering fix.
+- Updating shell `DIR` to call `FindFirst` with `CX=0x10` includes directory entries again.
+
+### Tests And Probes Run
+
+- `python3 scripts/build_games_hd_all.py` rebuilt the all-games image.
+- A QEMU shell probe of `DIR` on `build/games_hd_all.img` now shows `M1DEMO`, `MONKEY`, `MI2DEMO`, `MI2`, and `SIMON`.
+- `scripts/test_shell.py` now adds a `DIRONLY` subdirectory and asserts it appears in shell `DIR` output.
+
 ## 2026-05-25 Architecture Review Follow-Up
 
 ### Symptoms

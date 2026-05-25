@@ -71,6 +71,7 @@ def build_image():
         os.path.join(BUILDDIR, "packseg.exe"),
         os.path.join(BUILDDIR, "testbat.bat"),
         os.path.join(BUILDDIR, "testfile.dat"),
+        f"DIRONLY:{os.path.join(BUILDDIR, 'subtest.dat')}",
         f"MIDEMO:{os.path.join(BUILDDIR, 'helloexe.exe')}",
         f"MIDEMO:{os.path.join(BUILDDIR, 'subtest.dat')}",
     ])
@@ -215,6 +216,7 @@ def main():
         "SHELL.COM",
         "HELLO.COM",
         "HELLOEXE.EXE",
+        "DIRONLY",
         "Hello from TESTFILE.DAT! This is test data for LainDOS file I/O.",
         "PASS: HELLO.EXE",
         "EXECTEST.COM",

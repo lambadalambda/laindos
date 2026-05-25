@@ -1,6 +1,8 @@
 [bits 16]
 [org 0x0100]
 
+ATTR_DIR equ 0x10
+
 start:
     push cs
     pop ds
@@ -87,7 +89,7 @@ do_dir:
     mov ah, 0x1A
     int 0x21
     mov dx, dir_pattern
-    xor cx, cx
+    mov cx, ATTR_DIR
     mov ah, 0x4E
     int 0x21
     jc .done
