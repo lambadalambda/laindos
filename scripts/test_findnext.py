@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 import os
 import signal
-import struct
 import subprocess
 import sys
 
 QEMU = "qemu-system-i386"
 BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
-IMG = os.path.join(BUILDDIR, "readcache.img")
-KERNEL = os.path.join(BUILDDIR, "readcache_kernel.bin")
-CACHE_DAT = os.path.join(BUILDDIR, "cache.dat")
+IMG = os.path.join(BUILDDIR, "findnext.img")
+KERNEL = os.path.join(BUILDDIR, "findnext_kernel.bin")
 TIMEOUT = 8
 
 
@@ -23,26 +21,33 @@ def run(cmd):
         sys.exit(result.returncode)
 
 
+def write_fixture(name, data):
+    path = os.path.join(BUILDDIR, name)
+    with open(path, "wb") as f:
+        f.write(data)
+    return path
+
+
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
-    data = bytearray(600)
-    struct.pack_into("<H", data, 0x28, 0x111B)
-    with open(CACHE_DAT, "wb") as f:
-        f.write(data)
     run(["nasm", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
     run([
-        "nasm", '-DBOOT_FILE="READCACHCOM"', "-f", "bin", "src/kernel.asm",
+        "nasm", '-DBOOT_FILE="FINDNEXTCOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/readcache.asm", "-o", os.path.join(BUILDDIR, "readcach.com")])
+    run(["nasm", "-f", "bin", "src/findnext.asm", "-o", os.path.join(BUILDDIR, "findnext.com")])
+    a_txt = write_fixture("a.txt", b"alpha\n")
+    b_txt = write_fixture("b.txt", b"bravo\n")
+    z_com = write_fixture("z.com", b"dummy\n")
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
         KERNEL,
         IMG,
-        os.path.join(BUILDDIR, "readcach.com"),
-        CACHE_DAT,
-        f"MIDEMO:{CACHE_DAT}",
+        os.path.join(BUILDDIR, "findnext.com"),
+        a_txt,
+        b_txt,
+        z_com,
     ])
 
 
@@ -80,7 +85,7 @@ def main():
     build_image()
     output = run_qemu()
     failed = False
-    for marker in ["PASS: READCACHE", "Program exited, code=00"]:
+    for marker in ["PASS: FINDNEXT", "Program exited, code=00"]:
         if marker in output:
             print(f"  PASS: found '{marker}'")
         else:
@@ -95,7 +100,7 @@ def main():
         print(output)
         print("--- end ---")
         sys.exit(1)
-    print("\nRead cache test passed.")
+    print("\nFindNext DTA test passed.")
 
 
 if __name__ == "__main__":

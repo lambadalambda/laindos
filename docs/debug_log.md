@@ -2,6 +2,26 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 Review Follow-Up: FindNext And SEC_BUF Cache
+
+### Symptoms
+
+- Reviewers flagged `FindNext` continuing searches from kernel globals instead of the active DTA, which could corrupt interleaved directory searches.
+- Reviewers also flagged a remaining stale `SEC_BUF` cache path where code could overwrite `SEC_BUF` directly before `write_sector`, bypassing the previous `read_sector` cache invalidation fix.
+
+### Confirmed Facts
+
+- `scripts/test_findnext.py` initially failed with `FAIL: FINDNEXT NEXT TXT`: after `FindFirst("*.TXT")`, an interleaved `FindFirst("Z*.COM")`, and restoring the original DTA, `FindNext` did not continue the original TXT search.
+- `FindNext` now restores the search template, attribute mask, directory cluster, and prior entry index from the active DTA before calling `find_in_dir_from`.
+- `scripts/test_readcache.py` was extended to read a cached file sector, create a directory that fills `SEC_BUF`, and reread the same file sector; it initially failed with `FAIL: READCACHE DATA`.
+- `write_sector` now invalidates `rf_cache_valid`, covering direct `SEC_BUF` overwrite paths before the buffer is written.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_findnext.py` failed before the fix and passes after the fix.
+- `python3 scripts/test_readcache.py` failed before the `write_sector` invalidation and passes after the fix.
+- `make test` passes with both regressions included.
+
 ## 2026-05-25 MI2 Load Invalid Saved Game
 
 ### Symptoms

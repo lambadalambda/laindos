@@ -3757,9 +3757,22 @@ int21_handler:
     push bx
     push es
     push di
-    mov ax, [cs:ff_dir_cluster]
-    mov bx, [cs:ff_entry_idx]
+    mov ax, [cs:dta_seg]
+    mov ds, ax
+    mov si, [cs:dta_off]
+    mov cl, [ds:si+12]
+    mov [cs:ff_attr_mask], cl
+    mov bx, [ds:si+13]
+    mov ax, [ds:si+15]
+    mov [cs:ff_dir_cluster], ax
+    inc si
+    push cs
+    pop es
+    mov di, name_buf
+    mov cx, 11
+    rep movsb
     inc bx
+    mov ax, [cs:ff_dir_cluster]
     call find_in_dir_from
     jnc .fn_found
     pop di
@@ -4433,6 +4446,8 @@ find_in_dir_from:
     mov ax, ROOT_SEG
     mov es, ax
     mov cx, [cs:fid_idx]
+    cmp cx, ROOT_ENT_CNT
+    jae .rid_notfound
     mov ax, cx
     mov dx, 32
     mul dx
@@ -5638,6 +5653,7 @@ read_sector:
     ret
 
 write_sector:
+    mov byte [cs:rf_cache_valid], 0
     mov [cs:klba], ax
     mov byte [cs:kcnt], 1
     mov byte [cs:kret], 3

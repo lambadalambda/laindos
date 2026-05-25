@@ -4,3 +4,8 @@
 - [ ] [Phase 16: Batch Files and AUTOEXEC](issues/phase16-batch-files-autoexec.md)
 - [ ] [Phase 17: DOS Device Names](issues/phase17-dos-device-names.md)
 - [ ] [Phase 19: DOS Compatibility Matrix](issues/phase19-dos-compatibility-matrix.md)
+- [ ] [Fix FindFirst Attribute Filtering](issues/fix-findfirst-attribute-filtering.md)
+- [ ] [Return FindFirst Timestamps](issues/return-findfirst-timestamps.md)
+- [ ] [Audit INT 21h Register Preservation](issues/audit-int21-register-preservation.md)
+- [ ] [Roll Back Directory Extension Failures](issues/rollback-directory-extension-failures.md)
+- [ ] [Close Written Handles On Termination](issues/close-written-handles-on-termination.md)

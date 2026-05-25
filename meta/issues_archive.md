@@ -12,3 +12,5 @@
 - [x] [Phase 12: Console API Completion](issues/phase12-console-api-completion.md)
 - [x] [Phase 18: Boot Full VGA Monkey Island](issues/phase18-boot-full-vga-monkey-island.md)
 - [x] [Phase 14: Directory Mutation](issues/phase14-directory-mutation.md)
+- [x] [Fix FindNext DTA Search State](issues/fix-findnext-dta-search-state.md)
+- [x] [Invalidate Read Cache On SEC_BUF Overwrites](issues/invalidate-read-cache-on-secbuf-overwrites.md)
