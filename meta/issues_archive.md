@@ -24,3 +24,6 @@
 - [x] [Phase 15: Environment and PATH](issues/phase15-environment-path.md)
 - [x] [Phase 16: Batch Files and AUTOEXEC](issues/phase16-batch-files-autoexec.md)
 - [x] [Phase 17: DOS Device Names](issues/phase17-dos-device-names.md)
+- [x] [Fix High-Allocation MCB Chain Split](issues/fix-high-allocation-mcb-chain-split.md)
+- [x] [Add Kernel Memory Layout Assertions](issues/add-kernel-memory-layout-assertions.md)
+- [x] [Harden DOS Device Path Parsing](issues/harden-dos-device-path-parsing.md)

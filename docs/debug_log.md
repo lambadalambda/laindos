@@ -2,6 +2,30 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-25 Architecture Review Follow-Up
+
+### Symptoms
+
+- A broad review after Phase 17 found a high-confidence MCB split bug in `alloc_mem_direct_high`: high COM allocations left the lower free block marked `Z`, truncating later MCB walks.
+- The same review identified that kernel growth had no assembly-time guard against overlapping fixed buffers or the boot relocation source/destination assumptions.
+- `detect_device_path` read three filename bytes before checking whether a short path component had already ended.
+
+### Confirmed Facts
+
+- New `src/highmcb.asm` direct-boots as a COM target and inspects the initial MCB chain. Before the fix it failed with `FAIL: HIGHMCB FIRST SIG`; after marking the lower split block as `MCB_SIG_M`, it passes.
+- `src/memory.inc` now shares `LOAD_SEG`, `RELOC_SEG`, `SEC_BUF`, `ENV_SEG`, and `MCB_START` across boot/kernel/test assembly.
+- `src/kernel.asm` now has build-time `%error` checks for load/relocation ordering, boot relocation gap size, `SEC_BUF` overlap, and `ENV_SEG` ordering/overlap.
+- `detect_device_path` now checks for a null terminator before each device-name character read, preserving device behavior while avoiding short-component overreads.
+- `src/devnames.asm` now checks that drive/root-only strings do not open as devices and that a real `CONSOLE.DAT` file is opened normally.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_highmcb.py` fails before the MCB fix and passes after it.
+- `python3 scripts/test_devnames.py` passes with short-path and `CONSOLE.DAT` coverage.
+- `python3 -m py_compile scripts/test_highmcb.py scripts/test_devnames.py` passes.
+- `make test` passes with `scripts/test_highmcb.py` included.
+- `git diff --check` passes.
+
 ## 2026-05-25 Phase 17 DOS Device Names
 
 ### Symptoms

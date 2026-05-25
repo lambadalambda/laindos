@@ -39,11 +39,11 @@ DISK_IMG := $(BUILDDIR)/disk.img
 
 all: $(DISK_IMG)
 
-$(BOOT_BIN): $(SRCDIR)/boot.asm
+$(BOOT_BIN): $(SRCDIR)/boot.asm $(SRCDIR)/memory.inc
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(KERNEL_BIN): $(SRCDIR)/kernel.asm
+$(KERNEL_BIN): $(SRCDIR)/kernel.asm $(SRCDIR)/memory.inc
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
@@ -160,6 +160,7 @@ run: $(DISK_IMG)
 test: $(DISK_IMG)
 	$(PYTHON) scripts/test_autoexec.py
 	$(PYTHON) scripts/test_boot.py
+	$(PYTHON) scripts/test_highmcb.py
 	$(PYTHON) scripts/test_write.py
 	$(PYTHON) scripts/test_bigreloc.py
 	$(PYTHON) scripts/test_keyboard.py

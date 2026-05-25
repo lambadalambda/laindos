@@ -98,6 +98,16 @@ start:
     cmp ax, 5
     jne fail_aux
 
+    mov dx, drive_only_name
+    mov ax, 0x3D00
+    int 0x21
+    jnc fail_short
+
+    mov dx, root_only_name
+    mov ax, 0x3D00
+    int 0x21
+    jnc fail_short
+
     mov dx, real_name
     mov ax, 0x3D00
     int 0x21
@@ -119,6 +129,29 @@ start:
     jne fail_real
     cmp byte [buf+3], 'L'
     jne fail_real
+    call close_handle
+
+    mov dx, long_con_name
+    mov ax, 0x3D00
+    int 0x21
+    jc fail_long
+    mov [handle], ax
+    mov bx, ax
+    mov dx, buf
+    mov cx, 4
+    mov ah, 0x3F
+    int 0x21
+    jc fail_long
+    cmp ax, 4
+    jne fail_long
+    cmp byte [buf], 'L'
+    jne fail_long
+    cmp byte [buf+1], 'O'
+    jne fail_long
+    cmp byte [buf+2], 'N'
+    jne fail_long
+    cmp byte [buf+3], 'G'
+    jne fail_long
     call close_handle
 
     mov dx, nul_name
@@ -177,6 +210,12 @@ fail_aux:
     jmp fail
 fail_real:
     mov dx, fail_real_msg
+    jmp fail
+fail_short:
+    mov dx, fail_short_msg
+    jmp fail
+fail_long:
+    mov dx, fail_long_msg
 fail:
     mov ah, 0x09
     int 0x21
@@ -189,7 +228,10 @@ con_ext_name: db "cOn.any", 0
 con_name: db "CON", 0
 prn_name: db "PRN", 0
 aux_name: db "AUX", 0
+drive_only_name: db "C:", 0
+root_only_name: db "A:\", 0
 real_name: db "NULFILE.DAT", 0
+long_con_name: db "CONSOLE.DAT", 0
 payload: db "discarded"
 payload_len equ $ - payload
 con_write_msg: db "PASS: CONWRITE", 13, 10
@@ -206,5 +248,7 @@ fail_con_read_msg: db "FAIL: DEVNAMES CON READ", 13, 10, "$"
 fail_prn_msg: db "FAIL: DEVNAMES PRN", 13, 10, "$"
 fail_aux_msg: db "FAIL: DEVNAMES AUX", 13, 10, "$"
 fail_real_msg: db "FAIL: DEVNAMES REAL", 13, 10, "$"
+fail_short_msg: db "FAIL: DEVNAMES SHORT", 13, 10, "$"
+fail_long_msg: db "FAIL: DEVNAMES LONG", 13, 10, "$"
 handle: dw 0
 buf: times 8 db 0

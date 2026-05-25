@@ -1,0 +1,8 @@
+%ifndef __MEMORY_INC__
+%define __MEMORY_INC__
+LOAD_SEG equ 0x1000
+RELOC_SEG equ 0x0340
+SEC_BUF equ 0x0840
+ENV_SEG equ 0x0860
+MCB_START equ 0x1000
+%endif

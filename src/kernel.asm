@@ -5,7 +5,7 @@ COM1_PORT equ 0x3F8
 VGA_TEXT_SEG equ 0xB800
 VGA_COLS equ 80
 VGA_ROWS equ 25
-RELOC_SEG equ 0x0340
+%include "src/memory.inc"
 
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
@@ -13,8 +13,6 @@ FAT_SEG   equ 0x0060
 ROOT_SEG  equ 0x0180
 PSP_SEG   equ 0x3000
 TEMP_SEG  equ 0x4000
-SEC_BUF   equ 0x0840
-ENV_SEG   equ 0x0860
 
 HANDLE_SIZE equ 26
 H_USED      equ 0
@@ -44,9 +42,6 @@ ROOT_ENT_CNT equ 224
 
 MCB_SIG_M equ 'M'
 MCB_SIG_Z equ 'Z'
-%ifndef MCB_START
-%define MCB_START 0x1000
-%endif
 MEM_TOP   equ 0xA000
 
 CF equ 0x0001
@@ -4455,6 +4450,7 @@ alloc_mem_direct_high:
     mov di, si
     add di, cx
     mov al, [ds:0]
+    mov byte [ds:0], MCB_SIG_M
     dec cx
     mov [ds:3], cx
     mov es, di
@@ -4607,10 +4603,16 @@ detect_device_path:
     inc si
     jmp .skip_sep
 .read_name:
+    cmp byte [ds:si], 0
+    je .not_found
     call dev_upper_lodsb
     mov bl, al
+    cmp byte [ds:si], 0
+    je .not_found
     call dev_upper_lodsb
     mov bh, al
+    cmp byte [ds:si], 0
+    je .not_found
     call dev_upper_lodsb
     mov dl, al
     call dev_name_end
@@ -8433,3 +8435,19 @@ mouse_press_y_l: dw 100
 mouse_press_x_r: dw 320
 mouse_press_y_r: dw 100
 kernel_end:
+
+%if LOAD_SEG <= RELOC_SEG
+%error "LOAD_SEG must be above RELOC_SEG"
+%endif
+%if (kernel_end - kernel_entry) > ((LOAD_SEG - RELOC_SEG) * 16)
+%error "kernel exceeds boot relocation gap"
+%endif
+%if (kernel_end - kernel_entry) > ((SEC_BUF - RELOC_SEG) * 16)
+%error "kernel overlaps SEC_BUF"
+%endif
+%if SEC_BUF >= ENV_SEG
+%error "SEC_BUF must remain below ENV_SEG"
+%endif
+%if (kernel_end - kernel_entry) > ((ENV_SEG - RELOC_SEG) * 16)
+%error "kernel overlaps ENV_SEG"
+%endif

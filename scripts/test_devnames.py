@@ -35,6 +35,8 @@ def build_image():
     run(["nasm", "-f", "bin", "src/devnames.asm", "-o", os.path.join(BUILDDIR, "devnames.com")])
     with open(os.path.join(BUILDDIR, "nulfile.dat"), "wb") as f:
         f.write(b"REAL")
+    with open(os.path.join(BUILDDIR, "console.dat"), "wb") as f:
+        f.write(b"LONG")
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
@@ -42,6 +44,7 @@ def build_image():
         IMG,
         os.path.join(BUILDDIR, "devnames.com"),
         os.path.join(BUILDDIR, "nulfile.dat"),
+        os.path.join(BUILDDIR, "console.dat"),
     ])
 
 
@@ -181,6 +184,11 @@ def main():
         failed = True
     else:
         print("  PASS: no real NUL file created")
+    if root_has_name(b"CONSOLE DAT"):
+        print("  PASS: CONSOLE.DAT on disk")
+    else:
+        print("  FAIL: CONSOLE.DAT missing from disk")
+        failed = True
     if failed:
         print("\n--- QEMU serial output ---")
         print(output)
