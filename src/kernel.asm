@@ -1208,10 +1208,14 @@ int21_handler:
     je .get_dta
     cmp ah, 0x30
     je .get_version
+    cmp ah, 0x33
+    je .break_check
     cmp ah, 0x35
     je .get_vector
     cmp ah, 0x36
     je .get_disk_free
+    cmp ah, 0x38
+    je .country_info
     cmp ah, 0x4E
     je .find_first
     cmp ah, 0x4F
@@ -1582,6 +1586,46 @@ int21_handler:
     mov cx, [cs:bpb_copy+11]
     pop si
     jmp iret_nc
+.country_info:
+    cmp al, 0xFF
+    je .ci_set
+    cmp al, 0
+    je .ci_get
+    cmp al, 1
+    je .ci_get
+    mov ax, 2
+    jmp iret_cy
+.ci_get:
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    push es
+    push ds
+    pop es
+    mov di, dx
+    push cs
+    pop ds
+    mov si, country_data
+    mov cx, 17
+    cld
+    rep movsw
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    mov bx, 1
+    jmp iret_nc
+.ci_set:
+    cmp bx, 1
+    je .ci_set_ok
+    mov ax, 2
+    jmp iret_cy
+.ci_set_ok:
+    jmp iret_nc
 .get_psp:
     mov bx, [cs:cur_psp]
     jmp iret_nc
@@ -1754,6 +1798,32 @@ int21_handler:
     jmp iret_nc
 .as_set:
     mov [cs:alloc_strat], bl
+    jmp iret_nc
+.break_check:
+    cmp al, 0
+    je .bc_get
+    cmp al, 1
+    je .bc_set
+    cmp al, 5
+    je .bc_boot_drive
+    cmp al, 6
+    je .bc_true_version
+    mov ax, 1
+    jmp iret_cy
+.bc_get:
+    mov dl, [cs:break_flag]
+    jmp iret_nc
+.bc_set:
+    and dl, 1
+    mov [cs:break_flag], dl
+    jmp iret_nc
+.bc_boot_drive:
+    mov dl, [cs:dos_drive_num]
+    inc dl
+    jmp iret_nc
+.bc_true_version:
+    mov bx, 0x031E
+    xor dx, dx
     jmp iret_nc
 .alloc_mem:
     push bx
@@ -2438,6 +2508,8 @@ int21_handler:
     mov [cs:ov_cluster], ax
     mov ax, [es:di+28]
     mov [cs:ov_size_lo], ax
+    mov ax, [es:di+30]
+    mov [cs:ov_size_hi], ax
     call load_overlay_direct
     jc .exec_overlay_err
     pop di
@@ -7138,6 +7210,8 @@ load_overlay_direct:
     je .mz
     pop ds
     mov word [cs:ov_skip], 0
+    cmp word [cs:ov_size_hi], 0
+    jne .err
     mov ax, [cs:ov_size_lo]
     mov [cs:ov_left], ax
     mov ax, [cs:ov_load_seg]
@@ -7152,9 +7226,28 @@ load_overlay_direct:
     shl ax, 1
     loop .hdr_shift
     mov [cs:ov_skip], ax
-    mov ax, [cs:ov_size_lo]
+    mov ax, [0x04]
+    xor dx, dx
+    cmp word [0x02], 0
+    je .mz_size_shift
+    dec ax
+.mz_size_shift:
+    mov cx, 9
+.mz_size_loop:
+    shl ax, 1
+    rcl dx, 1
+    loop .mz_size_loop
+    mov cx, [0x02]
+    test cx, cx
+    jz .mz_size_ready
+    add ax, cx
+    adc dx, 0
+.mz_size_ready:
     sub ax, [cs:ov_skip]
+    sbb dx, 0
     jc .mz_bad_pop
+    test dx, dx
+    jnz .mz_bad_pop
     mov [cs:ov_left], ax
     mov ax, [0x06]
     mov [cs:ov_reloc_count], ax
@@ -8437,6 +8530,19 @@ msg_reg_ax:    db " AX=", 0
 msg_reg_bx:    db " BX=", 0
 msg_reg_cx:    db " CX=", 0
 msg_reg_dx:    db " DX=", 0
+country_data:
+    dw 0
+    db '$', 0, 0, 0, 0
+    db ',', 0
+    db '.', 0
+    db '/', 0
+    db ':', 0
+    db 0
+    db 2
+    db 0
+    dd 0
+    db ',', 0
+    times 10 db 0
 %if TRACE_EXEC_STATE
 msg_xstate: db "XSTATE", 0
 msg_x_psp: db " PSP=", 0
@@ -8510,6 +8616,7 @@ int13_scratch: times 32 db 0
 dos_drive_num: db 0
 dos_drive_letter: db 'A'
 dos_drive_count: db 1
+break_flag: db 0
 kret:  db 3
 dos_first_mcb: dw MCB_START
 dos_list_of_lists: times 32 db 0
@@ -8687,6 +8794,7 @@ ov_load_seg: dw 0
 ov_reloc_seg: dw 0
 ov_cluster: dw 0
 ov_size_lo: dw 0
+ov_size_hi: dw 0
 ov_skip: dw 0
 ov_left: dw 0
 ov_dst_seg: dw 0
@@ -8795,6 +8903,9 @@ kernel_end:
 %endif
 %if (kernel_end - kernel_entry) > ((ENV_SEG - RELOC_SEG) * 16)
 %error "kernel overlaps ENV_SEG"
+%endif
+%if ENV_SEG >= ROOT_SEG
+%error "ENV_SEG must remain below ROOT_SEG"
 %endif
 %if ROOT_SEG <= (RELOC_SEG + 0x05C0)
 %error "ROOT_SEG overlaps kernel stack"

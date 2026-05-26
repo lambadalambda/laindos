@@ -2,6 +2,7 @@
 [org 0x0100]
 
 reloc_count equ 140
+tail_marker_off equ 2 + reloc_count * 2 + 300
 
     mov bx, 0x0020
     mov ah, 0x48
@@ -21,6 +22,8 @@ reloc_count equ 140
     mov es, [param]
     cmp word [es:0], 0xBEEF
     jne fail_marker
+    cmp word [es:tail_marker_off], 0xCAFE
+    jne fail_tail
     mov ax, [param+2]
     mov si, 2
     mov cx, reloc_count
@@ -45,6 +48,9 @@ fail_exec:
 fail_marker:
     mov dx, fail_marker_msg
     jmp print_fail
+fail_tail:
+    mov dx, fail_tail_msg
+    jmp print_fail
 fail_reloc:
     mov dx, fail_reloc_msg
 print_fail:
@@ -59,4 +65,5 @@ pass_msg: db "PASS: OVERLAY", 13, 10, "$"
 fail_alloc_msg: db "FAIL: OVERLAY ALLOC", 13, 10, "$"
 fail_exec_msg: db "FAIL: OVERLAY EXEC", 13, 10, "$"
 fail_marker_msg: db "FAIL: OVERLAY MARKER", 13, 10, "$"
+fail_tail_msg: db "FAIL: OVERLAY TAIL", 13, 10, "$"
 fail_reloc_msg: db "FAIL: OVERLAY RELOC", 13, 10, "$"

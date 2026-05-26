@@ -1,13 +1,15 @@
 [bits 16]
 
 reloc_count equ 140
+tail_pad equ 300
+append_bytes equ 0xFF00
 hdr_bytes equ 0x001C + reloc_count * 4
 hdr_size equ (hdr_bytes + 15) / 16
 
 mz_header:
     dw 0x5A4D
-    dw (file_end - mz_header) % 512
-    dw ((file_end - mz_header) + 511) / 512
+    dw (mz_image_end - mz_header) % 512
+    dw ((mz_image_end - mz_header) + 511) / 512
     dw reloc_count
     dw hdr_size
     dw 0x0000
@@ -34,5 +36,10 @@ marker:
     dw 0xBEEF
 reloc_targets:
     times reloc_count dw 0x0000
+    times tail_pad db 0xAA
+tail_marker:
+    dw 0xCAFE
 
+mz_image_end:
+    times append_bytes db 0
 file_end:

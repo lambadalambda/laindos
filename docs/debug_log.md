@@ -2,6 +2,42 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-26 Ascendancy DOS/4GW Startup
+
+### Symptoms
+
+- After FAT16 support, `C:\ASCEND>setsound` and `C:\ASCEND>ascend` still did not start successfully.
+- With VGA/VNC enabled, both initially reached `EXC 06 at 11CE:F085` with bytes `D9 8A 00 00 ...`; screenshots still showed the shell prompt.
+- With `-nographic`, `setsound` sometimes returned to the prompt without the visible DOS/4GW path, so VGA-enabled runs were used for the real start test.
+
+### Confirmed Facts
+
+- The shared fault segment `11CE` matches the DOS4GW.EXE MZ entry CS when loaded as an `INT 21h AX=4B03h` overlay at the stub-requested load segment, not a SETSOUND/ASCEND protected-mode payload address.
+- The generic overlay loader used only the low 16 bits of the directory file size. For `DOS4GW.EXE` the full file is 265,420 bytes, so the low word is `0x0CCC`; the loader copied only about 2.7 KiB after the MZ header instead of the MZ-declared 62 KiB real-mode image.
+- A focused overlay regression now appends data after the MZ image so the full directory length low word is smaller than the MZ image, and checks a tail marker near the MZ image end. It failed before the overlay loader fix with `FAIL: OVERLAY TAIL`.
+- `INT 21h AX=4B03h` now uses MZ page-count/last-page image size for EXE overlays and rejects overlay images that exceed the current 16-bit copy length.
+- After the overlay fix, DOS/4GW progressed to ordinary DOS calls `AH=38h` country info and `AH=33h` Ctrl-Break state. LainDOS now implements those generically with US country defaults, break get/set, boot-drive query, and true-version query.
+- `SHELL.COM` now switches to an internal resident stack and shrinks its own PSP block at startup. This is generic command-processor memory behavior and avoids keeping its initial high COM allocation slack resident during child execution.
+- Kernel growth required moving `SEC_BUF` and `ENV_SEG` upward within low memory; layout guards now also ensure `ENV_SEG` remains below `ROOT_SEG`.
+
+### Tests And Probes Run
+
+- DOS trace before the overlay fix showed `setsound` opening `DOS4GW.EXE`, reading 28 MZ header bytes, then performing memory probes before the `EXC 06`; no later DOS file reads occurred because DOS4GW had been underloaded as an overlay.
+- `python3 scripts/test_overlay.py` fails before the overlay-size fix with `FAIL: OVERLAY TAIL` and passes after the fix.
+- `python3 scripts/test_dosstruct.py` fails before `AH=38h`/`AH=33h` support with `INT 21h AH=38` and passes after the API implementation.
+- VGA smoke after the fixes: `C:\ASCEND>setsound` reaches the Miles Sound Configuration Utility UI.
+- VGA smoke after the fixes: `C:\ASCEND>ascend` reaches the DOS/4GW banner, prints the Ascendancy copyright banner, then exits cleanly with `Please place the Ascendancy CD in your CDROM drive.`
+- Focused checks passed: `python3 scripts/test_overlay.py`, `python3 scripts/test_dosstruct.py`, and `python3 scripts/test_shell.py`.
+- Full `make test` passes.
+- Standalone `python3 scripts/test_mi2_save.py` passes after the shell/memory and overlay changes.
+- `python3 -m py_compile scripts/build_games_hd_all.py scripts/test_mi2_save.py scripts/test_overlay.py scripts/test_dosstruct.py` passes.
+- `git diff --check` passes.
+
+### Follow-Ups
+
+- Full Ascendancy gameplay still needs CD-ROM/MSCDEX or inclusion/mounting of the CD assets; the current progress reaches the expected missing-CD prompt.
+- DOS overlay loading still uses a 16-bit remaining-byte counter and rejects MZ overlay images above 64 KiB; larger overlays need a wider copy path if encountered.
+
 ## 2026-05-26 FAT16 HD Image Support
 
 ### Symptoms

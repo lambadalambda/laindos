@@ -6,6 +6,19 @@ ATTR_DIR equ 0x10
 start:
     push cs
     pop ds
+    cli
+    mov ax, cs
+    mov ss, ax
+    mov sp, shell_stack_top
+    sti
+    push cs
+    pop es
+    mov bx, shell_resident_paras
+    mov ah, 0x4A
+    int 0x21
+    jc resize_failed
+    push cs
+    pop ds
     mov dx, banner
     mov ah, 0x09
     int 0x21
@@ -76,6 +89,13 @@ execute_line:
 
 exit_shell:
     mov ax, 0x4C00
+    int 0x21
+
+resize_failed:
+    mov dx, resize_fail_msg
+    mov ah, 0x09
+    int 0x21
+    mov ax, 0x4C01
     int 0x21
 
 do_ver:
@@ -513,6 +533,10 @@ command_ext_is_bat:
     ret
 
 run_current_command:
+    mov dx, command_name
+    jmp run_exec_name
+
+run_exec_name:
     mov word [exec_params], 0
     mov word [exec_params+2], cmd_tail
     mov word [exec_params+4], cs
@@ -523,7 +547,6 @@ run_current_command:
     push cs
     pop es
     mov bx, exec_params
-    mov dx, command_name
     mov ax, 0x4B00
     int 0x21
     ret
@@ -639,20 +662,8 @@ run_path_command:
     ret
 
 run_candidate_exec:
-    mov word [exec_params], 0
-    mov word [exec_params+2], cmd_tail
-    mov word [exec_params+4], cs
-    mov word [exec_params+6], 0
-    mov word [exec_params+8], 0
-    mov word [exec_params+10], 0
-    mov word [exec_params+12], 0
-    push cs
-    pop es
-    mov bx, exec_params
     mov dx, path_command_name
-    mov ax, 0x4B00
-    int 0x21
-    ret
+    jmp run_exec_name
 
 find_path_value:
     push ax
@@ -926,6 +937,7 @@ path_not_found_msg: db "Path not found", 13, 10, "$"
 file_not_found_msg: db "File not found", 13, 10, "$"
 file_error_msg: db "File error", 13, 10, "$"
 missing_arg_msg: db "Missing argument", 13, 10, "$"
+resize_fail_msg: db "Shell resize failed", 13, 10, "$"
 mem_msg: db "Largest free block: $"
 mem_suffix: db " paragraphs", 13, 10, "$"
 exit_cmd: db "EXIT", 0
@@ -972,3 +984,7 @@ batch_handle: dw 0
 batch_ptr: dw 0
 batch_active: db 0
 batch_buf: times batch_buf_size db 0
+shell_stack: times 1024 db 0
+shell_stack_top:
+shell_resident_end:
+shell_resident_paras equ ((shell_resident_end - start + 0x100 + 15) / 16)
