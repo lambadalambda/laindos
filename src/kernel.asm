@@ -1183,6 +1183,8 @@ int21_handler:
     je .set_dta
     cmp ah, 0x25
     je .set_vector
+    cmp ah, 0x29
+    je .parse_fcb
     cmp ah, 0x2A
     je .get_date
     cmp ah, 0x2C
@@ -1199,6 +1201,8 @@ int21_handler:
     je .find_first
     cmp ah, 0x4F
     je .find_next
+    cmp ah, 0x52
+    je .get_list_of_lists
     cmp ah, 0x56
     je .rename_file
     cmp ah, 0x57
@@ -1566,6 +1570,141 @@ int21_handler:
 .get_psp:
     mov bx, [cs:cur_psp]
     jmp iret_nc
+.get_list_of_lists:
+    push cs
+    pop es
+    mov bx, dos_list_of_lists
+    jmp iret_nc
+.parse_fcb:
+    push bx
+    push cx
+    push dx
+    push di
+    push bp
+    mov bp, di
+    mov byte [es:bp], 0
+    mov di, bp
+    inc di
+    mov cx, 11
+    mov al, ' '
+    rep stosb
+.pf_skip:
+    mov al, [ds:si]
+    cmp al, ' '
+    je .pf_skip_one
+    cmp al, 9
+    jne .pf_scan_start
+.pf_skip_one:
+    inc si
+    jmp .pf_skip
+.pf_scan_start:
+    mov bx, si
+.pf_scan:
+    mov al, [ds:si]
+    test al, al
+    jz .pf_scan_done
+    cmp al, 13
+    je .pf_scan_done
+    cmp al, ' '
+    je .pf_scan_done
+    cmp al, 9
+    je .pf_scan_done
+    inc si
+    cmp al, '\'
+    je .pf_component
+    cmp al, '/'
+    je .pf_component
+    cmp al, ':'
+    je .pf_drive
+    jmp .pf_scan
+.pf_drive:
+    mov al, [ds:si-2]
+    call .pf_store_char
+    cmp al, 'A'
+    jb .pf_component
+    cmp al, 'Z'
+    ja .pf_component
+    sub al, 'A' - 1
+    mov [es:bp], al
+.pf_component:
+    mov bx, si
+    jmp .pf_scan
+.pf_scan_done:
+    mov dx, si
+    mov di, bp
+    mov al, [ds:bx+1]
+    cmp al, ':'
+    jne .pf_name
+    mov al, [ds:bx]
+    cmp al, 'a'
+    jb .pf_drive_upper
+    cmp al, 'z'
+    ja .pf_drive_upper
+    sub al, 32
+.pf_drive_upper:
+    cmp al, 'A'
+    jb .pf_name
+    cmp al, 'Z'
+    ja .pf_name
+    sub al, 'A' - 1
+    mov [es:di], al
+    add bx, 2
+.pf_name:
+    inc di
+    mov cx, 8
+.pf_name_loop:
+    cmp bx, dx
+    jae .pf_ext_blank
+    mov al, [ds:bx]
+    cmp al, '.'
+    je .pf_dot
+    cmp cx, 0
+    je .pf_skip_name_extra
+    call .pf_store_char
+    mov [es:di], al
+    inc di
+    inc bx
+    dec cx
+    jmp .pf_name_loop
+.pf_skip_name_extra:
+    inc bx
+    jmp .pf_name_loop
+.pf_ext_blank:
+    add di, cx
+    jmp .pf_done
+.pf_dot:
+    add di, cx
+    inc bx
+    mov cx, 3
+.pf_ext_loop:
+    cmp bx, dx
+    jae .pf_done
+    cmp cx, 0
+    je .pf_done
+    mov al, [ds:bx]
+    call .pf_store_char
+    mov [es:di], al
+    inc di
+    inc bx
+    dec cx
+    jmp .pf_ext_loop
+.pf_done:
+    mov si, dx
+    xor al, al
+    pop bp
+    pop di
+    pop dx
+    pop cx
+    pop bx
+    jmp iret_nc
+.pf_store_char:
+    cmp al, 'a'
+    jb .pfsc_done
+    cmp al, 'z'
+    ja .pfsc_done
+    sub al, 32
+.pfsc_done:
+    ret
 .alloc_strategy:
     mov [cs:log_ax], ax
     mov [cs:log_bx], bx
@@ -1620,6 +1759,8 @@ int21_handler:
     jne .am_first_strategy
     jmp near .am_find_best
 .am_first_strategy:
+    cmp word [cs:am_req], 1
+    jbe .am_first_walk
     cmp word [cs:am_req], SMALL_ALLOC_HIGH_MAX
     ja .am_first_walk
     jmp near .am_find_last
@@ -5119,6 +5260,7 @@ find_in_dir_from_common:
     pop ax
     clc
     ret
+
 .rid_notfound_pop:
     pop dx
     pop bx
@@ -6529,6 +6671,25 @@ load_exec_program:
     cmp word [0], 0x5A4D
     jne .com_size
     mov byte [cs:exec_is_exe], 1
+    mov ax, [0x04]
+    xor dx, dx
+    cmp word [0x02], 0
+    je .exe_mz_size_shift
+    dec ax
+.exe_mz_size_shift:
+    mov cx, 9
+.exe_mz_size_loop:
+    shl ax, 1
+    rcl dx, 1
+    loop .exe_mz_size_loop
+    mov cx, [0x02]
+    test cx, cx
+    jz .exe_mz_size_store
+    add ax, cx
+    adc dx, 0
+.exe_mz_size_store:
+    mov [cs:kfsize], ax
+    mov [cs:kfsize_hi], dx
     mov ax, [cs:kfsize]
     mov dx, [cs:kfsize_hi]
     add ax, 15
@@ -6538,6 +6699,8 @@ load_exec_program:
     shr dx, 1
     rcr ax, 1
     loop .exe_min_shift
+    test dx, dx
+    jnz .exe_too_large
     sub ax, [0x08]
     add ax, [0x0A]
     add ax, 0x10
@@ -6560,6 +6723,7 @@ load_exec_program:
     adc dx, 0
     test dx, dx
     jz .exe_size_ok
+.exe_too_large:
     mov ax, 8
     stc
     ret
@@ -8217,6 +8381,8 @@ dos_drive_num: db 0
 dos_drive_letter: db 'A'
 dos_drive_count: db 1
 kret:  db 3
+dos_first_mcb: dw MCB_START
+dos_list_of_lists: times 32 db 0
 
 exe_hdr_par:    dw 0
 exe_ss:         dw 0

@@ -2,6 +2,47 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-26 Ascendancy Games Image
+
+### Symptoms
+
+- The user added `vendor/Ascendancy_1995.zip` and asked to include it in the all-games hard-disk image.
+- The archive is much larger than the existing `hd20m` image path: about 110 MB uncompressed, mostly a nested `ascendy/cd/ascendancy.img` CD image.
+
+### Confirmed Facts
+
+- The installed Ascendancy files under `ascendy/`, excluding the nested `cd/` image directory, are about 14 MB.
+- The existing all-games payload plus those installed files fits in a FAT12-safe hard-disk image below the current 16-bit sector limit, using 16 sectors per cluster and 12 FAT sectors.
+- Added an `hd32m` mkimage format and switched `scripts/build_games_hd_all.py` to use it.
+- `scripts/build_games_hd_all.py` now extracts `vendor/Ascendancy_1995.zip` and places the installed `ascendy/` files in an `ASCEND` directory on `build/games_hd_all.img`; nested `ascendy/cd/` CD image files are intentionally not included.
+- The first successful `hd32m` image still used a 12-sector FAT, which overlapped the boot/kernel memory map: boot loads the FAT at `FAT_SEG=0x0060` and the root directory at `ROOT_SEG=0x0180`, so FAT data beyond 9 sectors is overwritten by the root directory. That corrupted FAT entries for late Ascendancy files like `DOS4GW.EXE` and caused EXEC I/O failure.
+- `hd32m` now keeps a 9-sector FAT and uses 22 sectors per cluster, staying within the existing FAT/root memory layout while leaving enough data capacity for the installed Ascendancy files.
+- Ascendancy's DOS/4GW-bound EXEs have an MZ header image size of about 10 KiB but carry a much larger protected-mode payload appended to the DOS image. LainDOS was using the full directory file length for EXE loading, so `ASCEND.EXE` was treated as a 587 KiB conventional-memory image and could not load from the shell. The EXE loader now uses the MZ page-count/last-page fields for the conventional image size and leaves appended payload bytes on disk for the extender to read.
+- The DOS/4GW stub also allocates 1-paragraph probe blocks and tries to resize them to maximum size. LainDOS's MI2 workaround placed all tiny default allocations high, so those 1-paragraph probes could not see the large following free block. Default 1-paragraph allocations now use normal first-fit; 2..32 paragraph default allocations still use high placement for the MI2 overlay pattern.
+- Added minimal `INT 21h AH=52h` list-of-lists support with `[ES:BX-2]` pointing at `MCB_START`, and minimal `AH=29h` FCB filename parsing. DOS/4GW reaches further with these APIs than with the generic unhandled-call failure.
+- Code review found a drive-letter parsing bug in the initial `AH=29h` parser; drive-qualified FCB inputs now set the FCB drive byte during the scan.
+
+### Tests And Probes Run
+
+- The first `hd32m` size attempt was too tight once actual cluster allocation was applied.
+- `python3 scripts/build_games_hd_all.py` rebuilt `build/games_hd_all.img` successfully at 33,488,896 bytes.
+- Image directory inspection confirmed root `FREE.COM`, root `ASCEND`, and `ASCEND\ASCEND.EXE`, `ASCEND\ASCEND01.COB`, and `ASCEND\DOS4GW.EXE` entries.
+- `python3 -m py_compile scripts/build_games_hd_all.py scripts/mkimage.py` passes.
+- `make test` passes.
+- `git diff --check` passes.
+- A QEMU hard-disk boot smoke of `build/games_hd_all.img` reaches `LainDOS Shell` at `C:\>` with no `FAIL:`, `EXC `, or `INT 21h AH=` markers.
+- Reproduced the broken launch before the cluster-size fix: `C:\ASCEND>setsound` and `dos4gw.exe` printed `Bad command or file name`; a diagnostic EXEC probe against the full image returned `AX=0001`, while the same file layout without earlier game payloads worked, confirming late-file FAT corruption rather than a DOS4GW compatibility failure.
+- After the FAT fix, `setsound.exe` found `DOS4GW.EXE` but failed with `Not enough memory`, exposing the 1-paragraph allocation placement issue.
+- After the allocation and MZ-size fixes, both `setsound.exe` and `ascend.exe` start DOS/4GW rather than failing at shell/EXEC time.
+- Current Ascendancy blocker: `setsound.exe` reaches DOS/4GW startup and then traps with `EXC 06 at FF53:093B`; `ascend.exe` traps with `EXC 06 at 0000:0003`. This is beyond file placement/EXEC and is likely the next protected-mode/DOS-extender compatibility boundary.
+- Added `src/dosstruct.asm` and `scripts/test_dosstruct.py` to cover `AH=52h` first-MCB exposure and `AH=29h` drive/name parsing.
+- Final verification for this round: `python3 scripts/build_games_hd_all.py`, `python3 scripts/test_dosstruct.py`, `python3 -m py_compile scripts/build_games_hd_all.py scripts/mkimage.py scripts/test_dosstruct.py`, `make test`, standalone `python3 scripts/test_mi2_save.py`, and `git diff --check` pass.
+
+### Follow-Ups
+
+- Full Ascendancy CD-image inclusion would require larger-disk support beyond the current 16-bit/FAT12 image path, and likely CD-ROM/MSCDEX-compatible behavior if the game requires the CD assets.
+- Continue DOS/4GW bring-up from the `EXC 06` traps if Ascendancy becomes a target; likely areas are protected-mode transition assumptions, DOS extender memory interfaces, and remaining DOS compatibility APIs.
+
 ## 2026-05-25 FREE.COM Memory Report
 
 ### Symptoms

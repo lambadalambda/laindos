@@ -10,16 +10,20 @@ BUILDDIR = "build"
 BOOT = os.path.join(BUILDDIR, "games_hd_all_boot.bin")
 KERNEL = os.path.join(BUILDDIR, "games_hd_all_kernel.bin")
 SHELL = os.path.join(BUILDDIR, "shell.com")
+FREE = os.path.join(BUILDDIR, "free.com")
 IMG = os.path.join(BUILDDIR, "games_hd_all.img")
 
 MONKEY_FULL_ZIP = "vendor/monkey_full.zip"
 MI2_DEMO_ZIP = "vendor/mi2demo.zip"
 MI2_FULL_ZIP = "vendor/Monkey_Island_2_-_LeChucks_Revenge_1991.zip"
 SIMON_DEMO_ZIP = "vendor/simon1demo.zip"
+ASCENDANCY_ZIP = "vendor/Ascendancy_1995.zip"
 MONKEY_FULL_DIR = os.path.join(BUILDDIR, "monkey_full_files")
 MI2_DEMO_DIR = os.path.join(BUILDDIR, "mi2demo")
 MI2_FULL_DIR = os.path.join(BUILDDIR, "mi2full")
 SIMON_DEMO_DIR = os.path.join(BUILDDIR, "simon1demo")
+ASCENDANCY_DIR = os.path.join(BUILDDIR, "ascendancy")
+ASCENDANCY_FILES_DIR = os.path.join(ASCENDANCY_DIR, "ascendy")
 
 
 def run(cmd):
@@ -94,6 +98,7 @@ def main():
     safe_extract(MI2_DEMO_ZIP, MI2_DEMO_DIR)
     safe_extract(MI2_FULL_ZIP, MI2_FULL_DIR)
     extract_flat(SIMON_DEMO_ZIP, SIMON_DEMO_DIR)
+    safe_extract(ASCENDANCY_ZIP, ASCENDANCY_DIR)
 
     run(["nasm", "-f", "bin", "src/boot.asm", "-o", BOOT])
     run([
@@ -101,6 +106,7 @@ def main():
         "-o", KERNEL,
     ])
     run(["nasm", "-f", "bin", "src/shell.asm", "-o", SHELL])
+    run(["nasm", "-f", "bin", "src/free.asm", "-o", FREE])
 
     m1_demo = [
         "vendor/midemo.exe",
@@ -118,19 +124,25 @@ def main():
     if not mi2_full_files:
         print(f"Missing extracted full MI2 files under {MI2_FULL_DIR}/mi2", file=sys.stderr)
         sys.exit(1)
+    ascendancy_files = files_in(ASCENDANCY_FILES_DIR)
+    if not ascendancy_files:
+        print(f"Missing extracted Ascendancy files under {ASCENDANCY_FILES_DIR}", file=sys.stderr)
+        sys.exit(1)
 
     cmd = [
-        "python3", "scripts/mkimage.py", "--format=hd20m",
+        "python3", "scripts/mkimage.py", "--format=hd32m",
         BOOT,
         KERNEL,
         IMG,
         SHELL,
+        FREE,
     ]
     cmd.extend(f"M1DEMO:{path}" for path in m1_demo)
     cmd.extend(f"MONKEY:{path}" for path in files_in(MONKEY_FULL_DIR))
     cmd.extend(f"MI2DEMO:{path}" for path in files_in(MI2_DEMO_DIR))
     cmd.extend(f"MI2:{path}" for path in mi2_full_files)
     cmd.extend(f"SIMON:{path}" for path in files_in(SIMON_DEMO_DIR))
+    cmd.extend(f"ASCEND:{path}" for path in ascendancy_files)
     run(cmd)
 
 

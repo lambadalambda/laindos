@@ -32,6 +32,7 @@ SAVEWR    := $(BUILDDIR)/savewr.com
 DIRMUT    := $(BUILDDIR)/dirmut.com
 READWRAP  := $(BUILDDIR)/readwrap.exe
 FREECOM   := $(BUILDDIR)/free.com
+DOSSTRUCT := $(BUILDDIR)/dosstruct.com
 TESTFILE  := $(BUILDDIR)/testfile.dat
 SUBTEST   := $(BUILDDIR)/subtest.dat
 DISK_IMG := $(BUILDDIR)/disk.img
@@ -148,6 +149,10 @@ $(FREECOM): $(SRCDIR)/free.asm $(SRCDIR)/memory.inc
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
+$(DOSSTRUCT): $(SRCDIR)/dosstruct.asm $(SRCDIR)/memory.inc
+	@mkdir -p $(BUILDDIR)
+	$(NASM) -f bin $< -o $@
+
 $(TESTFILE): scripts/mktestfile.py
 	@mkdir -p $(BUILDDIR)
 	$(PYTHON) $< $@
@@ -175,6 +180,7 @@ test: $(DISK_IMG)
 	$(PYTHON) scripts/test_devnames.py
 	$(PYTHON) scripts/test_diskfree.py
 	$(PYTHON) scripts/test_drive.py
+	$(PYTHON) scripts/test_dosstruct.py
 	$(PYTHON) scripts/test_free.py
 	$(PYTHON) scripts/test_dirextfail.py
 	$(PYTHON) scripts/test_envpath.py
