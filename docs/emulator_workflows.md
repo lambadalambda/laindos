@@ -112,6 +112,20 @@ Use Bochs when you need a second emulator implementation or more debugger-orient
 
 If you really need a DOS-readable hard disk image, prefer real FAT tools over Python wrappers.
 
+LainDOS also supports a minimal partitioned FAT16 hard-disk layout for regression and compatibility work:
+
+- sector 0 is a tiny LainDOS MBR chainloader.
+- partition 1 is active, type `06h`, and starts at LBA 63.
+- the FAT16 partition boot sector contains the normal LainDOS FAT16 boot code.
+- the BPB hidden-sector field must match the partition start, because boot and kernel sector I/O add that offset when reading FAT/root/data sectors.
+
+The legacy `hd32m`/`hd96m` images remain raw FAT volumes with hidden sectors set to zero. Those are convenient for LainDOS/QEMU tests but are not the same as MS-DOS hard-disk images.
+
+Current limits:
+
+- The MBR and partition boot path use CHS `INT 13h`, so keep partitioned images below the 1024-cylinder CHS limit until an extended-read boot path exists.
+- Some older filesystem call sites still carry only a 16-bit partition-relative sector number before reaching the common sector I/O offset logic. Keep directories and boot-critical files low in the partition for now.
+
 Available host/container tools noted so far:
 
 - host: `fdisk`, `qemu-img`, `newfs_msdos`, `diskutil`, `hdiutil`

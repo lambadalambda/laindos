@@ -367,6 +367,11 @@ init_bpb_geometry:
     pop ds
     mov bx, bpb_copy
 
+    mov ax, [bx+0x1C]
+    mov [cs:kpart_lba], ax
+    mov ax, [bx+0x1E]
+    mov [cs:kpart_lba_hi], ax
+
     mov byte [cs:kfat_bits], 12
     mov word [cs:kfat_eoc], 0x0FF8
     mov word [cs:kfat_eoc_value], 0x0FFF
@@ -6720,6 +6725,10 @@ read_sector:
     mov ax, [cs:kio_lba_hi]
     mov [cs:klba_hi], ax
     mov word [cs:kio_lba_hi], 0
+    mov ax, [cs:kpart_lba]
+    add [cs:klba], ax
+    mov ax, [cs:kpart_lba_hi]
+    adc [cs:klba_hi], ax
     mov byte [cs:kcnt], 1
     mov byte [cs:kret], 3
 .r1:
@@ -6781,6 +6790,10 @@ write_sector:
     mov ax, [cs:kio_lba_hi]
     mov [cs:klba_hi], ax
     mov word [cs:kio_lba_hi], 0
+    mov ax, [cs:kpart_lba]
+    add [cs:klba], ax
+    mov ax, [cs:kpart_lba_hi]
+    adc [cs:klba_hi], ax
     mov byte [cs:kcnt], 1
     mov byte [cs:kret], 3
 .w1:
@@ -8809,6 +8822,8 @@ kroot_bytes: dw 224 * 32
 kmax_cluster: dw 0
 kclus: dw 0
 kfsize: dw 0
+kpart_lba: dw 0
+kpart_lba_hi: dw 0
 klba:  dw 0
 klba_hi: dw 0
 kio_lba_hi: dw 0

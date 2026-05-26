@@ -151,6 +151,8 @@ rs: mov [lb],ax
     mov [cnt],cx
 r1: mov ax,[lb]
     xor dx,dx
+    add ax,[bpb+28]
+    adc dx,[bpb+30]
     div word[bpb+24]
     inc dl
     mov [sc],dl
