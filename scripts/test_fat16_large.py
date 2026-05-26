@@ -29,6 +29,7 @@ def build_image():
     boot = os.path.join(BUILDDIR, "fat16large_boot.bin")
     fatbig = os.path.join(BUILDDIR, "fatbig.com")
     bigdat = os.path.join(BUILDDIR, "big.dat")
+    dummy = os.path.join(BUILDDIR, "cfgdummy.dat")
     run(["nasm", "-f", "bin", "src/boot16.asm", "-o", boot])
     run(["nasm", '-DBOOT_FILE="FATBIG  COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
     run(["nasm", "-f", "bin", "src/fatbig.asm", "-o", fatbig])
@@ -36,7 +37,9 @@ def build_image():
         f.truncate(MARKER_OFF + len(MARKER))
         f.seek(MARKER_OFF)
         f.write(MARKER)
-    run(["python3", "scripts/mkimage.py", "--format=hd96m", boot, KERNEL, IMG, fatbig, bigdat])
+    with open(dummy, "wb") as f:
+        f.write(b"cfgdir placeholder")
+    run(["python3", "scripts/mkimage.py", "--format=hd96m", boot, KERNEL, IMG, fatbig, f"CFGDIR:{dummy}", bigdat])
 
 
 def run_qemu():
@@ -92,7 +95,7 @@ def main():
         print(output)
         print("--- end ---")
         sys.exit(1)
-    print("\nLarge FAT16 read test passed.")
+    print("\nLarge FAT16 read/write test passed.")
 
 
 if __name__ == "__main__":

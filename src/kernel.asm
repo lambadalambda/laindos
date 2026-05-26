@@ -2939,7 +2939,8 @@ int21_handler:
 .cr_alloc_handle:
     mov ax, es
     mov [cs:cf_entry_seg], ax
-    mov [cs:cf_entry_off], di
+    mov ax, [cs:ff_entry_lba]
+    mov [cs:cf_entry_lba], ax
     call alloc_handle
     jc .cr_no_handles
     mov [cs:cf_handle], ax
@@ -2952,7 +2953,17 @@ int21_handler:
     call fat_free_chain
     call flush_fat
     jc .cr_io_err
+    mov ax, [cs:cf_entry_seg]
+    cmp ax, SEC_BUF
+    jne .cr_clear_entry
+    mov ax, SEC_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:cf_entry_lba]
+    call read_sector
+    jc .cr_io_err
 .cr_clear_entry:
+    mov di, [cs:cf_entry_off]
     push di
     xor ax, ax
     mov cx, 16
@@ -2974,7 +2985,7 @@ int21_handler:
     mov word [es:di+26], 0
     mov word [es:di+28], 0
     mov word [es:di+30], 0
-    mov ax, [cs:ff_entry_lba]
+    mov ax, [cs:cf_entry_lba]
     call flush_dir_sector
     jc .cr_io_err
     mov ax, [cs:cf_handle]
@@ -2990,9 +3001,9 @@ int21_handler:
     mov word [cs:bx+handles+H_SIZE_HI], 0
     mov word [cs:bx+handles+H_LAST_CLUSTER], 0
     mov word [cs:bx+handles+H_LAST_INDEX], 0
-    mov ax, [cs:ff_entry_lba]
+    mov ax, [cs:cf_entry_lba]
     mov [cs:bx+handles+H_DIR_LBA], ax
-    mov ax, [cs:ff_entry_off]
+    mov ax, [cs:cf_entry_off]
     mov [cs:bx+handles+H_DIR_OFF], ax
     mov word [cs:bx+handles+H_TIME], FAT_TIME
     mov word [cs:bx+handles+H_DATE], FAT_DATE
@@ -8731,6 +8742,7 @@ cf_attr: db 0
 cf_handle: dw 0
 cf_entry_idx: dw 0
 cf_entry_seg: dw 0
+cf_entry_lba: dw 0
 cf_entry_off: dw 0
 cf_found: db 0
 cf_status: dw 0

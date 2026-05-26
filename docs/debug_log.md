@@ -2,6 +2,42 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-26 FAT16 Subdirectory Truncate Corruption
+
+### Symptoms
+
+- User reported Ascendancy `SETSOUND.EXE` appeared to write forever instead of saving configuration.
+- Expanded `scripts/test_fat16_large.py` reproduced a generic large FAT16 write issue as `FAIL: FAT16BIG REOPEN` after creating, verifying, truncating, and reopening `\CFGDIR\SET.DAT`.
+- After the failure, `CFGDIR` sector LBA 281 started with the same bytes as FAT sector LBA 33, and the new `SET     DAT` entry appeared inside that copied FAT-sector data.
+
+### Confirmed Facts
+
+- In the 96 MiB image, `CFGDIR` is intentionally low at LBA 281, while LBA 33 is the FAT16 sector covering high clusters used by the large-file regression.
+- The corruption happened on `INT 21h AH=3Ch` when truncating an existing file in a subdirectory.
+- For FAT16, `fat_free_chain`/`fat_set` use `SEC_BUF` for FAT sector I/O. The create/truncate path kept the existing subdirectory entry in `SEC_BUF`, freed the old chain, then cleared and flushed what it thought was still the directory sector. By then `SEC_BUF` contained the FAT sector.
+- Root-directory truncation did not hit this because root entries live in `ROOT_SEG`, and FAT12 did not hit it because FAT updates use `FAT_SEG`.
+
+### Fix
+
+- `AH=3Ch` now saves the target directory-entry LBA when the entry is found/allocated.
+- When truncating an existing subdirectory file, it reloads that directory sector into `SEC_BUF` after freeing/flushing the old FAT chain and before clearing/reusing the entry.
+- The handle's directory LBA and the create-time directory flush now use the saved create-entry LBA.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_fat16_large.py` failed before the fix with `FAIL: FAT16BIG REOPEN` and passes after the fix.
+- Focused checks passed: `python3 scripts/test_fat16.py`, `python3 scripts/test_write.py`.
+- `make test` passes with the expanded large FAT16 regression included.
+- `python3 -m py_compile scripts/mkimage.py scripts/build_games_hd_all.py scripts/test_fat16.py scripts/test_fat16_large.py scripts/test_mi2_save.py` passes.
+- `python3 scripts/build_games_hd_all.py` passes.
+- `python3 scripts/test_mi2_save.py` passes on the rebuilt all-games image.
+- SETSOUND smoke with QEMU `-device sb16`: the save/Done flow returns to `C:\ASCEND>` instead of hanging in the save path. Automatic/full SB16 detection was not proven; one attempted automatic path stopped at the Miles driver-selection screen.
+- `code-reviewer-zai` found no blocking issues. Follow-ups incorporated: reload `DI` from the saved directory-entry offset before clearing the entry, remove a redundant `cf_entry_off` save, and add root-directory truncate coverage to `FATBIG.COM`.
+
+### Follow-Ups
+
+- Add or keep higher-level Ascendancy sound-config automation if we need to prove a fully configured SB16 `DIG.INI` save, not just the generic truncate/save path.
+
 ## 2026-05-26 Ascendancy Local CD COB
 
 ### Symptoms
