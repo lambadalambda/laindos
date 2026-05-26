@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+import os
+import signal
+import subprocess
+import sys
+
+QEMU = "qemu-system-i386"
+BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
+IMG = os.path.join(BUILDDIR, "fat16seek.img")
+KERNEL = os.path.join(BUILDDIR, "fat16seek_kernel.bin")
+TIMEOUT = 25
+SEEK_COUNT = 128
+SEEK_START = 0x00000123
+SEEK_STEP = 0x00020000
+
+
+def run(cmd):
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+
+
+def build_image():
+    os.makedirs(BUILDDIR, exist_ok=True)
+    boot = os.path.join(BUILDDIR, "fat16seek_boot.bin")
+    fatseek = os.path.join(BUILDDIR, "fatseek.com")
+    bigdat = os.path.join(BUILDDIR, "seekbig.dat")
+    run(["nasm", "-f", "bin", "src/boot16.asm", "-o", boot])
+    run(["nasm", '-DBOOT_FILE="FATSEEK COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
+    run(["nasm", "-f", "bin", "src/fatseek.asm", "-o", fatseek])
+    size = SEEK_START + SEEK_STEP * (SEEK_COUNT - 1) + 1
+    with open(bigdat, "wb") as f:
+        f.truncate(size)
+        for i in range(SEEK_COUNT):
+            f.seek(SEEK_START + SEEK_STEP * i)
+            f.write(bytes([(i + 1) & 0xFF]))
+    run(["python3", "scripts/mkimage.py", "--format=hd96m", boot, KERNEL, IMG, fatseek, bigdat])
+
+
+def run_qemu():
+    proc = subprocess.Popen(
+        [
+            QEMU,
+            "-drive", f"file={IMG},format=raw",
+            "-boot", "order=c",
+            "-serial", "stdio",
+            "-monitor", "none",
+            "-nographic",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    timed_out = False
+    try:
+        stdout, stderr = proc.communicate(timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        proc.send_signal(signal.SIGTERM)
+        try:
+            stdout, stderr = proc.communicate(timeout=3)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            stdout, stderr = proc.communicate()
+    output = stdout.decode("utf-8", errors="replace")
+    err = stderr.decode("utf-8", errors="replace")
+    if err:
+        print(err, end="", file=sys.stderr)
+    return output, timed_out
+
+
+def main():
+    build_image()
+    output, timed_out = run_qemu()
+    failed = False
+    for marker in [
+        "MiniDOS booted",
+        "PASS: FATSEEK",
+        "Program exited, code=00",
+        "HALT",
+    ]:
+        if marker in output:
+            print(f"  PASS: found '{marker}'")
+        else:
+            print(f"  FAIL: missing '{marker}'")
+            failed = True
+    for marker in ["FAIL:", "EXC ", "INT 21h AH="]:
+        if marker in output:
+            print(f"  FAIL: unexpected '{marker}'")
+            failed = True
+    if timed_out and failed:
+        print(f"  FAIL: QEMU timed out after {TIMEOUT}s")
+    if failed:
+        print("\n--- QEMU serial output ---")
+        print(output)
+        print("--- end ---")
+        sys.exit(1)
+    print("\nFAT16 seek/read test passed.")
+
+
+if __name__ == "__main__":
+    main()

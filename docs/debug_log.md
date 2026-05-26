@@ -2,6 +2,71 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-26 Ascendancy QEMU x87 Stall
+
+### Symptoms
+
+- After the FAT16 read-path fix, user confirmed 86Box gets Ascendancy past the first Logic Factory screen quickly.
+- QEMU still stays visually frozen on the first Logic Factory screen even after 180 seconds.
+- `SETSOUND` sound set to `None` did not change the QEMU stall.
+
+### Confirmed Facts
+
+- The FAT16 seek/read fix was real: both `test_fat16_large.py` and the new `test_fat16_seek.py` pass, and 86Box startup speed improved.
+- QEMU and 86Box both reach the same DOS trace pattern on `ASCEND00.COB`: after a successful 4 KB read at `0x1FB2F`, the game executes many `AH=42h AL=01h CX:DX=0` tell-style seeks returning `0x20B2F`.
+- Under 86Box, that tell loop eventually exits and later DOS file activity continues.
+- Under QEMU, a 3-minute traced run still ended inside that same tell loop, and 20s/60s/180s screenshot hashes stayed identical.
+- QEMU BIOS tick dword at physical `0x46C` advances during the stall, so the BIOS timer is not globally dead.
+- Adding `AH=44h AL=06h/07h` IOCTL status support did not change the QEMU stall.
+- Switching QEMU from default VGA to `-vga cirrus` did not change the QEMU stall.
+- A live QEMU monitor snapshot during the stall showed protected-mode execution inside DOS/4GW x87 math, first in an `fprem` loop and later in an `fcos`/`fsin` helper:
+  - `fprem / wait / fnstsw / sahf / jp back`
+  - then `fcos` and `fsin` calling into the same helper region.
+- This means the DOS seek loop is only the last visible `INT 21h` activity; the real stall is in protected-mode floating-point code.
+- LainDOS previously did no x87 initialization at all. Added `fninit` at kernel startup and before each child transfer (`exec_com`, `exec_exe`, `exec_com_dyn`, `exec_exe_dyn`).
+- The `fninit` change did not clear the QEMU visual stall within 60 seconds, and a follow-up QEMU CPU sample still showed the DOS/4GW trigonometric helper active.
+- For direct comparison, the isolated 86Box VM now uses `gfxcard = s3_trio64_pci`, and a traced `AUTOEXEC.BAT` image confirmed 86Box also hits the tell loop before moving on.
+- A real DOS 6.22-style boot floppy in `build/DOS Boot Floppy.img` boots under QEMU and reaches `A:\>`.
+- Booting that DOS floppy with `build/games_hd_all.img` attached directly does not expose a usable `C:` drive; DOS reports `Invalid drive specification`.
+- Wrapping `build/games_hd_all.img` in a simple one-partition MBR image (`build/games_hd_all_dospart.img`) gives real DOS a `C:` prompt, but DOS reads the hard-disk root directory as garbage rather than the expected `ASCEND` tree, so it still cannot launch Ascendancy from that image.
+- An alternate partition start at LBA 1 (`build/games_hd_all_dospart1.img`) behaved the same way, so the quick wrapper was not sufficient to make the LainDOS-built hard-disk image MS-DOS-compatible under QEMU.
+- Using QEMU's FAT directory export as the hard disk (`file=fat:rw:<hostdir>`) with a copied DOS floppy worked much better: DOS sees a clean `C:` drive and the `ASCEND` directory.
+- With `AUTOEXEC.BAT` set to `C:`, `CD \ASCEND`, `ASCEND`, real DOS in QEMU first exited because no mouse driver was loaded.
+- After changing `AUTOEXEC.BAT` to load `MOUSE.COM` before running Ascendancy, real DOS in QEMU reached the same first Logic Factory screen as the LainDOS/QEMU path.
+- The real-DOS/QEMU screenshots at 20s and 60s still matched the stuck Logic Factory screen hash, so the QEMU-specific stall reproduces even outside LainDOS.
+- QEMU 11.0.0 on this host exposes only the `tcg` accelerator for x86 guests; there is no quick `hvf`/`kvm` bypass for TCG x87.
+- A small CPU/FPU sweep under the real-DOS reproduction (`-cpu 486`, `-cpu pentium2`, `-cpu pentium,-fpu`, `-cpu qemu64`) did not change the 20-second Logic Factory screen hash.
+- Live QEMU monitor samples during the real-DOS reproduction still landed inside the DOS/4GW x87 helper. One sample showed the tail of the `fprem` loop, and a later sample showed the `fcos`/`fsin` wrapper calling back into the same helper.
+- The FPU state was not obviously inert: the sampled FPU status word changed between two closely spaced snapshots (`FSW=3820` then `FSW=3020`) while execution remained in the same helper area.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_ioctlstat.py`
+- `python3 scripts/test_fat16_large.py`
+- `python3 scripts/test_fat16_seek.py`
+- `make test` after adding the FAT16 seek regression and IOCTL status test
+- QEMU screenshot smokes at 20s, 60s, 180s on default VGA and 60s on `-vga cirrus`
+- QEMU monitor probes:
+  - `xp /1dw 0x46c` during stall
+  - `info registers`
+  - `x /12i $eip`
+- 86Box traced `AUTOEXEC.BAT` run with S3 Trio PCI
+- QEMU `-cpu pentium` 60s smoke
+- QEMU real-DOS CPU/FPU sweep: `-cpu 486`, `-cpu pentium2`, `-cpu pentium,-fpu`, `-cpu qemu64`
+- QEMU real-DOS live FPU/CPU monitor sampling with `info registers` and `x /16i $eip`
+- Real DOS probes under QEMU:
+  - boot `build/DOS Boot Floppy.img` with `build/games_hd_all.img`
+  - boot a copied floppy with `AUTOEXEC.BAT` replaced to run `C:`, `DIR`, and `ASCEND`
+  - build and test `build/games_hd_all_dospart.img` and `build/games_hd_all_dospart1.img`
+  - boot a copied floppy that loads `MOUSE.COM` and runs `ASCEND` against `file=fat:rw:build/realdos_asc`
+
+### Follow-Ups
+
+- The remaining likely causes are now QEMU-specific protected-mode x87 behavior or a DOS/4GW math/runtime assumption that 86Box satisfies and QEMU does not.
+- High-value next probes are short QEMU monitor/GDB sampling of x87 state/operands or trying a QEMU acceleration/backend path that bypasses TCG's x87 implementation.
+- The real-DOS/QEMU reproduction via QEMU FAT export makes a fully DOS-compatible FAT16 disk image lower priority for this Ascendancy stall: the bug reproduces under real DOS already.
+- The additional CPU-model sweep did not shake the stall loose, so the most promising remaining branch is direct QEMU x87 diagnosis (GDB/monitor/Bochs), not more image-layout work.
+
 ## 2026-05-26 FAT16 Subdirectory Truncate Corruption
 
 ### Symptoms

@@ -93,6 +93,7 @@ kernel_entry:
     mov sp, 0x5C00
     sti
     cld
+    fninit
 
     call serial_init
     call vga_clear
@@ -3347,34 +3348,39 @@ int21_handler:
     div cx
     mov [cs:rf_sec_in_cluster], dx
     mov [cs:rf_cluster_index], ax
-    mov cx, ax
     mov si, [cs:bx+handles+H_LAST_CLUSTER]
-    mov ax, [cs:bx+handles+H_LAST_INDEX]
-    cmp ax, cx
+    mov cx, [cs:bx+handles+H_LAST_INDEX]
+    test si, si
+    jz .rf_walk_from_start
+    cmp cx, [cs:rf_cluster_index]
     je .rf_have_cluster
-    inc ax
-    cmp ax, cx
-    jne .rf_walk_from_start
+    jbe .rf_walk_from_cache
+    jmp .rf_walk_from_start
+.rf_walk_from_cache:
+    cmp cx, [cs:rf_cluster_index]
+    je .rf_cache_cluster
     call fat_next
     cmp ax, [cs:kfat_eoc]
     jae .rf_done
     cmp ax, 2
     jb .rf_err_pop
     mov si, ax
-    jmp .rf_cache_cluster
+    inc cx
+    jmp .rf_walk_from_cache
 .rf_walk_from_start:
     mov si, [cs:bx+handles+H_CLUSTER]
-    mov cx, [cs:rf_cluster_index]
+    xor cx, cx
 .rf_cluster_walk:
-    test cx, cx
-    jz .rf_cache_cluster
+    cmp cx, [cs:rf_cluster_index]
+    je .rf_cache_cluster
     call fat_next
     cmp ax, [cs:kfat_eoc]
     jae .rf_done
     cmp ax, 2
     jb .rf_err_pop
     mov si, ax
-    loop .rf_cluster_walk
+    inc cx
+    jmp .rf_cluster_walk
 .rf_cache_cluster:
     mov bx, [cs:rf_hoff]
     mov [cs:bx+handles+H_LAST_CLUSTER], si
@@ -3470,8 +3476,6 @@ int21_handler:
     jmp .rf_loop
 .rf_done:
     mov ax, [cs:rf_read]
-    cmp word [cs:rf_req], 1
-    je .rf_no_trace
     cmp word [cs:trace_left], 0
     je .rf_no_trace
     dec word [cs:trace_left]
@@ -3937,6 +3941,8 @@ int21_handler:
     jae .sf_err
     push si
     mov [cs:sf_origin], al
+    mov [cs:sf_req_lo], dx
+    mov [cs:sf_req_hi], cx
     push cx
     push dx
     mov ax, bx
@@ -3984,6 +3990,17 @@ int21_handler:
     mov si, msg_trace_seek
     call serial_print
     mov ax, bx
+    call serial_print_hex_word
+    mov si, msg_trace_org
+    call serial_print
+    xor ax, ax
+    mov al, [cs:sf_origin]
+    call serial_print_hex_word
+    mov si, msg_trace_off
+    call serial_print
+    mov ax, [cs:sf_req_hi]
+    call serial_print_hex_word
+    mov ax, [cs:sf_req_lo]
     call serial_print_hex_word
     mov si, msg_trace_pos
     call serial_print
@@ -4085,8 +4102,36 @@ int21_handler:
     jmp iret_cy
 
 .ioctl:
+    mov [cs:ioctl_func], al
+    cmp byte [cs:ioctl_func], 0
+    je .ioctl_no_trace
+    cmp word [cs:trace_left], 0
+    je .ioctl_no_trace
+    dec word [cs:trace_left]
+    pusha
+    push ds
+    push cs
+    pop ds
+    mov si, msg_trace_ioctl
+    call serial_print
+    xor ax, ax
+    mov al, [cs:ioctl_func]
+    call serial_print_hex_word
+    mov si, msg_trace_handle
+    call serial_print
+    mov ax, bx
+    call serial_print_hex_word
+    mov si, msg_crlf
+    call serial_print
+    pop ds
+    popa
+.ioctl_no_trace:
     cmp al, 0
     je .ioctl_get
+    cmp al, 6
+    je .ioctl_input_status
+    cmp al, 7
+    je .ioctl_output_status
     mov ax, 1
     jmp iret_cy
 .ioctl_get:
@@ -4121,6 +4166,91 @@ int21_handler:
 .ioctl_bad_handle:
     mov ax, 6
     jmp iret_cy
+
+.ioctl_input_status:
+    cmp bx, 5
+    jb .ioctl_input_stdio
+    cmp bx, MAX_HANDLES
+    jae .ioctl_bad_handle
+    push bx
+    push cx
+    push dx
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov bx, ax
+    cmp byte [cs:bx+handles+H_USED], 0
+    je .ioctl_input_bad_pop
+    cmp word [cs:bx+handles+H_DIR_LBA], 0
+    je .ioctl_input_device_pop
+    mov ax, [cs:bx+handles+H_POS_HI]
+    cmp ax, [cs:bx+handles+H_SIZE_HI]
+    jb .ioctl_input_ready_pop
+    ja .ioctl_input_empty_pop
+    mov ax, [cs:bx+handles+H_POS_LO]
+    cmp ax, [cs:bx+handles+H_SIZE_LO]
+    jb .ioctl_input_ready_pop
+.ioctl_input_empty_pop:
+    pop dx
+    pop cx
+    pop bx
+    xor ax, ax
+    jmp iret_nc
+.ioctl_input_ready_pop:
+    pop dx
+    pop cx
+    pop bx
+    mov ax, 0xFFFF
+    jmp iret_nc
+.ioctl_input_device_pop:
+    mov ax, [cs:bx+handles+H_DIR_OFF]
+    pop dx
+    pop cx
+    pop bx
+    cmp ax, DEV_CON
+    je .ioctl_input_stdio
+    xor ax, ax
+    jmp iret_nc
+.ioctl_input_bad_pop:
+    pop dx
+    pop cx
+    pop bx
+    jmp .ioctl_bad_handle
+.ioctl_input_stdio:
+    call console_input_status
+    test al, al
+    jz .ioctl_input_stdio_empty
+    mov ax, 0xFFFF
+    jmp iret_nc
+.ioctl_input_stdio_empty:
+    xor ax, ax
+    jmp iret_nc
+
+.ioctl_output_status:
+    cmp bx, MAX_HANDLES
+    jae .ioctl_bad_handle
+    cmp bx, 5
+    jb .ioctl_output_ready
+    push bx
+    push cx
+    push dx
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov bx, ax
+    cmp byte [cs:bx+handles+H_USED], 0
+    je .ioctl_output_bad_pop
+    pop dx
+    pop cx
+    pop bx
+.ioctl_output_ready:
+    mov ax, 0xFFFF
+    jmp iret_nc
+.ioctl_output_bad_pop:
+    pop dx
+    pop cx
+    pop bx
+    jmp .ioctl_bad_handle
 
 .get_curdir:
     test dl, dl
@@ -6298,20 +6428,31 @@ fat16_next:
     mov cl, 8
     shr ax, cl
     add ax, [cs:kfat_start]
+    mov [cs:fat16_lba], ax
     and bx, 0x00FF
     shl bx, 1
     mov [cs:fat16_off], bx
-    mov dx, SEC_BUF
+    cmp byte [cs:fat16_cache_valid], 1
+    jne .load_sector
+    cmp ax, [cs:fat16_cache_lba]
+    je .have_sector
+.load_sector:
+    mov dx, FAT_SEG
     mov es, dx
     xor bx, bx
     call read_sector
     jc .err
-    mov ax, SEC_BUF
+    mov ax, [cs:fat16_lba]
+    mov [cs:fat16_cache_lba], ax
+    mov byte [cs:fat16_cache_valid], 1
+.have_sector:
+    mov ax, FAT_SEG
     mov ds, ax
     mov bx, [cs:fat16_off]
     mov ax, [bx]
     jmp .done
 .err:
+    mov byte [cs:fat16_cache_valid], 0
     mov ax, [cs:kfat_eoc_value]
 .done:
     pop es
@@ -6365,6 +6506,7 @@ fat16_set:
     push dx
     push es
     mov word [cs:kio_lba_hi], 0
+    mov byte [cs:fat16_cache_valid], 0
     mov [cs:fat16_value], ax
     mov ax, si
     mov bx, ax
@@ -7585,6 +7727,7 @@ exec_com:
     mov [cs:saved_ss], ax
     mov [cs:saved_sp], sp
     call reset_keyboard_buffer
+    fninit
 
     mov ax, PSP_SEG
     mov ds, ax
@@ -7805,6 +7948,7 @@ exec_exe_dyn:
     mov [cs:saved_ss], ax
     mov [cs:saved_sp], sp
     call reset_keyboard_buffer
+    fninit
 %if TRACE_EXEC_STATE
     call trace_exec_state
 %endif
@@ -7832,6 +7976,7 @@ exec_com_dyn:
     mov [cs:saved_ss], ax
     mov [cs:saved_sp], sp
     call reset_keyboard_buffer
+    fninit
 
     mov ax, [cs:prog_seg]
     dec ax
@@ -7868,6 +8013,7 @@ exec_exe:
     mov [cs:saved_ss], ax
     mov [cs:saved_sp], sp
     call reset_keyboard_buffer
+    fninit
 
     mov ax, PSP_SEG
     mov ds, ax
@@ -8561,11 +8707,14 @@ msg_at:        db " at ", 0
 msg_exc_bytes: db "BYTES ", 0
 msg_trace_open: db "OPEN ", 0
 msg_trace_handle: db " -> H=", 0
+msg_trace_ioctl: db "IOCTL AL=", 0
 msg_trace_size: db " SIZE=", 0
 msg_trace_sig: db " SIG=", 0
 msg_trace_read: db "READ H=", 0
 msg_trace_close: db "CLOSE H=", 0
 msg_trace_seek: db "SEEK H=", 0
+msg_trace_org: db " ORG=", 0
+msg_trace_off: db " OFF=", 0
 msg_trace_req: db " REQ=", 0
 msg_trace_pos: db " POS=", 0
 msg_trace_buf: db " BUF=", 0
@@ -8725,8 +8874,11 @@ wf_target_lo:  dw 0
 wf_target_hi:  dw 0
 
 sf_origin: db 0
+sf_req_lo: dw 0
+sf_req_hi: dw 0
 sf_ret_lo: dw 0
 sf_ret_hi: dw 0
+ioctl_func: db 0
 
 cur_dir_cluster: dw 0
 cur_dir_path: times 64 db 0
@@ -8794,9 +8946,12 @@ fat_copy_idx: db 0
 fat_alloc_hint: dw 2
 fat_flush_lba: dw 0
 fat_flush_off: dw 0
+fat16_lba: dw 0
 fat16_sector: dw 0
 fat16_off: dw 0
 fat16_value: dw 0
+fat16_cache_lba: dw 0
+fat16_cache_valid: db 0
 
 rp_path: dw 0
 rp_path_seg: dw 0
