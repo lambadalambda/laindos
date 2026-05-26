@@ -38,6 +38,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - A small CPU/FPU sweep under the real-DOS reproduction (`-cpu 486`, `-cpu pentium2`, `-cpu pentium,-fpu`, `-cpu qemu64`) did not change the 20-second Logic Factory screen hash.
 - Live QEMU monitor samples during the real-DOS reproduction still landed inside the DOS/4GW x87 helper. One sample showed the tail of the `fprem` loop, and a later sample showed the `fcos`/`fsin` wrapper calling back into the same helper.
 - The FPU state was not obviously inert: the sampled FPU status word changed between two closely spaced snapshots (`FSW=3820` then `FSW=3020`) while execution remained in the same helper area.
+- A 12-sample QEMU time series under the real-DOS reproduction stayed entirely inside that helper region (`0x001d695a`..`0x001d6994`) and produced 9 unique `(EIP, FSW, FPR6, FPR7)` tuples.
+- In those samples, one x87 value stayed near `0.7390851332` while the other alternated between that value and about `2π`, suggesting the helper is cycling between a tiny set of x87 states rather than making visible forward progress toward the next screen.
+- A disposable 86Box VM copy was then configured with `cpu_use_dynarec = 0` and `fpu_softfloat = 1` to push 86Box closer to a software-FPU path.
+- Even in that 86Box softfloat configuration, the traced Ascendancy run still got through the same `ASCEND00.COB` tell-loop and continued into later file activity (`ASCEND00/01/02.COB`, `DIG.INI`, `SB16.DIG`, `RESUME.GAM`, etc.) within the capture window.
 
 ### Tests And Probes Run
 
@@ -54,6 +58,8 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - QEMU `-cpu pentium` 60s smoke
 - QEMU real-DOS CPU/FPU sweep: `-cpu 486`, `-cpu pentium2`, `-cpu pentium,-fpu`, `-cpu qemu64`
 - QEMU real-DOS live FPU/CPU monitor sampling with `info registers` and `x /16i $eip`
+- QEMU real-DOS x87 helper time series (12 monitor samples over ~12 seconds)
+- 86Box softfloat/dynarec-off comparison run using a copied VM profile
 - Real DOS probes under QEMU:
   - boot `build/DOS Boot Floppy.img` with `build/games_hd_all.img`
   - boot a copied floppy with `AUTOEXEC.BAT` replaced to run `C:`, `DIR`, and `ASCEND`
@@ -66,6 +72,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - High-value next probes are short QEMU monitor/GDB sampling of x87 state/operands or trying a QEMU acceleration/backend path that bypasses TCG's x87 implementation.
 - The real-DOS/QEMU reproduction via QEMU FAT export makes a fully DOS-compatible FAT16 disk image lower priority for this Ascendancy stall: the bug reproduces under real DOS already.
 - The additional CPU-model sweep did not shake the stall loose, so the most promising remaining branch is direct QEMU x87 diagnosis (GDB/monitor/Bochs), not more image-layout work.
+- 86Box's softfloat run still progressed, so the divergence now looks more like a QEMU-specific x87 helper issue than a generic emulator-softfloat limitation.
 
 ## 2026-05-26 FAT16 Subdirectory Truncate Corruption
 
