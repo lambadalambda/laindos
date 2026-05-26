@@ -182,6 +182,7 @@ test: $(DISK_IMG)
 	$(PYTHON) scripts/test_drive.py
 	$(PYTHON) scripts/test_dosstruct.py
 	$(PYTHON) scripts/test_fat16.py
+	$(PYTHON) scripts/test_fat16_large.py
 	$(PYTHON) scripts/test_free.py
 	$(PYTHON) scripts/test_dirextfail.py
 	$(PYTHON) scripts/test_envpath.py

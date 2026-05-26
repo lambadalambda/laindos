@@ -24,6 +24,12 @@ MI2_FULL_DIR = os.path.join(BUILDDIR, "mi2full")
 SIMON_DEMO_DIR = os.path.join(BUILDDIR, "simon1demo")
 ASCENDANCY_DIR = os.path.join(BUILDDIR, "ascendancy")
 ASCENDANCY_FILES_DIR = os.path.join(ASCENDANCY_DIR, "ascendy")
+ASCENDANCY_CD_IMG = os.path.join(ASCENDANCY_FILES_DIR, "cd", "ascendancy.img")
+ASCENDANCY_CD_COB = os.path.join(ASCENDANCY_FILES_DIR, "ASCEND02.COB")
+ASCENDANCY_COB_CFG = os.path.join(ASCENDANCY_FILES_DIR, "COB.CFG")
+RAW_CD_SECTOR = 2352
+ISO_SECTOR = 2048
+RAW_CD_DATA_OFF = 16
 
 
 def run(cmd):
@@ -79,6 +85,82 @@ def files_in(dirname):
     ]
 
 
+def raw_cd_sector(image, lba):
+    start = lba * RAW_CD_SECTOR + RAW_CD_DATA_OFF
+    return image[start:start + ISO_SECTOR]
+
+
+def iso_dir_record(buf, off):
+    length = buf[off]
+    if length == 0:
+        return None, 1
+    if off + 33 > len(buf):
+        return None, 1
+    extent = int.from_bytes(buf[off + 2:off + 6], "little")
+    size = int.from_bytes(buf[off + 10:off + 14], "little")
+    flags = buf[off + 25]
+    name_len = buf[off + 32]
+    if off + 33 + name_len > len(buf):
+        return None, 1
+    raw_name = buf[off + 33:off + 33 + name_len]
+    if raw_name == b"\x00":
+        name = "."
+    elif raw_name == b"\x01":
+        name = ".."
+    else:
+        name = raw_name.decode("ascii").split(";", 1)[0].upper()
+    return {"name": name, "extent": extent, "size": size, "dir": bool(flags & 2)}, length
+
+
+def iso_read_dir(image, extent, size):
+    count = (size + ISO_SECTOR - 1) // ISO_SECTOR
+    data = b"".join(raw_cd_sector(image, extent + i) for i in range(count))
+    off = 0
+    entries = {}
+    while off < len(data):
+        if data[off] == 0:
+            off = ((off // ISO_SECTOR) + 1) * ISO_SECTOR
+            continue
+        rec, length = iso_dir_record(data, off)
+        off += length
+        if rec and rec["name"] not in (".", ".."):
+            entries[rec["name"]] = rec
+    return entries
+
+
+def iso_read_file(image, path_parts):
+    pvd = raw_cd_sector(image, 16)
+    if pvd[1:6] != b"CD001":
+        print("Ascendancy CD image is not a raw Mode 1 ISO image", file=sys.stderr)
+        sys.exit(1)
+    root, _ = iso_dir_record(pvd, 156)
+    current = root
+    for part in path_parts:
+        entries = iso_read_dir(image, current["extent"], current["size"])
+        current = entries.get(part.upper())
+        if current is None:
+            print(f"Missing Ascendancy CD file: {'/'.join(path_parts)}", file=sys.stderr)
+            sys.exit(1)
+    if current["dir"]:
+        print(f"Ascendancy CD path is a directory: {'/'.join(path_parts)}", file=sys.stderr)
+        sys.exit(1)
+    count = (current["size"] + ISO_SECTOR - 1) // ISO_SECTOR
+    data = b"".join(raw_cd_sector(image, current["extent"] + i) for i in range(count))
+    return data[:current["size"]]
+
+
+def install_ascendancy_cd_cob():
+    if not os.path.isfile(ASCENDANCY_CD_IMG):
+        print(f"Missing Ascendancy CD image {ASCENDANCY_CD_IMG}", file=sys.stderr)
+        sys.exit(1)
+    with open(ASCENDANCY_CD_IMG, "rb") as f:
+        cd_image = f.read()
+    with open(ASCENDANCY_CD_COB, "wb") as f:
+        f.write(iso_read_file(cd_image, ["DATA", "ASCEND02.COB"]))
+    with open(ASCENDANCY_COB_CFG, "wb") as f:
+        f.write(b"ASCEND00.COB\r\nASCEND01.COB\r\nASCEND02.COB\r\n")
+
+
 def require(paths):
     missing = [path for path in paths if not os.path.isfile(path)]
     if missing:
@@ -99,6 +181,7 @@ def main():
     safe_extract(MI2_FULL_ZIP, MI2_FULL_DIR)
     extract_flat(SIMON_DEMO_ZIP, SIMON_DEMO_DIR)
     safe_extract(ASCENDANCY_ZIP, ASCENDANCY_DIR)
+    install_ascendancy_cd_cob()
 
     run(["nasm", "-f", "bin", "src/boot16.asm", "-o", BOOT])
     run([
@@ -130,7 +213,7 @@ def main():
         sys.exit(1)
 
     cmd = [
-        "python3", "scripts/mkimage.py", "--format=hd32m",
+        "python3", "scripts/mkimage.py", "--format=hd96m",
         BOOT,
         KERNEL,
         IMG,

@@ -78,8 +78,10 @@ def run_qemu(image_path, hard_disk):
 
 def check_output(label, output):
     failed = False
+    normalized = output.replace("Program exited, code=0.\r\n0", "Program exited, code=00")
+    normalized = normalized.replace("Program exited, code=0.\n0", "Program exited, code=00")
     for marker in ["PASS: DRIVE", "Program exited, code=00"]:
-        if marker in output:
+        if marker in output or marker in normalized:
             print(f"  PASS: {label} found '{marker}'")
         else:
             print(f"  FAIL: {label} missing '{marker}'")

@@ -2,6 +2,36 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-26 Ascendancy Local CD COB
+
+### Symptoms
+
+- Ascendancy reached its DOS/4GW startup and copyright banner but exited with `Please place the Ascendancy CD in your CDROM drive.`
+- The installed `COB.CFG` pointed the third data archive at `D:\DATA\ASCEND02.COB` while the all-games image intentionally excluded the nested CD-image directory.
+
+### Confirmed Facts
+
+- `build/ascendancy/ascendy/cd/ascendancy.img` is a raw 2352-byte-sector Mode 1 CD image; ISO data starts at byte offset 16 of each sector.
+- The CD image contains `DATA/ASCEND02.COB`, size 60,787,718 bytes.
+- Copying only that file plus the installed `ascendy/` tree makes the all-games payload about 89 MiB, so the all-games image now uses a 96 MiB FAT16 format.
+- Reading and writing files past sector 65535 required widening kernel sector I/O to use a high LBA word and fixing BPB total-sector handling for the FAT16 large-total field.
+- Runtime saves on the larger image initially stalled with MI2 reporting `The game was NOT saved (disk full?)`; the root cause was the FAT allocator scanning from cluster 2 for every allocation. A next-fit allocation hint fixed multi-cluster writes when free space starts high in the image.
+- `mise run-games-hd-all` and `mise run-monkey-full` now add `-device sb16` to QEMU.
+
+### Tests And Probes Run
+
+- Added `scripts/test_fat16_large.py` and `src/fatbig.asm`; before the 32-bit sector fix it failed with `FAIL: FAT16BIG DATA`, and before the allocator hint it failed with `FAIL: FAT16BIG WRITE`.
+- `python3 scripts/test_fat16_large.py` passes after reading a marker beyond the 32 MiB boundary and creating/reading a new high-cluster file.
+- `python3 scripts/build_games_hd_all.py` now creates a 100,638,720-byte image containing `C:\ASCEND\ASCEND02.COB` and a rewritten `COB.CFG` with `ASCEND02.COB` as the third line.
+- Ascendancy smoke with QEMU `-device sb16`: `C:\ASCEND>ascend` reaches the DOS/4GW and Ascendancy banners, does not print the missing-CD prompt, and shows no `EXC ` marker during the smoke window.
+- `python3 scripts/test_mi2_save.py` passes on the enlarged all-games image after the allocator hint.
+- `make test` passes with the new large FAT16 regression included.
+
+### Follow-Ups
+
+- Directory-entry LBAs are still stored in 16-bit fields. The generated all-games image keeps directories low, so current Ascendancy/MI2 flows are covered, but fully general high-directory mutation would require widening those fields too.
+- The 96 MiB format still uses CHS INT 13h and stays well below the 1024-cylinder limit with 16 heads and 63 sectors per track. Larger future images should move to INT 13h extensions or fully audited 32-bit CHS paths.
+
 ## 2026-05-26 Ascendancy DOS/4GW Startup
 
 ### Symptoms

@@ -151,14 +151,12 @@ kernel_entry:
 
     mov si, [cs:kclus]
     mov ax, si
-    sub ax, 2
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    add ax, [cs:kdsta]
+    xor bx, bx
+    call cluster_lba
     push es
     push bx
     mov bx, 0
+    mov [cs:kio_lba_hi], dx
     mov dx, SEC_BUF
     mov es, dx
     mov cx, 1
@@ -412,12 +410,14 @@ init_bpb_geometry:
 
     mov bx, bpb_copy
     mov ax, [bx+19]
+    xor dx, dx
     test ax, ax
     jnz .have_total
     mov ax, [bx+32]
+    mov dx, [bx+34]
 .have_total:
     sub ax, [cs:kdsta]
-    xor dx, dx
+    sbb dx, 0
     xor ch, ch
     mov cl, [cs:kspc]
     div cx
@@ -3371,18 +3371,18 @@ int21_handler:
     mov [cs:bx+handles+H_LAST_INDEX], ax
 .rf_have_cluster:
     mov ax, si
-    sub ax, 2
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    add ax, [cs:rf_sec_in_cluster]
-    add ax, [cs:kdsta]
+    mov bx, [cs:rf_sec_in_cluster]
+    call cluster_lba
     cmp byte [cs:rf_cache_valid], 1
     jne .rf_read_sector
     cmp ax, [cs:rf_cache_lba]
+    jne .rf_read_sector
+    cmp dx, [cs:rf_cache_lba_hi]
     je .rf_have_sector
 .rf_read_sector:
     mov [cs:rf_cache_lba], ax
+    mov [cs:rf_cache_lba_hi], dx
+    mov [cs:kio_lba_hi], dx
     push es
     push bx
     xor bx, bx
@@ -3626,17 +3626,16 @@ int21_handler:
     call wf_get_cluster
     jc .wf_file_io_pop
     mov ax, si
-    sub ax, 2
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    add ax, [cs:wf_sec_in_cluster]
-    add ax, [cs:kdsta]
+    mov bx, [cs:wf_sec_in_cluster]
+    call cluster_lba
     mov [cs:wf_sector_lba], ax
+    mov [cs:wf_sector_lba_hi], dx
     mov ax, SEC_BUF
     mov es, ax
     xor bx, bx
     mov ax, [cs:wf_sector_lba]
+    mov dx, [cs:wf_sector_lba_hi]
+    mov [cs:kio_lba_hi], dx
     call read_sector
     jc .wf_file_io_pop
     mov ax, SEC_BUF
@@ -3663,6 +3662,8 @@ int21_handler:
     push cx
     xor bx, bx
     mov ax, [cs:wf_sector_lba]
+    mov dx, [cs:wf_sector_lba_hi]
+    mov [cs:kio_lba_hi], dx
     call write_sector
     pop cx
     jc .wf_file_io_pop
@@ -3705,15 +3706,13 @@ int21_handler:
     jc .wf_file_done
     mov [cs:wf_cluster], si
     mov ax, si
-    sub ax, 2
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    add ax, [cs:wf_sec_in_cluster]
-    add ax, [cs:kdsta]
+    mov bx, [cs:wf_sec_in_cluster]
+    call cluster_lba
     mov [cs:wf_sector_lba], ax
+    mov [cs:wf_sector_lba_hi], dx
     push es
     push bx
+    mov [cs:kio_lba_hi], dx
     mov dx, SEC_BUF
     mov es, dx
     xor bx, bx
@@ -3747,6 +3746,8 @@ int21_handler:
     push es
     push bx
     mov ax, [cs:wf_sector_lba]
+    mov dx, [cs:wf_sector_lba_hi]
+    mov [cs:kio_lba_hi], dx
     mov dx, SEC_BUF
     mov es, dx
     xor bx, bx
@@ -6113,13 +6114,13 @@ load_file_direct:
     cmp si, 2
     jb .err
     push si
+    push bx
     mov ax, si
-    sub ax, 2
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    add ax, [cs:kdsta]
+    xor bx, bx
+    call cluster_lba
     mov [cs:.sec_num], ax
+    mov [cs:.sec_num_hi], dx
+    pop bx
     pop si
     xor ch, ch
     mov cl, [cs:kspc]
@@ -6132,6 +6133,8 @@ load_file_direct:
     push cx
     push si
     mov ax, [cs:.sec_num]
+    mov dx, [cs:.sec_num_hi]
+    mov [cs:kio_lba_hi], dx
     push es
     push bx
     mov bx, 0
@@ -6172,6 +6175,9 @@ load_file_direct:
     mov es, ax
 .adv_ok:
     inc word [cs:.sec_num]
+    jnz .sec_num_inc_done
+    inc word [cs:.sec_num_hi]
+.sec_num_inc_done:
     pop si
     pop cx
     dec cx
@@ -6194,6 +6200,7 @@ load_file_direct:
     ret
 
 .sec_num: dw 0
+.sec_num_hi: dw 0
 
 load_file:
     mov [cs:load_name], si
@@ -6221,11 +6228,11 @@ load_file:
     jb .notfound
     push si
     mov ax, si
-    sub ax, 2
-    xor ch, ch
-    mov cl, [kspc]
-    mul cx
-    add ax, [kdsta]
+    push bx
+    xor bx, bx
+    call cluster_lba
+    mov [cs:kio_lba_hi], dx
+    pop bx
     mov cx, 1
     call read_sector
     pop si
@@ -6274,6 +6281,7 @@ fat16_next:
     push dx
     push ds
     push es
+    mov word [cs:kio_lba_hi], 0
     mov ax, si
     mov bx, ax
     mov cl, 8
@@ -6345,6 +6353,7 @@ fat16_set:
     push cx
     push dx
     push es
+    mov word [cs:kio_lba_hi], 0
     mov [cs:fat16_value], ax
     mov ax, si
     mov bx, ax
@@ -6398,30 +6407,50 @@ fat16_set:
     ret
 
 fat_alloc_cluster:
+    push bx
     push cx
     push si
+    mov cx, [cs:fat_alloc_hint]
+    cmp cx, 2
+    jae .hint_ok
     mov cx, 2
+.hint_ok:
+    mov bx, [cs:kmax_cluster]
+    sub bx, 2
+    jbe .none
 .loop:
     cmp cx, [cs:kmax_cluster]
-    jae .none
+    jb .try
+    mov cx, 2
+.try:
     mov si, cx
     call fat_next
     test ax, ax
     jz .found
     inc cx
-    jmp .loop
+    dec bx
+    jnz .loop
+    jmp .none
 .found:
     mov si, cx
     mov ax, [cs:kfat_eoc_value]
     call fat_set
     mov ax, cx
+    inc cx
+    cmp cx, [cs:kmax_cluster]
+    jb .store_hint
+    mov cx, 2
+.store_hint:
+    mov [cs:fat_alloc_hint], cx
     pop si
     pop cx
+    pop bx
     clc
     ret
 .none:
     pop si
     pop cx
+    pop bx
     stc
     ret
 
@@ -6519,9 +6548,25 @@ flush_fat:
     stc
     ret
 
+cluster_lba:
+    push cx
+    sub ax, 2
+    xor ch, ch
+    mov cl, [cs:kspc]
+    mul cx
+    add ax, bx
+    adc dx, 0
+    add ax, [cs:kdsta]
+    adc dx, 0
+    pop cx
+    ret
+
 read_sector:
     mov byte [cs:rf_cache_valid], 0
     mov [cs:klba], ax
+    mov ax, [cs:kio_lba_hi]
+    mov [cs:klba_hi], ax
+    mov word [cs:kio_lba_hi], 0
     mov byte [cs:kcnt], 1
     mov byte [cs:kret], 3
 .r1:
@@ -6530,7 +6575,7 @@ read_sector:
     cmp word [cs:kbio_heads], 0
     je .geom_err
     mov ax, [cs:klba]
-    xor dx, dx
+    mov dx, [cs:klba_hi]
     div word [cs:kbio_spt]
     inc dl
     mov [cs:ksc], dl
@@ -6569,6 +6614,9 @@ read_sector:
     mov es, ax
 .rnb:
     inc word [cs:klba]
+    jnz .rnb_hi
+    inc word [cs:klba_hi]
+.rnb_hi:
     dec byte [cs:kcnt]
     jnz .r1
     clc
@@ -6577,6 +6625,9 @@ read_sector:
 write_sector:
     mov byte [cs:rf_cache_valid], 0
     mov [cs:klba], ax
+    mov ax, [cs:kio_lba_hi]
+    mov [cs:klba_hi], ax
+    mov word [cs:kio_lba_hi], 0
     mov byte [cs:kcnt], 1
     mov byte [cs:kret], 3
 .w1:
@@ -6585,7 +6636,7 @@ write_sector:
     cmp word [cs:kbio_heads], 0
     je .geom_err
     mov ax, [cs:klba]
-    xor dx, dx
+    mov dx, [cs:klba_hi]
     div word [cs:kbio_spt]
     inc dl
     mov [cs:ksc], dl
@@ -6624,6 +6675,9 @@ write_sector:
     mov es, ax
 .wnb:
     inc word [cs:klba]
+    jnz .wnb_hi
+    inc word [cs:klba_hi]
+.wnb_hi:
     dec byte [cs:kcnt]
     jnz .w1
     clc
@@ -7029,11 +7083,9 @@ exec_read_first_sector:
     mov ax, [cs:exec_cluster]
     cmp ax, 2
     jb .err
-    sub ax, 2
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    add ax, [cs:kdsta]
+    xor bx, bx
+    call cluster_lba
+    mov [cs:kio_lba_hi], dx
     mov dx, SEC_BUF
     mov es, dx
     xor bx, bx
@@ -7347,12 +7399,8 @@ overlay_read_reloc_sector:
     jmp .cluster_walk
 .read_sector:
     mov ax, si
-    sub ax, 2
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    add ax, bx
-    add ax, [cs:kdsta]
+    call cluster_lba
+    mov [cs:kio_lba_hi], dx
     mov dx, SEC_BUF
     mov es, dx
     xor bx, bx
@@ -7384,11 +7432,9 @@ overlay_read_first_sector:
     mov ax, [cs:ov_cluster]
     cmp ax, 2
     jb .err
-    sub ax, 2
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    add ax, [cs:kdsta]
+    xor bx, bx
+    call cluster_lba
+    mov [cs:kio_lba_hi], dx
     mov dx, SEC_BUF
     mov es, dx
     xor bx, bx
@@ -7451,12 +7497,9 @@ overlay_copy_range:
     jb .err_pop
     push si
     mov ax, si
-    sub ax, 2
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    add ax, [cs:ov_sec_in_cluster]
-    add ax, [cs:kdsta]
+    mov bx, [cs:ov_sec_in_cluster]
+    call cluster_lba
+    mov [cs:kio_lba_hi], dx
     mov dx, SEC_BUF
     mov es, dx
     xor bx, bx
@@ -8607,6 +8650,8 @@ kmax_cluster: dw 0
 kclus: dw 0
 kfsize: dw 0
 klba:  dw 0
+klba_hi: dw 0
+kio_lba_hi: dw 0
 kcnt:  db 0
 ksc:   db 0
 khd:   db 0
@@ -8649,6 +8694,7 @@ rf_start_buf_seg: dw 0
 rf_sec_in_cluster: dw 0
 rf_cluster_index: dw 0
 rf_cache_lba:  dw 0
+rf_cache_lba_hi: dw 0
 rf_cache_valid: db 0
 rf_buf_off:    dw 0
 rf_buf_seg:    dw 0
@@ -8661,6 +8707,7 @@ wf_hoff:       dw 0
 wf_cluster_index: dw 0
 wf_sec_in_cluster: dw 0
 wf_sector_lba: dw 0
+wf_sector_lba_hi: dw 0
 wf_cluster:    dw 0
 wf_status:     dw 0
 wf_target_lo:  dw 0
@@ -8732,6 +8779,7 @@ dir_ext_fail_once: db 0
 fat_dirty: db 0
 fat_io_error: db 0
 fat_copy_idx: db 0
+fat_alloc_hint: dw 2
 fat_flush_lba: dw 0
 fat_flush_off: dw 0
 fat16_sector: dw 0
