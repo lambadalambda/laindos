@@ -14,8 +14,9 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - The FAT16 seek/read fix was real: both `test_fat16_large.py` and the new `test_fat16_seek.py` pass, and 86Box startup speed improved.
 - QEMU and 86Box both reach the same DOS trace pattern on `ASCEND00.COB`: after a successful 4 KB read at `0x1FB2F`, the game executes many `AH=42h AL=01h CX:DX=0` tell-style seeks returning `0x20B2F`.
-- Under 86Box, that tell loop eventually exits and later DOS file activity continues.
-- Under QEMU, a 3-minute traced run still ended inside that same tell loop, and 20s/60s/180s screenshot hashes stayed identical.
+- Under both QEMU and 86Box, that tell loop exits with a seek to `0x1FEEC` and `CLOSE H=0006`.
+- Under 86Box, later DOS file activity continues immediately afterward (`ASCEND00/01/02.COB`, `ascend.cfg`, `resume.gam`, etc.).
+- Under QEMU, a 180-second traced run produced no further DOS calls after that close, and the screenshot hash stayed at the stuck Logic Factory screen hash `8e5010bd947253405c00ac7f16d5cb0edf00901e17394d2e567a733b635c61b6`.
 - QEMU BIOS tick dword at physical `0x46C` advances during the stall, so the BIOS timer is not globally dead.
 - Adding `AH=44h AL=06h/07h` IOCTL status support did not change the QEMU stall.
 - Switching QEMU from default VGA to `-vga cirrus` did not change the QEMU stall.
@@ -42,6 +43,12 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - In those samples, one x87 value stayed near `0.7390851332` while the other alternated between that value and about `2π`, suggesting the helper is cycling between a tiny set of x87 states rather than making visible forward progress toward the next screen.
 - A disposable 86Box VM copy was then configured with `cpu_use_dynarec = 0` and `fpu_softfloat = 1` to push 86Box closer to a software-FPU path.
 - Even in that 86Box softfloat configuration, the traced Ascendancy run still got through the same `ASCEND00.COB` tell-loop and continued into later file activity (`ASCEND00/01/02.COB`, `DIG.INI`, `SB16.DIG`, `RESUME.GAM`, etc.) within the capture window.
+- A same-image LainDOS trace comparison confirmed the first material divergence is not file I/O. QEMU and 86Box share the same startup/resource sequence through the `ASCEND00.COB` tell-loop and close; 86Box then opens more resources, while QEMU stays in protected-mode x87 code with no more DOS calls.
+- A 180-second QEMU monitor snapshot after the last DOS call showed `EIP=001c6994`, `FCW=127f`, `FSW=3820`, and execution around the Ascendancy/DOS4GW range-reduction helper (`fldt 2pi`, `fxch`, `fprem`, `fnstsw`, `sahf`, `jp`, `fstp st1`, `ret`). `FSW=3820` has C2 clear at that sample, so the observed state is not an infinite single `fprem` instruction loop.
+- A temporary standalone x87 diagnostic (`build/fputest.asm` / `build/fputest.img`) now reproduces a QEMU-vs-Bochs difference outside Ascendancy. With the same LainDOS boot image, QEMU and Bochs agree on `2pi` and a simple `fprem` result, but QEMU's `fsin`/`fcos` outputs have double-precision-looking low bits while Bochs preserves fuller 80-bit results.
+- The same diagnostic shows a stronger range-reduction divergence: for a double argument just above the x87 trig range threshold (`0x43E0000000000001`, i.e. `2^63 + 1 ULP at that magnitude, or 2048`), the Ascendancy-style wrapper loops in QEMU until the diagnostic aborts (`FAIL: FPUTEST C PREM=0001 WRAP=0041 SW=3C00 VAL=403E8000000000000800`; C2 set at abort), while Bochs completes `COS_LARGE`/`SIN_LARGE` with `WRAP=0002` and prints `PASS: FPUTEST`.
+- Upstream QEMU issue `#83` is directly relevant: `QEMU x87 emulation of trig and other complex ops is only at 64-bit precision, not 80-bit` (`https://gitlab.com/qemu-project/qemu/-/issues/83`). The Launchpad source discussion for that issue, especially comments #13 and #15, says QEMU still implements `FPTAN`, `FSINCOS`, `FSIN`, and `FCOS` by converting `floatx80` to host `double` and using host C math routines, while `FPREM`, `FPREM1`, `FPATAN`, `FYL2X`, `FYL2XP1`, and `F2XM1` were reworked for proper 80-bit operations in QEMU 5.1-era commits.
+- Related but less directly relevant upstream QEMU issue `#984` reports an i386 x87 `fldl`/precision-control conversion bug in QEMU 6.1..7.0-rc4 (`https://gitlab.com/qemu-project/qemu/-/issues/984`). It is another TCG x87 precision issue, but not the Ascendancy trig/range-reduction behavior.
 
 ### Tests And Probes Run
 
@@ -60,6 +67,19 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - QEMU real-DOS live FPU/CPU monitor sampling with `info registers` and `x /16i $eip`
 - QEMU real-DOS x87 helper time series (12 monitor samples over ~12 seconds)
 - 86Box softfloat/dynarec-off comparison run using a copied VM profile
+- Same-image LainDOS trace comparison:
+  - `build/asc_tracecmp.img` under QEMU for 70s and 180s, serial logs `build/asc_tracecmp_qemu_serial.log` and `build/asc_tracecmp_qemu_180s_serial.log`
+  - copied to `build/86box-compare/games_hd_all.img` and run under 86Box, serial log `build/asc_tracecmp_86box_serial.log`
+  - QEMU monitor snapshot saved as `build/asc_tracecmp_qemu_180s_monitor.log`
+- Temporary x87 diagnostic:
+  - `nasm -f bin build/fputest.asm -o build/fputest.com`
+  - `nasm -DBOOT_FILE='"FPUTEST COM"' -f bin src/kernel.asm -o build/fputest_kernel.bin`
+  - `python3 scripts/mkimage.py --format=1440k build/fputest_boot.bin build/fputest_kernel.bin build/fputest.img build/fputest.com`
+  - QEMU output saved as `build/fputest_qemu_serial.log`
+  - Bochs output saved as `build/fputest_bochs_serial.log`
+- QEMU issue search:
+  - GitLab API searches for `x87`, `fprem`, `fsin`, `fcos`, `fptan`, `fpu_helper`, `floatx80_to_double`, `MAXTAN`, `Ascendancy`, `DOS4GW`, and `DOS/4GW`
+  - direct fetches of `https://gitlab.com/qemu-project/qemu/-/issues/83`, `https://gitlab.com/qemu-project/qemu/-/issues/984`, and Launchpad source `https://bugs.launchpad.net/qemu/+bug/645662`
 - Real DOS probes under QEMU:
   - boot `build/DOS Boot Floppy.img` with `build/games_hd_all.img`
   - boot a copied floppy with `AUTOEXEC.BAT` replaced to run `C:`, `DIR`, and `ASCEND`
@@ -68,11 +88,12 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Follow-Ups
 
-- The remaining likely causes are now QEMU-specific protected-mode x87 behavior or a DOS/4GW math/runtime assumption that 86Box satisfies and QEMU does not.
-- High-value next probes are short QEMU monitor/GDB sampling of x87 state/operands or trying a QEMU acceleration/backend path that bypasses TCG's x87 implementation.
+- The remaining likely cause is QEMU-specific x87 behavior in trig/range-reduction, not LainDOS DOS/FAT behavior.
+- The standalone `FPUTEST` result is strong enough to preserve as a minimal emulator reproducer if we decide to file/report a QEMU issue; keep it out of `make test` because it intentionally exposes a QEMU failure.
+- High-value next probes are extracting the exact Ascendancy wrapper arguments from QEMU/Bochs around the stall and reducing `FPUTEST` to the smallest possible QEMU bug reproducer.
 - The real-DOS/QEMU reproduction via QEMU FAT export makes a fully DOS-compatible FAT16 disk image lower priority for this Ascendancy stall: the bug reproduces under real DOS already.
 - The additional CPU-model sweep did not shake the stall loose, so the most promising remaining branch is direct QEMU x87 diagnosis (GDB/monitor/Bochs), not more image-layout work.
-- 86Box's softfloat run still progressed, so the divergence now looks more like a QEMU-specific x87 helper issue than a generic emulator-softfloat limitation.
+- 86Box's softfloat run and Bochs's standalone `FPUTEST` pass both point to a QEMU-specific x87 helper issue rather than a generic emulator-softfloat limitation.
 
 ## 2026-05-26 FAT16 Subdirectory Truncate Corruption
 
