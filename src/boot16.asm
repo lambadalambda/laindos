@@ -8,25 +8,25 @@ ROOT_SEG equ 0x0920
 bpb:
     jmp short boot
     nop
-    times 8 db 0       ; +03 OEM name
-    dw 512             ; +0B bytes/sector
-    db 1               ; +0D sec/cluster
-    dw 1               ; +0E reserved sectors
-    db 2               ; +10 num FATs
-    dw 224             ; +11 root entries
-    dw 2880            ; +13 total sectors
-    db 0xF0            ; +15 media
-    dw 9               ; +16 sec/FAT
-    dw 18              ; +18 sec/track
-    dw 2               ; +1A heads
-    dd 0               ; +1C hidden
-    dd 0               ; +20 total sectors 32
-    db 0               ; +24 drive
-    db 0               ; +25 reserved
-    db 0x29            ; +26 boot sig
-    dd 0x12345678      ; +27 vol id
-    times 11 db 0      ; +2B vol label
-    times 8 db 0       ; +36 fs type
+    times 8 db 0
+    dw 512
+    db 8
+    dw 1
+    db 2
+    dw 512
+    dw 65520
+    db 0xF8
+    dw 32
+    dw 63
+    dw 16
+    dd 0
+    dd 0
+    db 0x80
+    db 0
+    db 0x29
+    dd 0x12345678
+    times 11 db 0
+    db "FAT16   "
 
 boot:
     cli
@@ -39,28 +39,6 @@ boot:
     cld
     mov [drv],dl
     mov [0x500],dl
-
-    mov dx,0x3F9
-    xor al,al
-    out dx,al
-    mov dx,0x3FB
-    mov al,0x80
-    out dx,al
-    mov dx,0x3F8
-    mov al,1
-    out dx,al
-    mov dx,0x3F9
-    xor al,al
-    out dx,al
-    mov dx,0x3FB
-    mov al,3
-    out dx,al
-    mov dx,0x3FA
-    mov al,0xC7
-    out dx,al
-    mov dx,0x3FC
-    mov al,0x0B
-    out dx,al
 
     mov ax,[bpb+22]
     movzx cx,byte[bpb+16]
@@ -76,13 +54,6 @@ boot:
     mov [rsc],ax
     add ax,[rsta]
     mov [dsta],ax
-
-    mov ax,FAT_SEG
-    mov es,ax
-    xor bx,bx
-    mov ax,[bpb+14]
-    mov cx,[bpb+22]
-    call rs
 
     mov ax,ROOT_SEG
     mov es,ax
@@ -118,7 +89,7 @@ fk: mov ax,[es:di+26]
     mov es,ax
     xor bx,bx
     mov si,[kcl]
-ld: cmp si,0xFF8
+ld: cmp si,0xFFF8
     jae ldk
     cmp si,2
     jb nf
@@ -141,20 +112,39 @@ ldk:
 
 fat_next:
     push bx
-    mov bx,si
-    shr bx,1
-    add bx,si
+    push cx
+    push dx
+    push es
+    mov ax,si
+    mov bx,ax
+    mov cl,8
+    shr ax,cl
+    add ax,[bpb+14]
+    and bx,0x00FF
+    shl bx,1
+    push bx
+    mov bx,0
+    mov cx,1
+    push ax
+    mov ax,FAT_SEG
+    mov es,ax
+    pop ax
+    call rs
+    pop bx
+    jc f16e
     push ds
     mov ax,FAT_SEG
     mov ds,ax
     mov ax,[bx]
     pop ds
-    test si,1
-    jz fe
-    shr ax,4
-    jmp fr
-fe: and ax,0x0FFF
-fr: pop bx
+    jmp f16r
+f16e:
+    mov ax,0xFFFF
+f16r:
+    pop es
+    pop dx
+    pop cx
+    pop bx
     ret
 
 rs: mov [lb],ax
@@ -222,7 +212,7 @@ lb:  dw 0
 cnt: dw 0
 sc:  db 0
 hd:  db 0
-cy:  db 0
+cy:  dw 0
 ret_:db 3
 
 times 510-($-$$) db 0

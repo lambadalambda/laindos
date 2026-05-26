@@ -2,6 +2,42 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-26 FAT16 HD Image Support
+
+### Symptoms
+
+- Ascendancy inclusion pushed the all-games image against awkward FAT12 hard-disk limits. The prior `hd32m` FAT12 workaround needed large clusters and a boot-time FAT/root memory layout that could not scale cleanly.
+- A combined FAT12/FAT16 boot sector exceeded 512 bytes, so the hard-disk FAT16 path needed a separate boot sector.
+- After initial FAT16 work, `make test` failed in `scripts/test_boot.py` after `scripts/test_autoexec.py`; serial output reached only `NoK`.
+- Standalone `scripts/test_mi2_save.py` initially failed on the FAT16 games image without creating `C:\MI2\SAVEGAME.002`.
+
+### Confirmed Facts
+
+- `scripts/mkimage.py` now supports `fat_bits` per format and makes `hd32m` a FAT16 image with 65,520 sectors, 8 sectors per cluster, 512 root entries, and 32 sectors per FAT.
+- Added `src/boot16.asm` for FAT16 hard-disk boots while keeping `src/boot.asm` as the FAT12 floppy boot path.
+- `src/kernel.asm` detects FAT16 from the BPB fs type string, uses format-specific EOC/reserved values and root-entry limits, and reads/writes FAT16 entries through sector-sized FAT I/O rather than assuming the full FAT fits in `FAT_SEG`.
+- The `NoK` failure was build artifact contamination: the focused FAT16 test assembled `src/boot16.asm` to `build/boot.bin`, so later FAT12 image builds reused a FAT16 boot sector. `scripts/test_fat16.py` now writes `build/boot16.bin` instead.
+- The MI2 save failure was automation, not yet confirmed as filesystem data loss: screenshots showed the mouse stayed on the F5 menu and never clicked `Save`. The save script now moves the mouse in bounded relative steps and reads FAT16 cluster chains when checking the image.
+- `scripts/build_games_hd_all.py` uses `src/boot16.asm` and the FAT16 `hd32m` format for the all-games image.
+- Code review found that a 512-entry FAT16 root at the old `ROOT_SEG=0x0180` would overlap the relocated kernel from entry 224 onward. `ROOT_SEG` is now `0x0920`, below `MCB_START` and above the kernel stack top, and assembly-time guards cover the root buffer placement.
+- Review follow-ups also guard `flush_fat` from writing stale `FAT_SEG` data on FAT16, preserve FAT16 write-through I/O failures until the next `flush_fat`, remove a dead FAT12-only helper from `mkimage.py`, make the raw `boot16.asm` BPB total-sector fields spec-compliant, stamp FAT12/FAT16 BPB fs type strings in generated images, and make the MI2 image reader stop at FAT16 reserved cluster values.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_fat16.py` passes and boots a FAT16 image through `MEMTEST.EXE`; the image puts `MEMTEST.EXE` beyond root entry 224 to cover the old root/kernel overlap boundary.
+- `make -B build/boot.bin && make build/disk.img && python3 scripts/test_boot.py` passes after isolating the FAT16 boot artifact.
+- `make test` passes with `scripts/test_fat16.py` included after the review fixes.
+- Standalone `python3 scripts/test_mi2_save.py` passes and creates `SAVEGAME.002` on the FAT16 all-games image after the mouse automation and FAT16 image-reader fixes.
+- `python3 scripts/build_games_hd_all.py` rebuilds `build/games_hd_all.img` as FAT16, and a QEMU hard-disk boot smoke reaches `LainDOS Shell` at `C:\>`.
+- Image inspection confirmed `fs=b'FAT16   '`, `spc=8`, `fat_sz=32`, `root_cnt=512`, and an `ASCEND` root directory entry.
+- `python3 -m py_compile scripts/mkimage.py scripts/test_fat16.py scripts/test_mi2_save.py scripts/build_games_hd_all.py` passes.
+- `git diff --check` passes.
+
+### Follow-Ups
+
+- FAT16 coverage currently boots past the high-root-entry boundary and writes through the MI2 save path, but focused FAT16 root-directory write regressions would be useful if FAT16 becomes a heavier development target.
+- Ascendancy still reaches the existing DOS/4GW `EXC 06` compatibility boundary; FAT16 only resolves the image sizing and FAT layout constraints.
+
 ## 2026-05-26 Ascendancy Games Image
 
 ### Symptoms

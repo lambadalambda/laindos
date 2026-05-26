@@ -100,7 +100,7 @@ def main():
     extract_flat(SIMON_DEMO_ZIP, SIMON_DEMO_DIR)
     safe_extract(ASCENDANCY_ZIP, ASCENDANCY_DIR)
 
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run(["nasm", "-f", "bin", "src/boot16.asm", "-o", BOOT])
     run([
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,

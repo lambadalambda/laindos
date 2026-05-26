@@ -8,6 +8,7 @@ RSVD_SEC_CNT = 1
 NUM_FATS = 2
 FORMATS = {
     '1440k': {
+        'fat_bits': 12,
         'total_sectors': 2880,
         'sec_per_clus': 1,
         'root_ent_cnt': 224,
@@ -18,6 +19,7 @@ FORMATS = {
         'drive': 0x00,
     },
     '2880k': {
+        'fat_bits': 12,
         'total_sectors': 5760,
         'sec_per_clus': 2,
         'root_ent_cnt': 224,
@@ -28,6 +30,7 @@ FORMATS = {
         'drive': 0x00,
     },
     'hd10m': {
+        'fat_bits': 12,
         'total_sectors': 20160,
         'sec_per_clus': 8,
         'root_ent_cnt': 224,
@@ -38,6 +41,7 @@ FORMATS = {
         'drive': 0x80,
     },
     'hd20m': {
+        'fat_bits': 12,
         'total_sectors': 40320,
         'sec_per_clus': 16,
         'root_ent_cnt': 224,
@@ -48,10 +52,11 @@ FORMATS = {
         'drive': 0x80,
     },
     'hd32m': {
+        'fat_bits': 16,
         'total_sectors': 65520,
-        'sec_per_clus': 22,
-        'root_ent_cnt': 224,
-        'fat_sz': 9,
+        'sec_per_clus': 8,
+        'root_ent_cnt': 512,
+        'fat_sz': 32,
         'sec_per_trk': 63,
         'num_heads': 16,
         'media': 0xF8,
@@ -76,6 +81,7 @@ ROOT_SECS = (ROOT_ENT_CNT * 32 + BYTES_PER_SEC - 1) // BYTES_PER_SEC
 DATA_START = ROOT_START + ROOT_SECS
 
 FAT12_EOC = 0xFF8
+FAT16_EOC = 0xFFFF
 DIR_ATTR = 0x10
 
 
@@ -89,6 +95,21 @@ def set_fat12_entry(fat_data, cluster, value):
         fat_data[offset + 1] = (fat_data[offset + 1] & 0xF0) | ((value >> 8) & 0x0F)
 
 
+def set_fat16_entry(fat_data, cluster, value):
+    struct.pack_into('<H', fat_data, cluster * 2, value & 0xFFFF)
+
+
+def set_fat_entry(fat_data, cluster, value):
+    if fmt['fat_bits'] == 16:
+        set_fat16_entry(fat_data, cluster, value)
+    else:
+        set_fat12_entry(fat_data, cluster, value)
+
+
+def fat_eoc():
+    return FAT16_EOC if fmt['fat_bits'] == 16 else FAT12_EOC
+
+
 def make_root_entry(name, ext, cluster, size, attr=0x20):
     entry = bytearray(32)
     entry[0:8] = name.ljust(8)[:8].encode('ascii')
@@ -97,15 +118,6 @@ def make_root_entry(name, ext, cluster, size, attr=0x20):
     struct.pack_into('<H', entry, 26, cluster)
     struct.pack_into('<I', entry, 28, size)
     return entry
-
-
-def alloc_clusters(fat, next_cluster, count):
-    first = next_cluster
-    for i in range(count):
-        c = first + i
-        nxt = c + 1 if i < count - 1 else FAT12_EOC
-        set_fat12_entry(fat, c, nxt)
-    return first, count
 
 
 def write_cluster_data(image, cluster, data, data_offset=0):
@@ -119,8 +131,12 @@ class Fat12Image:
     def __init__(self):
         self.image = bytearray(IMAGE_SIZE)
         self.fat = bytearray(FAT_SZ * SECTOR_SIZE)
-        set_fat12_entry(self.fat, 0, 0xF00 | MEDIA)
-        set_fat12_entry(self.fat, 1, 0xFFF)
+        if fmt['fat_bits'] == 16:
+            set_fat16_entry(self.fat, 0, 0xFF00 | MEDIA)
+            set_fat16_entry(self.fat, 1, FAT16_EOC)
+        else:
+            set_fat12_entry(self.fat, 0, 0xF00 | MEDIA)
+            set_fat12_entry(self.fat, 1, 0xFFF)
         self.next_cluster = 2
         self.root_entries = []
         self.subdirs = {}
@@ -137,8 +153,8 @@ class Fat12Image:
         if self.next_cluster > max_cluster:
             raise RuntimeError("disk image is full")
         for i in range(count):
-            nxt = first + i + 1 if i < count - 1 else FAT12_EOC
-            set_fat12_entry(self.fat, first + i, nxt)
+            nxt = first + i + 1 if i < count - 1 else fat_eoc()
+            set_fat_entry(self.fat, first + i, nxt)
         return first
 
     def add_file_to_root(self, name, ext, data, attr=0x20):
@@ -154,7 +170,7 @@ class Fat12Image:
 
     def add_subdir(self, dirname):
         first_cluster = self.alloc_cluster()
-        set_fat12_entry(self.fat, first_cluster, FAT12_EOC)
+        set_fat_entry(self.fat, first_cluster, fat_eoc())
         entry = make_root_entry(dirname, "   ", first_cluster, 0, DIR_ATTR)
         self.root_entries.append(entry)
         self.subdirs[dirname] = {
@@ -276,6 +292,7 @@ def main():
     struct.pack_into('<H', boot_data, 0x1A, NUM_HEADS)
     struct.pack_into('<I', boot_data, 0x20, 0 if TOTAL_SECTORS <= 0xFFFF else TOTAL_SECTORS)
     boot_data[0x24] = DRIVE
+    boot_data[0x36:0x3E] = b'FAT16   ' if fmt['fat_bits'] == 16 else b'FAT12   '
 
     with open(kernel_path, 'rb') as f:
         kernel_data = f.read()

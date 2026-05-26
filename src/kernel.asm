@@ -10,7 +10,7 @@ VGA_ROWS equ 25
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x0060
-ROOT_SEG  equ 0x0180
+ROOT_SEG  equ 0x0920
 PSP_SEG   equ 0x3000
 TEMP_SEG  equ 0x4000
 
@@ -39,6 +39,8 @@ ATTR_SYSTEM equ 0x04
 ATTR_VOLUME equ 0x08
 ATTR_DIR equ 0x10
 ROOT_ENT_CNT equ 224
+ROOT_MAX_ENTRIES equ 512
+ROOT_BUF_PARAS equ ((ROOT_MAX_ENTRIES * 32) + 15) / 16
 
 CF equ 0x0001
 ZF equ 0x0040
@@ -366,6 +368,17 @@ init_bpb_geometry:
     pop ds
     mov bx, bpb_copy
 
+    mov byte [cs:kfat_bits], 12
+    mov word [cs:kfat_eoc], 0x0FF8
+    mov word [cs:kfat_eoc_value], 0x0FFF
+    mov word [cs:kfat_reserved], 0x0FF0
+    cmp byte [bx+0x3A], '6'
+    jne .fat_type_done
+    mov byte [cs:kfat_bits], 16
+    mov word [cs:kfat_eoc], 0xFFF8
+    mov word [cs:kfat_eoc_value], 0xFFFF
+    mov word [cs:kfat_reserved], 0xFFF0
+.fat_type_done:
     mov ax, [bx+22]
     mov [cs:kfat_secs], ax
     mov ax, [bx+14]
@@ -378,6 +391,7 @@ init_bpb_geometry:
     add ax, [bx+14]
     mov [cs:krsta], ax
     mov ax, [bx+17]
+    mov [cs:kroot_entries], ax
     push ax
     mov al, [bx+13]
     mov [cs:kspc], al
@@ -388,6 +402,7 @@ init_bpb_geometry:
     pop ax
     mov bx, 32
     mul bx
+    mov [cs:kroot_bytes], ax
     add ax, 511
     mov bx, 512
     div bx
@@ -3258,7 +3273,7 @@ int21_handler:
     cmp ax, cx
     jne .rf_walk_from_start
     call fat_next
-    cmp ax, 0xFF8
+    cmp ax, [cs:kfat_eoc]
     jae .rf_done
     cmp ax, 2
     jb .rf_err_pop
@@ -3271,7 +3286,7 @@ int21_handler:
     test cx, cx
     jz .rf_cache_cluster
     call fat_next
-    cmp ax, 0xFF8
+    cmp ax, [cs:kfat_eoc]
     jae .rf_done
     cmp ax, 2
     jb .rf_err_pop
@@ -5105,7 +5120,7 @@ find_in_dir_from_common:
     mov ax, ROOT_SEG
     mov es, ax
     mov cx, [cs:fid_idx]
-    cmp cx, ROOT_ENT_CNT
+    cmp cx, [cs:kroot_entries]
     jae .rid_notfound
     mov ax, cx
     mov dx, 32
@@ -5121,7 +5136,7 @@ find_in_dir_from_common:
     mov ax, di
     and ax, 511
     mov [cs:ff_entry_off], ax
-    cmp di, ROOT_ENT_CNT * 32
+    cmp di, [cs:kroot_bytes]
     jae .rid_notfound
     cmp byte [es:di], 0
     je .rid_notfound
@@ -5149,7 +5164,7 @@ find_in_dir_from_common:
     xor cx, cx
 .rid_cluster_loop:
     mov si, [cs:rid_clus]
-    cmp si, 0xFF8
+    cmp si, [cs:kfat_eoc]
     jae .rid_notfound_pop
     mov ax, si
     sub ax, 2
@@ -5207,9 +5222,9 @@ find_in_dir_from_common:
     jb .rid_sec_loop
     mov si, [cs:rid_clus]
     call fat_next
-    cmp ax, 0x0FF8
+    cmp ax, [cs:kfat_eoc]
     jae .rid_notfound_pop
-    cmp ax, 0x0FF0
+    cmp ax, [cs:kfat_reserved]
     jae .rid_notfound_pop
     cmp ax, 2
     jb .rid_notfound_pop
@@ -5279,7 +5294,7 @@ find_root_free:
     xor di, di
     xor cx, cx
 .loop:
-    cmp cx, ROOT_ENT_CNT
+    cmp cx, [cs:kroot_entries]
     jae .full
     cmp byte [es:di], 0
     je .found
@@ -5335,7 +5350,7 @@ find_dir_free:
     mov word [cs:ff_entry_idx], 0
 .sd_cluster_loop:
     mov si, [cs:rid_clus]
-    cmp si, 0x0FF8
+    cmp si, [cs:kfat_eoc]
     jae .sd_full
     cmp si, 2
     jb .sd_full
@@ -5373,9 +5388,9 @@ find_dir_free:
     jb .sd_sector
     mov si, [cs:rid_clus]
     call fat_next
-    cmp ax, 0x0FF8
+    cmp ax, [cs:kfat_eoc]
     jae .sd_extend
-    cmp ax, 0x0FF0
+    cmp ax, [cs:kfat_reserved]
     jae .sd_full
     cmp ax, 2
     jb .sd_full
@@ -5609,7 +5624,7 @@ dir_is_empty:
     mov [cs:rd_scan_cluster], si
 .die_cluster:
     mov si, [cs:rd_scan_cluster]
-    cmp si, 0x0FF8
+    cmp si, [cs:kfat_eoc]
     jae .die_empty
     cmp si, 2
     jb .die_not_empty
@@ -5650,9 +5665,9 @@ dir_is_empty:
     jb .die_sector
     mov si, [cs:rd_scan_cluster]
     call fat_next
-    cmp ax, 0x0FF8
+    cmp ax, [cs:kfat_eoc]
     jae .die_empty
-    cmp ax, 0x0FF0
+    cmp ax, [cs:kfat_reserved]
     jae .die_not_empty
     cmp ax, 2
     jb .die_not_empty
@@ -6021,7 +6036,7 @@ load_file_direct:
     cmp word [cs:lf_left_lo], 0
     je .done
 .have_left:
-    cmp si, 0xFF8
+    cmp si, [cs:kfat_eoc]
     jae .err
     cmp si, 2
     jb .err
@@ -6128,7 +6143,7 @@ load_file:
     mov bx, [cs:load_off]
     mov si, [cs:kclus]
 .load:
-    cmp si, 0xFF8
+    cmp si, [cs:kfat_eoc]
     jae .done
     cmp si, 2
     jb .notfound
@@ -6160,6 +6175,8 @@ load_file:
     ret
 
 fat_next:
+    cmp byte [cs:kfat_bits], 16
+    je fat16_next
     push bx
     mov bx, si
     shr bx, 1
@@ -6179,7 +6196,43 @@ fat_next:
     pop bx
     ret
 
+fat16_next:
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    mov ax, si
+    mov bx, ax
+    mov cl, 8
+    shr ax, cl
+    add ax, [cs:kfat_start]
+    and bx, 0x00FF
+    shl bx, 1
+    mov [cs:fat16_off], bx
+    mov dx, SEC_BUF
+    mov es, dx
+    xor bx, bx
+    call read_sector
+    jc .err
+    mov ax, SEC_BUF
+    mov ds, ax
+    mov bx, [cs:fat16_off]
+    mov ax, [bx]
+    jmp .done
+.err:
+    mov ax, [cs:kfat_eoc_value]
+.done:
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    ret
+
 fat_set:
+    cmp byte [cs:kfat_bits], 16
+    je fat16_set
     push bx
     push dx
     push ds
@@ -6214,6 +6267,64 @@ fat_set:
     pop bx
     ret
 
+fat16_set:
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+    mov [cs:fat16_value], ax
+    mov ax, si
+    mov bx, ax
+    mov cl, 8
+    shr ax, cl
+    mov [cs:fat16_sector], ax
+    and bx, 0x00FF
+    shl bx, 1
+    mov [cs:fat16_off], bx
+    mov byte [cs:fat_copy_idx], 0
+.copy_loop:
+    xor ax, ax
+    mov al, [cs:knum_fats]
+    cmp [cs:fat_copy_idx], al
+    jae .done
+    mov ax, [cs:kfat_secs]
+    xor dx, dx
+    mov dl, [cs:fat_copy_idx]
+    mul dx
+    add ax, [cs:kfat_start]
+    add ax, [cs:fat16_sector]
+    mov dx, SEC_BUF
+    mov es, dx
+    xor bx, bx
+    call read_sector
+    jc .err
+    mov bx, [cs:fat16_off]
+    mov ax, [cs:fat16_value]
+    mov [es:bx], ax
+    mov ax, [cs:kfat_secs]
+    xor dx, dx
+    mov dl, [cs:fat_copy_idx]
+    mul dx
+    add ax, [cs:kfat_start]
+    add ax, [cs:fat16_sector]
+    mov dx, SEC_BUF
+    mov es, dx
+    xor bx, bx
+    call write_sector
+    jc .err
+    inc byte [cs:fat_copy_idx]
+    jmp .copy_loop
+.err:
+    mov byte [cs:fat_io_error], 1
+.done:
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
 fat_alloc_cluster:
     push cx
     push si
@@ -6229,7 +6340,7 @@ fat_alloc_cluster:
     jmp .loop
 .found:
     mov si, cx
-    mov ax, 0x0FFF
+    mov ax, [cs:kfat_eoc_value]
     call fat_set
     mov ax, cx
     pop si
@@ -6256,7 +6367,7 @@ fat_free_chain:
     xor ax, ax
     call fat_set
     pop ax
-    cmp ax, 0x0FF8
+    cmp ax, [cs:kfat_eoc]
     jae .done
     cmp ax, 2
     jb .done
@@ -6269,6 +6380,19 @@ fat_free_chain:
     ret
 
 flush_fat:
+    cmp byte [cs:kfat_bits], 16
+    jne .fat12
+    cmp byte [cs:fat_io_error], 0
+    jne .fat16_err
+    mov byte [cs:fat_dirty], 0
+    clc
+    ret
+.fat16_err:
+    mov byte [cs:fat_dirty], 0
+    mov byte [cs:fat_io_error], 0
+    stc
+    ret
+.fat12:
     cmp byte [cs:fat_dirty], 0
     je .clean
     push ax
@@ -6610,9 +6734,9 @@ wf_get_cluster:
     je .found
     mov bx, si
     call fat_next
-    cmp ax, 0x0FF8
+    cmp ax, [cs:kfat_eoc]
     jae .extend
-    cmp ax, 0x0FF0
+    cmp ax, [cs:kfat_reserved]
     jae .err
     cmp ax, 2
     jb .err
@@ -7122,7 +7246,7 @@ overlay_read_reloc_sector:
     jb .read_sector
     sub bx, cx
     call fat_next
-    cmp ax, 0xFF8
+    cmp ax, [cs:kfat_eoc]
     jae .err
     cmp ax, 2
     jb .err
@@ -7216,7 +7340,7 @@ overlay_copy_range:
     jb .have_sector
     sub bx, cx
     call fat_next
-    cmp ax, 0xFF8
+    cmp ax, [cs:kfat_eoc]
     jae .err_pop
     cmp ax, 2
     jb .err_pop
@@ -7228,7 +7352,7 @@ overlay_copy_range:
     mov ax, [cs:ov_left]
     test ax, ax
     jz .done
-    cmp si, 0xFF8
+    cmp si, [cs:kfat_eoc]
     jae .err_pop
     cmp si, 2
     jb .err_pop
@@ -7278,7 +7402,7 @@ overlay_copy_range:
     cmp [cs:ov_sec_in_cluster], cx
     jb .copy_loop
     call fat_next
-    cmp ax, 0xFF8
+    cmp ax, [cs:kfat_eoc]
     jae .done
     cmp ax, 2
     jb .err_pop
@@ -8367,6 +8491,12 @@ kbio_heads: dw 0
 kfat_start: dw 0
 kfat_secs: dw 0
 knum_fats: db 0
+kfat_bits: db 12
+kfat_eoc: dw 0x0FF8
+kfat_eoc_value: dw 0x0FFF
+kfat_reserved: dw 0x0FF0
+kroot_entries: dw 224
+kroot_bytes: dw 224 * 32
 kmax_cluster: dw 0
 kclus: dw 0
 kfsize: dw 0
@@ -8493,9 +8623,13 @@ dir_ext_old_next: dw 0
 dir_ext_fail_once: db 0
 
 fat_dirty: db 0
+fat_io_error: db 0
 fat_copy_idx: db 0
 fat_flush_lba: dw 0
 fat_flush_off: dw 0
+fat16_sector: dw 0
+fat16_off: dw 0
+fat16_value: dw 0
 
 rp_path: dw 0
 rp_path_seg: dw 0
@@ -8661,4 +8795,10 @@ kernel_end:
 %endif
 %if (kernel_end - kernel_entry) > ((ENV_SEG - RELOC_SEG) * 16)
 %error "kernel overlaps ENV_SEG"
+%endif
+%if ROOT_SEG <= (RELOC_SEG + 0x05C0)
+%error "ROOT_SEG overlaps kernel stack"
+%endif
+%if (ROOT_SEG + ROOT_BUF_PARAS) > MCB_START
+%error "ROOT_SEG overlaps MCB arena"
 %endif

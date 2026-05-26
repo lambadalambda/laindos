@@ -34,14 +34,19 @@ def fat12_get(fat, cluster):
     return (fat[off] | ((fat[off + 1] & 0x0F) << 8)) & 0xFFF
 
 
-def read_cluster_chain(image, fat, data_start, bps, spc, cluster):
+def fat16_get(fat, cluster):
+    return struct.unpack_from("<H", fat, cluster * 2)[0]
+
+
+def read_cluster_chain(image, fat, fat_bits, data_start, bps, spc, cluster):
     data = bytearray()
     seen = set()
-    while 2 <= cluster < 0xFF8 and cluster not in seen:
+    eoc = 0xFFF0 if fat_bits == 16 else 0xFF0
+    while 2 <= cluster < eoc and cluster not in seen:
         seen.add(cluster)
         off = (data_start + (cluster - 2) * spc) * bps
         data.extend(image[off:off + spc * bps])
-        cluster = fat12_get(fat, cluster)
+        cluster = fat16_get(fat, cluster) if fat_bits == 16 else fat12_get(fat, cluster)
     return bytes(data)
 
 
@@ -68,6 +73,7 @@ def read_file_from_image(path_parts):
     root_secs = (root_entries * 32 + bps - 1) // bps
     data_start = root_start + root_secs
     fat = image[reserved * bps:(reserved + fat_secs) * bps]
+    fat_bits = 16 if image[0x36:0x3E] == b"FAT16   " else 12
     directory = image[root_start * bps:(root_start + root_secs) * bps]
     entry = None
     for index, name in enumerate(path_parts):
@@ -76,7 +82,7 @@ def read_file_from_image(path_parts):
             return None, None
         cluster = struct.unpack_from("<H", entry, 26)[0]
         size = struct.unpack_from("<I", entry, 28)[0]
-        data = read_cluster_chain(image, fat, data_start, bps, spc, cluster)
+        data = read_cluster_chain(image, fat, fat_bits, data_start, bps, spc, cluster)
         if index == len(path_parts) - 1:
             return entry, data[:size]
         directory = data
@@ -95,6 +101,21 @@ def send_key(sock, key, delay=0.1):
 def click(sock):
     send_monitor(sock, "mouse_button 1", 0.2)
     send_monitor(sock, "mouse_button 0", 0.5)
+
+
+def move_relative(sock, dx, dy):
+    while dx or dy:
+        step_x = max(-100, min(100, dx))
+        step_y = max(-100, min(100, dy))
+        send_monitor(sock, f"mouse_move {step_x} {step_y}", 0.04)
+        dx -= step_x
+        dy -= step_y
+
+
+def move_to(sock, x, y):
+    move_relative(sock, -1000, -1000)
+    move_relative(sock, x, y)
+    time.sleep(0.2)
 
 
 def wait_for(output_chunks, marker, timeout):
@@ -176,17 +197,17 @@ def run_qemu_save_attempt():
         time.sleep(4)
 
         send_key(sock, "f5", 1)
-        send_monitor(sock, "mouse_move 490 -20", 0.3)
+        move_to(sock, 535, 166)
         click(sock)
         time.sleep(1)
         send_monitor(sock, f"screendump {SCREEN_DIALOG}", 1)
 
-        send_monitor(sock, "mouse_move -460 -28", 0.3)
+        move_to(sock, 75, 138)
         click(sock)
         for key in ["a", "u", "t", "o"]:
             send_key(sock, key, 0.2)
 
-        send_monitor(sock, "mouse_move 455 55", 1)
+        move_to(sock, 530, 193)
         click(sock)
         time.sleep(1)
         click(sock)
