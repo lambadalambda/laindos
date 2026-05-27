@@ -9,7 +9,6 @@
 - [ ] [Separate Sector Buffers From Read Cache](issues/separate-sector-buffers-from-read-cache.md)
 - [ ] [Fill Missing DOS Compatibility APIs](issues/fill-missing-dos-compatibility-apis.md)
 
-- [ ] [Bound EXE And Overlay Relocations](issues/bound-exe-and-overlay-relocations.md)
 - [ ] [Validate FAT16 FAT Sector Indices](issues/validate-fat16-fat-sector-indices.md)
 - [ ] [Validate BPB Geometry Before Arithmetic](issues/validate-bpb-geometry-before-arithmetic.md)
 - [ ] [Harden Boot FAT Chain Loading](issues/harden-boot-fat-chain-loading.md)
