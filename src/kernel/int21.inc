@@ -1014,10 +1014,13 @@ int21_handler:
     mov ax, [ds:3]
     cmp ax, bx
     jae .rm_shrink
-    mov di, si
-    inc di
-    add di, ax
-    mov es, di
+    mov dx, si
+    inc dx
+    add dx, ax
+    jb .rm_cant_grow
+    cmp dh, 0xA0
+    jae .rm_cant_grow
+    mov es, dx
     cmp byte [es:0], MCB_SIG_M
     je .rm_next_ok
     cmp byte [es:0], MCB_SIG_Z
@@ -1076,6 +1079,7 @@ int21_handler:
     mov ax, es
     inc ax
     add ax, [es:3]
+    jb .rm_shrink_no_merge
     cmp ax, MEM_TOP
     jae .rm_shrink_no_merge
     mov ds, ax
