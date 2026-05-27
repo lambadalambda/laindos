@@ -47,7 +47,7 @@ $(BOOT_BIN): $(SRCDIR)/boot.asm $(SRCDIR)/memory.inc
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(KERNEL_BIN): $(SRCDIR)/kernel.asm $(SRCDIR)/memory.inc
+$(KERNEL_BIN): $(SRCDIR)/kernel.asm $(SRCDIR)/memory.inc $(SRCDIR)/kernel/mouse.inc
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
