@@ -2,6 +2,7 @@ NASM := nasm
 QEMU := qemu-system-i386
 PYTHON := python3
 RUN_TEST := $(PYTHON) scripts/run_test.py
+TEST_JOBS ?= 4
 
 SRCDIR := src
 BUILDDIR := build
@@ -38,7 +39,7 @@ TESTFILE  := $(BUILDDIR)/testfile.dat
 SUBTEST   := $(BUILDDIR)/subtest.dat
 DISK_IMG := $(BUILDDIR)/disk.img
 
-.PHONY: all clean run test test-monkey-full
+.PHONY: all clean run test test-serial test-monkey-full
 
 all: $(DISK_IMG)
 
@@ -169,38 +170,10 @@ run: $(DISK_IMG)
 	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic
 
 test: $(DISK_IMG)
-	$(RUN_TEST) $(PYTHON) scripts/test_autoexec.py
-	$(RUN_TEST) $(PYTHON) scripts/test_boot.py
-	$(RUN_TEST) $(PYTHON) scripts/test_highmcb.py
-	$(RUN_TEST) $(PYTHON) scripts/test_write.py
-	$(RUN_TEST) $(PYTHON) scripts/test_bigreloc.py
-	$(RUN_TEST) $(PYTHON) scripts/test_keyboard.py
-	$(RUN_TEST) $(PYTHON) scripts/test_overlay.py
-	$(RUN_TEST) $(PYTHON) scripts/test_shell.py
-	$(RUN_TEST) $(PYTHON) scripts/test_console.py
-	$(RUN_TEST) $(PYTHON) scripts/test_devnames.py
-	$(RUN_TEST) $(PYTHON) scripts/test_diskfree.py
-	$(RUN_TEST) $(PYTHON) scripts/test_drive.py
-	$(RUN_TEST) $(PYTHON) scripts/test_dosstruct.py
-	$(RUN_TEST) $(PYTHON) scripts/test_ioctlstat.py
-	$(RUN_TEST) $(PYTHON) scripts/test_fat16.py
-	$(RUN_TEST) $(PYTHON) scripts/test_partitioned_fat16.py
-	$(RUN_TEST) $(PYTHON) scripts/test_fat16_large.py
-	$(RUN_TEST) $(PYTHON) scripts/test_fat16_seek.py
-	$(RUN_TEST) $(PYTHON) scripts/test_highdir.py
-	$(RUN_TEST) $(PYTHON) scripts/test_badfat.py
-	$(RUN_TEST) $(PYTHON) scripts/test_free.py
-	$(RUN_TEST) $(PYTHON) scripts/test_dirextfail.py
-	$(RUN_TEST) $(PYTHON) scripts/test_envpath.py
-	$(RUN_TEST) $(PYTHON) scripts/test_findattr.py
-	$(RUN_TEST) $(PYTHON) scripts/test_findnext.py
-	$(RUN_TEST) $(PYTHON) scripts/test_findtime.py
-	$(RUN_TEST) $(PYTHON) scripts/test_readcache.py
-	$(RUN_TEST) $(PYTHON) scripts/test_regpres.py
-	$(RUN_TEST) $(PYTHON) scripts/test_savewrite.py
-	$(RUN_TEST) $(PYTHON) scripts/test_termflush.py
-	$(RUN_TEST) $(PYTHON) scripts/test_dirmut.py
-	$(RUN_TEST) $(PYTHON) scripts/test_readwrap.py
+	$(PYTHON) scripts/run_tests.py -j $(TEST_JOBS)
+
+test-serial: TEST_JOBS := 1
+test-serial: test
 
 test-monkey-full: vendor/monkey_full.zip
 	$(RUN_TEST) $(PYTHON) scripts/test_monkey_full.py

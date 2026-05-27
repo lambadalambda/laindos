@@ -22,3 +22,4 @@ The Python QEMU test scripts duplicate image-building, process launch, monitor s
 
 - The review found more than 30 `scripts/test_*.py` files with repeated QEMU launch and output-check boilerplate.
 - First step implemented shared serial-output early-stop helpers in `scripts/testlib.py` and migrated the default `make test` QEMU scripts away from fixed post-pass waits. `make test` now wraps each script with `scripts/run_test.py` so outliers print elapsed time. Broader image-building and marker-check consolidation remains open.
+- Added per-test build directory support and `scripts/run_tests.py` so default QEMU tests can run in parallel without racing on shared `build/*.bin` and `build/*.com` artifacts.

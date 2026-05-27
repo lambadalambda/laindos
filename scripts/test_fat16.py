@@ -3,10 +3,10 @@ import os
 import subprocess
 import sys
 import tempfile
-from testlib import run_qemu_capture
+from testlib import build_dir, run_qemu_capture
 
 QEMU = "qemu-system-i386"
-BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
+BUILDDIR = build_dir()
 IMG = os.path.join(BUILDDIR, "fat16.img")
 KERNEL = os.path.join(BUILDDIR, "fat16_kernel.bin")
 TIMEOUT = 10

@@ -2,10 +2,10 @@
 import os
 import subprocess
 import sys
-from testlib import run_qemu_capture
+from testlib import build_dir, run_qemu_capture
 
 QEMU = "qemu-system-i386"
-BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
+BUILDDIR = build_dir()
 IMG = os.path.join(BUILDDIR, "keytest.img")
 KERNEL = os.path.join(BUILDDIR, "keytest_kernel.bin")
 TIMEOUT = 6

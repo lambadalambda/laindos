@@ -4,15 +4,14 @@ import re
 import socket
 import subprocess
 import sys
-import tempfile
 import time
-from testlib import finish_qemu, start_qemu, wait_for_output
+from testlib import build_dir, finish_qemu, start_qemu, wait_for_output
 
 QEMU = "qemu-system-i386"
-BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
+BUILDDIR = build_dir()
 IMG = os.path.join(BUILDDIR, "shelltest.img")
 KERNEL = os.path.join(BUILDDIR, "shelltest_kernel.bin")
-MONITOR = os.path.join(tempfile.gettempdir(), "laindos-shelltest.sock")
+MONITOR = os.path.join(BUILDDIR, "shelltest.sock")
 KEY_DELAY = 0.02
 KEY_HOLD_MS = 10
 PROMPT_RE = re.compile(rb"A:\\[^>\r\n]*>")

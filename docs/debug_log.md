@@ -2,6 +2,35 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-27 Parallel QEMU Test Runner
+
+### Symptoms
+
+- After the shell input speedup, `make test` still spent about 30 seconds running largely independent QEMU tests serially.
+- The tests could not be made parallel by Make alone because many scripts wrote shared artifacts like `build/boot.bin`, `build/shell.com`, and `build/testfile.dat`.
+
+### Confirmed Facts
+
+- Added `LAINDOS_TEST_BUILD_DIR` support through `scripts/testlib.py` and migrated default QEMU tests to use it for scratch artifacts.
+- Added `scripts/run_tests.py` with `-j` parallelism and per-test build directories under a per-run root such as `build/tests/run-91601/08-test_shell`.
+- Interactive monitor sockets now live under each test build directory, avoiding fixed `/tmp/laindos-*.sock` collisions for parallel/default tests.
+- Successful runs now remove their per-run build root; failures preserve it for debugging. `--keep-build` keeps artifacts after success.
+- `scripts/run_tests.py` has a 300-second default outer timeout per test and terminates the test process group on watchdog expiry.
+- `make test` now runs `scripts/run_tests.py -j $(TEST_JOBS)` with default `TEST_JOBS=4`.
+- `make test-serial` keeps a `-j 1` fallback path.
+- Full parallel `make test` passed in 10.62 seconds wall time with `32/32` tests passing.
+- Full serial fallback `make test-serial` passed in 29.47 seconds wall time with `32/32` tests passing.
+
+### Tests Run
+
+- `python3 -m py_compile scripts/test_*.py scripts/testlib.py scripts/run_test.py scripts/run_tests.py`
+- `git diff --check`
+- `python3 scripts/run_tests.py -j 3 scripts/test_boot.py scripts/test_shell.py scripts/test_envpath.py scripts/test_autoexec.py`
+- `python3 scripts/run_tests.py -j 2 scripts/test_boot.py scripts/test_write.py`
+- `python3 scripts/run_tests.py -j 1 --build-root build scripts/test_boot.py`
+- `/usr/bin/time -p make test`
+- `/usr/bin/time -p make test-serial`
+
 ## 2026-05-27 Shell Test Timing
 
 ### Symptoms

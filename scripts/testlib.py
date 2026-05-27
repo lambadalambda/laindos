@@ -10,6 +10,11 @@ import time
 
 DEFAULT_FAIL_MARKERS = ("FAIL:", "EXC ", "INT 21h AH=")
 DEFAULT_STOP_MARKERS = ("HALT",)
+REPO_ROOT = os.path.dirname(os.path.dirname(__file__))
+
+
+def build_dir():
+    return os.environ.get("LAINDOS_TEST_BUILD_DIR", os.path.join(REPO_ROOT, "build"))
 
 
 def read_stream(stream, chunks):

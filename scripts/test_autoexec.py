@@ -3,15 +3,14 @@ import os
 import socket
 import subprocess
 import sys
-import tempfile
 import time
-from testlib import finish_qemu, start_qemu, wait_for_output
+from testlib import build_dir, finish_qemu, start_qemu, wait_for_output
 
 QEMU = "qemu-system-i386"
-BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
+BUILDDIR = build_dir()
 IMG = os.path.join(BUILDDIR, "autoexec.img")
 KERNEL = os.path.join(BUILDDIR, "autoexec_kernel.bin")
-MONITOR = os.path.join(tempfile.gettempdir(), "laindos-autoexec.sock")
+MONITOR = os.path.join(BUILDDIR, "autoexec.sock")
 
 
 def run(cmd):

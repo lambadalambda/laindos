@@ -2,10 +2,10 @@
 import os
 import subprocess
 import sys
-from testlib import run_qemu_capture
+from testlib import build_dir, run_qemu_capture
 
 QEMU = "qemu-system-i386"
-BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
+BUILDDIR = build_dir()
 HD_IMG = os.path.join(BUILDDIR, "drivetest_hd.img")
 FLOPPY_IMG = os.path.join(BUILDDIR, "drivetest_floppy.img")
 KERNEL = os.path.join(BUILDDIR, "drivetest_kernel.bin")
