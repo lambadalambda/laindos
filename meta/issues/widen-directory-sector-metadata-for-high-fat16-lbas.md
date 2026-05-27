@@ -21,3 +21,4 @@ Some filesystem paths still store directory-entry sector LBAs in 16-bit variable
 
 - This was identified while adding DOS-compatible partitioned FAT16 boot images.
 - The initial partitioned-image support covers low directories and boot-critical files; this issue tracks the broader high-LBA audit.
+- Fixed by adding 32-bit directory-sector bookkeeping for find/create/rename/delete/attribute/mkdir/rmdir/close-time update paths and a high-subdirectory FAT16 regression.

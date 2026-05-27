@@ -2,6 +2,30 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-27 High-LBA FAT16 Directory Metadata
+
+### Symptoms
+
+- Partitioned FAT16 support exposed older directory-sector paths that kept only the low 16 bits of directory-entry LBAs.
+- A focused `hd96m` image with `HIDIR` placed above sector `65535` failed before the fix: `HIGHDIR.COM` could not open `HIDIR\SEED.DAT`.
+
+### Confirmed Facts
+
+- File data I/O was already mostly high-LBA aware through `cluster_lba` and `kio_lba_hi`.
+- Directory scans, free-slot search, directory initialization, empty-directory checks, and handle directory-entry flushing still used 16-bit directory sector fields.
+- Widening directory-sector metadata and passing the high word through `kio_lba_hi` fixes high-subdirectory open/create/write/close/rename/mkdir/rmdir/delete/attribute updates.
+- The widened kernel needed a small scratch-buffer layout adjustment: `SEC_BUF=0x0890`, `ENV_SEG=0x08B0`, with `ROOT_SEG` unchanged.
+
+### Tests Run
+
+- `python3 -m py_compile scripts/test_highdir.py`
+- `python3 scripts/test_highdir.py`
+- `python3 scripts/test_fat16_large.py`
+- `python3 scripts/test_fat16_seek.py`
+- `python3 scripts/test_partitioned_fat16.py`
+- `python3 scripts/test_dirmut.py`
+- `make test`
+
 ## 2026-05-27 Partitioned FAT16 HD Compatibility
 
 ### Symptoms

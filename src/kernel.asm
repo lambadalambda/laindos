@@ -14,7 +14,7 @@ ROOT_SEG  equ 0x0920
 PSP_SEG   equ 0x3000
 TEMP_SEG  equ 0x4000
 
-HANDLE_SIZE equ 26
+HANDLE_SIZE equ 28
 H_USED      equ 0
 H_MODE      equ 1
 H_CLUSTER   equ 2
@@ -29,6 +29,7 @@ H_DIR_OFF   equ 18
 H_TIME      equ 20
 H_DATE      equ 22
 H_OWNER     equ 24
+H_DIR_LBA_HI equ 26
 MAX_HANDLES equ 20
 SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
@@ -2711,6 +2712,8 @@ int21_handler:
     jc .md_no_slot
     mov ax, [cs:ff_entry_lba]
     mov [cs:md_entry_lba], ax
+    mov ax, [cs:ff_entry_lba_hi]
+    mov [cs:md_entry_lba_hi], ax
     mov ax, [cs:ff_entry_off]
     mov [cs:md_entry_off], ax
     mov ax, [cs:pr_dir_cluster]
@@ -2722,6 +2725,8 @@ int21_handler:
     jc .md_free_err
     call flush_fat
     jc .md_free_err
+    cmp word [cs:md_entry_lba_hi], 0
+    jne .md_load_subdir_slot
     mov ax, [cs:md_entry_lba]
     cmp ax, [cs:krsta]
     jb .md_load_subdir_slot
@@ -2746,6 +2751,8 @@ int21_handler:
     mov ax, SEC_BUF
     mov es, ax
     xor bx, bx
+    mov ax, [cs:md_entry_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:md_entry_lba]
     call read_sector
     jc .md_free_err
@@ -2773,6 +2780,8 @@ int21_handler:
     mov [es:di+26], ax
     mov word [es:di+28], 0
     mov word [es:di+30], 0
+    mov ax, [cs:md_entry_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:md_entry_lba]
     call flush_dir_sector
     jc .md_io_err
@@ -2838,11 +2847,15 @@ int21_handler:
     mov [cs:rd_cluster], ax
     mov ax, [cs:ff_entry_lba]
     mov [cs:rd_entry_lba], ax
+    mov ax, [cs:ff_entry_lba_hi]
+    mov [cs:rd_entry_lba_hi], ax
     mov ax, [cs:ff_entry_off]
     mov [cs:rd_entry_off], ax
     mov si, [cs:rd_cluster]
     call dir_is_empty
     jc .rd_access
+    cmp word [cs:rd_entry_lba_hi], 0
+    jne .rd_load_subdir_slot
     mov ax, [cs:rd_entry_lba]
     cmp ax, [cs:krsta]
     jb .rd_load_subdir_slot
@@ -2867,12 +2880,16 @@ int21_handler:
     mov ax, SEC_BUF
     mov es, ax
     xor bx, bx
+    mov ax, [cs:rd_entry_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:rd_entry_lba]
     call read_sector
     jc .rd_io_err
     mov di, [cs:rd_entry_off]
 .rd_delete_entry:
     mov byte [es:di], 0xE5
+    mov ax, [cs:rd_entry_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:rd_entry_lba]
     call flush_dir_sector
     jc .rd_io_err
@@ -2947,6 +2964,8 @@ int21_handler:
     mov [cs:cf_entry_seg], ax
     mov ax, [cs:ff_entry_lba]
     mov [cs:cf_entry_lba], ax
+    mov ax, [cs:ff_entry_lba_hi]
+    mov [cs:cf_entry_lba_hi], ax
     call alloc_handle
     jc .cr_no_handles
     mov [cs:cf_handle], ax
@@ -2965,6 +2984,8 @@ int21_handler:
     mov ax, SEC_BUF
     mov es, ax
     xor bx, bx
+    mov ax, [cs:cf_entry_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:cf_entry_lba]
     call read_sector
     jc .cr_io_err
@@ -2991,6 +3012,8 @@ int21_handler:
     mov word [es:di+26], 0
     mov word [es:di+28], 0
     mov word [es:di+30], 0
+    mov ax, [cs:cf_entry_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:cf_entry_lba]
     call flush_dir_sector
     jc .cr_io_err
@@ -3009,6 +3032,8 @@ int21_handler:
     mov word [cs:bx+handles+H_LAST_INDEX], 0
     mov ax, [cs:cf_entry_lba]
     mov [cs:bx+handles+H_DIR_LBA], ax
+    mov ax, [cs:cf_entry_lba_hi]
+    mov [cs:bx+handles+H_DIR_LBA_HI], ax
     mov ax, [cs:cf_entry_off]
     mov [cs:bx+handles+H_DIR_OFF], ax
     mov word [cs:bx+handles+H_TIME], FAT_TIME
@@ -3142,6 +3167,8 @@ int21_handler:
     mov word [cs:di+handles+H_POS_HI], 0
     mov ax, [cs:ff_entry_lba]
     mov [cs:di+handles+H_DIR_LBA], ax
+    mov ax, [cs:ff_entry_lba_hi]
+    mov [cs:di+handles+H_DIR_LBA_HI], ax
     mov ax, [cs:ff_entry_off]
     mov [cs:di+handles+H_DIR_OFF], ax
     mov ax, [es:si+22]
@@ -3260,7 +3287,8 @@ int21_handler:
     mov bx, ax
     cmp byte [cs:bx+handles+H_USED], 0
     je .cf_invalid_pop
-    cmp word [cs:bx+handles+H_DIR_LBA], 0
+    mov ax, [cs:bx+handles+H_DIR_LBA]
+    or ax, [cs:bx+handles+H_DIR_LBA_HI]
     je .cf_mark_free
     cmp byte [cs:bx+handles+H_MODE], 0
     je .cf_mark_free
@@ -3321,7 +3349,8 @@ int21_handler:
     mov word [cs:rf_read], 0
     cmp byte [cs:si+handles+H_USED], 0
     je .rf_err_pop
-    cmp word [cs:si+handles+H_DIR_LBA], 0
+    mov ax, [cs:si+handles+H_DIR_LBA]
+    or ax, [cs:si+handles+H_DIR_LBA_HI]
     je .rf_device
     mov ax, [cs:si+handles+H_POS_LO]
     mov [cs:rf_start_lo], ax
@@ -3590,7 +3619,8 @@ int21_handler:
     mov si, ax
     cmp byte [cs:si+handles+H_USED], 0
     je .wf_file_invalid_pop
-    cmp word [cs:si+handles+H_DIR_LBA], 0
+    mov ax, [cs:si+handles+H_DIR_LBA]
+    or ax, [cs:si+handles+H_DIR_LBA_HI]
     je .wf_device
     cmp byte [cs:si+handles+H_MODE], 0
     je .wf_file_access_pop
@@ -3905,6 +3935,8 @@ int21_handler:
     mov si, [es:di+26]
     mov [cs:df_first_cluster], si
     mov byte [es:di], 0xE5
+    mov ax, [cs:ff_entry_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:ff_entry_lba]
     call flush_dir_sector
     jc .df_io_err
@@ -4070,6 +4102,8 @@ int21_handler:
     jc .fa_set_nf
     mov al, [cs:fa_attr]
     mov [es:di+11], al
+    mov ax, [cs:ff_entry_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:ff_entry_lba]
     call flush_dir_sector
     jc .fa_set_io_err
@@ -4157,7 +4191,8 @@ int21_handler:
     pop ax
     cmp byte [cs:bx+handles+H_USED], 0
     je .ioctl_bad_handle_pop
-    cmp word [cs:bx+handles+H_DIR_LBA], 0
+    mov dx, [cs:bx+handles+H_DIR_LBA]
+    or dx, [cs:bx+handles+H_DIR_LBA_HI]
     pop bx
     je .ioctl_stdio
     xor dh, dh
@@ -4186,7 +4221,8 @@ int21_handler:
     mov bx, ax
     cmp byte [cs:bx+handles+H_USED], 0
     je .ioctl_input_bad_pop
-    cmp word [cs:bx+handles+H_DIR_LBA], 0
+    mov ax, [cs:bx+handles+H_DIR_LBA]
+    or ax, [cs:bx+handles+H_DIR_LBA_HI]
     je .ioctl_input_device_pop
     mov ax, [cs:bx+handles+H_POS_HI]
     cmp ax, [cs:bx+handles+H_SIZE_HI]
@@ -4498,6 +4534,8 @@ int21_handler:
     mov [cs:rn_src_off], di
     mov ax, [cs:ff_entry_lba]
     mov [cs:rn_src_lba], ax
+    mov ax, [cs:ff_entry_lba_hi]
+    mov [cs:rn_src_lba_hi], ax
     mov ax, [cs:ff_entry_off]
     mov [cs:rn_src_dir_off], ax
     mov ax, [cs:rn_new_seg]
@@ -4512,6 +4550,8 @@ int21_handler:
     mov ax, [cs:rn_dir_cluster]
     call find_in_dir
     jnc .rn_access
+    cmp word [cs:rn_src_lba_hi], 0
+    jne .rn_load_subdir
     mov ax, [cs:rn_src_lba]
     cmp ax, [cs:krsta]
     jb .rn_load_subdir
@@ -4525,6 +4565,8 @@ int21_handler:
     mov ax, SEC_BUF
     mov es, ax
     xor bx, bx
+    mov ax, [cs:rn_src_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:rn_src_lba]
     call read_sector
     jc .rn_access
@@ -4535,6 +4577,8 @@ int21_handler:
     mov si, name_buf
     mov cx, 11
     rep movsb
+    mov ax, [cs:rn_src_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:rn_src_lba]
     call flush_dir_sector
     jc .rn_access
@@ -4701,7 +4745,8 @@ close_owned_handles:
     mov ax, [cs:cur_psp]
     cmp [cs:bx+handles+H_OWNER], ax
     jne .next
-    cmp word [cs:bx+handles+H_DIR_LBA], 0
+    mov ax, [cs:bx+handles+H_DIR_LBA]
+    or ax, [cs:bx+handles+H_DIR_LBA_HI]
     je .mark_free
     cmp byte [cs:bx+handles+H_MODE], 0
     je .mark_free
@@ -4991,6 +5036,7 @@ alloc_device_handle:
     mov word [cs:bx+handles+H_LAST_CLUSTER], 0
     mov word [cs:bx+handles+H_LAST_INDEX], 0
     mov word [cs:bx+handles+H_DIR_LBA], 0
+    mov word [cs:bx+handles+H_DIR_LBA_HI], 0
     xor ah, ah
     mov al, [cs:dev_type]
     mov [cs:bx+handles+H_DIR_OFF], ax
@@ -5352,6 +5398,7 @@ find_in_dir_from_common:
     pop cx
     add ax, [cs:krsta]
     mov [cs:ff_entry_lba], ax
+    mov word [cs:ff_entry_lba_hi], 0
     mov ax, di
     and ax, 511
     mov [cs:ff_entry_off], ax
@@ -5386,19 +5433,19 @@ find_in_dir_from_common:
     cmp si, [cs:kfat_eoc]
     jae .rid_notfound_pop
     mov ax, si
-    sub ax, 2
-    push cx
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    pop cx
-    add ax, [cs:kdsta]
+    push bx
+    xor bx, bx
+    call cluster_lba
+    pop bx
     mov [cs:rid_lba], ax
+    mov [cs:rid_lba_hi], dx
     mov byte [cs:rid_sec_idx], 0
 .rid_sec_loop:
     xor bx, bx
     mov dx, SEC_BUF
     mov es, dx
+    mov ax, [cs:rid_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:rid_lba]
     push cx
     call read_sector
@@ -5435,6 +5482,9 @@ find_in_dir_from_common:
     jnz .rid_entry
 .rid_next_sec:
     inc word [cs:rid_lba]
+    jnz .rid_lba_inc_done
+    inc word [cs:rid_lba_hi]
+.rid_lba_inc_done:
     inc byte [cs:rid_sec_idx]
     mov al, [cs:rid_sec_idx]
     cmp al, [cs:kspc]
@@ -5452,6 +5502,8 @@ find_in_dir_from_common:
 .rid_found_subdir:
     mov ax, [cs:rid_lba]
     mov [cs:ff_entry_lba], ax
+    mov ax, [cs:rid_lba_hi]
+    mov [cs:ff_entry_lba_hi], ax
     mov ax, di
     mov [cs:ff_entry_off], ax
     pop dx
@@ -5543,6 +5595,7 @@ root_entry_loc_from_cx:
     shr ax, 1
     add ax, [cs:krsta]
     mov [cs:ff_entry_lba], ax
+    mov word [cs:ff_entry_lba_hi], 0
     mov ax, dx
     and ax, 0x000F
     mov dx, 32
@@ -5574,17 +5627,17 @@ find_dir_free:
     cmp si, 2
     jb .sd_full
     mov ax, si
-    sub ax, 2
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    add ax, [cs:kdsta]
+    xor bx, bx
+    call cluster_lba
     mov [cs:rid_lba], ax
+    mov [cs:rid_lba_hi], dx
     mov byte [cs:rid_sec_idx], 0
 .sd_sector:
     mov dx, SEC_BUF
     mov es, dx
     xor bx, bx
+    mov ax, [cs:rid_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:rid_lba]
     call read_sector
     jc .sd_full
@@ -5601,6 +5654,9 @@ find_dir_free:
     inc word [cs:ff_entry_idx]
     loop .sd_entry
     inc word [cs:rid_lba]
+    jnz .sd_lba_inc_done
+    inc word [cs:rid_lba_hi]
+.sd_lba_inc_done:
     inc byte [cs:rid_sec_idx]
     mov al, [cs:rid_sec_idx]
     cmp al, [cs:kspc]
@@ -5623,13 +5679,12 @@ find_dir_free:
     mov si, [cs:rid_clus]
     call fat_set
     mov ax, [cs:dir_ext_cluster]
-    sub ax, 2
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    add ax, [cs:kdsta]
+    xor bx, bx
+    call cluster_lba
     mov [cs:rid_lba], ax
+    mov [cs:rid_lba_hi], dx
     mov [cs:ff_entry_lba], ax
+    mov [cs:ff_entry_lba_hi], dx
     mov byte [cs:rid_sec_idx], 0
 .sd_zero_sector:
     mov ax, SEC_BUF
@@ -5640,6 +5695,8 @@ find_dir_free:
     cld
     rep stosw
     xor bx, bx
+    mov ax, [cs:rid_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:rid_lba]
 %ifdef TEST_DIR_EXT_ZERO_FAIL
     cmp byte [cs:dir_ext_fail_once], 0
@@ -5652,6 +5709,9 @@ find_dir_free:
     call write_sector
     jc .sd_rollback
     inc word [cs:rid_lba]
+    jnz .sd_ext_lba_inc_done
+    inc word [cs:rid_lba_hi]
+.sd_ext_lba_inc_done:
     inc byte [cs:rid_sec_idx]
     mov al, [cs:rid_sec_idx]
     cmp al, [cs:kspc]
@@ -5679,6 +5739,8 @@ find_dir_free:
 .sd_found:
     mov ax, [cs:rid_lba]
     mov [cs:ff_entry_lba], ax
+    mov ax, [cs:rid_lba_hi]
+    mov [cs:ff_entry_lba_hi], ax
     mov [cs:ff_entry_off], di
     mov cx, [cs:ff_entry_idx]
     pop si
@@ -5730,12 +5792,10 @@ init_dir_cluster:
     push es
     push di
     mov ax, [cs:md_cluster]
-    sub ax, 2
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    add ax, [cs:kdsta]
+    xor bx, bx
+    call cluster_lba
     mov [cs:md_dir_lba], ax
+    mov [cs:md_dir_lba_hi], dx
     mov byte [cs:md_sec_idx], 0
 .idc_sector:
     mov ax, SEC_BUF
@@ -5772,10 +5832,15 @@ init_dir_cluster:
     mov [es:58], ax
 .idc_write:
     xor bx, bx
+    mov ax, [cs:md_dir_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:md_dir_lba]
     call write_sector
     jc .idc_err
     inc word [cs:md_dir_lba]
+    jnz .idc_lba_inc_done
+    inc word [cs:md_dir_lba_hi]
+.idc_lba_inc_done:
     inc byte [cs:md_sec_idx]
     mov al, [cs:md_sec_idx]
     cmp al, [cs:kspc]
@@ -5848,17 +5913,17 @@ dir_is_empty:
     cmp si, 2
     jb .die_not_empty
     mov ax, si
-    sub ax, 2
-    xor ch, ch
-    mov cl, [cs:kspc]
-    mul cx
-    add ax, [cs:kdsta]
+    xor bx, bx
+    call cluster_lba
     mov [cs:rd_scan_lba], ax
+    mov [cs:rd_scan_lba_hi], dx
     mov byte [cs:rd_scan_sec_idx], 0
 .die_sector:
     mov ax, SEC_BUF
     mov es, ax
     xor bx, bx
+    mov ax, [cs:rd_scan_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:rd_scan_lba]
     call read_sector
     jc .die_not_empty
@@ -5878,6 +5943,9 @@ dir_is_empty:
     add di, 32
     loop .die_entry
     inc word [cs:rd_scan_lba]
+    jnz .die_lba_inc_done
+    inc word [cs:rd_scan_lba_hi]
+.die_lba_inc_done:
     inc byte [cs:rd_scan_sec_idx]
     mov al, [cs:rd_scan_sec_idx]
     cmp al, [cs:kspc]
@@ -6867,6 +6935,7 @@ flush_root_sector:
     shl bx, 1
     mov ax, ROOT_SEG
     mov es, ax
+    mov word [cs:kio_lba_hi], 0
     mov ax, [cs:dir_flush_lba]
     call write_sector
     pop es
@@ -6876,6 +6945,12 @@ flush_root_sector:
 
 flush_dir_sector:
     mov [cs:dir_flush_lba], ax
+    mov ax, [cs:kio_lba_hi]
+    mov [cs:dir_flush_lba_hi], ax
+    mov word [cs:kio_lba_hi], 0
+    test ax, ax
+    jnz .subdir
+    mov ax, [cs:dir_flush_lba]
     cmp ax, [cs:krsta]
     jb .subdir
     cmp ax, [cs:kdsta]
@@ -6889,6 +6964,8 @@ flush_dir_sector:
     mov ax, SEC_BUF
     mov es, ax
     xor bx, bx
+    mov ax, [cs:dir_flush_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:dir_flush_lba]
     call write_sector
     pop es
@@ -6904,9 +6981,15 @@ flush_handle_dir_entry:
     push di
     mov [cs:dir_update_hoff], si
     mov ax, [cs:si+handles+H_DIR_LBA]
+    mov dx, [cs:si+handles+H_DIR_LBA_HI]
+    mov [cs:dir_flush_lba_hi], dx
+    or ax, dx
     test ax, ax
     jz .ok
+    mov ax, [cs:si+handles+H_DIR_LBA]
     mov [cs:dir_flush_lba], ax
+    cmp word [cs:dir_flush_lba_hi], 0
+    jne .subdir
     cmp ax, [cs:krsta]
     jb .subdir
     cmp ax, [cs:kdsta]
@@ -6935,12 +7018,16 @@ flush_handle_dir_entry:
     mov ax, SEC_BUF
     mov es, ax
     xor bx, bx
+    mov ax, [cs:dir_flush_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:dir_flush_lba]
     call read_sector
     jc .done
     mov si, [cs:dir_update_hoff]
     mov di, [cs:si+handles+H_DIR_OFF]
     call store_handle_dir_fields
+    mov ax, [cs:dir_flush_lba_hi]
+    mov [cs:kio_lba_hi], ax
     mov ax, [cs:dir_flush_lba]
     mov bx, 0
     call write_sector
@@ -6986,6 +7073,9 @@ entry_has_open_handle:
     je .next
     mov ax, [cs:ff_entry_lba]
     cmp [cs:bx+handles+H_DIR_LBA], ax
+    jne .next
+    mov ax, [cs:ff_entry_lba_hi]
+    cmp [cs:bx+handles+H_DIR_LBA_HI], ax
     jne .next
     mov ax, [cs:ff_entry_off]
     cmp [cs:bx+handles+H_DIR_OFF], ax
@@ -8910,6 +9000,7 @@ cf_handle: dw 0
 cf_entry_idx: dw 0
 cf_entry_seg: dw 0
 cf_entry_lba: dw 0
+cf_entry_lba_hi: dw 0
 cf_entry_off: dw 0
 cf_found: db 0
 cf_status: dw 0
@@ -8920,6 +9011,7 @@ rn_src_idx: dw 0
 rn_src_off: dw 0
 rn_src_dir_off: dw 0
 rn_src_lba: dw 0
+rn_src_lba_hi: dw 0
 rn_dir_cluster: dw 0
 rn_status: dw 0
 
@@ -8932,15 +9024,19 @@ md_status: dw 0
 md_cluster: dw 0
 md_parent_cluster: dw 0
 md_entry_lba: dw 0
+md_entry_lba_hi: dw 0
 md_entry_off: dw 0
 md_dir_lba: dw 0
+md_dir_lba_hi: dw 0
 md_sec_idx: db 0
 rd_status: dw 0
 rd_cluster: dw 0
 rd_entry_lba: dw 0
+rd_entry_lba_hi: dw 0
 rd_entry_off: dw 0
 rd_scan_cluster: dw 0
 rd_scan_lba: dw 0
+rd_scan_lba_hi: dw 0
 rd_scan_sec_idx: db 0
 
 pr_abs: db 0
@@ -8951,6 +9047,7 @@ pr_last_sep: dw 0
 pr_sep_char: db 0
 
 dir_flush_lba: dw 0
+dir_flush_lba_hi: dw 0
 dir_update_hoff: dw 0
 dir_ext_old_next: dw 0
 dir_ext_fail_once: db 0
@@ -8986,6 +9083,7 @@ ff_entry_time: dw 0
 ff_entry_date: dw 0
 ff_entry_name: times 11 db 0
 ff_entry_lba: dw 0
+ff_entry_lba_hi: dw 0
 ff_entry_off: dw 0
 ff_attr_mask: db 0
 ff_filter_attrs: db 0
@@ -8999,6 +9097,7 @@ fid_cluster: dw 0
 fid_idx: dw 0
 rid_clus: dw 0
 rid_lba: dw 0
+rid_lba_hi: dw 0
 rid_sec_idx: db 0
 dir_ext_cluster: dw 0
 

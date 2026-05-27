@@ -186,6 +186,7 @@ test: $(DISK_IMG)
 	$(PYTHON) scripts/test_partitioned_fat16.py
 	$(PYTHON) scripts/test_fat16_large.py
 	$(PYTHON) scripts/test_fat16_seek.py
+	$(PYTHON) scripts/test_highdir.py
 	$(PYTHON) scripts/test_free.py
 	$(PYTHON) scripts/test_dirextfail.py
 	$(PYTHON) scripts/test_envpath.py
