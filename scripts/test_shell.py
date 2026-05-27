@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -12,6 +13,10 @@ BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
 IMG = os.path.join(BUILDDIR, "shelltest.img")
 KERNEL = os.path.join(BUILDDIR, "shelltest_kernel.bin")
 MONITOR = os.path.join(tempfile.gettempdir(), "laindos-shelltest.sock")
+KEY_DELAY = 0.02
+KEY_HOLD_MS = 10
+PROMPT_RE = re.compile(rb"A:\\[^>\r\n]*>")
+KEYMAP = {" ": "spc", "\\": "backslash", ".": "dot", "/": "slash", "-": "minus", "_": "shift-minus", ":": "shift-semicolon"}
 
 
 def run(cmd):
@@ -79,8 +84,44 @@ def build_image():
 
 
 def send_monitor_key(sock, key):
-    sock.sendall(f"sendkey {key}\n".encode())
-    time.sleep(0.15)
+    sock.sendall(f"sendkey {key} {KEY_HOLD_MS}\n".encode())
+    time.sleep(KEY_DELAY)
+
+
+def prompt_count(output_chunks):
+    return len(PROMPT_RE.findall(b"".join(output_chunks)))
+
+
+def wait_for_prompt_count(output_chunks, count, timeout=8, context="prompt"):
+    deadline = time.monotonic() + timeout
+    stop_markers = ("FAIL:", "EXC ", "INT 21h AH=", "HALT")
+    while time.monotonic() < deadline:
+        output = b"".join(output_chunks)
+        if len(PROMPT_RE.findall(output)) >= count:
+            return
+        for marker in stop_markers:
+            if marker.encode() in output:
+                raise RuntimeError(f"saw {marker!r} while waiting for {context}")
+        time.sleep(0.02)
+    raise TimeoutError(f"timed out waiting for {context}")
+
+
+def send_text(sock, text):
+    for ch in text:
+        if ch.isalnum():
+            key = ch.lower()
+        elif ch in KEYMAP:
+            key = KEYMAP[ch]
+        else:
+            raise ValueError(f"unmapped QEMU key for {ch!r} in {text!r}")
+        send_monitor_key(sock, key)
+
+
+def send_command(sock, output_chunks, command, timeout=8):
+    target_prompt = prompt_count(output_chunks) + 1
+    send_text(sock, command)
+    send_monitor_key(sock, "ret")
+    wait_for_prompt_count(output_chunks, target_prompt, timeout=timeout, context=f"prompt after {command!r}")
 
 
 def send_keys(output_chunks):
@@ -95,49 +136,47 @@ def send_keys(output_chunks):
                 raise
             time.sleep(0.1)
     sock.recv(4096)
-    initial_keys = [
-        "v", "e", "r", "ret",
-        "c", "l", "s", "ret",
-        "d", "i", "r", "ret",
-        "t", "y", "p", "e", "spc", "t", "e", "s", "t", "f", "i", "l", "e", "dot", "d", "a", "t", "ret",
-        "h", "e", "l", "l", "o", "ret",
-        "k", "e", "y", "t", "e", "s", "t", "ret",
-        "e", "x", "t", "k", "e", "y", "ret",
-    ]
-    for key in initial_keys:
-        send_monitor_key(sock, key)
+    for command in ["ver", "cls", "dir", "type testfile.dat", "hello", "keytest"]:
+        send_command(sock, output_chunks, command)
+
+    target_prompt = prompt_count(output_chunks) + 1
+    send_text(sock, "extkey")
+    send_monitor_key(sock, "ret")
     if not wait_for_output(output_chunks, "READY: EXTKEY", timeout=15, stop_markers=()):
         raise TimeoutError("timed out waiting for 'READY: EXTKEY'")
     send_monitor_key(sock, "f5")
-    for key in [
-        "t", "i", "m", "e", "t", "e", "s", "t", "ret",
-        "t", "e", "s", "t", "b", "a", "t", "ret",
-        "e", "x", "e", "m", "a", "x", "ret",
-        "m", "e", "m", "r", "e", "g", "ret",
-        "p", "a", "c", "k", "s", "e", "g", "ret",
-        "h", "e", "l", "l", "o", "ret",
-        "h", "e", "l", "l", "o", "e", "x", "e", "ret",
-        "e", "x", "e", "c", "t", "e", "s", "t", "ret",
-        "p", "s", "p", "t", "e", "s", "t", "ret",
-        "m", "e", "m", "ret",
-        "f", "r", "e", "e", "ret",
-        "m", "d", "spc", "s", "h", "d", "i", "r", "ret",
-        "d", "i", "r", "ret",
-        "c", "d", "spc", "s", "h", "d", "i", "r", "ret",
-        "c", "d", "spc", "slash", "ret",
-        "c", "d", "spc", "dot", "dot", "ret",
-        "r", "d", "spc", "s", "h", "d", "i", "r", "ret",
-        "c", "d", "spc", "s", "h", "d", "i", "r", "ret",
-        "c", "d", "spc", "m", "i", "d", "e", "m", "o", "ret",
-        "d", "i", "r", "ret",
-        "t", "y", "p", "e", "spc", "s", "u", "b", "t", "e", "s", "t", "dot", "d", "a", "t", "ret",
-        "h", "e", "l", "l", "o", "e", "x", "e", "ret",
-        "c", "d", "spc", "dot", "dot", "ret",
-        "t", "y", "p", "e", "spc", "t", "e", "s", "t", "f", "i", "l", "e", "dot", "d", "a", "t", "ret",
-        "n", "o", "p", "e", "ret",
-        "e", "x", "i", "t", "ret",
+    wait_for_prompt_count(output_chunks, target_prompt, context="prompt after EXTKEY")
+
+    for command in [
+        "timetest",
+        "testbat",
+        "exemax",
+        "memreg",
+        "packseg",
+        "hello",
+        "helloexe",
+        "exectest",
+        "psptest",
+        "mem",
+        "free",
+        "md shdir",
+        "dir",
+        "cd shdir",
+        "cd /",
+        "cd ..",
+        "rd shdir",
+        "cd shdir",
+        "cd midemo",
+        "dir",
+        "type subtest.dat",
+        "helloexe",
+        "cd ..",
+        "type testfile.dat",
+        "nope",
     ]:
-        send_monitor_key(sock, key)
+        send_command(sock, output_chunks, command)
+    send_text(sock, "exit")
+    send_monitor_key(sock, "ret")
     sock.close()
 
 

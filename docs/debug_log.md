@@ -2,6 +2,28 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-27 Shell Test Timing
+
+### Symptoms
+
+- After adding per-test timing, `scripts/test_shell.py` consistently took about 40 seconds while most QEMU tests completed under a second.
+- The test was not actually waiting for the final QEMU timeout; the wall time matched hundreds of monitor `sendkey` calls sleeping 150 ms each.
+
+### Confirmed Facts
+
+- Replacing blind key-list playback with command-level injection plus prompt/marker waits preserves the same interactive coverage without flooding the BIOS keyboard buffer.
+- QEMU monitor key hold was reduced to 10 ms and inter-key delay to 20 ms.
+- `scripts/test_shell.py` passed repeated focused runs at about 6.6 seconds.
+- Full `make test` passed in 30.88 seconds, down from about 66 seconds before the shell timing fix.
+
+### Tests Run
+
+- `python3 -m py_compile scripts/test_shell.py`
+- `git diff --check`
+- `python3 scripts/run_test.py python3 scripts/test_shell.py`
+- `python3 scripts/run_test.py python3 scripts/test_shell.py && python3 scripts/run_test.py python3 scripts/test_shell.py`
+- `/usr/bin/time -p make test`
+
 ## 2026-05-27 FAT Cluster Bounds Checks
 
 ### Symptoms
