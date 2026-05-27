@@ -8,7 +8,7 @@ ROOT_SEG equ 0x0920
 bpb:
     jmp short boot
     nop
-    times 8 db 0
+    db "MSDOS5.0"
     dw 512
     db 8
     dw 1
@@ -25,7 +25,7 @@ bpb:
     db 0
     db 0x29
     dd 0x12345678
-    times 11 db 0
+    db "NO NAME    "
     db "FAT16   "
 
 boot:

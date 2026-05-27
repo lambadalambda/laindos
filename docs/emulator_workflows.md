@@ -118,6 +118,7 @@ LainDOS also supports a minimal partitioned FAT16 hard-disk layout for regressio
 - partition 1 is active, type `06h`, and starts at LBA 63.
 - the FAT16 partition boot sector contains the normal LainDOS FAT16 boot code.
 - the BPB hidden-sector field must match the partition start, because boot and kernel sector I/O add that offset when reading FAT/root/data sectors.
+- the FAT boot sector should use a conventional OEM string and volume label; MS-DOS mounted but misread an all-zero OEM/label test image.
 
 The legacy `hd32m`/`hd96m` images remain raw FAT volumes with hidden sectors set to zero. Those are convenient for LainDOS/QEMU tests but are not the same as MS-DOS hard-disk images.
 

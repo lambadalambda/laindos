@@ -8,4 +8,4 @@
 - [ ] [Improve FAT Write Durability And Rollback](issues/improve-fat-write-durability-and-rollback.md)
 - [ ] [Separate Sector Buffers From Read Cache](issues/separate-sector-buffers-from-read-cache.md)
 - [ ] [Fill Missing DOS Compatibility APIs](issues/fill-missing-dos-compatibility-apis.md)
-- [ ] [Support DOS-Compatible Partitioned FAT16 HD Images](issues/support-dos-compatible-partitioned-fat16-hd-images.md)
+- [ ] [Widen Directory Sector Metadata For High FAT16 LBAs](issues/widen-directory-sector-metadata-for-high-fat16-lbas.md)

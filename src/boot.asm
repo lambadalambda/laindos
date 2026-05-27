@@ -8,7 +8,7 @@ ROOT_SEG equ 0x0920
 bpb:
     jmp short boot
     nop
-    times 8 db 0       ; +03 OEM name
+    db "MSDOS5.0"      ; +03 OEM name
     dw 512             ; +0B bytes/sector
     db 1               ; +0D sec/cluster
     dw 1               ; +0E reserved sectors
@@ -25,8 +25,8 @@ bpb:
     db 0               ; +25 reserved
     db 0x29            ; +26 boot sig
     dd 0x12345678      ; +27 vol id
-    times 11 db 0      ; +2B vol label
-    times 8 db 0       ; +36 fs type
+    db "NO NAME    "   ; +2B vol label
+    db "FAT12   "      ; +36 fs type
 
 boot:
     cli

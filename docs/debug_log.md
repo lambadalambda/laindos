@@ -2,6 +2,35 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-27 Partitioned FAT16 HD Compatibility
+
+### Symptoms
+
+- LainDOS raw `hd32m`/`hd96m` FAT16 images boot in QEMU, but real MS-DOS did not read earlier LainDOS hard-disk images as normal DOS `C:` drives.
+- The first partitioned test image booted LainDOS but real MS-DOS `DIR C:` over serial showed garbage directory entries.
+
+### Confirmed Facts
+
+- The original hard-disk image format was a raw FAT volume, not an MBR-partitioned disk.
+- `boot16.asm` and the kernel initially treated FAT/root/data sector numbers as disk-absolute and did not add the BPB hidden-sector partition offset.
+- A tiny MBR chainloader plus BPB hidden-sector addition lets LainDOS boot and run `MEMTEST.EXE` from a FAT16 partition starting at LBA 63.
+- `fdisk build/fat16part.img` recognizes an active type-06 DOS partition starting at LBA 63.
+- `fsck_msdos -n` accepts the extracted FAT16 partition slice from `build/fat16part.img`.
+- Real MS-DOS 6.x, using a temporary floppy `AUTOEXEC.BAT` with `CTTY COM1`, mounted the partition as `C:` but listed garbage when the FAT boot sector OEM string and volume label were all zeros.
+- After setting the FAT boot sector OEM string to `MSDOS5.0` and volume label to `NO NAME    `, real MS-DOS `DIR C:` listed `KERNEL.SYS` and `MEMTEST.EXE` correctly.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_partitioned_fat16.py`
+- `fdisk build/fat16part.img`
+- `fsck_msdos -n build/fat16part_slice.img`
+- Real MS-DOS floppy boot in QEMU with `CTTY COM1`, then `C:` and `DIR` against `build/fat16part.img`.
+
+### Follow-Ups
+
+- The current partitioned boot path still uses CHS `INT 13h`; keep images below the 1024-cylinder limit until an extended-read boot path exists.
+- Older filesystem call sites still carry some directory sector LBAs in 16-bit variables; avoid high mutable directories until that follow-up audit is complete.
+
 ## 2026-05-26 Ascendancy QEMU x87 Stall
 
 ### Symptoms

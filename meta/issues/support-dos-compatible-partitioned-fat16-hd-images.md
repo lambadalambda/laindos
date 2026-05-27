@@ -23,5 +23,6 @@ LainDOS hard-disk images are currently raw FAT volumes. Real MS-DOS expects a pa
 
 - The current `hd32m`/`hd96m` formats are raw FAT volumes, not DOS-compatible partitioned disks.
 - The initial implementation adds BPB hidden-sector offsets in the FAT16 boot sector and common kernel sector I/O path.
+- MS-DOS 6.x mounted but misread an all-zero OEM/volume-label test image; use conventional FAT boot-sector identity fields such as `MSDOS5.0` and `NO NAME`.
 - The first target can be one primary partition below the CHS 1024-cylinder limit, using existing CHS INT 13h paths.
 - Follow-up after the initial boot/read path: audit older filesystem call sites that still pass only 16-bit sector LBAs before relying on partitioned images with high subdirectories or large mutable directory trees.

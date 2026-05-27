@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import signal
+import shutil
 import struct
 import subprocess
 import sys
@@ -101,6 +102,29 @@ def inspect_image():
     hidden = struct.unpack_from("<I", vbr, 0x1C)[0]
     if hidden != PART_START:
         raise RuntimeError("BPB hidden-sector field mismatch")
+    if vbr[3:11] != b"MSDOS5.0":
+        raise RuntimeError("unexpected FAT OEM string")
+    if vbr[0x2B:0x36] != b"NO NAME    ":
+        raise RuntimeError("unexpected FAT volume label")
+
+
+def run_host_fat_check():
+    if shutil.which("fsck_msdos") is None:
+        print("  SKIP: fsck_msdos unavailable for host FAT check")
+        return
+    with open(IMG, "rb") as f:
+        f.seek(PART_START * SECTOR_SIZE)
+        part = f.read(os.path.getsize(RAW_IMG))
+    part_img = os.path.join(BUILDDIR, "fat16part_slice.img")
+    with open(part_img, "wb") as f:
+        f.write(part)
+    result = subprocess.run(["fsck_msdos", "-n", part_img], capture_output=True, text=True)
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+    if result.returncode != 0:
+        raise RuntimeError("fsck_msdos rejected partition FAT16 filesystem")
 
 
 def run_qemu():
@@ -135,6 +159,7 @@ def run_qemu():
 def main():
     build_image()
     inspect_image()
+    run_host_fat_check()
     output = run_qemu()
     failed = False
     for marker in [
