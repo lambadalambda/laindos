@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 import os
-import signal
 import subprocess
 import sys
-import tempfile
+from testlib import run_qemu_capture
 
 QEMU = "qemu-system-i386"
 BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
@@ -43,31 +42,14 @@ def build_image():
 
 
 def run_qemu():
-    proc = subprocess.Popen(
-        [
-            QEMU,
-            "-drive", f"file={IMG},format=raw",
-            "-boot", "order=c",
-            "-serial", "stdio",
-            "-monitor", "none",
-            "-nographic",
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    try:
-        stdout, stderr = proc.communicate(timeout=TIMEOUT)
-    except subprocess.TimeoutExpired:
-        proc.send_signal(signal.SIGTERM)
-        try:
-            stdout, stderr = proc.communicate(timeout=3)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            stdout, stderr = proc.communicate()
-    output = stdout.decode("utf-8", errors="replace")
-    err = stderr.decode("utf-8", errors="replace")
-    if err:
-        print(err, end="", file=sys.stderr)
+    output, _ = run_qemu_capture([
+        QEMU,
+        "-drive", f"file={IMG},format=raw",
+        "-boot", "order=c",
+        "-serial", "stdio",
+        "-monitor", "none",
+        "-nographic",
+    ], TIMEOUT)
     return output
 
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import os
-import signal
 import socket
 import subprocess
 import sys
 import tempfile
 import time
+from testlib import finish_qemu, start_qemu, wait_for_output
 
 QEMU = "qemu-system-i386"
 BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
@@ -64,33 +64,25 @@ def run_qemu():
         os.unlink(MONITOR)
     except FileNotFoundError:
         pass
-    proc = subprocess.Popen(
-        [
-            QEMU,
-            "-drive", f"file={IMG},format=raw,if=floppy",
-            "-boot", "order=a",
-            "-serial", "stdio",
-            "-monitor", f"unix:{MONITOR},server,nowait",
-            "-nographic",
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    time.sleep(3)
-    send_keys()
+    proc, stdout_chunks, stderr_chunks, threads = start_qemu([
+        QEMU,
+        "-drive", f"file={IMG},format=raw,if=floppy",
+        "-boot", "order=a",
+        "-serial", "stdio",
+        "-monitor", f"unix:{MONITOR},server,nowait",
+        "-nographic",
+    ])
     try:
-        stdout, stderr = proc.communicate(timeout=8)
-    except subprocess.TimeoutExpired:
-        proc.send_signal(signal.SIGTERM)
-        try:
-            stdout, stderr = proc.communicate(timeout=3)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            stdout, stderr = proc.communicate()
-    output = stdout.decode("utf-8", errors="replace")
-    err = stderr.decode("utf-8", errors="replace")
-    if err:
-        print(err, end="", file=sys.stderr)
+        if not wait_for_output(stdout_chunks, "READY: CONSOLE", timeout=15, stop_markers=()):
+            raise TimeoutError("timed out waiting for 'READY: CONSOLE'")
+        send_keys()
+    except Exception:
+        proc.kill()
+        proc.wait()
+        for thread in threads:
+            thread.join(timeout=1)
+        raise
+    output, _ = finish_qemu(proc, stdout_chunks, stderr_chunks, threads, timeout=8, stop_markers=("HALT", "Program exited, code=00"))
     return output
 
 

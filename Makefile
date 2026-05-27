@@ -1,6 +1,7 @@
 NASM := nasm
 QEMU := qemu-system-i386
 PYTHON := python3
+RUN_TEST := $(PYTHON) scripts/run_test.py
 
 SRCDIR := src
 BUILDDIR := build
@@ -168,41 +169,41 @@ run: $(DISK_IMG)
 	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic
 
 test: $(DISK_IMG)
-	$(PYTHON) scripts/test_autoexec.py
-	$(PYTHON) scripts/test_boot.py
-	$(PYTHON) scripts/test_highmcb.py
-	$(PYTHON) scripts/test_write.py
-	$(PYTHON) scripts/test_bigreloc.py
-	$(PYTHON) scripts/test_keyboard.py
-	$(PYTHON) scripts/test_overlay.py
-	$(PYTHON) scripts/test_shell.py
-	$(PYTHON) scripts/test_console.py
-	$(PYTHON) scripts/test_devnames.py
-	$(PYTHON) scripts/test_diskfree.py
-	$(PYTHON) scripts/test_drive.py
-	$(PYTHON) scripts/test_dosstruct.py
-	$(PYTHON) scripts/test_ioctlstat.py
-	$(PYTHON) scripts/test_fat16.py
-	$(PYTHON) scripts/test_partitioned_fat16.py
-	$(PYTHON) scripts/test_fat16_large.py
-	$(PYTHON) scripts/test_fat16_seek.py
-	$(PYTHON) scripts/test_highdir.py
-	$(PYTHON) scripts/test_badfat.py
-	$(PYTHON) scripts/test_free.py
-	$(PYTHON) scripts/test_dirextfail.py
-	$(PYTHON) scripts/test_envpath.py
-	$(PYTHON) scripts/test_findattr.py
-	$(PYTHON) scripts/test_findnext.py
-	$(PYTHON) scripts/test_findtime.py
-	$(PYTHON) scripts/test_readcache.py
-	$(PYTHON) scripts/test_regpres.py
-	$(PYTHON) scripts/test_savewrite.py
-	$(PYTHON) scripts/test_termflush.py
-	$(PYTHON) scripts/test_dirmut.py
-	$(PYTHON) scripts/test_readwrap.py
+	$(RUN_TEST) $(PYTHON) scripts/test_autoexec.py
+	$(RUN_TEST) $(PYTHON) scripts/test_boot.py
+	$(RUN_TEST) $(PYTHON) scripts/test_highmcb.py
+	$(RUN_TEST) $(PYTHON) scripts/test_write.py
+	$(RUN_TEST) $(PYTHON) scripts/test_bigreloc.py
+	$(RUN_TEST) $(PYTHON) scripts/test_keyboard.py
+	$(RUN_TEST) $(PYTHON) scripts/test_overlay.py
+	$(RUN_TEST) $(PYTHON) scripts/test_shell.py
+	$(RUN_TEST) $(PYTHON) scripts/test_console.py
+	$(RUN_TEST) $(PYTHON) scripts/test_devnames.py
+	$(RUN_TEST) $(PYTHON) scripts/test_diskfree.py
+	$(RUN_TEST) $(PYTHON) scripts/test_drive.py
+	$(RUN_TEST) $(PYTHON) scripts/test_dosstruct.py
+	$(RUN_TEST) $(PYTHON) scripts/test_ioctlstat.py
+	$(RUN_TEST) $(PYTHON) scripts/test_fat16.py
+	$(RUN_TEST) $(PYTHON) scripts/test_partitioned_fat16.py
+	$(RUN_TEST) $(PYTHON) scripts/test_fat16_large.py
+	$(RUN_TEST) $(PYTHON) scripts/test_fat16_seek.py
+	$(RUN_TEST) $(PYTHON) scripts/test_highdir.py
+	$(RUN_TEST) $(PYTHON) scripts/test_badfat.py
+	$(RUN_TEST) $(PYTHON) scripts/test_free.py
+	$(RUN_TEST) $(PYTHON) scripts/test_dirextfail.py
+	$(RUN_TEST) $(PYTHON) scripts/test_envpath.py
+	$(RUN_TEST) $(PYTHON) scripts/test_findattr.py
+	$(RUN_TEST) $(PYTHON) scripts/test_findnext.py
+	$(RUN_TEST) $(PYTHON) scripts/test_findtime.py
+	$(RUN_TEST) $(PYTHON) scripts/test_readcache.py
+	$(RUN_TEST) $(PYTHON) scripts/test_regpres.py
+	$(RUN_TEST) $(PYTHON) scripts/test_savewrite.py
+	$(RUN_TEST) $(PYTHON) scripts/test_termflush.py
+	$(RUN_TEST) $(PYTHON) scripts/test_dirmut.py
+	$(RUN_TEST) $(PYTHON) scripts/test_readwrap.py
 
 test-monkey-full: vendor/monkey_full.zip
-	$(PYTHON) scripts/test_monkey_full.py
+	$(RUN_TEST) $(PYTHON) scripts/test_monkey_full.py
 
 clean:
 	rm -rf $(BUILDDIR)

@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-import subprocess
 import sys
 import os
-import signal
+from testlib import run_qemu_capture
 
 QEMU = "qemu-system-i386"
 DISK_IMG = os.path.join(os.path.dirname(__file__), "..", "build", "disk.img")
@@ -24,30 +23,14 @@ def test_boot():
         print("FAIL: disk image not found, run 'mise run build' first")
         sys.exit(1)
 
-    proc = subprocess.Popen(
-        [
-            QEMU,
-            "-drive", f"file={DISK_IMG},format=raw,if=floppy",
-            "-boot", "order=a",
-            "-serial", "stdio",
-            "-monitor", "none",
-            "-nographic",
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-
-    try:
-        stdout, stderr = proc.communicate(timeout=TIMEOUT)
-    except subprocess.TimeoutExpired:
-        proc.send_signal(signal.SIGTERM)
-        try:
-            stdout, stderr = proc.communicate(timeout=3)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            stdout, stderr = proc.communicate()
-
-    output = stdout.decode("utf-8", errors="replace")
+    output, _ = run_qemu_capture([
+        QEMU,
+        "-drive", f"file={DISK_IMG},format=raw,if=floppy",
+        "-boot", "order=a",
+        "-serial", "stdio",
+        "-monitor", "none",
+        "-nographic",
+    ], TIMEOUT)
     failed = False
 
     for marker in EXPECTED:

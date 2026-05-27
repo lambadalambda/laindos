@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 import os
-import signal
 import socket
 import subprocess
 import sys
 import tempfile
-import threading
 import time
+from testlib import finish_qemu, start_qemu, wait_for_output
 
 QEMU = "qemu-system-i386"
 BUILDDIR = os.path.join(os.path.dirname(__file__), "..", "build")
@@ -57,7 +56,7 @@ def send_text(sock, text):
         send_monitor_key(sock, keymap.get(ch, ch.lower()))
 
 
-def send_keys():
+def send_keys(output_chunks):
     deadline = time.time() + 8
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     while True:
@@ -69,18 +68,12 @@ def send_keys():
                 raise
             time.sleep(0.1)
     sock.recv(4096)
+    if not wait_for_output(output_chunks, "A:\\>", timeout=15, stop_markers=()):
+        raise TimeoutError("timed out waiting for 'A:\\>'")
     for command in ["envtest", "md work", "cd work", "pathrun", "exit"]:
         send_text(sock, command)
         send_monitor_key(sock, "ret")
     sock.close()
-
-
-def read_stream(stream, chunks):
-    while True:
-        data = os.read(stream.fileno(), 1024)
-        if not data:
-            return
-        chunks.append(data)
 
 
 def run_qemu():
@@ -88,48 +81,23 @@ def run_qemu():
         os.unlink(MONITOR)
     except FileNotFoundError:
         pass
-    proc = subprocess.Popen(
-        [
-            QEMU,
-            "-drive", f"file={IMG},format=raw,if=floppy",
-            "-boot", "order=a",
-            "-serial", "stdio",
-            "-monitor", f"unix:{MONITOR},server,nowait",
-            "-nographic",
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout_chunks = []
-    stderr_chunks = []
-    stdout_thread = threading.Thread(target=read_stream, args=(proc.stdout, stdout_chunks), daemon=True)
-    stderr_thread = threading.Thread(target=read_stream, args=(proc.stderr, stderr_chunks), daemon=True)
-    stdout_thread.start()
-    stderr_thread.start()
-    time.sleep(3)
+    proc, stdout_chunks, stderr_chunks, threads = start_qemu([
+        QEMU,
+        "-drive", f"file={IMG},format=raw,if=floppy",
+        "-boot", "order=a",
+        "-serial", "stdio",
+        "-monitor", f"unix:{MONITOR},server,nowait",
+        "-nographic",
+    ])
     try:
-        send_keys()
+        send_keys(stdout_chunks)
     except Exception:
         proc.kill()
         proc.wait()
-        stdout_thread.join(timeout=1)
-        stderr_thread.join(timeout=1)
+        for thread in threads:
+            thread.join(timeout=1)
         raise
-    try:
-        proc.wait(timeout=8)
-    except subprocess.TimeoutExpired:
-        proc.send_signal(signal.SIGTERM)
-        try:
-            proc.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
-    stdout_thread.join(timeout=1)
-    stderr_thread.join(timeout=1)
-    output = b"".join(stdout_chunks).decode("utf-8", errors="replace")
-    err = b"".join(stderr_chunks).decode("utf-8", errors="replace")
-    if err:
-        print(err, end="", file=sys.stderr)
+    output, _ = finish_qemu(proc, stdout_chunks, stderr_chunks, threads, timeout=8, stop_markers=("HALT", "Program exited, code=00"))
     return output
 
 
