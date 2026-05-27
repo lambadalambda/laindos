@@ -8,6 +8,7 @@ File create, file open, and device open initialize handle-table entries in separ
 
 - Centralize common handle initialization so new fields are initialized consistently.
 - Evaluate replacing the `H_DIR_LBA=0` device sentinel with an explicit device flag or documented magic value.
+- Ensure create, open, device, close, and termination-close paths initialize and clear the same handle fields consistently.
 - Preserve current close/read/write/IOCTL behavior.
 
 ## Acceptance Criteria
@@ -15,3 +16,7 @@ File create, file open, and device open initialize handle-table entries in separ
 - Existing file, device, termination-flush, and register-preservation tests pass.
 - Handle initialization has one common base path or macro.
 - `make test` passes.
+
+## Notes
+
+- Review references: create initializes fields at `src/kernel.asm:3024`, open at `src/kernel.asm:3154`, and device handles at `src/kernel.asm:5029`.

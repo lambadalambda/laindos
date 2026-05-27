@@ -8,6 +8,8 @@ The Python QEMU test scripts duplicate image-building, process launch, monitor s
 
 - Introduce a small shared helper module for common QEMU test operations.
 - Migrate scripts incrementally, starting with the newest or most similar tests.
+- Centralize QEMU command-line defaults, timeout handling, process cleanup, serial output decoding, and PASS/FAIL marker checks.
+- Preserve specialized options such as monitor sockets, hard-disk boot, and Sound Blaster flags where tests need them.
 - Keep each test's assertions clear and local to that test.
 
 ## Acceptance Criteria
@@ -15,3 +17,7 @@ The Python QEMU test scripts duplicate image-building, process launch, monitor s
 - At least three representative tests use the shared helper without losing coverage.
 - Migrated tests pass individually.
 - `make test` passes after each migration batch.
+
+## Notes
+
+- The review found more than 30 `scripts/test_*.py` files with repeated QEMU launch and output-check boilerplate.
