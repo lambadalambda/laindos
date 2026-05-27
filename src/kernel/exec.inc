@@ -405,6 +405,24 @@ load_overlay_direct:
     mov [cs:ov_reloc_count], ax
     mov ax, [0x18]
     mov [cs:ov_reloc_off], ax
+    cmp word [cs:ov_reloc_off], 0x1C
+    jb .mz_bad_pop
+    mov ax, [cs:ov_reloc_count]
+    shl ax, 1
+    jc .mz_bad_pop
+    shl ax, 1
+    jc .mz_bad_pop
+    add ax, [cs:ov_reloc_off]
+    jc .mz_bad_pop
+    cmp ax, [cs:ov_skip]
+    ja .mz_bad_pop
+    mov ax, [cs:ov_left]
+    add ax, 15
+    mov cx, 4
+.ov_img_shift:
+    shr ax, 1
+    loop .ov_img_shift
+    mov [cs:ov_image_par], ax
     pop ds
     mov ax, [cs:ov_load_seg]
     mov [cs:ov_dst_seg], ax
@@ -429,6 +447,8 @@ overlay_apply_relocs:
     mov cx, [cs:ov_reloc_count]
     test cx, cx
     jz .done
+    cmp word [cs:ov_image_par], 0
+    je .err
 .loop:
     call overlay_read_reloc_sector
     jc .err
@@ -442,7 +462,12 @@ overlay_apply_relocs:
     mov di, [bx]
     mov ax, [bx+2]
     pop ds
+    cmp di, 0xFFFE
+    ja .err
+    cmp ax, [cs:ov_image_par]
+    jae .err
     add ax, [cs:ov_load_seg]
+    jc .err
     mov es, ax
     mov ax, [es:di]
     add ax, [cs:ov_reloc_seg]
@@ -813,6 +838,8 @@ setup_exe_dyn:
     shr dx, 1
     rcr ax, 1
     loop .img_par_shift
+    cmp ax, [cs:exe_hdr_par]
+    jb .reloc_err
     sub ax, [cs:exe_hdr_par]
     mov [cs:exe_image_par], ax
     mov ax, [0x0E]
@@ -827,6 +854,27 @@ setup_exe_dyn:
     mov [cs:exe_reloc_count], ax
     mov ax, [0x18]
     mov [cs:exe_reloc_off], ax
+
+    cmp word [cs:exe_image_par], 0
+    je .reloc_err
+    cmp word [cs:exe_reloc_off], 0x1C
+    jb .reloc_err
+    mov ax, [cs:exe_reloc_count]
+    shl ax, 1
+    jc .reloc_err
+    shl ax, 1
+    jc .reloc_err
+    add ax, [cs:exe_reloc_off]
+    jc .reloc_err
+    mov dx, [cs:exe_hdr_par]
+    cmp dx, 4096
+    jae .reloc_err
+    shl dx, 1
+    shl dx, 1
+    shl dx, 1
+    shl dx, 1
+    cmp ax, dx
+    ja .reloc_err
 
     mov ax, [cs:prog_seg]
     call build_psp
@@ -847,8 +895,13 @@ setup_exe_dyn:
     push cx
     mov di, [bx]
     mov ax, [bx+2]
+    cmp di, 0xFFFE
+    ja .reloc_err_pop
+    cmp ax, [cs:exe_image_par]
+    jae .reloc_err_pop
     add ax, [cs:exe_hdr_par]
     add ax, [cs:exe_load_seg]
+    jc .reloc_err_pop
     mov es, ax
     mov ax, [es:di]
     add ax, [cs:exe_load_seg]
@@ -885,6 +938,14 @@ setup_exe_dyn:
     push cs
     pop ds
     call exec_exe_dyn
+    ret
+.reloc_err_pop:
+    pop cx
+.reloc_err:
+    push cs
+    pop ds
+    mov ax, 11
+    stc
     ret
 
 exec_exe_dyn:

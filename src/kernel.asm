@@ -314,6 +314,7 @@ kernel_entry:
 
     mov ax, [cs:prog_seg]
     call setup_exe_dyn
+    jc .halt
 
 .returned:
 
@@ -1519,6 +1520,7 @@ ov_sec_in_cluster: dw 0
 ov_chunk: dw 0
 ov_reloc_count: dw 0
 ov_reloc_off: dw 0
+ov_image_par: dw 0
 ov_status: dw 0
 
 exec_param_off: dw 0

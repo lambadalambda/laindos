@@ -1308,6 +1308,7 @@ int21_handler:
     jmp .exec_program_returned
 .exec_run_exe:
     call setup_exe_dyn
+    jc .exec_program_err
 .exec_program_returned:
     pop ax
     mov [cs:saved_sp], ax
