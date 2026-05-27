@@ -4,7 +4,6 @@
 - [ ] [Deduplicate INT 21h Exit Frames](issues/deduplicate-int21-exit-frames.md)
 - [ ] [Centralize Handle Initialization And Device Metadata](issues/centralize-handle-initialization-and-device-metadata.md)
 - [ ] [Extract Shared QEMU Test Harness](issues/extract-shared-qemu-test-harness.md)
-- [ ] [Harden MCB Walks And Memory Top Sizing](issues/harden-mcb-walks-and-memory-top-sizing.md)
 - [ ] [Improve FAT Write Durability And Rollback](issues/improve-fat-write-durability-and-rollback.md)
 - [ ] [Separate Sector Buffers From Read Cache](issues/separate-sector-buffers-from-read-cache.md)
 - [ ] [Fill Missing DOS Compatibility APIs](issues/fill-missing-dos-compatibility-apis.md)
