@@ -1814,6 +1814,10 @@ int21_handler:
 .cr_existing:
     test byte [es:di+11], ATTR_DIR
     jnz .cr_access_denied
+    test byte [es:di+11], ATTR_RDONLY
+    jnz .cr_access_denied
+    call entry_has_open_handle
+    jc .cr_access_denied
     mov ax, [cs:ff_entry_idx]
     mov [cs:cf_entry_idx], ax
     mov [cs:cf_entry_off], di
