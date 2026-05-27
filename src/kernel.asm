@@ -745,10 +745,8 @@ do_terminate:
 .dt_mcb_next:
     cmp byte [ds:0], MCB_SIG_Z
     je .dt_mcb_done
-    mov ax, si
-    inc ax
-    add ax, [ds:3]
-    mov si, ax
+    call mcb_walk_next
+    jc .dt_mcb_done
     jmp .dt_mcb_walk
 .dt_mcb_done:
     mov ax, [cs:cur_psp]

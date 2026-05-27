@@ -800,10 +800,8 @@ int21_handler:
 .am_next:
     cmp byte [ds:0], MCB_SIG_Z
     je .am_nomem
-    mov ax, si
-    inc ax
-    add ax, [ds:3]
-    mov si, ax
+    call mcb_walk_next
+    jc .am_nomem
     jmp .am_walk
 .am_find_last:
     mov word [cs:am_best_seg], 0
@@ -826,10 +824,8 @@ int21_handler:
 .am_last_next:
     cmp byte [ds:0], MCB_SIG_Z
     je .am_choose_last
-    mov ax, si
-    inc ax
-    add ax, [ds:3]
-    mov si, ax
+    call mcb_walk_next
+    jc .am_nomem
     jmp .am_last_walk
 .am_find_best:
     mov word [cs:am_best_seg], 0
@@ -856,10 +852,8 @@ int21_handler:
 .am_best_next:
     cmp byte [ds:0], MCB_SIG_Z
     je .am_choose_best
-    mov ax, si
-    inc ax
-    add ax, [ds:3]
-    mov si, ax
+    call mcb_walk_next
+    jc .am_nomem
     jmp .am_best_walk
 .am_choose_best:
     mov si, [cs:am_best_seg]
@@ -910,10 +904,8 @@ int21_handler:
 .am_sl_next:
     cmp byte [ds:0], MCB_SIG_Z
     je .am_sl_done
-    mov ax, si
-    inc ax
-    add ax, [ds:3]
-    mov si, ax
+    call mcb_walk_next
+    jc .am_sl_done
     jmp .am_scan_largest
 .am_sl_done:
     mov ax, 8
@@ -969,6 +961,9 @@ int21_handler:
     mov ax, si
     inc ax
     add ax, [ds:3]
+    jb .fm_done
+    cmp ax, MEM_TOP
+    jae .fm_done
     mov di, ax
     mov es, ax
     cmp byte [es:0], MCB_SIG_M
@@ -1081,6 +1076,8 @@ int21_handler:
     mov ax, es
     inc ax
     add ax, [es:3]
+    cmp ax, MEM_TOP
+    jae .rm_shrink_no_merge
     mov ds, ax
     cmp byte [ds:0], MCB_SIG_M
     je .rm_shrink_next_valid

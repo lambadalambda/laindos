@@ -1,3 +1,20 @@
+mcb_walk_next:
+    mov ax, [ds:3]
+    test ax, ax
+    jz .mwn_fail
+    add ax, si
+    jb .mwn_fail
+    inc ax
+    jz .mwn_fail
+    cmp ax, MEM_TOP
+    jae .mwn_fail
+    mov si, ax
+    clc
+    ret
+.mwn_fail:
+    stc
+    ret
+
 alloc_mem_direct:
     push ds
     push si
@@ -53,10 +70,8 @@ alloc_mem_direct:
 .amd_next:
     cmp byte [ds:0], MCB_SIG_Z
     je .amd_nomem
-    mov ax, si
-    inc ax
-    add ax, [ds:3]
-    mov si, ax
+    call mcb_walk_next
+    jc .amd_nomem
     jmp .amd_walk
 .amd_nomem:
     stc
@@ -87,10 +102,8 @@ find_largest_free_block:
 .flfb_next:
     cmp byte [ds:0], MCB_SIG_Z
     je .flfb_done
-    mov ax, si
-    inc ax
-    add ax, [ds:3]
-    mov si, ax
+    call mcb_walk_next
+    jc .flfb_done
     jmp .flfb_walk
 .flfb_done:
     pop si
@@ -124,10 +137,8 @@ alloc_mem_direct_high:
 .amdh_next:
     cmp byte [ds:0], MCB_SIG_Z
     je .amdh_choose
-    mov ax, si
-    inc ax
-    add ax, [ds:3]
-    mov si, ax
+    call mcb_walk_next
+    jc .amdh_nomem
     jmp .amdh_walk
 .amdh_choose:
     mov si, [cs:am_best_seg]
@@ -199,10 +210,8 @@ alloc_all_mem_direct:
 .aad_next:
     cmp byte [ds:0], MCB_SIG_Z
     je .aad_nomem
-    mov ax, si
-    inc ax
-    add ax, [ds:3]
-    mov si, ax
+    call mcb_walk_next
+    jc .aad_nomem
     jmp .aad_walk
 .aad_nomem:
     stc
