@@ -15,3 +15,7 @@ FAT helpers and cluster walkers assume cluster numbers are valid. Corrupted dire
 - Invalid cluster numbers do not hang or corrupt the FAT.
 - Focused regression passes.
 - `make test` passes.
+
+## Notes
+
+- Fixed by bounding `fat_next`, `fat_set`, and invalid `cluster_lba` inputs, plus a malformed FAT16 regression that corrupts a chain and a first-cluster directory entry.

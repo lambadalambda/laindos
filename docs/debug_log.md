@@ -2,6 +2,37 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-27 FAT Cluster Bounds Checks
+
+### Symptoms
+
+- FAT helpers trusted cluster numbers from directory entries and FAT chain entries.
+- A corrupted FAT16 chain could point from a valid file cluster to an out-of-range cluster; the old read path tried to follow it and failed while reading `BADCHAIN.DAT`.
+- A directory entry with an impossible first cluster could feed that value back into `fat_next`/`fat_set` during delete and risk writing outside the intended FAT range.
+
+### Confirmed Facts
+
+- `fat_next` now rejects input clusters below 2 or at/above `kmax_cluster` and returns EOC.
+- `fat_next` also sanitizes out-of-range non-reserved FAT entry values to EOC before callers walk to them.
+- `fat_set` now rejects invalid input clusters and sets the FAT I/O error flag instead of writing outside the FAT.
+- `flush_fat` now reports the FAT I/O error flag for both FAT12 and FAT16.
+- `cluster_lba` now maps invalid input clusters to a deliberately unaddressable CHS LBA so stale or corrupted first-cluster values fail safely at sector I/O instead of reading/writing leftover sectors.
+- `read_sector` and `write_sector` now reject LBAs whose high word would overflow the first CHS division.
+- The widened bounds checks required moving `SEC_BUF` to `0x08A0` and `ENV_SEG` to `0x08C0`; `ROOT_SEG` and the MCB arena remain unchanged.
+
+### Tests Run
+
+- `python3 -m py_compile scripts/test_badfat.py`
+- `python3 scripts/test_badfat.py`
+- `python3 scripts/test_fat16.py`
+- `python3 scripts/test_fat16_large.py`
+- `python3 scripts/test_fat16_seek.py`
+- `python3 scripts/test_highdir.py`
+- `python3 scripts/test_partitioned_fat16.py`
+- `python3 scripts/test_dirmut.py`
+- `python3 scripts/test_dirextfail.py`
+- `make test`
+
 ## 2026-05-27 High-LBA FAT16 Directory Metadata
 
 ### Symptoms

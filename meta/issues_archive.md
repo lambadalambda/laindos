@@ -32,3 +32,4 @@
 - [x] [Fix INT 33h Mouse Setter Register Preservation](issues/fix-int33-mouse-setter-register-preservation.md)
 - [x] [Support DOS-Compatible Partitioned FAT16 HD Images](issues/support-dos-compatible-partitioned-fat16-hd-images.md)
 - [x] [Widen Directory Sector Metadata For High FAT16 LBAs](issues/widen-directory-sector-metadata-for-high-fat16-lbas.md)
+- [x] [Add FAT Cluster Bounds Checks](issues/add-fat-cluster-bounds-checks.md)

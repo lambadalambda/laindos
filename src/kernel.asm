@@ -6468,6 +6468,10 @@ load_file:
     ret
 
 fat_next:
+    cmp si, 2
+    jb .invalid
+    cmp si, [cs:kmax_cluster]
+    jae .invalid
     cmp byte [cs:kfat_bits], 16
     je fat16_next
     push bx
@@ -6486,7 +6490,24 @@ fat_next:
 .even:
     and ax, 0x0FFF
 .ret:
+    call fat_next_sanitize
     pop bx
+    ret
+.invalid:
+    mov ax, [cs:kfat_eoc_value]
+    ret
+
+fat_next_sanitize:
+    test ax, ax
+    jz .done
+    cmp ax, 2
+    jb .done
+    cmp ax, [cs:kfat_reserved]
+    jae .done
+    cmp ax, [cs:kmax_cluster]
+    jb .done
+    mov ax, [cs:kfat_eoc_value]
+.done:
     ret
 
 fat16_next:
@@ -6528,6 +6549,7 @@ fat16_next:
     mov byte [cs:fat16_cache_valid], 0
     mov ax, [cs:kfat_eoc_value]
 .done:
+    call fat_next_sanitize
     pop es
     pop ds
     pop dx
@@ -6536,6 +6558,10 @@ fat16_next:
     ret
 
 fat_set:
+    cmp si, 2
+    jb .invalid
+    cmp si, [cs:kmax_cluster]
+    jae .invalid
     cmp byte [cs:kfat_bits], 16
     je fat16_set
     push bx
@@ -6570,6 +6596,9 @@ fat_set:
     pop ds
     pop dx
     pop bx
+    ret
+.invalid:
+    mov byte [cs:fat_io_error], 1
     ret
 
 fat16_set:
@@ -6686,6 +6715,8 @@ fat_free_chain:
     push si
     cmp si, 2
     jb .done
+    cmp si, [cs:kmax_cluster]
+    jae .done
 .loop:
     mov bx, si
     call fat_next
@@ -6707,14 +6738,14 @@ fat_free_chain:
     ret
 
 flush_fat:
+    cmp byte [cs:fat_io_error], 0
+    jne .fat_err
     cmp byte [cs:kfat_bits], 16
     jne .fat12
-    cmp byte [cs:fat_io_error], 0
-    jne .fat16_err
     mov byte [cs:fat_dirty], 0
     clc
     ret
-.fat16_err:
+.fat_err:
     mov byte [cs:fat_dirty], 0
     mov byte [cs:fat_io_error], 0
     stc
@@ -6776,6 +6807,10 @@ flush_fat:
 
 cluster_lba:
     push cx
+    cmp ax, 2
+    jb .invalid
+    cmp ax, [cs:kmax_cluster]
+    jae .invalid
     sub ax, 2
     xor ch, ch
     mov cl, [cs:kspc]
@@ -6784,6 +6819,13 @@ cluster_lba:
     adc dx, 0
     add ax, [cs:kdsta]
     adc dx, 0
+    pop cx
+    ret
+.invalid:
+    mov ax, [cs:kbio_spt]
+    mul word [cs:kbio_heads]
+    mov cx, 1024
+    mul cx
     pop cx
     ret
 
@@ -6806,6 +6848,8 @@ read_sector:
     je .geom_err
     mov ax, [cs:klba]
     mov dx, [cs:klba_hi]
+    cmp dx, [cs:kbio_spt]
+    jae .geom_err
     div word [cs:kbio_spt]
     inc dl
     mov [cs:ksc], dl
@@ -6871,6 +6915,8 @@ write_sector:
     je .geom_err
     mov ax, [cs:klba]
     mov dx, [cs:klba_hi]
+    cmp dx, [cs:kbio_spt]
+    jae .geom_err
     div word [cs:kbio_spt]
     inc dl
     mov [cs:ksc], dl
