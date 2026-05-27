@@ -3392,6 +3392,10 @@ int21_handler:
     jc .rn_not_found
     test byte [es:di+11], ATTR_DIR
     jnz .rn_access
+    test byte [es:di+11], ATTR_RDONLY
+    jnz .rn_access
+    call entry_has_open_handle
+    jc .rn_access
     mov ax, [cs:ff_entry_idx]
     mov [cs:rn_src_idx], ax
     mov [cs:rn_src_off], di

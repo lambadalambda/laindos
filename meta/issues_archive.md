@@ -35,3 +35,4 @@
 - [x] [Add FAT Cluster Bounds Checks](issues/add-fat-cluster-bounds-checks.md)
 - [x] [Split Kernel Into Subsystem Includes](issues/split-kernel-into-subsystem-includes.md)
 - [x] [Prevent Create Truncation Of Open Files](issues/prevent-create-truncation-of-open-files.md)
+- [x] [Guard AH=56h Rename Against Open Handles And Read-Only Files](issues/guard-rename-against-open-handles-and-readonly.md)

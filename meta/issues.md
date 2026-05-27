@@ -1,4 +1,4 @@
-- [ ] [Guard AH=56h Rename Against Open Handles And Read-Only Files](issues/guard-rename-against-open-handles-and-readonly.md)
+
 - [ ] [Phase 19: DOS Compatibility Matrix](issues/phase19-dos-compatibility-matrix.md)
 - [ ] [Wrap Environment Blocks In MCBs](issues/wrap-environment-blocks-in-mcbs.md)
 - [ ] [Deduplicate INT 21h Exit Frames](issues/deduplicate-int21-exit-frames.md)
