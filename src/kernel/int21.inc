@@ -102,6 +102,8 @@ int21_handler:
     je .alloc_strategy
     cmp ah, 0x62
     je .get_psp
+    cmp ah, 0x68
+    je .commit_file
     mov [cs:log_ax], ax
     mov [cs:log_bx], bx
     mov [cs:log_cx], cx
@@ -3744,5 +3746,65 @@ int21_handler:
     pop cx
     pop si
 .ft_bad_handle:
+    mov ax, 6
+    jmp iret_cy
+
+.commit_file:
+    cmp bx, MAX_HANDLES
+    jae .cm_bad_handle
+    cmp bx, 5
+    jae .cm_table_handle
+    push ax
+    push cx
+    push dx
+    push si
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    pop si
+    pop dx
+    pop cx
+    pop ax
+    je .cm_ok
+.cm_table_handle:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    call resolve_handle_for_use
+    jc .cm_bad_pop
+    mov ax, [cs:si+handles+H_DIR_LBA]
+    or ax, [cs:si+handles+H_DIR_LBA_HI]
+    je .cm_ok_pop
+    call flush_handle_dir_entry
+    jc .cm_io_pop
+    call flush_fat
+    jc .cm_io_pop
+.cm_ok_pop:
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+.cm_ok:
+    jmp iret_nc
+.cm_io_pop:
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    mov ax, 5
+    jmp iret_cy
+.cm_bad_pop:
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+.cm_bad_handle:
     mov ax, 6
     jmp iret_cy

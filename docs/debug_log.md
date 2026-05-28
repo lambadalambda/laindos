@@ -1759,3 +1759,16 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - `python3 scripts/test_console.py`
 - `python3 scripts/test_shell.py`
 - `make test` (`38/38` passed)
+
+## 2026-05-28 Commit File API
+
+### Confirmed Facts
+
+- Added `src/committest.asm` / `scripts/test_commit.py` for `INT 21h AH=68h` commit-file behavior.
+- Before implementation the test failed with unhandled `INT 21h AH=68` and `FAIL: COMMIT AH68`.
+- `AH=68h` now resolves duplicated handles to the shared root, treats implicit standard handles as successful device commits, flushes directory metadata and FAT for real files, and returns error 6 for invalid handles.
+- `COMMITTEST` writes a file, duplicates the handle, commits through the duplicate before closing, reopens it through a second handle to verify committed size/data are visible, checks unused and out-of-range invalid-handle error 6, and checks implicit stdout success.
+
+### Tests Run
+
+- `python3 scripts/test_commit.py`

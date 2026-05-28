@@ -56,7 +56,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=57h` get/set file date/time | implemented/partial | medium | Preserve directory entry updates. |
 | `AH=5Ah/5Bh` temp/create-new | missing | medium | Useful for installers and save systems. |
 | `AH=67h` set handle count | missing/stub candidate | medium | Many runtimes call this defensively. |
-| `AH=68h` commit file | missing/stub candidate | medium | Can initially flush/no-op successfully for local FAT images. |
+| `AH=68h` commit file | implemented/partial | medium | Covered by `COMMITTEST`; flushes directory metadata/FAT for real files and succeeds for implicit standard handles. |
 
 ### Directories and Paths
 
