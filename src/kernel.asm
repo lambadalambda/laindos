@@ -34,7 +34,9 @@ MAX_HANDLES equ 20
 SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
 KERNEL_STACK_TOP equ 0xBC00
-XMS_TOTAL_KB equ 1024
+%ifndef XMS_TOTAL_KB
+%define XMS_TOTAL_KB 8192
+%endif
 EMS_TOTAL_PAGES equ 64
 %ifndef EMS_FRAME_SEG
 %define EMS_FRAME_SEG 0x9000
@@ -71,6 +73,10 @@ DEV_EMM equ 5
 
 %ifndef TRACE_EXEC_STATE
 %define TRACE_EXEC_STATE 0
+%endif
+
+%ifndef ENABLE_XMS
+%define ENABLE_XMS 1
 %endif
 
 %ifndef ENABLE_EMS
@@ -620,8 +626,10 @@ init_interrupts:
     mov [es:0x20*4+2], cs
     mov [es:0x21*4], word int21_handler
     mov [es:0x21*4+2], cs
+%if ENABLE_XMS
     mov [es:0x2F*4], word int2f_handler
     mov [es:0x2F*4+2], cs
+%endif
     mov ax, kernel_entry
     mov [es:0x22*4], ax
     mov [es:0x22*4+2], cs
@@ -748,6 +756,7 @@ int24_handler:
     iret
 
 int2f_handler:
+%if ENABLE_XMS
     cmp ax, 0x4300
     je .xms_installed
     cmp ax, 0x4310
@@ -762,7 +771,12 @@ int2f_handler:
     push cs
     pop es
     jmp iret_nc
+%else
+    xor al, al
+    iret
+%endif
 
+%if ENABLE_XMS
 xms_entry:
     cmp ah, 0x00
     je .version
@@ -932,7 +946,9 @@ xms_entry:
     xor ax, ax
     mov bl, 0xA2
     retf
+%endif
 
+%if ENABLE_XMS
 xms_endpoint_phys:
     test bx, bx
     jz xms_real_ptr_to_phys
@@ -940,8 +956,6 @@ xms_endpoint_phys:
     jne .bad
     cmp word [cs:xms_alloc_kb], 0
     je .bad
-    cmp dx, 0x0010
-    jae .bad
     push ax
     push dx
     push cx
@@ -990,6 +1004,7 @@ xms_real_ptr_to_phys:
     pop bx
     clc
     ret
+%endif
 
 xms_set_desc:
     mov [di], ax
@@ -2189,4 +2204,7 @@ kernel_end:
 %endif
 %if ENABLE_EMS && (EMS_FRAME_SEG & 0x03FF) != 0
 %error "EMS frame must be 16K-aligned"
+%endif
+%if ENABLE_XMS && XMS_TOTAL_KB > 15360
+%error "XMS BIOS move backing must remain below 16 MiB"
 %endif

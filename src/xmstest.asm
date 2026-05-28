@@ -31,13 +31,13 @@ start:
 
     mov ah, 0x08
     call far [xms_entry]
-    cmp ax, 64
+    cmp ax, 8192
     jb fail_query
     cmp dx, ax
     jb fail_query
 
     mov ah, 0x09
-    mov dx, 64
+    mov dx, 8192
     call far [xms_entry]
     cmp ax, 1
     jne fail_alloc
@@ -99,7 +99,7 @@ start:
     call far [xms_entry]
     cmp ax, 1
     jne fail_info
-    cmp dx, 64
+    cmp dx, 8192
     jne fail_info
 
     mov ah, 0x0A
@@ -176,7 +176,7 @@ move_dst_seg: dw 0
 move_bad_bounds:
     dd 32
 move_bad_src_handle: dw 0
-    dd 65520
+    dd 0x007FFFF0
     dw 0
     dw dst_data
 move_bad_dst_seg: dw 0
