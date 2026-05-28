@@ -38,3 +38,4 @@
 - [x] [Guard AH=56h Rename Against Open Handles And Read-Only Files](issues/guard-rename-against-open-handles-and-readonly.md)
 - [x] [Bound EXE And Overlay Relocations](issues/bound-exe-and-overlay-relocations.md)
 - [x] [Harden MCB Walks And Memory Top Sizing](issues/harden-mcb-walks-and-memory-top-sizing.md)
+- [x] [Boot Wolfenstein 3D Shareware](issues/boot-wolfenstein-3d-shareware.md)
