@@ -22,6 +22,54 @@ start:
     cmp ax, pattern_size
     jne fail_write
 
+    call seek_start
+
+    mov bx, [handle]
+    mov dx, read_buf
+    mov cx, 1
+    mov ah, 0x3F
+    int 0x21
+    jc fail_read
+    cmp ax, 1
+    jne fail_read
+    cmp byte [read_buf], 0
+    jne fail_compare
+
+    call seek_start
+
+    mov bx, [handle]
+    mov dx, cache_new_byte
+    mov cx, 1
+    mov ah, 0x40
+    int 0x21
+    jc fail_write
+    cmp ax, 1
+    jne fail_write
+
+    call seek_start
+
+    mov bx, [handle]
+    mov dx, read_buf
+    mov cx, 1
+    mov ah, 0x3F
+    int 0x21
+    jc fail_read
+    cmp ax, 1
+    jne fail_read
+    cmp byte [read_buf], 0xA5
+    jne fail_compare
+
+    call seek_start
+
+    mov bx, [handle]
+    mov dx, pattern
+    mov cx, 1
+    mov ah, 0x40
+    int 0x21
+    jc fail_write
+    cmp ax, 1
+    jne fail_write
+
     mov bx, [handle]
     mov cx, 0x1234
     mov dx, 0x5678
@@ -545,6 +593,17 @@ compare_gap:
     stc
     ret
 
+seek_start:
+    mov bx, [handle]
+    mov ax, 0x4200
+    xor cx, cx
+    xor dx, dx
+    int 0x21
+    jc fail_seek
+    or ax, dx
+    jne fail_seek
+    ret
+
 fail_create:
     mov dx, fail_create_msg
     jmp print_fail
@@ -608,6 +667,7 @@ subtest_text: db "Hello from MIDEMO subdirectory!", 10
 subtest_size equ $ - subtest_text
 gap_head: db "A"
 gap_tail: db "Z"
+cache_new_byte: db 0xA5
 pass_msg: db "PASS: SAVEWRITE", 13, 10, "$"
 fail_create_msg: db "FAIL: CREATE", 13, 10, "$"
 fail_write_msg: db "FAIL: WRITEFILE", 13, 10, "$"

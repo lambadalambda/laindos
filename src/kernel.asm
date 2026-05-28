@@ -2321,8 +2321,11 @@ kernel_end:
 %if (kernel_end - kernel_entry) > ((SEC_BUF - RELOC_SEG) * 16)
 %error "kernel overlaps SEC_BUF"
 %endif
-%if SEC_BUF >= ROOT_SEG
-%error "SEC_BUF must remain below ROOT_SEG"
+%if (SEC_BUF + SECTOR_BUF_PARAS) > READ_CACHE_BUF
+%error "SEC_BUF overlaps READ_CACHE_BUF"
+%endif
+%if (READ_CACHE_BUF + SECTOR_BUF_PARAS) > ROOT_SEG
+%error "READ_CACHE_BUF overlaps ROOT_SEG"
 %endif
 %if (ROOT_SEG + ROOT_BUF_PARAS) > (RELOC_SEG + (KERNEL_STACK_TOP / 16))
 %error "ROOT buffer overlaps kernel stack"

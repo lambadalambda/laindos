@@ -23,7 +23,6 @@ cluster_lba:
     ret
 
 read_sector:
-    mov byte [cs:rf_cache_valid], 0
     mov [cs:klba], ax
     mov ax, [cs:kio_lba_hi]
     mov [cs:klba_hi], ax

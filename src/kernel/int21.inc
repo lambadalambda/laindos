@@ -2449,13 +2449,14 @@ int21_handler:
     cmp dx, [cs:rf_cache_lba_hi]
     je .rf_have_sector
 .rf_read_sector:
+    mov byte [cs:rf_cache_valid], 0
     mov [cs:rf_cache_lba], ax
     mov [cs:rf_cache_lba_hi], dx
     mov [cs:kio_lba_hi], dx
     push es
     push bx
     xor bx, bx
-    mov dx, SEC_BUF
+    mov dx, READ_CACHE_BUF
     mov es, dx
     call read_sector
     pop bx
@@ -2487,7 +2488,7 @@ int21_handler:
     mov dx, [cs:rf_buf_seg]
     mov es, dx
     mov di, [cs:rf_buf_off]
-    mov dx, SEC_BUF
+    mov dx, READ_CACHE_BUF
     mov ds, dx
     xor si, si
     mov bx, [cs:rf_hoff]
