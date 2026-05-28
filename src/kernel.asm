@@ -169,6 +169,11 @@ kernel_entry:
     jmp .halt
 .bpb_ok:
 
+%ifdef TEST_FAT16_FAT_SECTOR_BOUNDS
+    call test_fat16_sector_bounds
+    jmp .halt
+%endif
+
     mov si, fname_exe
     call resolve_path
     jnc .rp_ok
@@ -585,6 +590,35 @@ query_bios_disk_geometry:
     pop bx
     pop ax
     ret
+
+%ifdef TEST_FAT16_FAT_SECTOR_BOUNDS
+test_fat16_sector_bounds:
+    cmp byte [cs:kfat_bits], 16
+    jne .fail
+    mov word [cs:kfat_secs], 1
+    mov byte [cs:knum_fats], 1
+    mov byte [cs:fat16_cache_valid], 0
+    mov byte [cs:fat_io_error], 0
+    mov si, 0x0100
+    mov ax, [cs:kfat_eoc_value]
+    call fat_set
+    cmp byte [cs:fat_io_error], 1
+    jne .fail
+    mov byte [cs:fat_io_error], 0
+    mov si, 0x0100
+    call fat_next
+    cmp ax, [cs:kfat_eoc_value]
+    jne .fail
+    cmp byte [cs:fat_io_error], 0
+    jne .fail
+    mov si, msg_fat16_bounds_pass
+    call serial_print
+    ret
+.fail:
+    mov si, msg_fat16_bounds_fail
+    call serial_print
+    ret
+%endif
 
 init_environment:
     push ax
@@ -1807,6 +1841,10 @@ msg_nofile:   db "File not found", 13, 10, 0
 msg_com_load: db "COM loaded", 13, 10, 0
 msg_exe_load: db "EXE loaded", 13, 10, 0
 msg_returned: db "Program exited, code=", 0
+%ifdef TEST_FAT16_FAT_SECTOR_BOUNDS
+msg_fat16_bounds_pass: db "PASS: FAT16BOUND", 13, 10, 0
+msg_fat16_bounds_fail: db "FAIL: FAT16BOUND", 13, 10, 0
+%endif
 msg_crlf:     db 13, 10, 0
 msg_halt:     db "HALT", 13, 10, 0
 env_comspec_name: db "COMSPEC=", 0

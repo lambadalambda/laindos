@@ -52,6 +52,8 @@ fat16_next:
     mov bx, ax
     mov cl, 8
     shr ax, cl
+    cmp ax, [cs:kfat_secs]
+    jae .err
     add ax, [cs:kfat_start]
     mov [cs:fat16_lba], ax
     and bx, 0x00FF
@@ -146,6 +148,8 @@ fat16_set:
     mov cl, 8
     shr ax, cl
     mov [cs:fat16_sector], ax
+    cmp ax, [cs:kfat_secs]
+    jae .err
     and bx, 0x00FF
     shl bx, 1
     mov [cs:fat16_off], bx

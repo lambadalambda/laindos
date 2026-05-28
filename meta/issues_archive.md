@@ -45,3 +45,4 @@
 - [x] [Deduplicate INT 21h Exit Frames](issues/deduplicate-int21-exit-frames.md)
 - [x] [Improve FAT Write Durability And Rollback](issues/improve-fat-write-durability-and-rollback.md)
 - [x] [Validate BPB Geometry Before Arithmetic](issues/validate-bpb-geometry-before-arithmetic.md)
+- [x] [Validate FAT16 FAT Sector Indices](issues/validate-fat16-fat-sector-indices.md)

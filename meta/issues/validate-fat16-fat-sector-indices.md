@@ -20,3 +20,4 @@ FAT16 helpers compute the FAT sector index from the cluster number, but they do 
 ## Notes
 
 - Review references: `src/kernel.asm:6520` computes the FAT16 read sector; `src/kernel.asm:6613` computes the FAT16 write sector.
+- Outcome: FAT16 read/write helpers reject computed FAT sectors at or beyond `kfat_secs`; `test_fat16_bounds.py` verifies out-of-range FAT16 writes report an error and do not touch disk.
