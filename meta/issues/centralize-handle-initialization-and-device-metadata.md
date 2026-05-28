@@ -20,3 +20,4 @@ File create, file open, and device open initialize handle-table entries in separ
 ## Notes
 
 - Review references: create initializes fields at `src/kernel.asm:3024`, open at `src/kernel.asm:3154`, and device handles at `src/kernel.asm:5029`.
+- Outcome: common handle setup is centralized in `init_handle_entry`; device handles keep the existing `H_DIR_LBA=0` / `H_DIR_OFF=DEV_*` sentinel to avoid growing the handle table.

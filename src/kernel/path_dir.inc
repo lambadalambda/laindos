@@ -25,6 +25,28 @@ alloc_handle:
     stc
     ret
 
+init_handle_entry:
+    mov byte [cs:bx+handles+H_USED], 1
+    mov byte [cs:bx+handles+H_MODE], al
+    xor ax, ax
+    mov [cs:bx+handles+H_CLUSTER], ax
+    mov [cs:bx+handles+H_POS_LO], ax
+    mov [cs:bx+handles+H_POS_HI], ax
+    mov [cs:bx+handles+H_SIZE_LO], ax
+    mov [cs:bx+handles+H_SIZE_HI], ax
+    mov [cs:bx+handles+H_LAST_CLUSTER], ax
+    mov [cs:bx+handles+H_LAST_INDEX], ax
+    mov [cs:bx+handles+H_DIR_LBA], ax
+    mov [cs:bx+handles+H_DIR_LBA_HI], ax
+    mov [cs:bx+handles+H_DIR_OFF], ax
+    mov [cs:bx+handles+H_TIME], ax
+    mov [cs:bx+handles+H_DATE], ax
+    mov ax, [cs:cur_psp]
+    mov [cs:bx+handles+H_OWNER], ax
+    mov word [cs:bx+handles+H_REFCOUNT], 1
+    mov word [cs:bx+handles+H_ALIAS], H_ALIAS_NONE
+    ret
+
 alloc_device_handle:
     cmp al, DEV_CON
     je .supported
@@ -45,26 +67,11 @@ alloc_device_handle:
     mov cx, HANDLE_SIZE
     mul cx
     mov bx, ax
-    mov byte [cs:bx+handles+H_USED], 1
-    mov byte [cs:bx+handles+H_MODE], 2
-    mov word [cs:bx+handles+H_CLUSTER], 0
-    mov word [cs:bx+handles+H_POS_LO], 0
-    mov word [cs:bx+handles+H_POS_HI], 0
-    mov word [cs:bx+handles+H_SIZE_LO], 0
-    mov word [cs:bx+handles+H_SIZE_HI], 0
-    mov word [cs:bx+handles+H_LAST_CLUSTER], 0
-    mov word [cs:bx+handles+H_LAST_INDEX], 0
-    mov word [cs:bx+handles+H_DIR_LBA], 0
-    mov word [cs:bx+handles+H_DIR_LBA_HI], 0
+    mov al, 2
+    call init_handle_entry
     xor ah, ah
     mov al, [cs:dev_type]
     mov [cs:bx+handles+H_DIR_OFF], ax
-    mov word [cs:bx+handles+H_TIME], 0
-    mov word [cs:bx+handles+H_DATE], 0
-    mov ax, [cs:cur_psp]
-    mov [cs:bx+handles+H_OWNER], ax
-    mov word [cs:bx+handles+H_REFCOUNT], 1
-    mov word [cs:bx+handles+H_ALIAS], H_ALIAS_NONE
     pop ax
     clc
     ret
@@ -142,22 +149,8 @@ make_alias_handle:
     mov cx, HANDLE_SIZE
     mul cx
     mov bx, ax
-    mov byte [cs:bx+handles+H_USED], 1
-    mov byte [cs:bx+handles+H_MODE], 0
-    mov word [cs:bx+handles+H_CLUSTER], 0
-    mov word [cs:bx+handles+H_POS_LO], 0
-    mov word [cs:bx+handles+H_POS_HI], 0
-    mov word [cs:bx+handles+H_SIZE_LO], 0
-    mov word [cs:bx+handles+H_SIZE_HI], 0
-    mov word [cs:bx+handles+H_LAST_CLUSTER], 0
-    mov word [cs:bx+handles+H_LAST_INDEX], 0
-    mov word [cs:bx+handles+H_DIR_LBA], 0
-    mov word [cs:bx+handles+H_DIR_LBA_HI], 0
-    mov word [cs:bx+handles+H_DIR_OFF], 0
-    mov word [cs:bx+handles+H_TIME], 0
-    mov word [cs:bx+handles+H_DATE], 0
-    mov ax, [cs:cur_psp]
-    mov [cs:bx+handles+H_OWNER], ax
+    xor al, al
+    call init_handle_entry
     mov word [cs:bx+handles+H_REFCOUNT], 0
     pop dx
     mov [cs:bx+handles+H_ALIAS], dx
@@ -175,26 +168,11 @@ make_device_handle_at:
     mov cx, HANDLE_SIZE
     mul cx
     mov bx, ax
-    mov byte [cs:bx+handles+H_USED], 1
-    mov byte [cs:bx+handles+H_MODE], 2
-    mov word [cs:bx+handles+H_CLUSTER], 0
-    mov word [cs:bx+handles+H_POS_LO], 0
-    mov word [cs:bx+handles+H_POS_HI], 0
-    mov word [cs:bx+handles+H_SIZE_LO], 0
-    mov word [cs:bx+handles+H_SIZE_HI], 0
-    mov word [cs:bx+handles+H_LAST_CLUSTER], 0
-    mov word [cs:bx+handles+H_LAST_INDEX], 0
-    mov word [cs:bx+handles+H_DIR_LBA], 0
-    mov word [cs:bx+handles+H_DIR_LBA_HI], 0
+    mov al, 2
+    call init_handle_entry
     pop dx
     xor dh, dh
     mov [cs:bx+handles+H_DIR_OFF], dx
-    mov word [cs:bx+handles+H_TIME], 0
-    mov word [cs:bx+handles+H_DATE], 0
-    mov ax, [cs:cur_psp]
-    mov [cs:bx+handles+H_OWNER], ax
-    mov word [cs:bx+handles+H_REFCOUNT], 1
-    mov word [cs:bx+handles+H_ALIAS], H_ALIAS_NONE
     pop cx
     pop bx
     pop ax

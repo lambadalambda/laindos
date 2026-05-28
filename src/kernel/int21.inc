@@ -2046,15 +2046,8 @@ int21_handler:
     mov cx, HANDLE_SIZE
     mul cx
     mov bx, ax
-    mov byte [cs:bx+handles+H_USED], 1
-    mov byte [cs:bx+handles+H_MODE], 2
-    mov word [cs:bx+handles+H_CLUSTER], 0
-    mov word [cs:bx+handles+H_POS_LO], 0
-    mov word [cs:bx+handles+H_POS_HI], 0
-    mov word [cs:bx+handles+H_SIZE_LO], 0
-    mov word [cs:bx+handles+H_SIZE_HI], 0
-    mov word [cs:bx+handles+H_LAST_CLUSTER], 0
-    mov word [cs:bx+handles+H_LAST_INDEX], 0
+    mov al, 2
+    call init_handle_entry
     mov ax, [cs:cf_entry_lba]
     mov [cs:bx+handles+H_DIR_LBA], ax
     mov ax, [cs:cf_entry_lba_hi]
@@ -2063,10 +2056,6 @@ int21_handler:
     mov [cs:bx+handles+H_DIR_OFF], ax
     mov word [cs:bx+handles+H_TIME], FAT_TIME
     mov word [cs:bx+handles+H_DATE], FAT_DATE
-    mov ax, [cs:cur_psp]
-    mov [cs:bx+handles+H_OWNER], ax
-    mov word [cs:bx+handles+H_REFCOUNT], 1
-    mov word [cs:bx+handles+H_ALIAS], H_ALIAS_NONE
     pop cx
     pop bx
     pop di
@@ -2277,9 +2266,9 @@ int21_handler:
     mov cx, HANDLE_SIZE
     mul cx
     mov di, ax
-    mov byte [cs:di+handles+H_USED], 1
     mov al, [cs:of_mode]
-    mov byte [cs:di+handles+H_MODE], al
+    mov bx, di
+    call init_handle_entry
     pop si
     mov ax, [es:si+26]
     mov [cs:di+handles+H_CLUSTER], ax
@@ -2301,10 +2290,6 @@ int21_handler:
     mov [cs:di+handles+H_TIME], ax
     mov ax, [es:si+24]
     mov [cs:di+handles+H_DATE], ax
-    mov ax, [cs:cur_psp]
-    mov [cs:di+handles+H_OWNER], ax
-    mov word [cs:di+handles+H_REFCOUNT], 1
-    mov word [cs:di+handles+H_ALIAS], H_ALIAS_NONE
     pop ax
     cmp word [cs:trace_left], 0
     je .of_no_handle_trace
