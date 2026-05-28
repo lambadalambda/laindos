@@ -34,6 +34,14 @@ run = "python3 scripts/build_wolf3d.py"
 description = "Boot Wolfenstein 3D shareware in QEMU"
 run = 'python3 scripts/build_wolf3d.py && "$LAINDOS_QEMU" -drive file=build/wolf3d.img,format=raw -boot order=c -serial stdio -monitor none -vga "$LAINDOS_QEMU_VGA" -device sb16'
 
+[tasks.test-wolf3d-smoke]
+description = "Run headless Wolfenstein 3D QEMU smoke"
+run = "python3 scripts/test_wolf3d_smoke.py"
+
+[tasks.test-ascendancy-smoke]
+description = "Run headless Ascendancy QEMU smoke"
+run = "python3 scripts/test_ascendancy_smoke.py"
+
 [tasks.run-games-hd-all]
 description = "Boot all-games hard disk image in QEMU"
 run = 'python3 scripts/build_games_hd_all.py && "$LAINDOS_QEMU" -drive file=build/games_hd_all.img,format=raw -boot order=c -serial stdio -monitor none -vga "$LAINDOS_QEMU_VGA" -device sb16'

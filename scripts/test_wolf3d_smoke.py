@@ -10,16 +10,17 @@ from testlib import (
     monitor_quit,
     monitor_screendump,
     open_monitor,
+    qemu_vga,
     remove_if_exists,
     run_cmd,
     start_qemu,
     stop_qemu,
 )
 
-IMG = "build/monkey_full.img"
-TIMEOUT = 25
-MONITOR = os.path.join(tempfile.gettempdir(), "laindos-monkey-full.sock")
-SCREENSHOT = "build/monkey_full_screen.ppm"
+IMG = "build/wolf3d.img"
+MONITOR = os.path.join(tempfile.gettempdir(), "laindos-wolf3d-smoke.sock")
+SCREENSHOT = "build/wolf3d_smoke_screen.ppm"
+TIMEOUT = int(os.environ.get("WOLF3D_SMOKE_WAIT", "25"))
 
 
 def run_qemu():
@@ -31,7 +32,9 @@ def run_qemu():
         "-boot", "order=c",
         "-serial", "stdio",
         "-monitor", f"unix:{MONITOR},server,nowait",
-        "-vnc", "127.0.0.1:29",
+        "-vga", qemu_vga(),
+        "-vnc", "127.0.0.1:30",
+        "-device", "sb16",
     ])
     sock = None
     try:
@@ -47,19 +50,19 @@ def run_qemu():
 
 
 def main():
-    if not os.path.exists("vendor/monkey_full.zip"):
-        print("Missing vendor/monkey_full.zip", file=sys.stderr)
+    if not os.path.exists("vendor/wolf3dsw.zip"):
+        print("Missing vendor/wolf3dsw.zip", file=sys.stderr)
         sys.exit(1)
-    run_cmd(["python3", "scripts/build_monkey_full.py"])
+    run_cmd(["python3", "scripts/build_wolf3d.py"])
     output = run_qemu()
     failed = not check_markers(output, ["MiniDOS booted", "EXE loaded"], dump_on_failure=False)
-    failed = not framebuffer_active(SCREENSHOT) or failed
+    failed = not framebuffer_active(SCREENSHOT, "Wolf3D framebuffer") or failed
     if failed:
         print("\n--- QEMU serial output ---")
         print(output)
         print("--- end ---")
         sys.exit(1)
-    print("\nFull Monkey smoke passed.")
+    print("\nWolf3D smoke passed.")
 
 
 if __name__ == "__main__":

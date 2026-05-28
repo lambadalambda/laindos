@@ -49,7 +49,7 @@ TESTFILE  := $(BUILDDIR)/testfile.dat
 SUBTEST   := $(BUILDDIR)/subtest.dat
 DISK_IMG := $(BUILDDIR)/disk.img
 
-.PHONY: all clean run test test-serial test-monkey-full
+.PHONY: all clean run test test-serial test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-game-smokes
 
 all: $(DISK_IMG)
 
@@ -207,6 +207,14 @@ test-serial: test
 
 test-monkey-full: vendor/monkey_full.zip
 	$(RUN_TEST) $(PYTHON) scripts/test_monkey_full.py
+
+test-wolf3d-smoke: vendor/wolf3dsw.zip
+	$(RUN_TEST) $(PYTHON) scripts/test_wolf3d_smoke.py
+
+test-ascendancy-smoke: vendor/Ascendancy_1995.zip
+	$(RUN_TEST) $(PYTHON) scripts/test_ascendancy_smoke.py
+
+test-game-smokes: test-monkey-full test-wolf3d-smoke test-ascendancy-smoke
 
 clean:
 	rm -rf $(BUILDDIR)
