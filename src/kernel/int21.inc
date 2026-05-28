@@ -100,8 +100,14 @@ int21_handler:
     je .file_time
     cmp ah, 0x58
     je .alloc_strategy
+    cmp ah, 0x5A
+    je .create_temp_file
+    cmp ah, 0x5B
+    je .create_new_file
     cmp ah, 0x62
     je .get_psp
+    cmp ah, 0x67
+    je .set_handle_count
     cmp ah, 0x68
     je .commit_file
     mov [cs:log_ax], ax
@@ -1825,6 +1831,11 @@ int21_handler:
     mov ax, [cs:rd_status]
     jmp iret_cy
 .create_file:
+    mov byte [cs:cf_new_only], 0
+    jmp .create_file_start
+.create_new_file:
+    mov byte [cs:cf_new_only], 1
+.create_file_start:
     push ds
     push si
     push es
@@ -1850,6 +1861,8 @@ int21_handler:
     mov byte [cs:cf_found], 0
     jmp .cr_alloc_handle
 .cr_existing:
+    cmp byte [cs:cf_new_only], 0
+    jne .cr_exists
     test byte [es:di+11], ATTR_DIR
     jnz .cr_access_denied
     test byte [es:di+11], ATTR_RDONLY
@@ -1985,6 +1998,9 @@ int21_handler:
 .cr_access_denied:
     mov ax, 5
     jmp .cr_err
+.cr_exists:
+    mov ax, 80
+    jmp .cr_err
 .cr_io_err:
     mov ax, 5
 .cr_err:
@@ -1997,6 +2013,102 @@ int21_handler:
     pop ds
     mov ax, [cs:cf_status]
     jmp iret_cy
+
+.create_temp_file:
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+    push si
+    push di
+    mov si, dx
+.ct_find_end:
+    cmp byte [ds:si], 0
+    je .ct_have_end
+    inc si
+    jmp .ct_find_end
+.ct_have_end:
+    mov [cs:tm_end_off], si
+    mov word [cs:tm_tries], 0
+.ct_try:
+    mov di, [cs:tm_end_off]
+    mov ax, [cs:temp_counter]
+    mov bx, ax
+    mov byte [ds:di], 'L'
+    inc di
+    mov byte [ds:di], 'D'
+    inc di
+    mov cl, 12
+    call .ct_store_digit
+    mov cl, 8
+    call .ct_store_digit
+    mov cl, 4
+    call .ct_store_digit
+    xor cl, cl
+    call .ct_store_digit
+    mov byte [ds:di], '.'
+    inc di
+    mov byte [ds:di], 'T'
+    inc di
+    mov byte [ds:di], 'M'
+    inc di
+    mov byte [ds:di], 'P'
+    inc di
+    mov byte [ds:di], 0
+    inc word [cs:temp_counter]
+    mov si, dx
+    call parse_root_path
+    jc .ct_path_err
+    mov byte [cs:ff_attr_mask], 0
+    mov ax, [cs:pr_dir_cluster]
+    call find_in_dir
+    jc .ct_unique
+    inc word [cs:tm_tries]
+    cmp word [cs:tm_tries], 256
+    jb .ct_try
+    mov ax, 80
+    jmp .ct_restore_err_pop
+.ct_unique:
+    pop di
+    pop si
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    mov byte [cs:cf_new_only], 1
+    jmp .create_file_start
+.ct_path_err:
+    mov ax, 3
+.ct_restore_err_pop:
+    mov di, [cs:tm_end_off]
+    mov byte [ds:di], 0
+.ct_err_pop:
+    mov [cs:cf_status], ax
+    pop di
+    pop si
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    mov ax, [cs:cf_status]
+    jmp iret_cy
+.ct_store_digit:
+    push ax
+    mov ax, bx
+    shr ax, cl
+    and al, 0x0F
+    add al, '0'
+    cmp al, '9'
+    jbe .ct_digit_ok
+    add al, 7
+.ct_digit_ok:
+    mov [ds:di], al
+    inc di
+    pop ax
+    ret
 .open_file:
     cmp word [cs:trace_left], 0
     je .of_no_path_trace
@@ -3807,4 +3919,12 @@ int21_handler:
     pop ax
 .cm_bad_handle:
     mov ax, 6
+    jmp iret_cy
+
+.set_handle_count:
+    test bx, bx
+    jz .shc_bad
+    jmp iret_nc
+.shc_bad:
+    mov ax, 1
     jmp iret_cy

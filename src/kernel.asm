@@ -10,7 +10,7 @@ VGA_ROWS equ 25
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x0060
-ROOT_SEG  equ 0x09C0
+ROOT_SEG  equ 0x0A00
 PSP_SEG   equ 0x3000
 TEMP_SEG  equ 0x4000
 
@@ -1947,7 +1947,11 @@ cf_entry_lba: dw 0
 cf_entry_lba_hi: dw 0
 cf_entry_off: dw 0
 cf_found: db 0
+cf_new_only: db 0
 cf_status: dw 0
+tm_end_off: dw 0
+tm_tries: dw 0
+temp_counter: dw 0
 
 rn_new_off: dw 0
 rn_new_seg: dw 0

@@ -1772,3 +1772,19 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 ### Tests Run
 
 - `python3 scripts/test_commit.py`
+
+## 2026-05-28 Create-New, Temp-File, And Handle-Count APIs
+
+### Confirmed Facts
+
+- Added `src/createapi.asm` / `scripts/test_createapi.py` for `INT 21h AH=67h`, `AH=5Bh`, and `AH=5Ah` compatibility behavior.
+- Before implementation the test failed on unhandled `INT 21h AH=67` with `FAIL: CREATEAPI AH67`.
+- `AH=67h` now succeeds for nonzero set-handle-count requests as a compatibility no-op; it does not expand LainDOS beyond the fixed `MAX_HANDLES=20` table.
+- `AH=5Bh` reuses the normal create path in create-new mode and returns DOS error `80` if the target already exists instead of truncating it.
+- `AH=5Ah` appends generated 8.3 `LDxxxx.TMP` names to the caller's path buffer, skips existing collisions, and creates the selected file through create-new semantics.
+- `CREATEAPI` verifies `AH=67h` defensive requests, `AH=5Bh` create and exists failure, `AH=5Ah` collision avoidance against an existing `LD0000.TMP`, reopening the generated temp path, generating a distinct second temp path, and preserving the caller's path terminator after a temp-create path error.
+- The EMS-enabled build initially exceeded the old `SEC_BUF=0x0980` guard after these handlers. The fixed buffers moved to `SEC_BUF=0x09C0`, `ENV_SEG=0x09E0`, and `ROOT_SEG=0x0A00`, still below the stack/MCB assertions.
+
+### Tests Run
+
+- `python3 scripts/test_createapi.py`

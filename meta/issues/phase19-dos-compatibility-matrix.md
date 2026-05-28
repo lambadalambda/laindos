@@ -54,8 +54,8 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=43h` attributes | implemented/partial | medium | Strengthen read-only/hidden/system/archive semantics. |
 | `AH=45h/46h` duplicate/force duplicate handle | implemented/partial | medium | Covered by `DUPTEST`; duplicated file handles share position and close lifetime. Standard-handle redirection remains minimal. |
 | `AH=57h` get/set file date/time | implemented/partial | medium | Preserve directory entry updates. |
-| `AH=5Ah/5Bh` temp/create-new | missing | medium | Useful for installers and save systems. |
-| `AH=67h` set handle count | missing/stub candidate | medium | Many runtimes call this defensively. |
+| `AH=5Ah/5Bh` temp/create-new | implemented/partial | medium | Covered by `CREATEAPI`; temp names use generated 8.3 `LDxxxx.TMP` names and skip existing collisions. |
+| `AH=67h` set handle count | stub | medium | Covered by `CREATEAPI`; succeeds for nonzero defensive requests but does not expand the fixed 20-handle table. |
 | `AH=68h` commit file | implemented/partial | medium | Covered by `COMMITTEST`; flushes directory metadata/FAT for real files and succeeds for implicit standard handles. |
 
 ### Directories and Paths

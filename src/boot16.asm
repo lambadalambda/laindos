@@ -3,7 +3,7 @@
 
 %include "src/memory.inc"
 FAT_SEG  equ 0x0060
-ROOT_SEG equ 0x09C0
+ROOT_SEG equ 0x0A00
 
 bpb:
     jmp short boot

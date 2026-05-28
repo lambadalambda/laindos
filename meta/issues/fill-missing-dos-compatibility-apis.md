@@ -21,3 +21,4 @@ Reviews identified missing or skeletal DOS APIs that may affect installers, util
 - `INT 21h AH=0Ch` is implemented and covered by `src/flushread.asm` / `scripts/test_flushread.py`.
 - `INT 21h AH=45h/46h` is implemented for shared duplicate file handles and covered by `src/duptest.asm` / `scripts/test_dup.py`.
 - `INT 21h AH=68h` is implemented as a file commit operation and covered by `src/committest.asm` / `scripts/test_commit.py`.
+- `INT 21h AH=5Ah/5Bh/67h` compatibility behavior is covered by `src/createapi.asm` / `scripts/test_createapi.py`; `AH=67h` is a no-op set-handle-count compatibility response and does not expand the fixed handle table.
