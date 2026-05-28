@@ -1971,6 +1971,7 @@ klba:  dw 0
 klba_hi: dw 0
 kio_lba_hi: dw 0
 kcnt:  db 0
+kio_op: db 0
 ksc:   db 0
 khd:   db 0
 kcy:   dw 0

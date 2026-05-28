@@ -48,3 +48,4 @@
 - [x] [Validate FAT16 FAT Sector Indices](issues/validate-fat16-fat-sector-indices.md)
 - [x] [Harden Boot FAT Chain Loading](issues/harden-boot-fat-chain-loading.md)
 - [x] [Separate Sector Buffers From Read Cache](issues/separate-sector-buffers-from-read-cache.md)
+- [x] [Extract Disk I/O CHS Helper](issues/extract-disk-io-chs-helper.md)

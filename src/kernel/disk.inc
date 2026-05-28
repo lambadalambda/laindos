@@ -23,73 +23,39 @@ cluster_lba:
     ret
 
 read_sector:
-    mov [cs:klba], ax
-    mov ax, [cs:kio_lba_hi]
-    mov [cs:klba_hi], ax
-    mov word [cs:kio_lba_hi], 0
-    mov ax, [cs:kpart_lba]
-    add [cs:klba], ax
-    mov ax, [cs:kpart_lba_hi]
-    adc [cs:klba_hi], ax
-    mov byte [cs:kcnt], 1
-    mov byte [cs:kret], 3
-.r1:
-    cmp word [cs:kbio_spt], 0
-    je .geom_err
-    cmp word [cs:kbio_heads], 0
-    je .geom_err
-    mov ax, [cs:klba]
-    mov dx, [cs:klba_hi]
-    cmp dx, [cs:kbio_spt]
-    jae .geom_err
-    div word [cs:kbio_spt]
-    inc dl
-    mov [cs:ksc], dl
-    xor dx, dx
-    div word [cs:kbio_heads]
-    cmp ax, 1024
-    jae .geom_err
-    mov [cs:khd], dl
-    mov [cs:kcy], ax
-    mov ax, [cs:kcy]
-    mov ch, al
-    mov cl, [cs:ksc]
-    mov al, ah
-    and al, 0x03
-    shl al, 6
-    or cl, al
-    mov ah, 2
-    mov al, 1
-    mov dh, [cs:khd]
-    mov dl, [cs:kdrv]
-    int 0x13
-    jnc .ok
-    xor ax, ax
-    mov dl, [cs:kdrv]
-    int 0x13
-    dec byte [cs:kret]
-    jnz .r1
-.geom_err:
-    stc
-    ret
-.ok:
-    add bx, 512
-    jnc .rnb
-    mov ax, es
-    add ax, 0x1000
-    mov es, ax
-.rnb:
-    inc word [cs:klba]
-    jnz .rnb_hi
-    inc word [cs:klba_hi]
-.rnb_hi:
-    dec byte [cs:kcnt]
-    jnz .r1
-    clc
-    ret
+    mov byte [cs:kio_op], 2
+    call setup_sector_io
+    jmp sector_io_loop
 
 write_sector:
     mov byte [cs:rf_cache_valid], 0
+    mov byte [cs:kio_op], 3
+    call setup_sector_io
+    jmp sector_io_loop
+
+sector_io_loop:
+.next:
+    call setup_bios_chs
+    jc .geom_err
+    mov ah, [cs:kio_op]
+    mov al, 1
+    int 0x13
+    jnc .ok
+    xor ax, ax
+    mov dl, [cs:kdrv]
+    int 0x13
+    dec byte [cs:kret]
+    jnz .next
+.geom_err:
+    stc
+    ret
+.ok:
+    call finish_sector_io
+    jnz .next
+    clc
+    ret
+
+setup_sector_io:
     mov [cs:klba], ax
     mov ax, [cs:kio_lba_hi]
     mov [cs:klba_hi], ax
@@ -100,7 +66,9 @@ write_sector:
     adc [cs:klba_hi], ax
     mov byte [cs:kcnt], 1
     mov byte [cs:kret], 3
-.w1:
+    ret
+
+setup_bios_chs:
     cmp word [cs:kbio_spt], 0
     je .geom_err
     cmp word [cs:kbio_heads], 0
@@ -125,32 +93,24 @@ write_sector:
     and al, 0x03
     shl al, 6
     or cl, al
-    mov ah, 3
-    mov al, 1
     mov dh, [cs:khd]
     mov dl, [cs:kdrv]
-    int 0x13
-    jnc .ok
-    xor ax, ax
-    mov dl, [cs:kdrv]
-    int 0x13
-    dec byte [cs:kret]
-    jnz .w1
+    clc
+    ret
 .geom_err:
     stc
     ret
-.ok:
+
+finish_sector_io:
     add bx, 512
-    jnc .wnb
+    jnc .no_wrap
     mov ax, es
     add ax, 0x1000
     mov es, ax
-.wnb:
+.no_wrap:
     inc word [cs:klba]
-    jnz .wnb_hi
+    jnz .lba_inc_done
     inc word [cs:klba_hi]
-.wnb_hi:
+.lba_inc_done:
     dec byte [cs:kcnt]
-    jnz .w1
-    clc
     ret

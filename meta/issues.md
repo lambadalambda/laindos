@@ -4,6 +4,5 @@
 - [ ] [Fill Missing DOS Compatibility APIs](issues/fill-missing-dos-compatibility-apis.md)
 
 - [ ] [Unify ASCII Case Conversion And Path Canonicalization](issues/unify-ascii-case-conversion-and-path-canonicalization.md)
-- [ ] [Extract Disk I/O CHS Helper](issues/extract-disk-io-chs-helper.md)
 - [ ] [Centralize Directory Slot Writeback](issues/centralize-directory-slot-writeback.md)
 - [ ] [Add Shell Command Dispatch Table](issues/add-shell-command-dispatch-table.md)
