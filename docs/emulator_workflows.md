@@ -6,12 +6,14 @@ Practical notes for running LainDOS, real DOS, and game payloads under QEMU, 86B
 
 Use QEMU first for fast, scriptable runs.
 
-For automated `make test` runs, prefer the simpler AGENTS.md baseline (`-monitor none -nographic`) instead of the interactive monitor/VNC setup below.
+Tests and `make run` resolve QEMU in this order: `LAINDOS_QEMU`, the sibling patched build at `../qemu-ascendancy/build-asc/qemu-system-i386-unsigned`, then `qemu-system-i386` from `PATH`. `mise.toml` sets `LAINDOS_QEMU` to the patched local build.
+
+For automated `make test` runs, prefer `make test` or the simpler `-monitor none -nographic` shape instead of the interactive monitor/VNC setup below.
 
 Typical command shape:
 
 ```sh
-qemu-system-i386 \
+"${LAINDOS_QEMU:-qemu-system-i386}" \
   -drive file=build/games_hd_all.img,format=raw \
   -boot order=c \
   -serial stdio \
@@ -40,6 +42,7 @@ General rules:
 - Do not wait a long time blindly if CPU sampling can show the active loop quickly.
 - Try short discriminator sweeps before deeper debugging: `-cpu ...`, `-vga ...`, sound on/off.
 - Keep QEMU regression runs sequential when they share `build/`.
+- Ascendancy needs the local QEMU `SAHF` fix unless your installed QEMU already includes it; see `docs/qemu-sahf-ccop.patch`.
 
 ## 86Box Workflow
 
@@ -82,7 +85,7 @@ Fastest path found so far:
 Example:
 
 ```sh
-qemu-system-i386 \
+"${LAINDOS_QEMU:-qemu-system-i386}" \
   -drive file="build/DOS Boot Floppy.img",format=raw,if=floppy \
   -drive file=fat:rw:/abs/path/to/build/realdos_asc,format=raw,if=ide \
   -boot order=a \
@@ -151,5 +154,8 @@ Use these heuristics:
 
 - The original slow-start issue on large FAT16 images was a real read-path bug in LainDOS and was fixed.
 - After that fix, 86Box got past the Logic Factory screen quickly.
-- QEMU still stalled there, and real DOS in QEMU reproduced it too.
-- Live QEMU sampling showed DOS/4GW x87 helper loops (`fprem`, then `fcos`/`fsin`), so the remaining issue appears to be QEMU-side protected-mode/x87 behavior rather than LainDOS DOS/file semantics.
+- Stock QEMU then stalled there, and real DOS in QEMU reproduced it too.
+- Live QEMU sampling showed DOS/4GW x87 helper loops (`fprem`, then `fcos`/`fsin`), so the remaining issue was QEMU-side protected-mode CPU behavior rather than LainDOS DOS/file semantics.
+- The root cause was QEMU i386 TCG `SAHF` lazy condition-code handling: `SAHF` updated `cpu_cc_src` but did not materialize `CC_OP_EFLAGS`, so the following `JNP` used stale parity state.
+- The one-line fix is saved as `docs/qemu-sahf-ccop.patch` and committed in the sibling QEMU clone as `06cbfb3 target/i386: mark SAHF flags as materialized`.
+- With that patched QEMU, Ascendancy reaches gameplay under LainDOS.

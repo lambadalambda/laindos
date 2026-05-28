@@ -56,10 +56,11 @@ LainDOS is a tiny single-tasking DOS implementation targeting x86 real mode. Its
 - Use **Bochs** when you need its debugger for tricky real-mode issues, but QEMU is the default run target.
 - QEMU invocations should redirect serial output to a file or stdio so test scripts can inspect it.
 - Test programs should output `PASS:` or `FAIL:` markers on serial for automated checking.
+- Prefer `make run`, `make test`, or `$LAINDOS_QEMU` for local commands. The repo defaults to the sibling patched QEMU build when present because Ascendancy currently needs the local `SAHF` fix.
 - Example baseline invocation:
 
   ```
-  qemu-system-i386 -drive file=disk.img,format=raw -serial stdio -monitor none -nographic
+  "${LAINDOS_QEMU:-qemu-system-i386}" -drive file=disk.img,format=raw -serial stdio -monitor none -nographic
   ```
 
 ### Build and run workflow
@@ -67,7 +68,7 @@ LainDOS is a tiny single-tasking DOS implementation targeting x86 real mode. Its
 - If a Makefile or build script does not yet exist, create one before writing implementation code.
 - Build: `make`
 - Test: `make test`
-- Run: `qemu-system-i386 -drive file=disk.img,format=raw -serial stdio -monitor none -nographic`
+- Run: `make run`
 
 ### License hygiene
 

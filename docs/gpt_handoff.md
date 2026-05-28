@@ -1,3 +1,7 @@
+# Historical GPT Handoff
+
+This is the original planning handoff for LainDOS. It is useful background, but it is not the current status document. For current capabilities, workflows, and open work, use `README.md`, `meta/issues.md`, `meta/issues_archive.md`, and `docs/debug_log.md`.
+
 A practical plan for a **tiny DOS whose first serious target is starting The Secret of Monkey Island**, not becoming a general FreeDOS replacement.
 
 The key idea: **do not implement “DOS” in the abstract. Implement the subset needed to boot, load `MONKEY.EXE`, serve its file/memory/version/vector calls, and leave BIOS/VGA/timer/keyboard hardware alone.**
