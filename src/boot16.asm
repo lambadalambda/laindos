@@ -46,14 +46,22 @@ boot:
     add ax,[bpb+14]
     mov [rsta],ax
     mov ax,[bpb+17]
-    mov bx,32
-    mul bx
-    add ax,511
-    mov bx,512
-    div bx
+    shr ax,4
     mov [rsc],ax
     add ax,[rsta]
     mov [dsta],ax
+    mov ax,[bpb+19]
+    xor dx,dx
+    test ax,ax
+    jnz mtc
+    mov ax,[bpb+32]
+    mov dx,[bpb+34]
+mtc:sub ax,[dsta]
+    sbb dx,0
+    movzx bx,byte[bpb+13]
+    div bx
+    add ax,2
+    mov [mcl],ax
 
     mov ax,ROOT_SEG
     mov es,ax
@@ -82,17 +90,19 @@ nf: mov si,em
     call sprint
     cli
     hlt
-fk: mov ax,[es:di+26]
-    mov [kcl],ax
+fk: mov si,[es:di+26]
 
     mov ax,LOAD_SEG
     mov es,ax
     xor bx,bx
-    mov si,[kcl]
 ld: cmp si,0xFFF8
     jae ldk
     cmp si,2
     jb nf
+    cmp si,0xFFF0
+    jae nf
+    cmp si,[mcl]
+    jae nf
     push si
     mov ax,si
     sub ax,2
@@ -112,15 +122,13 @@ ldk:
 
 fat_next:
     push bx
-    push cx
-    push dx
     push es
     mov ax,si
     mov bx,ax
     mov cl,8
     shr ax,cl
     add ax,[bpb+14]
-    and bx,0x00FF
+    xor bh,bh
     shl bx,1
     push bx
     mov bx,0
@@ -142,8 +150,6 @@ f16e:
     mov ax,0xFFFF
 f16r:
     pop es
-    pop dx
-    pop cx
     pop bx
     ret
 
@@ -209,7 +215,7 @@ drv: db 0
 rsta:dw 0
 rsc: dw 0
 dsta:dw 0
-kcl: dw 0
+mcl: dw 0
 lb:  dw 0
 cnt: dw 0
 sc:  db 0

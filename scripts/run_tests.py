@@ -14,6 +14,7 @@ from pathlib import Path
 DEFAULT_TESTS = [
     "scripts/test_autoexec.py",
     "scripts/test_boot.py",
+    "scripts/test_boot_chain_bounds.py",
     "scripts/test_bpb_invalid.py",
     "scripts/test_highmcb.py",
     "scripts/test_write.py",

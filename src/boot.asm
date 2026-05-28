@@ -40,42 +40,24 @@ boot:
     mov [drv],dl
     mov [0x500],dl
 
-    mov dx,0x3F9
-    xor al,al
-    out dx,al
-    mov dx,0x3FB
-    mov al,0x80
-    out dx,al
-    mov dx,0x3F8
-    mov al,1
-    out dx,al
-    mov dx,0x3F9
-    xor al,al
-    out dx,al
-    mov dx,0x3FB
-    mov al,3
-    out dx,al
-    mov dx,0x3FA
-    mov al,0xC7
-    out dx,al
-    mov dx,0x3FC
-    mov al,0x0B
-    out dx,al
-
     mov ax,[bpb+22]
     movzx cx,byte[bpb+16]
     mul cx
     add ax,[bpb+14]
     mov [rsta],ax
     mov ax,[bpb+17]
-    mov bx,32
-    mul bx
-    add ax,511
-    mov bx,512
-    div bx
+    shr ax,4
     mov [rsc],ax
     add ax,[rsta]
     mov [dsta],ax
+    mov bx,[bpb+19]
+    sub bx,ax
+    mov ax,bx
+    xor dx,dx
+    movzx bx,byte[bpb+13]
+    div bx
+    add ax,2
+    mov [mcl],ax
 
     mov ax,FAT_SEG
     mov es,ax
@@ -111,17 +93,19 @@ nf: mov si,em
     call sprint
     cli
     hlt
-fk: mov ax,[es:di+26]
-    mov [kcl],ax
+fk: mov si,[es:di+26]
 
     mov ax,LOAD_SEG
     mov es,ax
     xor bx,bx
-    mov si,[kcl]
 ld: cmp si,0xFF8
     jae ldk
     cmp si,2
     jb nf
+    cmp si,0xFF0
+    jae nf
+    cmp si,[mcl]
+    jae nf
     push si
     mov ax,si
     sub ax,2
@@ -217,7 +201,7 @@ drv: db 0
 rsta:dw 0
 rsc: dw 0
 dsta:dw 0
-kcl: dw 0
+mcl: dw 0
 lb:  dw 0
 cnt: dw 0
 sc:  db 0
