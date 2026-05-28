@@ -71,10 +71,6 @@ execute_line:
     call cmd_match
     jc do_cls
     mov si, line_buf
-    mov di, mem_cmd
-    call cmd_match
-    jc do_mem
-    mov si, line_buf
     mov di, echo_cmd
     call cmd_match
     jc do_echo
@@ -245,26 +241,6 @@ do_type:
 do_cls:
     mov dl, 12
     mov ah, 0x02
-    int 0x21
-    ret
-
-do_mem:
-    mov bx, 0xFFFF
-    mov ah, 0x48
-    int 0x21
-    jc .print
-    mov es, ax
-    mov ah, 0x49
-    int 0x21
-    mov bx, 0xFFFF
-.print:
-    mov dx, mem_msg
-    mov ah, 0x09
-    int 0x21
-    mov ax, bx
-    call print_hex_word
-    mov dx, mem_suffix
-    mov ah, 0x09
     int 0x21
     ret
 
@@ -900,33 +876,6 @@ cmd_match:
     pop ax
     ret
 
-print_hex_word:
-    push ax
-    push bx
-    push cx
-    push dx
-    mov bx, ax
-    mov cx, 4
-.loop:
-    rol bx, 4
-    mov dl, bl
-    and dl, 0x0F
-    cmp dl, 9
-    jbe .digit
-    add dl, 'A' - 10
-    jmp .out
-.digit:
-    add dl, '0'
-.out:
-    mov ah, 0x02
-    int 0x21
-    loop .loop
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ret
-
 banner: db "LainDOS Shell", 13, 10, "$"
 prompt_drive: db ":\$"
 prompt_end: db ">$"
@@ -938,8 +887,6 @@ file_not_found_msg: db "File not found", 13, 10, "$"
 file_error_msg: db "File error", 13, 10, "$"
 missing_arg_msg: db "Missing argument", 13, 10, "$"
 resize_fail_msg: db "Shell resize failed", 13, 10, "$"
-mem_msg: db "Largest free block: $"
-mem_suffix: db " paragraphs", 13, 10, "$"
 exit_cmd: db "EXIT", 0
 ver_cmd: db "VER", 0
 dir_cmd: db "DIR", 0
@@ -948,7 +895,6 @@ md_cmd: db "MD", 0
 rd_cmd: db "RD", 0
 type_cmd: db "TYPE", 0
 cls_cmd: db "CLS", 0
-mem_cmd: db "MEM", 0
 echo_cmd: db "ECHO", 0
 rem_cmd: db "REM", 0
 echo_off_arg: db "OFF", 0

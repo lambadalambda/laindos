@@ -44,6 +44,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - XMS now sizes its single block from BIOS `INT 15h AH=88h`, capped by `XMS_MAX_KB=15360` so the BIOS `AH=87h` move descriptors stay below the 24-bit/16 MiB ceiling. `src/xmstest.asm` allocates the full capped block under QEMU and verifies an end-of-block bounds rejection at `0x00EFFFF0 + 32`.
 - `python3 build/run_asc_probe.py` against `scripts/build_games_hd_all.py` with default XMS enabled reaches the DOS/4GW banner and Ascendancy copyright banner without error 1307.
 - `python3 build/run_wolf3d_smoke.py`, `python3 scripts/test_ems.py`, and full `make test` passed after dynamic XMS sizing: `36/36` in 10.80s, default kernel `23171` bytes.
+- `FREE.COM` now prints an MS-DOS-style memory table with fixed-width KB columns, and the shell `MEM` command is provided by the same utility built as `MEM.COM`; focused `test_free.py`, `test_shell.py`, `test_xms.py`, `test_ems.py`, `test_boot.py`, and full `make test` passed: `36/36` in 10.92s. Local Ascendancy/Wolf3D probe scripts and vendor archives were not present for rerun in this checkout.
 
 ### Follow-Ups
 

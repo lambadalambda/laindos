@@ -50,6 +50,7 @@ def build_image():
     run(["nasm", "-f", "bin", "src/memreg.asm", "-o", os.path.join(BUILDDIR, "memreg.com")])
     run(["nasm", "-f", "bin", "src/packseg.asm", "-o", os.path.join(BUILDDIR, "packseg.exe")])
     run(["nasm", "-f", "bin", "src/free.asm", "-o", os.path.join(BUILDDIR, "free.com")])
+    run(["nasm", "-f", "bin", "src/free.asm", "-o", os.path.join(BUILDDIR, "mem.com")])
     run(["python3", "scripts/mktestfile.py", os.path.join(BUILDDIR, "testfile.dat")])
     run(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
     with open(os.path.join(BUILDDIR, "testbat.bat"), "wb") as f:
@@ -74,6 +75,7 @@ def build_image():
         os.path.join(BUILDDIR, "memreg.com"),
         os.path.join(BUILDDIR, "packseg.exe"),
         os.path.join(BUILDDIR, "free.com"),
+        os.path.join(BUILDDIR, "mem.com"),
         os.path.join(BUILDDIR, "testbat.bat"),
         os.path.join(BUILDDIR, "testfile.dat"),
         f"DIRONLY:{os.path.join(BUILDDIR, 'subtest.dat')}",
@@ -230,10 +232,11 @@ def main():
         "PASS: EXEMAX",
         "PASS: MEMREG",
         "PASS: PACKSEG",
-        "Largest free block: ",
-        "LainDOS memory report",
-        "Total managed memory:",
-        "Total free memory:",
+        "Memory type        Total       Used    Free",
+        "Extended (XMS)",
+        "Total memory",
+        "Total Expanded (EMS)",
+        "Largest executable program size",
         "A:\\SHDIR>",
         "Path not found",
         "A:\\MIDEMO>",
