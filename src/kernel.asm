@@ -159,7 +159,15 @@ kernel_entry:
     mov word [mcb_first], MCB_START
     mov word [cur_psp], 0
 
+%ifdef TEST_BAD_BPB_SEC_PER_CLUS
+    mov byte [bpb_copy+0x0D], 0
+%endif
     call init_bpb_geometry
+    jnc .bpb_ok
+    mov si, msg_badbpb
+    call serial_print
+    jmp .halt
+.bpb_ok:
 
     mov si, fname_exe
     call resolve_path
@@ -397,6 +405,42 @@ init_bpb_geometry:
     pop ds
     mov bx, bpb_copy
 
+    cmp word [bx+0x0B], 512
+    jne .bad
+    mov al, [bx+0x0D]
+    test al, al
+    jz .bad
+    mov ah, al
+    dec ah
+    test al, ah
+    jnz .bad
+    cmp word [bx+0x0E], 0
+    je .bad
+    cmp byte [bx+0x10], 0
+    je .bad
+    cmp byte [bx+0x10], 2
+    ja .bad
+    mov ax, [bx+0x11]
+    test ax, ax
+    jz .bad
+    test ax, 0x000F
+    jnz .bad
+    cmp ax, 2032
+    ja .bad
+    cmp word [bx+0x16], 0
+    je .bad
+    cmp word [bx+0x18], 0
+    je .bad
+    cmp word [bx+0x1A], 0
+    je .bad
+    mov ax, [bx+0x13]
+    test ax, ax
+    jnz .total_ok
+    mov ax, [bx+0x20]
+    or ax, [bx+0x22]
+    jz .bad
+.total_ok:
+
     mov ax, [bx+0x1C]
     mov [cs:kpart_lba], ax
     mov ax, [bx+0x1E]
@@ -422,7 +466,10 @@ init_bpb_geometry:
     mov ax, [bx+22]
     movzx cx, byte [bx+16]
     mul cx
+    test dx, dx
+    jnz .bad
     add ax, [bx+14]
+    jc .bad
     mov [cs:krsta], ax
     mov ax, [bx+17]
     mov [cs:kroot_entries], ax
@@ -436,12 +483,16 @@ init_bpb_geometry:
     pop ax
     mov bx, 32
     mul bx
+    test dx, dx
+    jnz .bad
     mov [cs:kroot_bytes], ax
     add ax, 511
+    jc .bad
     mov bx, 512
     div bx
     mov [cs:krsc], ax
     add ax, [cs:krsta]
+    jc .bad
     mov [cs:kdsta], ax
 
     mov bx, bpb_copy
@@ -452,11 +503,20 @@ init_bpb_geometry:
     mov ax, [bx+32]
     mov dx, [bx+34]
 .have_total:
+    test dx, dx
+    jnz .total_over_root
+    cmp ax, [cs:kdsta]
+    jbe .bad
+.total_over_root:
     sub ax, [cs:kdsta]
     sbb dx, 0
     xor ch, ch
     mov cl, [cs:kspc]
+    cmp dx, cx
+    jae .bad
     div cx
+    cmp ax, 0xFFFD
+    ja .bad
     add ax, 2
     mov [cs:kmax_cluster], ax
 
@@ -478,6 +538,12 @@ init_bpb_geometry:
     mov byte [cs:dos_drive_letter], 'C'
     mov byte [cs:dos_drive_count], 3
 .drive_done:
+    clc
+    ret
+.bad:
+    pop bx
+    pop ds
+    stc
     ret
 
 query_bios_disk_geometry:
@@ -1736,6 +1802,7 @@ msg_booted:   db "MiniDOS booted", 13, 10, 0
 msg_mem:      db "Conventional memory: ", 0
 msg_kib:      db " KB", 13, 10, 0
 msg_ints:     db "INT 20h/21h installed", 13, 10, 0
+msg_badbpb:   db "Invalid BPB", 13, 10, 0
 msg_nofile:   db "File not found", 13, 10, 0
 msg_com_load: db "COM loaded", 13, 10, 0
 msg_exe_load: db "EXE loaded", 13, 10, 0

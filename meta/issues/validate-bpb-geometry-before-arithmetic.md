@@ -19,3 +19,4 @@ BPB fields are trusted before arithmetic in kernel initialization. A corrupted B
 ## Notes
 
 - Review reference: `src/kernel.asm:429` divides by `kspc` during `init_bpb_geometry`.
+- Outcome: `init_bpb_geometry` now validates BPB fields and geometry bounds before divisions; `test_bpb_invalid.py` corrupts `BPB_SecPerClus` to zero and verifies an `Invalid BPB` halt.
