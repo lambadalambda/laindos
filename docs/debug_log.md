@@ -41,14 +41,14 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Full `make test` passed with EMS hidden by default, a safe absent `INT 67h` handler installed, and EMS explicitly enabled only for `scripts/test_ems.py`: `36/36` in 11.42s, default kernel `23137` bytes.
 - User reported Ascendancy then failed at startup with `DOS/4GW fatal error (1307): not enough memory` when XMS was enabled. Hiding XMS let Ascendancy reach its previous startup banner, confirming the failure was in DOS/4GW's XMS path.
 - Advisors agreed the likely issue was that DOS/4GW commits to XMS when present and expects a realistic memory pool. A discriminator run with the same single-handle implementation but `XMS_TOTAL_KB=8192` fixed the Ascendancy memory error, so the immediate blocker was the old 1 MiB report rather than multi-handle allocation.
-- XMS now reports 8192 KiB by default, and `src/xmstest.asm` allocates the full 8 MiB block and verifies an end-of-block bounds rejection at `0x007FFFF0 + 32`.
+- XMS now sizes its single block from BIOS `INT 15h AH=88h`, capped by `XMS_MAX_KB=15360` so the BIOS `AH=87h` move descriptors stay below the 24-bit/16 MiB ceiling. `src/xmstest.asm` allocates the full capped block under QEMU and verifies an end-of-block bounds rejection at `0x00EFFFF0 + 32`.
 - `python3 build/run_asc_probe.py` against `scripts/build_games_hd_all.py` with default XMS enabled reaches the DOS/4GW banner and Ascendancy copyright banner without error 1307.
-- `python3 build/run_wolf3d_smoke.py`, `python3 scripts/test_ems.py`, and full `make test` passed after the XMS capacity fix: `36/36` in 10.77s, default kernel `23132` bytes.
+- `python3 build/run_wolf3d_smoke.py`, `python3 scripts/test_ems.py`, and full `make test` passed after dynamic XMS sizing: `36/36` in 10.80s, default kernel `23171` bytes.
 
 ### Follow-Ups
 
 - Treat Wolf3D startup as a QEMU VGA-status/timing issue unless a separate 86Box failure appears. Use `-vga std,retrace=precise` for QEMU Wolf3D runs.
-- The current XMS support includes backed `AH=0Bh` moves for a single 8 MiB allocated block. EMS has a backed single-handle implementation only when built with `ENABLE_EMS=1`; keep it hidden by default until there is a safe non-overlapping frame, UMB support, or a target that can tolerate the `9000h` compatibility window.
+- The current XMS support includes backed `AH=0Bh` moves for a single BIOS-sized/capped allocated block. EMS has a backed single-handle implementation only when built with `ENABLE_EMS=1`; keep it hidden by default until there is a safe non-overlapping frame, UMB support, or a target that can tolerate the `9000h` compatibility window.
 - If QEMU support is desired, isolate a minimal `0x3DA`/`IF=0` reproducer for QEMU before changing LainDOS.
 
 ## 2026-05-28 Ascendancy QEMU SAHF Root Cause

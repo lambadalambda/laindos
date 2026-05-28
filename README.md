@@ -11,7 +11,7 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 - Provides a small shell with `AUTOEXEC.BAT`, current directory support, environment/PATH handling, and parent/child `EXEC` coverage.
 - Implements the core DOS file APIs used by the current suite: open/read/write/seek/close, create/truncate, delete, rename, attributes, timestamps, disk free, FindFirst/FindNext, and writable FAT12/FAT16 paths.
 - Provides a built-in `INT 33h` mouse service backed by PS/2 mouse packets, including movement/buttons, callbacks, scaling, and edge clamping.
-- Provides minimal single-handle XMS APIs for game startup detection and backed XMS moves, with an 8 MiB pool. Experimental backed EMS support exists behind `ENABLE_EMS=1` but is hidden in default builds.
+- Provides minimal single-handle XMS APIs for game startup detection and backed XMS moves, using BIOS-reported extended memory capped at 15 MiB. Experimental backed EMS support exists behind `ENABLE_EMS=1` but is hidden in default builds.
 - Runs the Monkey Island demo and full VGA Monkey Island images when the corresponding local `vendor/` archives are present.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.

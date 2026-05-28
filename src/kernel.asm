@@ -34,8 +34,8 @@ MAX_HANDLES equ 20
 SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
 KERNEL_STACK_TOP equ 0xBC00
-%ifndef XMS_TOTAL_KB
-%define XMS_TOTAL_KB 8192
+%ifndef XMS_MAX_KB
+%define XMS_MAX_KB 15360
 %endif
 EMS_TOTAL_PAGES equ 64
 %ifndef EMS_FRAME_SEG
@@ -131,6 +131,10 @@ kernel_entry:
     call serial_print_int
     mov si, msg_kib
     call serial_print
+
+%if ENABLE_XMS
+    call init_xms_size
+%endif
 
     call init_interrupts
 
@@ -755,6 +759,25 @@ int24_handler:
     mov al, 3
     iret
 
+%if ENABLE_XMS
+init_xms_size:
+    push ax
+    mov word [cs:xms_total_kb], 0
+    mov ah, 0x88
+    int 0x15
+    jc .done
+    test ax, ax
+    jz .done
+    cmp ax, XMS_MAX_KB
+    jbe .store
+    mov ax, XMS_MAX_KB
+.store:
+    mov [cs:xms_total_kb], ax
+.done:
+    pop ax
+    ret
+%endif
+
 int2f_handler:
 %if ENABLE_XMS
     cmp ax, 0x4300
@@ -803,7 +826,7 @@ xms_entry:
     xor dx, dx
     retf
 .query:
-    mov ax, XMS_TOTAL_KB
+    mov ax, [cs:xms_total_kb]
     sub ax, [cs:xms_alloc_kb]
     mov dx, ax
     xor bl, bl
@@ -813,7 +836,7 @@ xms_entry:
     jne .no_mem
     test dx, dx
     jz .no_mem
-    cmp dx, XMS_TOTAL_KB
+    cmp dx, [cs:xms_total_kb]
     ja .no_mem
     mov [cs:xms_alloc_kb], dx
     mov ax, 1
@@ -2154,6 +2177,7 @@ xms_move_words: dw 0
 xms_src_phys: dd 0
 xms_dst_phys: dd 0
 xms_gdt: times 48 db 0
+xms_total_kb: dw 0
 %if ENABLE_EMS
 ems_alloc_pages: dw 0
 ems_map_pages: times 4 dw 0xFFFF
@@ -2205,6 +2229,6 @@ kernel_end:
 %if ENABLE_EMS && (EMS_FRAME_SEG & 0x03FF) != 0
 %error "EMS frame must be 16K-aligned"
 %endif
-%if ENABLE_XMS && XMS_TOTAL_KB > 15360
+%if ENABLE_XMS && XMS_MAX_KB > 15360
 %error "XMS BIOS move backing must remain below 16 MiB"
 %endif

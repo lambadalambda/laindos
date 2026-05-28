@@ -1,6 +1,9 @@
 [bits 16]
 [org 0x0100]
 
+XMS_TEST_KB equ 15360
+XMS_TEST_BAD_OFF equ 0x00EFFFF0
+
 start:
     push cs
     pop ds
@@ -31,13 +34,13 @@ start:
 
     mov ah, 0x08
     call far [xms_entry]
-    cmp ax, 8192
+    cmp ax, XMS_TEST_KB
     jb fail_query
     cmp dx, ax
     jb fail_query
 
     mov ah, 0x09
-    mov dx, 8192
+    mov dx, XMS_TEST_KB
     call far [xms_entry]
     cmp ax, 1
     jne fail_alloc
@@ -99,7 +102,7 @@ start:
     call far [xms_entry]
     cmp ax, 1
     jne fail_info
-    cmp dx, 8192
+    cmp dx, XMS_TEST_KB
     jne fail_info
 
     mov ah, 0x0A
@@ -176,7 +179,7 @@ move_dst_seg: dw 0
 move_bad_bounds:
     dd 32
 move_bad_src_handle: dw 0
-    dd 0x007FFFF0
+    dd XMS_TEST_BAD_OFF
     dw 0
     dw dst_data
 move_bad_dst_seg: dw 0
