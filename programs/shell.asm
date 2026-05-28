@@ -38,46 +38,19 @@ execute_line:
     call skip_command_prefix
     cmp byte [si], 0
     je .done
+    mov bx, command_table
+.builtin_loop:
+    mov di, [bx]
+    test di, di
+    jz .external
     mov si, line_buf
-    mov di, exit_cmd
     call cmd_match
-    jc exit_shell
-    mov si, line_buf
-    mov di, ver_cmd
-    call cmd_match
-    jc do_ver
-    mov si, line_buf
-    mov di, dir_cmd
-    call cmd_match
-    jc do_dir
-    mov si, line_buf
-    mov di, cd_cmd
-    call cmd_match
-    jc do_cd
-    mov si, line_buf
-    mov di, md_cmd
-    call cmd_match
-    jc do_md
-    mov si, line_buf
-    mov di, rd_cmd
-    call cmd_match
-    jc do_rd
-    mov si, line_buf
-    mov di, type_cmd
-    call cmd_match
-    jc do_type
-    mov si, line_buf
-    mov di, cls_cmd
-    call cmd_match
-    jc do_cls
-    mov si, line_buf
-    mov di, echo_cmd
-    call cmd_match
-    jc do_echo
-    mov si, line_buf
-    mov di, rem_cmd
-    call cmd_match
-    jc do_rem
+    jc .builtin_found
+    add bx, 4
+    jmp .builtin_loop
+.builtin_found:
+    jmp word [bx+2]
+.external:
     call prepare_command
     call run_command
 .done:
@@ -897,6 +870,18 @@ type_cmd: db "TYPE", 0
 cls_cmd: db "CLS", 0
 echo_cmd: db "ECHO", 0
 rem_cmd: db "REM", 0
+command_table:
+    dw exit_cmd, exit_shell
+    dw ver_cmd, do_ver
+    dw dir_cmd, do_dir
+    dw cd_cmd, do_cd
+    dw md_cmd, do_md
+    dw rd_cmd, do_rd
+    dw type_cmd, do_type
+    dw cls_cmd, do_cls
+    dw echo_cmd, do_echo
+    dw rem_cmd, do_rem
+    dw 0, 0
 echo_off_arg: db "OFF", 0
 echo_on_arg: db "ON", 0
 autoexec_name: db "AUTOEXEC.BAT", 0

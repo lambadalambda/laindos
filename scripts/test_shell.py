@@ -137,7 +137,7 @@ def send_keys(output_chunks):
                 raise
             time.sleep(0.1)
     sock.recv(4096)
-    for command in ["ver", "cls", "dir", "type testfile.dat", "hello", "keytest"]:
+    for command in ["ver", "cls", "dir", "type testfile.dat", "echo interactive echo", "rem interactive comment", "hello", "keytest"]:
         send_command(sock, output_chunks, command)
 
     target_prompt = prompt_count(output_chunks) + 1
@@ -220,6 +220,7 @@ def main():
         "HELLOEXE.EXE",
         "DIRONLY",
         "Hello from TESTFILE.DAT! This is test data for LainDOS file I/O.",
+        "INTERACTIVE ECHO",
         "PASS: HELLO.EXE",
         "EXECTEST.COM",
         "PASS: EXECTEST",
