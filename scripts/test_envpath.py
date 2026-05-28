@@ -30,9 +30,9 @@ def build_image():
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/shell.asm", "-o", os.path.join(BUILDDIR, "shell.com")])
-    run(["nasm", "-f", "bin", "src/envtest.asm", "-o", os.path.join(BUILDDIR, "envtest.com")])
-    run(["nasm", "-f", "bin", "src/pathrun.asm", "-o", os.path.join(BUILDDIR, "pathrun.com")])
+    run(["nasm", "-f", "bin", "programs/shell.asm", "-o", os.path.join(BUILDDIR, "shell.com")])
+    run(["nasm", "-f", "bin", "tests/programs/envtest.asm", "-o", os.path.join(BUILDDIR, "envtest.com")])
+    run(["nasm", "-f", "bin", "tests/programs/pathrun.asm", "-o", os.path.join(BUILDDIR, "pathrun.com")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),

@@ -30,7 +30,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="COMMIT  COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/committest.asm", "-o", commit_com])
+    run(["nasm", "-f", "bin", "tests/programs/committest.asm", "-o", commit_com])
     run(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, commit_com])
 
 

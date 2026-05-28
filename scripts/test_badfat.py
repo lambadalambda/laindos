@@ -34,7 +34,7 @@ def build_image():
     good = os.path.join(BUILDDIR, "good.dat")
     run(["nasm", "-f", "bin", "src/boot16.asm", "-o", boot])
     run(["nasm", '-DBOOT_FILE="BADFAT  COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    run(["nasm", "-f", "bin", "src/badfat.asm", "-o", badfat])
+    run(["nasm", "-f", "bin", "tests/programs/badfat.asm", "-o", badfat])
     with open(badchain, "wb") as f:
         f.write(b"B" * 4608)
     with open(firstbad, "wb") as f:

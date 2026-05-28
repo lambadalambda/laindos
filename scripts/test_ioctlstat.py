@@ -28,7 +28,7 @@ def build_image():
     testdat = os.path.join(BUILDDIR, "test.dat")
     run(["nasm", "-f", "bin", "src/boot.asm", "-o", boot])
     run(["nasm", '-DBOOT_FILE="IOCTLST COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    run(["nasm", "-f", "bin", "src/ioctlst.asm", "-o", prog])
+    run(["nasm", "-f", "bin", "tests/programs/ioctlst.asm", "-o", prog])
     with open(testdat, "wb") as f:
         f.write(b"X")
     run(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, prog, testdat])

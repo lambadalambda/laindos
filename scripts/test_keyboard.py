@@ -28,7 +28,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="KEYTEST COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/keytest.asm", "-o", os.path.join(BUILDDIR, "keytest.com")])
+    run(["nasm", "-f", "bin", "tests/programs/keytest.asm", "-o", os.path.join(BUILDDIR, "keytest.com")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),

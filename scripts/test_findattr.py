@@ -58,7 +58,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="FINDATTRCOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/findattr.asm", "-o", os.path.join(BUILDDIR, "findattr.com")])
+    run(["nasm", "-f", "bin", "tests/programs/findattr.asm", "-o", os.path.join(BUILDDIR, "findattr.com")])
     normal = write_fixture("normal.txt", b"normal\n")
     hidden = write_fixture("hidden.txt", b"hidden\n")
     system = write_fixture("system.txt", b"system\n")

@@ -28,7 +28,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="FINDTIMECOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/findtime.asm", "-o", os.path.join(BUILDDIR, "findtime.com")])
+    run(["nasm", "-f", "bin", "tests/programs/findtime.asm", "-o", os.path.join(BUILDDIR, "findtime.com")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),

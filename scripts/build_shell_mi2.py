@@ -57,7 +57,7 @@ def main():
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/shell.asm", "-o", SHELL])
+    run(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
 
     mi2_files = [
         "MI2DEMO.EXE",

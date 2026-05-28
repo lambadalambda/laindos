@@ -36,7 +36,7 @@ def build_image():
         "nasm", "-DTEST_DIR_EXT_ZERO_FAIL", '-DBOOT_FILE="DIREXTFACOM"',
         "-f", "bin", "src/kernel.asm", "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/dirextfail.asm", "-o", os.path.join(BUILDDIR, "dirextfa.com")])
+    run(["nasm", "-f", "bin", "tests/programs/dirextfail.asm", "-o", os.path.join(BUILDDIR, "dirextfa.com")])
     fillers = []
     for i in range(14):
         fillers.append(write_fixture(f"dfill{i:02d}.dat", f"filler {i:02d}\n".encode("ascii")))

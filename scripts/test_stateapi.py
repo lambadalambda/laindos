@@ -30,7 +30,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="STATEAPICOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/stateapi.asm", "-o", state_com])
+    run(["nasm", "-f", "bin", "tests/programs/stateapi.asm", "-o", state_com])
     run(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, state_com])
 
 

@@ -28,7 +28,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="BADRELOCCOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/badreloc.asm", "-o", os.path.join(BUILDDIR, "badreloc.com")])
+    run(["nasm", "-f", "bin", "tests/programs/badreloc.asm", "-o", os.path.join(BUILDDIR, "badreloc.com")])
     run(["python3", "scripts/mkbadreloc.py", os.path.join(BUILDDIR, "badreloc.exe")])
     run([
         "python3", "scripts/mkimage.py",

@@ -30,7 +30,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="CONSOLE COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/consoletest.asm", "-o", os.path.join(BUILDDIR, "console.com")])
+    run(["nasm", "-f", "bin", "tests/programs/consoletest.asm", "-o", os.path.join(BUILDDIR, "console.com")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),

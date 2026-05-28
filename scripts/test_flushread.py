@@ -30,7 +30,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="FLUSHR  COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/flushread.asm", "-o", os.path.join(BUILDDIR, "flushr.com")])
+    run(["nasm", "-f", "bin", "tests/programs/flushread.asm", "-o", os.path.join(BUILDDIR, "flushr.com")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),

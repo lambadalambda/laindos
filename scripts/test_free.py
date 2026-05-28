@@ -31,7 +31,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="FREE    COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/free.asm", "-o", free_com])
+    run(["nasm", "-f", "bin", "programs/free.asm", "-o", free_com])
     run(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, free_com])
 
 

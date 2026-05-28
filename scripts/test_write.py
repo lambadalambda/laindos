@@ -28,7 +28,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="WRITE   EXE"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/writetest.asm", "-o", os.path.join(BUILDDIR, "write.exe")])
+    run(["nasm", "-f", "bin", "tests/programs/writetest.asm", "-o", os.path.join(BUILDDIR, "write.exe")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),

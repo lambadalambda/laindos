@@ -232,9 +232,9 @@ def main():
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/shell.asm", "-o", SHELL])
-    run(["nasm", "-f", "bin", "src/free.asm", "-o", FREE])
-    run(["nasm", "-f", "bin", "src/free.asm", "-o", MEM])
+    run(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
+    run(["nasm", "-f", "bin", "programs/free.asm", "-o", FREE])
+    run(["nasm", "-f", "bin", "programs/free.asm", "-o", MEM])
 
     m1_demo = [
         "vendor/midemo.exe",

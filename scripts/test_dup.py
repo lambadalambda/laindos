@@ -30,7 +30,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="DUPTEST COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/duptest.asm", "-o", dup_com])
+    run(["nasm", "-f", "bin", "tests/programs/duptest.asm", "-o", dup_com])
     run(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, dup_com])
 
 

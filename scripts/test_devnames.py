@@ -30,7 +30,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="DEVNAMESCOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/devnames.asm", "-o", os.path.join(BUILDDIR, "devnames.com")])
+    run(["nasm", "-f", "bin", "tests/programs/devnames.asm", "-o", os.path.join(BUILDDIR, "devnames.com")])
     with open(os.path.join(BUILDDIR, "nulfile.dat"), "wb") as f:
         f.write(b"REAL")
     with open(os.path.join(BUILDDIR, "console.dat"), "wb") as f:

@@ -41,7 +41,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Full `make test` passed with EMS hidden by default, a safe absent `INT 67h` handler installed, and EMS explicitly enabled only for `scripts/test_ems.py`: `36/36` in 11.42s, default kernel `23137` bytes.
 - User reported Ascendancy then failed at startup with `DOS/4GW fatal error (1307): not enough memory` when XMS was enabled. Hiding XMS let Ascendancy reach its previous startup banner, confirming the failure was in DOS/4GW's XMS path.
 - Advisors agreed the likely issue was that DOS/4GW commits to XMS when present and expects a realistic memory pool. A discriminator run with the same single-handle implementation but `XMS_TOTAL_KB=8192` fixed the Ascendancy memory error, so the immediate blocker was the old 1 MiB report rather than multi-handle allocation.
-- XMS now sizes its single block from BIOS `INT 15h AH=88h`, capped by `XMS_MAX_KB=15360` so the BIOS `AH=87h` move descriptors stay below the 24-bit/16 MiB ceiling. `src/xmstest.asm` allocates the full capped block under QEMU and verifies an end-of-block bounds rejection at `0x00EFFFF0 + 32`.
+- XMS now sizes its single block from BIOS `INT 15h AH=88h`, capped by `XMS_MAX_KB=15360` so the BIOS `AH=87h` move descriptors stay below the 24-bit/16 MiB ceiling. `tests/programs/xmstest.asm` allocates the full capped block under QEMU and verifies an end-of-block bounds rejection at `0x00EFFFF0 + 32`.
 - `python3 build/run_asc_probe.py` against `scripts/build_games_hd_all.py` with default XMS enabled reaches the DOS/4GW banner and Ascendancy copyright banner without error 1307.
 - `python3 build/run_wolf3d_smoke.py`, `python3 scripts/test_ems.py`, and full `make test` passed after dynamic XMS sizing: `36/36` in 10.80s, default kernel `23171` bytes.
 - `FREE.COM` now prints an MS-DOS-style memory table with fixed-width KB columns, and the shell `MEM` command is provided by the same utility built as `MEM.COM`; focused `test_free.py`, `test_shell.py`, `test_xms.py`, `test_ems.py`, `test_boot.py`, and full `make test` passed: `36/36` in 10.92s. Local Ascendancy/Wolf3D probe scripts and vendor archives were not present for rerun in this checkout.
@@ -374,7 +374,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Tests And Probes Run
 
-- Added `scripts/test_fat16_large.py` and `src/fatbig.asm`; before the 32-bit sector fix it failed with `FAIL: FAT16BIG DATA`, and before the allocator hint it failed with `FAIL: FAT16BIG WRITE`.
+- Added `scripts/test_fat16_large.py` and `tests/programs/fatbig.asm`; before the 32-bit sector fix it failed with `FAIL: FAT16BIG DATA`, and before the allocator hint it failed with `FAIL: FAT16BIG WRITE`.
 - `python3 scripts/test_fat16_large.py` passes after reading a marker beyond the 32 MiB boundary and creating/reading a new high-cluster file.
 - `python3 scripts/build_games_hd_all.py` now creates a 100,638,720-byte image containing `C:\ASCEND\ASCEND02.COB` and a rewritten `COB.CFG` with `ASCEND02.COB` as the third line.
 - Ascendancy smoke with QEMU `-device sb16`: `C:\ASCEND>ascend` reaches the DOS/4GW and Ascendancy banners, does not print the missing-CD prompt, and shows no `EXC ` marker during the smoke window.
@@ -491,7 +491,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - After the FAT fix, `setsound.exe` found `DOS4GW.EXE` but failed with `Not enough memory`, exposing the 1-paragraph allocation placement issue.
 - After the allocation and MZ-size fixes, both `setsound.exe` and `ascend.exe` start DOS/4GW rather than failing at shell/EXEC time.
 - Current Ascendancy blocker: `setsound.exe` reaches DOS/4GW startup and then traps with `EXC 06 at FF53:093B`; `ascend.exe` traps with `EXC 06 at 0000:0003`. This is beyond file placement/EXEC and is likely the next protected-mode/DOS-extender compatibility boundary.
-- Added `src/dosstruct.asm` and `scripts/test_dosstruct.py` to cover `AH=52h` first-MCB exposure and `AH=29h` drive/name parsing.
+- Added `tests/programs/dosstruct.asm` and `scripts/test_dosstruct.py` to cover `AH=52h` first-MCB exposure and `AH=29h` drive/name parsing.
 - Final verification for this round: `python3 scripts/build_games_hd_all.py`, `python3 scripts/test_dosstruct.py`, `python3 -m py_compile scripts/build_games_hd_all.py scripts/mkimage.py scripts/test_dosstruct.py`, `make test`, standalone `python3 scripts/test_mi2_save.py`, and `git diff --check` pass.
 
 ### Follow-Ups
@@ -648,11 +648,11 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Confirmed Facts
 
-- New `src/highmcb.asm` direct-boots as a COM target and inspects the initial MCB chain. Before the fix it failed with `FAIL: HIGHMCB FIRST SIG`; after marking the lower split block as `MCB_SIG_M`, it passes.
+- New `tests/programs/highmcb.asm` direct-boots as a COM target and inspects the initial MCB chain. Before the fix it failed with `FAIL: HIGHMCB FIRST SIG`; after marking the lower split block as `MCB_SIG_M`, it passes.
 - `src/memory.inc` now shares `LOAD_SEG`, `RELOC_SEG`, `SEC_BUF`, `ENV_SEG`, and `MCB_START` across boot/kernel/test assembly.
 - `src/kernel.asm` now has build-time `%error` checks for load/relocation ordering, boot relocation gap size, `SEC_BUF` overlap, and `ENV_SEG` ordering/overlap.
 - `detect_device_path` now checks for a null terminator before each device-name character read, preserving device behavior while avoiding short-component overreads.
-- `src/devnames.asm` now checks that drive/root-only strings do not open as devices and that a real `CONSOLE.DAT` file is opened normally.
+- `tests/programs/devnames.asm` now checks that drive/root-only strings do not open as devices and that a real `CONSOLE.DAT` file is opened normally.
 
 ### Tests And Probes Run
 
@@ -743,7 +743,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Confirmed Facts
 
-- `scripts/test_termflush.py` boots `src/termflush.asm`, which creates `TERMOUT.DAT`, writes a payload, prints `PASS: TERMFLUSH`, and exits through `INT 21h AH=4Ch` without closing the handle.
+- `scripts/test_termflush.py` boots `tests/programs/termflush.asm`, which creates `TERMOUT.DAT`, writes a payload, prints `PASS: TERMFLUSH`, and exits through `INT 21h AH=4Ch` without closing the handle.
 - Before the fix, the program exited successfully but host FAT inspection found `TERMOUT.DAT` with size `0` instead of `27`.
 - Handle records now include an owner PSP field. `AH=3Ch`/`AH=3Dh` assign owner `cur_psp`, explicit close clears the owner, and `do_terminate` flushes/closes handles owned by the terminating PSP before freeing its memory or restoring the parent PSP.
 - Parent-owned or kernel-owned handles are not closed during a child termination because the sweep only closes handles whose owner matches the current PSP.
@@ -780,7 +780,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Confirmed Facts
 
-- `scripts/test_regpres.py` boots `src/regpres.asm`, which sets sentinel values in `ES`, `BX`, `CX`, `DX`, `SI`, and `DI` across the flagged calls, including representative success and error paths.
+- `scripts/test_regpres.py` boots `tests/programs/regpres.asm`, which sets sentinel values in `ES`, `BX`, `CX`, `DX`, `SI`, and `DI` across the flagged calls, including representative success and error paths.
 - Before the fix, the regression failed immediately with `FAIL: REGPRES OPEN REGS` because `AH=3Dh` did not preserve the caller's `ES`/`DX` across `resolve_path`/handle setup.
 - `AH=3Eh` non-stdio close paths could clobber `CX`, `DX`, and `SI` while converting the handle to a table offset and flushing writable handles.
 - `AH=43h` get/set attribute paths did not preserve `ES`/`DX` around `resolve_path`; get-attribute errors also needed to restore caller `CX`, while success still returns attributes in `CX`. `AH=43h/1` also returned success without writing the new attribute byte.
@@ -876,7 +876,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Confirmed Facts
 
-- A new regression in `src/diskfree.asm` deletes any stale `FREECHK.DAT`, calls `AH=36h`, writes a 600-byte file, calls `AH=36h` again, verifies requested-drive handling, deletes the file, and verifies free clusters return to the original count.
+- A new regression in `tests/programs/diskfree.asm` deletes any stale `FREECHK.DAT`, calls `AH=36h`, writes a 600-byte file, calls `AH=36h` again, verifies requested-drive handling, deletes the file, and verifies free clusters return to the original count.
 - Before the fix, `python3 scripts/test_diskfree.py` failed with `FAIL: DISKFREE FREE` because `BX >= DX` on a non-empty image.
 - The fixed handler validates the requested drive, scans FAT entries from cluster 2 up to `kmax_cluster`, counts zero entries into `BX`, returns total clusters in `DX`, sectors per cluster in `AX`, and bytes per sector from the BPB in `CX`.
 
@@ -1161,10 +1161,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Made `AH=25h` vector writes disable interrupts while updating the IVT.
 - Moved `SEC_BUF` to `0x21C0`, `ENV_SEG` to `0x21E0`, and `MCB_START` to `0x2200` to increase available conventional heap.
 - Fixed `AH=3Eh` close so closing an already-closed non-stdio handle returns CF set with `AX=0006` instead of silently succeeding.
-- Added `src/closetest.asm` to verify double-close behavior; temporary image output included `PASS: CLOSE`.
-- Added `src/regtest.asm` to verify `AH=3Fh` register preservation; it failed before the fix with `FAIL: REGS CLOBBER` and passed after preserving `DX`.
+- Added `tests/programs/closetest.asm` to verify double-close behavior; temporary image output included `PASS: CLOSE`.
+- Added `tests/programs/regtest.asm` to verify `AH=3Fh` register preservation; it failed before the fix with `FAIL: REGS CLOBBER` and passed after preserving `DX`.
 - Fixed `AH=3Fh` to preserve `DX`; Monkey still stops after the same `disk01.lec` `0x03F5` read and VGA screendump remains all black.
-- Extended `src/regtest.asm` to verify `AH=42h` preserves `SI`; it failed before the fix with `FAIL: REGS CLOBBER` after a seek and passed after preserving `SI`.
+- Extended `tests/programs/regtest.asm` to verify `AH=42h` preserves `SI`; it failed before the fix with `FAIL: REGS CLOBBER` after a seek and passed after preserving `SI`.
 - Fixed `AH=42h` to preserve `SI`; Monkey now advances beyond the previous stall, closes `disk01.lec`, opens `902.lfl` and `904.lfl`, continues loading resources, and a QEMU screendump showed `236000` nonzero bytes out of `768000`.
 - Removed temporary `INT 10h`/`INT 11h` hooks and vector target tracing after confirming the fix; final Monkey check still showed `236000` nonzero screendump bytes and continued resource loading.
 
@@ -1211,11 +1211,11 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Fixes Made During Investigation
 
-- Added `src/mousetest.asm` for the software `INT 33h` API: reset/install, set/get position, range clamping, show/hide, button press query, and motion counters.
+- Added `tests/programs/mousetest.asm` for the software `INT 33h` API: reset/install, set/get position, range clamping, show/hide, button press query, and motion counters.
 - Added a built-in `INT 33h` state machine for `AX=0000`, `0001`, `0002`, `0003`, `0004`, `0005`, `0007`, `0008`, `000B`, and `000C` callback address storage.
 - Added PS/2 mouse initialization and packet decoding for standard 3-byte packets.
 - Added an IRQ12 handler at `INT 74h` that feeds mouse bytes into the packet decoder and sends EOIs to both PICs.
-- Added `src/mousehw.asm`, an optional hardware probe that waits for non-zero motion from `INT 33h AX=000B`.
+- Added `tests/programs/mousehw.asm`, an optional hardware probe that waits for non-zero motion from `INT 33h AX=000B`.
 
 ### Tests And Probes Run
 
@@ -1246,7 +1246,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - MI2 MZ header has 1296 relocation entries, far beyond the old fixed `reloc_buf` capacity of 512 bytes.
 - The old `setup_exe_dyn` wrote all relocation entries into `reloc_buf`, overflowing into kernel state including handles and `trace_left`; this explained both corrupted trace output and the stack/runtime failure.
 - Processing relocations in-place on the source image before copying the image down avoids needing a relocation buffer and preserves MZ relocation semantics.
-- `src/bigreloc.asm` reproduced the relocation-buffer overflow before the fix: it emitted an unexpected `OPEN TESTFILE.DAT` trace and failed to open the file because the handle table was corrupted.
+- `tests/programs/bigreloc.asm` reproduced the relocation-buffer overflow before the fix: it emitted an unexpected `OPEN TESTFILE.DAT` trace and failed to open the file because the handle table was corrupted.
 - MI2 does not call `INT 21h AH=58h` allocation strategy before its sound overlay allocation. It shrinks its PSP, allocates a tiny `0x001A` paragraph block, then tries to grow the PSP again. Placing tiny allocations high preserves enough low free space for this pattern.
 - The sound overlay file lookup succeeds: trace showed `OPEN A:\null.ims -> H=0005 SIZE=00000380`.
 - `NULL.IMS` is an MZ-format overlay. The exact `Error 1 loading sound overlay` matched LainDOS returning `AX=0001` from the previously stubbed `AH=4Bh` handler.
@@ -1255,15 +1255,15 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - Added `scripts/build_mi2.py` and 2.88 MB FAT12 geometry support in `scripts/mkimage.py`.
 - Fixed `src/boot.asm` to load every sector in a FAT cluster instead of assuming one sector per cluster.
-- Added `INT 21h AH=40h` std-handle write support for runtime error output and `src/writetest.asm` coverage.
+- Added `INT 21h AH=40h` std-handle write support for runtime error output and `tests/programs/writetest.asm` coverage.
 - Added a DOS environment executable path via `init_environment`, allowing MI2 to derive `MI2DEMO.000` instead of `.000`.
 - Replaced fixed-buffer MZ relocation saving in `setup_exe_dyn` with in-place relocation before copy-down; removed `reloc_buf`.
-- Added `src/bigreloc.asm` plus `scripts/test_bigreloc.py` to cover EXEs with more relocation entries than the old buffer.
-- Added `INT 21h AH=0Bh` stdin status and `AH=08h` direct character input via BIOS `INT 16h`; added `src/keytest.asm` and `scripts/test_keyboard.py` for no-key status coverage.
+- Added `tests/programs/bigreloc.asm` plus `scripts/test_bigreloc.py` to cover EXEs with more relocation entries than the old buffer.
+- Added `INT 21h AH=0Bh` stdin status and `AH=08h` direct character input via BIOS `INT 16h`; added `tests/programs/keytest.asm` and `scripts/test_keyboard.py` for no-key status coverage.
 - Implemented `AH=58h` get/set return behavior correctly and added first/best/last fit allocation paths. Tiny default allocations now use high placement to avoid blocking immediate PSP regrowth.
-- Extended `src/memtest.asm` with last-fit allocation strategy coverage.
+- Extended `tests/programs/memtest.asm` with last-fit allocation strategy coverage.
 - Added minimal `INT 21h AH=4Bh AL=03h` overlay loading for MZ overlays: copy the image portion to the caller-provided load segment and apply relocations using the caller-provided relocation factor.
-- Added `src/ovltest.asm`, `src/overlay.asm`, and `scripts/test_overlay.py` to verify overlay load and relocation behavior.
+- Added `tests/programs/ovltest.asm`, `tests/programs/overlay.asm`, and `scripts/test_overlay.py` to verify overlay load and relocation behavior.
 
 ### Tests And Probes Run
 
@@ -1300,7 +1300,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Added `scripts/test_shell.py` to boot `SHELL.COM`, send `hello` and `exit` through QEMU monitor key injection, and assert the child output plus clean final return.
 - Added basic `DIR` support over `FindFirst/FindNext`, wildcard name matching for `*.*`, real DTA filename formatting, `FindNext` `ES:DI` preservation, and shell-side `ES=DS` setup before `STOSB` buffer writes.
 - After review, replaced the single-global nested EXEC return state with stack-saved parent state and changed termination restore from `SP`-only to `SS:SP`.
-- Added `src/exectest.asm` so the shell regression covers nested EXEC (`SHELL.COM` -> `EXECTEST.COM` -> `HELLO.COM`).
+- Added `tests/programs/exectest.asm` so the shell regression covers nested EXEC (`SHELL.COM` -> `EXECTEST.COM` -> `HELLO.COM`).
 - Fixed COM allocation-size arithmetic to carry through `DX`, cleared `AH=4Dh` return code after retrieval, and skipped deleted/volume-label entries in wildcard directory searches.
 - Added basic DTA search-state fields for FindFirst and made volume-label filtering depend on the search attribute mask.
 
@@ -1366,7 +1366,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Added `INT 21h AH=07h` direct character input without echo.
 - Added `INT 21h AH=0Ah` buffered line input with basic backspace editing and CR termination.
 - Switched `SHELL.COM` line input to `AH=0Ah` and kept command parsing on its NUL-terminated copy.
-- Added `src/consoletest.asm` and `scripts/test_console.py`; wired the console test into `make test`.
+- Added `tests/programs/consoletest.asm` and `scripts/test_console.py`; wired the console test into `make test`.
 - After review, preserved `BX/CX` in `AH=01h`, ignored extended-key NUL prefixes in `AH=0Ah`, and extended `CONSOLE.COM` to cover `AH=06h` output.
 
 ### Tests Run
@@ -1417,7 +1417,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Added FAT12 mutation helpers for setting entries, allocating clusters, freeing a chain on create/truncate, and flushing both FAT copies.
 - Expanded file-handle metadata to track directory entry LBA/offset and date/time fields.
 - Added root-directory `AH=3Ch` create/truncate, close-time directory size/cluster flush, regular-handle `AH=40h` sequential writes, `AH=56h` root rename, and `AH=57h` get/set file date/time.
-- Added `src/savewr.asm` and `scripts/test_savewrite.py`; the test writes a 700-byte pattern across two clusters, closes, reopens, verifies date/time and contents, renames the file, and verifies the mutated disk image on the host.
+- Added `tests/programs/savewr.asm` and `scripts/test_savewrite.py`; the test writes a 700-byte pattern across two clusters, closes, reopens, verifies date/time and contents, renames the file, and verifies the mutated disk image on the host.
 - Added root-directory `AH=41h` delete with FAT chain freeing and extended `SAVEWR.COM` to delete the renamed file, verify it no longer opens, create a replacement file, and verify the replacement persists on disk.
 - After review, changed delete ordering to flush the deleted directory entry before freeing FAT clusters, rejected read-only files, and rejected deletion while a matching file handle is still open.
 
@@ -1720,7 +1720,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - User reported mouse wraparound in multiple games: moving left past the minimum appeared at the right edge, and moving up past the minimum appeared at the bottom edge.
 - Root cause: scaled signed deltas were added directly into unsigned `mouse_x`/`mouse_y`, then the unsigned clamp saw underflowed values like `0xFFFF` and clamped them to the maximum edge.
 - Fixed position updates to apply scaled deltas through signed saturating helpers for X/Y before the final range clamp.
-- Extended `scripts/test_mouseratio.py`/`src/mouseratio.asm` with top-left and bottom-right edge regressions. The top-left case failed before the saturating add fix with `FAIL: MOUSERATIO EDGE` and passes after.
+- Extended `scripts/test_mouseratio.py`/`tests/programs/mouseratio.asm` with top-left and bottom-right edge regressions. The top-left case failed before the saturating add fix with `FAIL: MOUSERATIO EDGE` and passes after.
 - Current normal kernel size is `22488` bytes. A temporary attempt to move `SEC_BUF`/`ENV_SEG` to `0x08E0`/`0x0900` for more headroom caused an early `EXC 06` because `ENV_SEG=0x0900` collides with the kernel stack top at `CS:5C00`; that layout was reverted.
 
 ### Tests Run
@@ -1742,7 +1742,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 ### Confirmed Facts
 
 - Added `INT 21h AH=45h/46h` support with shared root handles, alias slots, and root refcounts so duplicate file handles share file position and close lifetime.
-- Initial `src/duptest.asm` failed with unhandled `INT 21h AH=45`; after implementation it verifies shared position, closing the original while aliases remain, forced duplication, bad-handle errors, forced duplicate over an aliased root, and forcing an alias back into a closed root slot.
+- Initial `tests/programs/duptest.asm` failed with unhandled `INT 21h AH=45`; after implementation it verifies shared position, closing the original while aliases remain, forced duplication, bad-handle errors, forced duplicate over an aliased root, and forcing an alias back into a closed root slot.
 - The first full-suite run exposed `WRITE-STDERR` missing because standard-handle table checks used `mul` without preserving caller `DX`; preserving `DX` fixed `scripts/test_write.py`.
 - The next full-suite run exposed `FAIL: REGPRES IOCTL REGS` because IOCTL table paths returned with caller `SI` clobbered by `resolve_handle_for_use`; preserving `SI` fixed `scripts/test_regpres.py`.
 - Review highlighted the closed-root revival path and same-handle standard-slot validation. `DUPTEST` now covers revival, and `AH=46h BX==CX` validates explicit table entries for handles below 5 while preserving implicit CON behavior for unused standard slots.
@@ -1764,7 +1764,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Confirmed Facts
 
-- Added `src/committest.asm` / `scripts/test_commit.py` for `INT 21h AH=68h` commit-file behavior.
+- Added `tests/programs/committest.asm` / `scripts/test_commit.py` for `INT 21h AH=68h` commit-file behavior.
 - Before implementation the test failed with unhandled `INT 21h AH=68` and `FAIL: COMMIT AH68`.
 - `AH=68h` now resolves duplicated handles to the shared root, treats implicit standard handles as successful device commits, flushes directory metadata and FAT for real files, and returns error 6 for invalid handles.
 - `COMMITTEST` writes a file, duplicates the handle, commits through the duplicate before closing, reopens it through a second handle to verify committed size/data are visible, checks unused and out-of-range invalid-handle error 6, and checks implicit stdout success.
@@ -1777,7 +1777,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Confirmed Facts
 
-- Added `src/createapi.asm` / `scripts/test_createapi.py` for `INT 21h AH=67h`, `AH=5Bh`, and `AH=5Ah` compatibility behavior.
+- Added `tests/programs/createapi.asm` / `scripts/test_createapi.py` for `INT 21h AH=67h`, `AH=5Bh`, and `AH=5Ah` compatibility behavior.
 - Before implementation the test failed on unhandled `INT 21h AH=67` with `FAIL: CREATEAPI AH67`.
 - `AH=67h` now succeeds for nonzero set-handle-count requests as a compatibility no-op; it does not expand LainDOS beyond the fixed `MAX_HANDLES=20` table.
 - `AH=5Bh` reuses the normal create path in create-new mode and returns DOS error `80` if the target already exists instead of truncating it.
@@ -1793,7 +1793,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Confirmed Facts
 
-- Added `src/stateapi.asm` / `scripts/test_stateapi.py` for `INT 21h AH=33h`, `AH=54h`, `AH=2Eh`, `AH=2Bh`, and `AH=2Dh` compatibility state behavior.
+- Added `tests/programs/stateapi.asm` / `scripts/test_stateapi.py` for `INT 21h AH=33h`, `AH=54h`, `AH=2Eh`, `AH=2Bh`, and `AH=2Dh` compatibility state behavior.
 - Before implementation the test first failed on missing verify-state handling with unhandled `INT 21h AH=54` / `AH=2E` markers.
 - `AH=33h` covers break flag get/set, boot-drive query, and true-version query; `AH=54h` / `AH=2Eh` now get and set the verify flag using the `AH=2Eh` `AL` input.
 - `AH=2Bh` now validates and stores the DOS date, including leap-day acceptance and bad-date rejection; `AH=2Ah` returns the stored date. `AH=2Dh` validates and stores explicit time state; `AH=2Ch` returns that state after a set-time call and otherwise keeps the BIOS tick-derived time path.

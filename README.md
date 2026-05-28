@@ -15,7 +15,7 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 - Runs the Monkey Island demo and full VGA Monkey Island images when the corresponding local `vendor/` archives are present.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
-- `make test` currently runs the automated QEMU regression ladder and passes `36/36` tests.
+- `make test` currently runs the automated QEMU regression ladder and passes `41/41` tests.
 
 ## Scope
 
@@ -70,6 +70,13 @@ The low-memory layout is tight. See `src/memory.inc` and the compile-time assert
 - **Emulation:** QEMU for fast scripted runs, 86Box for period-style game validation, Bochs for CPU/debugger cross-checks.
 - **Optional C compiler:** Open Watcom is the intended 16-bit DOS C compiler if C test programs are added, but the current core is NASM assembly.
 - **References:** Ralf Brown's Interrupt List, MS-DOS 4.00 source (MIT), and FreeDOS kernel behavior for conceptual comparison only. Do not copy GPL FreeDOS code.
+
+## Source Layout
+
+- `src/` contains boot sectors, the kernel, kernel includes, and shared memory constants.
+- `programs/` contains DOS utilities shipped on test/game images, such as the shell and memory-report tool.
+- `tests/programs/` contains small NASM DOS regression programs and test boot helpers.
+- `scripts/` contains image builders, host-side generators, and Python/QEMU test runners.
 
 ## Build And Test
 

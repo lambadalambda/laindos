@@ -28,7 +28,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="CTRUNC  COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/ctrunc.asm", "-o", os.path.join(BUILDDIR, "ctrunc.com")])
+    run(["nasm", "-f", "bin", "tests/programs/ctrunc.asm", "-o", os.path.join(BUILDDIR, "ctrunc.com")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),

@@ -31,7 +31,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="MOUSERATEXE"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/mouseratio.asm", "-o", os.path.join(BUILDDIR, "mouserat.exe")])
+    run(["nasm", "-f", "bin", "tests/programs/mouseratio.asm", "-o", os.path.join(BUILDDIR, "mouserat.exe")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),

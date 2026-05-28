@@ -34,8 +34,8 @@ def main():
     for src, out in [
         ("src/boot.asm", f"{BUILDDIR}/boot.bin"),
         ("src/kernel.asm", MI2_KERNEL),
-        ("src/writetest.asm", f"{BUILDDIR}/write.exe"),
-        ("src/mi2iotest.asm", f"{BUILDDIR}/mi2io.exe"),
+        ("tests/programs/writetest.asm", f"{BUILDDIR}/write.exe"),
+        ("tests/programs/mi2iotest.asm", f"{BUILDDIR}/mi2io.exe"),
     ]:
         cmd = ["nasm", "-f", "bin", src, "-o", out]
         if src == "src/kernel.asm":

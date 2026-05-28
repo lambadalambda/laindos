@@ -28,8 +28,8 @@ def build_image():
         "nasm", '-DBOOT_FILE="OVLTEST COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/ovltest.asm", "-o", os.path.join(BUILDDIR, "ovltest.com")])
-    run(["nasm", "-f", "bin", "src/overlay.asm", "-o", os.path.join(BUILDDIR, "overlay.exe")])
+    run(["nasm", "-f", "bin", "tests/programs/ovltest.asm", "-o", os.path.join(BUILDDIR, "ovltest.com")])
+    run(["nasm", "-f", "bin", "tests/programs/overlay.asm", "-o", os.path.join(BUILDDIR, "overlay.exe")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),

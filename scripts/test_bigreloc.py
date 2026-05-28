@@ -28,7 +28,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="BIGRELOCEXE"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/bigreloc.asm", "-o", os.path.join(BUILDDIR, "bigreloc.exe")])
+    run(["nasm", "-f", "bin", "tests/programs/bigreloc.asm", "-o", os.path.join(BUILDDIR, "bigreloc.exe")])
     run(["python3", "scripts/mktestfile.py", os.path.join(BUILDDIR, "testfile.dat")])
     run([
         "python3", "scripts/mkimage.py",

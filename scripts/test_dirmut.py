@@ -30,7 +30,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="DIRMUT  COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/dirmut.asm", "-o", os.path.join(BUILDDIR, "dirmut.com")])
+    run(["nasm", "-f", "bin", "tests/programs/dirmut.asm", "-o", os.path.join(BUILDDIR, "dirmut.com")])
     run(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
     filler_files = []
     for i in range(FILLER_COUNT):

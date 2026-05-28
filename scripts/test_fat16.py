@@ -28,7 +28,7 @@ def build_image():
     memtest = os.path.join(BUILDDIR, "memtest.exe")
     run(["nasm", "-f", "bin", "src/boot16.asm", "-o", boot])
     run(["nasm", "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    run(["nasm", "-f", "bin", "src/memtest.asm", "-o", memtest])
+    run(["nasm", "-f", "bin", "tests/programs/memtest.asm", "-o", memtest])
     with tempfile.TemporaryDirectory(dir=BUILDDIR) as filler_dir:
         fillers = []
         for i in range(224):

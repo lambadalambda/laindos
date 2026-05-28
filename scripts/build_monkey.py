@@ -16,16 +16,16 @@ def main():
     for src, out in [
         ("src/boot.asm", f"{BUILDDIR}/boot.bin"),
         ("src/kernel.asm", MONKEY_KERNEL),
-        ("src/hello.asm", f"{BUILDDIR}/hello.com"),
-        ("src/helloexe.asm", f"{BUILDDIR}/hello.exe"),
-        ("src/filetest.asm", f"{BUILDDIR}/filetest.exe"),
-        ("src/memtest.asm", f"{BUILDDIR}/memtest.exe"),
-        ("src/closetest.asm", f"{BUILDDIR}/close.exe"),
-        ("src/regtest.asm", f"{BUILDDIR}/regtest.exe"),
-        ("src/mousetest.asm", f"{BUILDDIR}/mouse.exe"),
-        ("src/mousehw.asm", f"{BUILDDIR}/mousehw.exe"),
-        ("src/miiotest.asm", f"{BUILDDIR}/miiotest.exe"),
-        ("src/writetest.asm", f"{BUILDDIR}/write.exe"),
+        ("tests/programs/hello.asm", f"{BUILDDIR}/hello.com"),
+        ("tests/programs/helloexe.asm", f"{BUILDDIR}/hello.exe"),
+        ("tests/programs/filetest.asm", f"{BUILDDIR}/filetest.exe"),
+        ("tests/programs/memtest.asm", f"{BUILDDIR}/memtest.exe"),
+        ("tests/programs/closetest.asm", f"{BUILDDIR}/close.exe"),
+        ("tests/programs/regtest.asm", f"{BUILDDIR}/regtest.exe"),
+        ("tests/programs/mousetest.asm", f"{BUILDDIR}/mouse.exe"),
+        ("tests/programs/mousehw.asm", f"{BUILDDIR}/mousehw.exe"),
+        ("tests/programs/miiotest.asm", f"{BUILDDIR}/miiotest.exe"),
+        ("tests/programs/writetest.asm", f"{BUILDDIR}/write.exe"),
     ]:
         cmd = ["nasm", "-f", "bin", src, "-o", out]
         if src == "src/kernel.asm":

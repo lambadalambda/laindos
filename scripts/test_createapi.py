@@ -30,7 +30,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="CREATEAPCOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/createapi.asm", "-o", create_com])
+    run(["nasm", "-f", "bin", "tests/programs/createapi.asm", "-o", create_com])
     run(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, create_com])
 
 

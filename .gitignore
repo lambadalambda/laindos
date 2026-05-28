@@ -5,3 +5,4 @@ __pycache__/
 scripts/unlzexe.py
 src/boot
 src/subdirtest.asm
+tests/programs/subdirtest.asm

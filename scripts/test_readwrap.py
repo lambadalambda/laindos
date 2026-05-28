@@ -31,7 +31,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="READWRAPEXE"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/readwrap.asm", "-o", os.path.join(BUILDDIR, "readwrap.exe")])
+    run(["nasm", "-f", "bin", "tests/programs/readwrap.asm", "-o", os.path.join(BUILDDIR, "readwrap.exe")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),

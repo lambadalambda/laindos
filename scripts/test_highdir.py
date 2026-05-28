@@ -33,7 +33,7 @@ def build_image():
     seed = os.path.join(BUILDDIR, "seed.dat")
     run(["nasm", "-f", "bin", "src/boot16.asm", "-o", boot])
     run(["nasm", '-DBOOT_FILE="HIGHDIR COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    run(["nasm", "-f", "bin", "src/highdir.asm", "-o", highdir])
+    run(["nasm", "-f", "bin", "tests/programs/highdir.asm", "-o", highdir])
     with open(filler, "wb") as f:
         f.truncate(34 * 1024 * 1024)
     with open(seed, "wb") as f:

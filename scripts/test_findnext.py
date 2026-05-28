@@ -35,7 +35,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="FINDNEXTCOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/findnext.asm", "-o", os.path.join(BUILDDIR, "findnext.com")])
+    run(["nasm", "-f", "bin", "tests/programs/findnext.asm", "-o", os.path.join(BUILDDIR, "findnext.com")])
     a_txt = write_fixture("a.txt", b"alpha\n")
     b_txt = write_fixture("b.txt", b"bravo\n")
     z_com = write_fixture("z.com", b"dummy\n")

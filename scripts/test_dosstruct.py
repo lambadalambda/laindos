@@ -30,7 +30,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="DOSSTRUCCOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/dosstruct.asm", "-o", test_com])
+    run(["nasm", "-f", "bin", "tests/programs/dosstruct.asm", "-o", test_com])
     run(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, test_com])
 
 

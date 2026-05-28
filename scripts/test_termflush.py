@@ -30,7 +30,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="TERMFLUSCOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/termflush.asm", "-o", os.path.join(BUILDDIR, "termflus.com")])
+    run(["nasm", "-f", "bin", "tests/programs/termflush.asm", "-o", os.path.join(BUILDDIR, "termflus.com")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),

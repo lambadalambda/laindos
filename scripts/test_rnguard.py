@@ -28,7 +28,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="RNGUARD COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/rnguard.asm", "-o", os.path.join(BUILDDIR, "rnguard.com")])
+    run(["nasm", "-f", "bin", "tests/programs/rnguard.asm", "-o", os.path.join(BUILDDIR, "rnguard.com")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),

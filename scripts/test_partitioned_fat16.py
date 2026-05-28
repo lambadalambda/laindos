@@ -75,10 +75,10 @@ def build_image():
     mbr = os.path.join(BUILDDIR, "mbr.bin")
     boot = os.path.join(BUILDDIR, "fat16part_boot.bin")
     memtest = os.path.join(BUILDDIR, "memtest.exe")
-    run(["nasm", "-f", "bin", "src/mbr.asm", "-o", mbr])
+    run(["nasm", "-f", "bin", "tests/programs/mbr.asm", "-o", mbr])
     run(["nasm", "-f", "bin", "src/boot16.asm", "-o", boot])
     run(["nasm", "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    run(["nasm", "-f", "bin", "src/memtest.asm", "-o", memtest])
+    run(["nasm", "-f", "bin", "tests/programs/memtest.asm", "-o", memtest])
     run(["python3", "scripts/mkimage.py", "--format=hd32m", boot, KERNEL, RAW_IMG, memtest])
     build_partitioned_image(mbr)
 

@@ -34,7 +34,7 @@ def build_image():
         "nasm", *kernel_defines, "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/emstest.asm", "-o", test_com])
+    run(["nasm", "-f", "bin", "tests/programs/emstest.asm", "-o", test_com])
     run(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, test_com])
 
 

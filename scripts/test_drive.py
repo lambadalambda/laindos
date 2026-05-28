@@ -31,7 +31,7 @@ def build_artifacts():
         "nasm", '-DBOOT_FILE="DRIVE   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/drivetest.asm", "-o", DRIVE_COM])
+    run(["nasm", "-f", "bin", "tests/programs/drivetest.asm", "-o", DRIVE_COM])
 
 
 def build_image(output_path, fmt=None):

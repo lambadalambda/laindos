@@ -8,6 +8,8 @@ RUN_TEST := $(PYTHON) scripts/run_test.py
 TEST_JOBS ?= 4
 
 SRCDIR := src
+PROGRAMDIR := programs
+TEST_PROGRAMDIR := tests/programs
 BUILDDIR := build
 
 BOOT_BIN := $(BUILDDIR)/boot.bin
@@ -59,123 +61,123 @@ $(KERNEL_BIN): $(SRCDIR)/kernel.asm $(SRCDIR)/memory.inc $(SRCDIR)/kernel/mouse.
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(HELLO_COM): $(SRCDIR)/hello.asm
+$(HELLO_COM): $(TEST_PROGRAMDIR)/hello.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(HELLO_EXE): $(SRCDIR)/helloexe.asm
+$(HELLO_EXE): $(TEST_PROGRAMDIR)/helloexe.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(FILETEST): $(SRCDIR)/filetest.asm
+$(FILETEST): $(TEST_PROGRAMDIR)/filetest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(MEMTEST): $(SRCDIR)/memtest.asm
+$(MEMTEST): $(TEST_PROGRAMDIR)/memtest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(CLOSETEST): $(SRCDIR)/closetest.asm
+$(CLOSETEST): $(TEST_PROGRAMDIR)/closetest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(REGTEST): $(SRCDIR)/regtest.asm
+$(REGTEST): $(TEST_PROGRAMDIR)/regtest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(MOUSETEST): $(SRCDIR)/mousetest.asm
+$(MOUSETEST): $(TEST_PROGRAMDIR)/mousetest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(MOUSEHW): $(SRCDIR)/mousehw.asm
+$(MOUSEHW): $(TEST_PROGRAMDIR)/mousehw.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(MIIOTEST): $(SRCDIR)/miiotest.asm
+$(MIIOTEST): $(TEST_PROGRAMDIR)/miiotest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(WRITETEST): $(SRCDIR)/writetest.asm
+$(WRITETEST): $(TEST_PROGRAMDIR)/writetest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(BIGRELOC): $(SRCDIR)/bigreloc.asm
+$(BIGRELOC): $(TEST_PROGRAMDIR)/bigreloc.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(KEYTEST): $(SRCDIR)/keytest.asm
+$(KEYTEST): $(TEST_PROGRAMDIR)/keytest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(EXTKEY): $(SRCDIR)/extkey.asm
+$(EXTKEY): $(TEST_PROGRAMDIR)/extkey.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(TIMETEST): $(SRCDIR)/timetest.asm
+$(TIMETEST): $(TEST_PROGRAMDIR)/timetest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(OVLTEST): $(SRCDIR)/ovltest.asm
+$(OVLTEST): $(TEST_PROGRAMDIR)/ovltest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(OVERLAY): $(SRCDIR)/overlay.asm
+$(OVERLAY): $(TEST_PROGRAMDIR)/overlay.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(SHELLCOM): $(SRCDIR)/shell.asm
+$(SHELLCOM): $(PROGRAMDIR)/shell.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(EXECTEST): $(SRCDIR)/exectest.asm
+$(EXECTEST): $(TEST_PROGRAMDIR)/exectest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(PSPTEST): $(SRCDIR)/psptest.asm
+$(PSPTEST): $(TEST_PROGRAMDIR)/psptest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(PSPCHILD): $(SRCDIR)/pspchild.asm
+$(PSPCHILD): $(TEST_PROGRAMDIR)/pspchild.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(CONSOLETEST): $(SRCDIR)/consoletest.asm
+$(CONSOLETEST): $(TEST_PROGRAMDIR)/consoletest.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(SAVEWR): $(SRCDIR)/savewr.asm
+$(SAVEWR): $(TEST_PROGRAMDIR)/savewr.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(DIRMUT): $(SRCDIR)/dirmut.asm
+$(DIRMUT): $(TEST_PROGRAMDIR)/dirmut.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(READWRAP): $(SRCDIR)/readwrap.asm
+$(READWRAP): $(TEST_PROGRAMDIR)/readwrap.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(FREECOM): $(SRCDIR)/free.asm $(SRCDIR)/memory.inc
+$(FREECOM): $(PROGRAMDIR)/free.asm $(SRCDIR)/memory.inc
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(MEMCOM): $(SRCDIR)/free.asm $(SRCDIR)/memory.inc
+$(MEMCOM): $(PROGRAMDIR)/free.asm $(SRCDIR)/memory.inc
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(DOSSTRUCT): $(SRCDIR)/dosstruct.asm $(SRCDIR)/memory.inc
+$(DOSSTRUCT): $(TEST_PROGRAMDIR)/dosstruct.asm $(SRCDIR)/memory.inc
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(CTRUNCTEST): $(SRCDIR)/ctrunc.asm
+$(CTRUNCTEST): $(TEST_PROGRAMDIR)/ctrunc.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(RNGUARDTEST): $(SRCDIR)/rnguard.asm
+$(RNGUARDTEST): $(TEST_PROGRAMDIR)/rnguard.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 
-$(BADRELOCTEST): $(SRCDIR)/badreloc.asm
+$(BADRELOCTEST): $(TEST_PROGRAMDIR)/badreloc.asm
 	@mkdir -p $(BUILDDIR)
 	$(NASM) -f bin $< -o $@
 

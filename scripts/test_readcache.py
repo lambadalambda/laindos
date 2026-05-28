@@ -34,7 +34,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="READCACHCOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/readcache.asm", "-o", os.path.join(BUILDDIR, "readcach.com")])
+    run(["nasm", "-f", "bin", "tests/programs/readcache.asm", "-o", os.path.join(BUILDDIR, "readcach.com")])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),

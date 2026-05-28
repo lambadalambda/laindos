@@ -18,4 +18,4 @@ The shell checks each built-in command through repeated `cmd_match` sequences. A
 
 ## Notes
 
-- Review reference: `src/shell.asm:34` starts the repeated built-in dispatch chain.
+- Review reference: `programs/shell.asm:34` starts the repeated built-in dispatch chain.

@@ -35,7 +35,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="REGPRES COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "src/regpres.asm", "-o", os.path.join(BUILDDIR, "regpres.com")])
+    run(["nasm", "-f", "bin", "tests/programs/regpres.asm", "-o", os.path.join(BUILDDIR, "regpres.com")])
     testfile = write_fixture("testfile.dat", b"register preservation\n")
     run([
         "python3", "scripts/mkimage.py",
