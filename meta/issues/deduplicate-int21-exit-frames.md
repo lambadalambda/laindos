@@ -20,3 +20,4 @@ Many INT 21h handlers duplicate hand-written register unwind sequences, increasi
 ## Notes
 
 - The architecture review specifically called out repeated hand-written unwind sequences in create/open/delete/memory paths as a growing register-preservation risk.
+- Outcome: exact-match INT 21h pop frames are now centralized with NASM macros for create/open/read/write, directory mutation, memory, find, and EXEC paths.

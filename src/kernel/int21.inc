@@ -1,3 +1,106 @@
+%macro INT21_POP_FRAME_DS_SI_ES_DI_BX 0
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+%endmacro
+
+%macro INT21_POP_FRAME_DS_SI_ES_DI_BX_CX 0
+    pop cx
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+%endmacro
+
+%macro INT21_POP_FRAME_DS_SI_ES_DI_BX_CX_DX 0
+    pop dx
+    pop cx
+    pop bx
+    pop di
+    pop es
+    pop si
+    pop ds
+%endmacro
+
+%macro INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI 0
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ds
+    pop es
+%endmacro
+
+%macro INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI 0
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+%endmacro
+
+%macro INT21_POP_FRAME_BX_CX_DX_ES_DI_DS_SI 0
+    pop si
+    pop ds
+    pop di
+    pop es
+    pop dx
+    pop cx
+    pop bx
+%endmacro
+
+%macro INT21_POP_FRAME_DS_SI_ES_DI_CX 0
+    pop cx
+    pop di
+    pop es
+    pop si
+    pop ds
+%endmacro
+
+%macro INT21_POP_FRAME_DS_SI_ES_DI_DX_CX 0
+    pop cx
+    pop dx
+    pop di
+    pop es
+    pop si
+    pop ds
+%endmacro
+
+%macro INT21_POP_FRAME_DS_SI_CX_BX_ES_DI 0
+    pop di
+    pop es
+    pop bx
+    pop cx
+    pop si
+    pop ds
+%endmacro
+
+%macro INT21_POP_EXEC_PROGRAM_FRAME 0
+    pop ax
+    mov [cs:saved_sp], ax
+    pop ax
+    mov [cs:saved_ss], ax
+    pop ax
+    mov [cs:dta_off], ax
+    pop ax
+    mov [cs:dta_seg], ax
+    pop ax
+    mov [cs:cur_psp], ax
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+%endmacro
+
 int21_handler:
     cld
     cmp ah, 0x4C
@@ -869,13 +972,7 @@ int21_handler:
     call serial_print
 .am_no_trace:
     mov [cs:am_ret_seg], ax
-    pop si
-    pop ds
-    pop di
-    pop es
-    pop dx
-    pop cx
-    pop bx
+    INT21_POP_FRAME_BX_CX_DX_ES_DI_DS_SI
     mov ax, [cs:am_ret_seg]
     jmp iret_nc
 .am_next:
@@ -1011,13 +1108,7 @@ int21_handler:
 .am_err_no_trace:
     mov [cs:am_ret_ax], ax
     mov [cs:am_ret_bx], bx
-    pop si
-    pop ds
-    pop di
-    pop es
-    pop dx
-    pop cx
-    pop bx
+    INT21_POP_FRAME_BX_CX_DX_ES_DI_DS_SI
     mov ax, [cs:am_ret_ax]
     mov bx, [cs:am_ret_bx]
     jmp iret_cy
@@ -1061,18 +1152,10 @@ int21_handler:
     mov byte [ds:0], al
     jmp .fm_fwd_merge
 .fm_done:
-    pop cx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_CX
     jmp iret_nc
 .fm_err:
-    pop cx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_CX
     jmp iret_cy
 .resize_mem:
     push ds
@@ -1236,12 +1319,7 @@ int21_handler:
     pop ds
     popa
 .rm_no_trace:
-    pop cx
-    pop dx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_DX_CX
     jmp iret_nc
 .rm_cant_grow:
     mov bx, ax
@@ -1283,12 +1361,7 @@ int21_handler:
     pop ds
     popa
 .rm_err_no_trace:
-    pop cx
-    pop dx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_DX_CX
     jmp iret_cy
 .get_date:
     mov al, [cs:date_weekday]
@@ -1464,44 +1537,12 @@ int21_handler:
     mov ax, [cs:exec_status]
     jmp .exec_program_err
 .exec_program_returned:
-    pop ax
-    mov [cs:saved_sp], ax
-    pop ax
-    mov [cs:saved_ss], ax
-    pop ax
-    mov [cs:dta_off], ax
-    pop ax
-    mov [cs:dta_seg], ax
-    pop ax
-    mov [cs:cur_psp], ax
-    pop di
-    pop si
-    pop es
-    pop ds
-    pop dx
-    pop cx
-    pop bx
+    INT21_POP_EXEC_PROGRAM_FRAME
     xor ax, ax
     jmp iret_nc
 .exec_program_err:
     mov [cs:exec_status], ax
-    pop ax
-    mov [cs:saved_sp], ax
-    pop ax
-    mov [cs:saved_ss], ax
-    pop ax
-    mov [cs:dta_off], ax
-    pop ax
-    mov [cs:dta_seg], ax
-    pop ax
-    mov [cs:cur_psp], ax
-    pop di
-    pop si
-    pop es
-    pop ds
-    pop dx
-    pop cx
-    pop bx
+    INT21_POP_EXEC_PROGRAM_FRAME
     mov ax, [cs:exec_status]
     jmp iret_cy
 .exec_overlay:
@@ -1533,13 +1574,7 @@ int21_handler:
     mov [cs:ov_size_hi], ax
     call load_overlay_direct
     jc .exec_overlay_err
-    pop di
-    pop si
-    pop es
-    pop ds
-    pop dx
-    pop cx
-    pop bx
+    INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
     xor ax, ax
     jmp iret_nc
 .exec_overlay_nf:
@@ -1548,13 +1583,7 @@ int21_handler:
 .exec_overlay_err:
     mov word [cs:ov_status], 1
 .exec_overlay_pop_err:
-    pop di
-    pop si
-    pop es
-    pop ds
-    pop dx
-    pop cx
-    pop bx
+    INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
     mov ax, [cs:ov_status]
     jmp iret_cy
 .chdir:
@@ -1605,11 +1634,7 @@ int21_handler:
 .cd_root:
     mov word [cs:cur_dir_cluster], ROOT_CLUSTER
     mov byte [cs:cur_dir_path], 0
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX
     jmp iret_nc
 .cd_resolve:
     mov si, dx
@@ -1638,18 +1663,10 @@ int21_handler:
     cmp byte [ds:si+2], 0
     jne .cd_copy_path
     call cur_dir_path_parent
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX
     jmp iret_nc
 .cd_same_dir:
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX
     jmp iret_nc
 .cd_copy_path:
     push cs
@@ -1681,26 +1698,14 @@ int21_handler:
     jz .cd_trunc
     test al, al
     jnz .cd_copy
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX
     jmp iret_nc
 .cd_trunc:
     mov byte [es:di-1], 0
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX
     jmp iret_nc
 .cd_err:
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX
     mov ax, 3
     jmp iret_cy
 
@@ -1799,13 +1804,7 @@ int21_handler:
     mov ax, [cs:md_entry_lba]
     call flush_dir_sector
     jc .md_io_err
-    pop dx
-    pop cx
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX_CX_DX
     jmp iret_nc
 .md_free_err:
     mov si, [cs:md_cluster]
@@ -1824,13 +1823,7 @@ int21_handler:
     mov ax, 5
 .md_err:
     mov [cs:md_status], ax
-    pop dx
-    pop cx
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX_CX_DX
     mov ax, [cs:md_status]
     jmp iret_cy
 
@@ -1911,13 +1904,7 @@ int21_handler:
     call fat_free_chain
     call flush_fat
     jc .rd_io_err
-    pop dx
-    pop cx
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX_CX_DX
     jmp iret_nc
 .rd_not_found:
     mov ax, 3
@@ -1932,13 +1919,7 @@ int21_handler:
     mov ax, 5
 .rd_err:
     mov [cs:rd_status], ax
-    pop dx
-    pop cx
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX_CX_DX
     mov ax, [cs:rd_status]
     jmp iret_cy
 .create_file:
@@ -2056,34 +2037,19 @@ int21_handler:
     mov [cs:bx+handles+H_DIR_OFF], ax
     mov word [cs:bx+handles+H_TIME], FAT_TIME
     mov word [cs:bx+handles+H_DATE], FAT_DATE
-    pop cx
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     mov ax, [cs:cf_handle]
     jmp iret_nc
 .cr_device:
     call alloc_device_handle
     jc .cr_device_err
     mov [cs:cf_handle], ax
-    pop cx
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     mov ax, [cs:cf_handle]
     jmp iret_nc
 .cr_device_err:
     mov [cs:cf_status], ax
-    pop cx
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     mov ax, [cs:cf_status]
     jmp iret_cy
 .cr_path_err:
@@ -2105,12 +2071,7 @@ int21_handler:
     mov ax, 5
 .cr_err:
     mov [cs:cf_status], ax
-    pop cx
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     mov ax, [cs:cf_status]
     jmp iret_cy
 
@@ -2248,13 +2209,7 @@ int21_handler:
     mov si, dx
     call resolve_path
     jnc .of_found
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ds
-    pop es
+    INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     mov ax, 2
     jmp iret_cy
 .of_found:
@@ -2312,13 +2267,7 @@ int21_handler:
     pop ds
     popa
 .of_no_handle_trace:
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ds
-    pop es
+    INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     jmp iret_nc
 .of_device:
     call alloc_device_handle
@@ -2340,33 +2289,15 @@ int21_handler:
     popa
 .of_device_no_trace:
     pop ax
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ds
-    pop es
+    INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     jmp iret_nc
 .of_device_err:
     mov [cs:of_status], ax
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ds
-    pop es
+    INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     mov ax, [cs:of_status]
     jmp iret_cy
 .of_no_handles:
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ds
-    pop es
+    INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     mov ax, 4
     jmp iret_cy
 .close_file:
@@ -2637,13 +2568,7 @@ int21_handler:
     popa
     pop ax
 .rf_no_trace:
-    pop di
-    pop si
-    pop es
-    pop ds
-    pop dx
-    pop cx
-    pop bx
+    INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
     jmp iret_nc
 .rf_device:
     mov ax, [cs:si+handles+H_DIR_OFF]
@@ -2673,13 +2598,7 @@ int21_handler:
     sub word [cs:rf_count], 1
     jmp .rf_con
 .rf_err_pop:
-    pop di
-    pop si
-    pop es
-    pop ds
-    pop dx
-    pop cx
-    pop bx
+    INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
 .rf_err:
     mov ax, 6
     jmp iret_cy
@@ -2929,13 +2848,7 @@ int21_handler:
     jmp .wf_file_loop
 .wf_file_done:
     mov ax, [cs:wf_written]
-    pop di
-    pop si
-    pop es
-    pop ds
-    pop dx
-    pop cx
-    pop bx
+    INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
     jmp iret_nc
 .wf_device:
     mov ax, [cs:si+handles+H_DIR_OFF]
@@ -2966,13 +2879,7 @@ int21_handler:
     jmp .wf_device_con
 .wf_device_done:
     mov ax, [cs:wf_req]
-    pop di
-    pop si
-    pop es
-    pop ds
-    pop dx
-    pop cx
-    pop bx
+    INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
     jmp iret_nc
 .wf_file_invalid_pop:
     mov ax, 6
@@ -2984,13 +2891,7 @@ int21_handler:
     mov ax, 5
 .wf_file_err_pop:
     mov [cs:wf_status], ax
-    pop di
-    pop si
-    pop es
-    pop ds
-    pop dx
-    pop cx
-    pop bx
+    INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
     mov ax, [cs:wf_status]
     jmp iret_cy
 .wf_invalid:
@@ -3046,12 +2947,7 @@ int21_handler:
     call fat_free_chain
     call flush_fat
     jc .df_io_err
-    pop cx
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     jmp iret_nc
 .df_not_found:
     mov ax, 2
@@ -3066,12 +2962,7 @@ int21_handler:
     mov ax, 5
 .df_err:
     mov [cs:df_status], ax
-    pop cx
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     mov ax, [cs:df_status]
     jmp iret_cy
 
@@ -3173,13 +3064,7 @@ int21_handler:
     xor ch, ch
     mov cl, [es:di+11]
     mov [cs:fa_ret_attr], cx
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ds
-    pop es
+    INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     mov cx, [cs:fa_ret_attr]
     jmp iret_nc
 .fa_set:
@@ -3201,22 +3086,10 @@ int21_handler:
     mov ax, [cs:ff_entry_lba]
     call flush_dir_sector
     jc .fa_set_io_err
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ds
-    pop es
+    INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     jmp iret_nc
 .fa_get_nf:
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ds
-    pop es
+    INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     mov ax, 2
     jmp iret_cy
 .fa_set_io_err:
@@ -3225,13 +3098,7 @@ int21_handler:
 .fa_set_nf:
     mov ax, 2
 .fa_set_err:
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ds
-    pop es
+    INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     jmp iret_cy
 
 .ioctl:
@@ -3807,31 +3674,16 @@ int21_handler:
     xor dx, dx
     call find_in_dir_filtered
     jnc .ff_found
-    pop di
-    pop es
-    pop bx
-    pop cx
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     mov ax, 2
     jmp iret_cy
 .ff_err:
-    pop di
-    pop es
-    pop bx
-    pop cx
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     mov ax, 3
     jmp iret_cy
 .ff_found:
     call store_find_dta
-    pop di
-    pop es
-    pop bx
-    pop cx
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     jmp iret_nc
 
 .find_next:
@@ -3859,22 +3711,12 @@ int21_handler:
     mov ax, [cs:ff_dir_cluster]
     call find_in_dir_from
     jnc .fn_found
-    pop di
-    pop es
-    pop bx
-    pop cx
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     mov ax, 2
     jmp iret_cy
 .fn_found:
     call store_find_dta
-    pop di
-    pop es
-    pop bx
-    pop cx
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     jmp iret_nc
 
 .rename_file:
@@ -3955,12 +3797,7 @@ int21_handler:
     mov ax, [cs:rn_src_lba]
     call flush_dir_sector
     jc .rn_access
-    pop cx
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     jmp iret_nc
 .rn_not_found:
     mov ax, 2
@@ -3972,12 +3809,7 @@ int21_handler:
     mov ax, 5
 .rn_err:
     mov [cs:rn_status], ax
-    pop cx
-    pop bx
-    pop di
-    pop es
-    pop si
-    pop ds
+    INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     mov ax, [cs:rn_status]
     jmp iret_cy
 

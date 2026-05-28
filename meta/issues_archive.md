@@ -42,3 +42,4 @@
 - [x] [Wrap Environment Blocks In MCBs](issues/wrap-environment-blocks-in-mcbs.md)
 - [x] [Extract Shared QEMU Test Harness](issues/extract-shared-qemu-test-harness.md)
 - [x] [Centralize Handle Initialization And Device Metadata](issues/centralize-handle-initialization-and-device-metadata.md)
+- [x] [Deduplicate INT 21h Exit Frames](issues/deduplicate-int21-exit-frames.md)

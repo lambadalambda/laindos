@@ -1,6 +1,5 @@
 
 - [ ] [Phase 19: DOS Compatibility Matrix](issues/phase19-dos-compatibility-matrix.md)
-- [ ] [Deduplicate INT 21h Exit Frames](issues/deduplicate-int21-exit-frames.md)
 - [ ] [Continue QEMU Test Harness Consolidation](issues/continue-qemu-test-harness-consolidation.md)
 - [ ] [Improve FAT Write Durability And Rollback](issues/improve-fat-write-durability-and-rollback.md)
 - [ ] [Separate Sector Buffers From Read Cache](issues/separate-sector-buffers-from-read-cache.md)
