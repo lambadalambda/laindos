@@ -1088,6 +1088,9 @@ find_dir_free:
     mov [cs:dir_ext_cluster], ax
     mov si, [cs:rid_clus]
     call fat_set
+%ifdef TEST_DIR_EXT_FLUSH_BEFORE_ZERO_FAIL
+    call flush_fat
+%endif
     mov ax, [cs:dir_ext_cluster]
     xor bx, bx
     call cluster_lba
@@ -1145,6 +1148,7 @@ find_dir_free:
     mov si, [cs:dir_ext_cluster]
     xor ax, ax
     call fat_set
+    call flush_fat
     jmp .sd_full
 .sd_found:
     mov ax, [cs:rid_lba]

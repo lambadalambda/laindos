@@ -43,3 +43,4 @@
 - [x] [Extract Shared QEMU Test Harness](issues/extract-shared-qemu-test-harness.md)
 - [x] [Centralize Handle Initialization And Device Metadata](issues/centralize-handle-initialization-and-device-metadata.md)
 - [x] [Deduplicate INT 21h Exit Frames](issues/deduplicate-int21-exit-frames.md)
+- [x] [Improve FAT Write Durability And Rollback](issues/improve-fat-write-durability-and-rollback.md)

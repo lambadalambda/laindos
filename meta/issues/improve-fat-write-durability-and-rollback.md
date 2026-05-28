@@ -21,3 +21,5 @@ Several FAT mutation paths defer flushing until close or later operations. Direc
 ## Notes
 
 - The review flagged crash or reset windows between FAT copy writes as a future durability risk, especially as FAT16 write-through and FAT12 flush behavior diverge.
+- Outcome: directory-extension rollback now flushes the repaired FAT immediately; `test_dirextrollback.py` forces a persisted intermediate extension and verifies rollback reaches all FAT copies.
+- FAT copy mismatch detection is deferred for the current compatibility target because LainDOS does not yet have a repair policy for choosing the authoritative copy.

@@ -45,6 +45,7 @@ DEFAULT_TESTS = [
     "scripts/test_badfat.py",
     "scripts/test_free.py",
     "scripts/test_dirextfail.py",
+    "scripts/test_dirextrollback.py",
     "scripts/test_envmcb.py",
     "scripts/test_envpath.py",
     "scripts/test_findattr.py",
