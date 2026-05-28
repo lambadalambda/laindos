@@ -22,3 +22,5 @@ Child PSPs currently point `PSP:002Ch` at a fixed `ENV_SEG` outside the MCB aren
 
 - This is likely required for installers, TSRs, and programs that walk the MCB chain.
 - The architecture review called out fixed `ENV_SEG` ownership and limited space between `ENV_SEG` and `ROOT_SEG` as a scaling risk.
+- Implemented with 16-paragraph MCB-allocated environment blocks. `PSP:002Ch` points at the allocated block, and its MCB owner is patched to the process PSP when the PSP is built.
+- Covered by `tests/programs/envmcb.asm` / `tests/programs/envchld.asm` / `scripts/test_envmcb.py`, including a post-child-exit MCB owner scan; existing `scripts/test_envpath.py` and shell/game smokes still pass.

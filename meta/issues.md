@@ -1,6 +1,5 @@
 
 - [ ] [Phase 19: DOS Compatibility Matrix](issues/phase19-dos-compatibility-matrix.md)
-- [ ] [Wrap Environment Blocks In MCBs](issues/wrap-environment-blocks-in-mcbs.md)
 - [ ] [Deduplicate INT 21h Exit Frames](issues/deduplicate-int21-exit-frames.md)
 - [ ] [Centralize Handle Initialization And Device Metadata](issues/centralize-handle-initialization-and-device-metadata.md)
 - [ ] [Extract Shared QEMU Test Harness](issues/extract-shared-qemu-test-harness.md)

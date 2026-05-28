@@ -2,6 +2,24 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-28 Environment MCB Blocks
+
+### Confirmed Facts
+
+- Added `tests/programs/envmcb.asm` / `tests/programs/envchld.asm` / `scripts/test_envmcb.py`; before the fix it failed with `FAIL: ENVMCB CHILD` because child `PSP:002Ch` pointed below `MCB_START` at the fixed environment block.
+- The parent-side regression now walks the MCB chain after the child exits and fails if any block remains owned by a non-parent PSP, covering child environment/program MCB release.
+- Environment blocks are now allocated from the MCB arena before program allocation so EXE `MaxAlloc` leaves room for them. `build_psp` stores the allocated segment in `PSP:002Ch` and patches the environment MCB owner to the child PSP.
+- The boot program also gets an MCB-backed environment, so `HIGHMCB` now expects the first arena block to be the PSP-owned environment block followed by free space.
+
+### Tests And Smokes Run
+
+- `python3 scripts/test_envmcb.py`
+- `python3 scripts/run_tests.py -j 4 scripts/test_envmcb.py scripts/test_envpath.py scripts/test_dosstruct.py scripts/test_shell.py scripts/test_highmcb.py scripts/test_overlay.py scripts/test_regpres.py`
+- `make test` passed `44/44`.
+- `python3 scripts/test_monkey_full.py` passed.
+- Wolf3D QEMU VGA smoke passed with `-vga std,retrace=precise`, `80` colors, and `233588` nonblack pixels.
+- Ascendancy QEMU startup smoke passed, reaching `DOS/4GW` and `Ascendancy` banners with `59` colors and `307045` nonblack pixels.
+
 ## 2026-05-28 Wolfenstein 3D QEMU VGA Status Stall
 
 ### Symptoms

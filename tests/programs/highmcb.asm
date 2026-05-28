@@ -15,10 +15,22 @@ start:
     mov es, ax
     cmp byte [es:0], 'M'
     jne fail_first_sig
-    cmp word [es:1], 0
+    mov ax, [es:1]
+    cmp ax, [psp_seg]
     jne fail_first_owner
-    cmp word [es:3], 2
+    cmp word [es:3], ENV_PARAS
     jb fail_first_size
+
+    mov ax, MCB_START
+    add ax, [es:3]
+    inc ax
+    mov es, ax
+    cmp byte [es:0], 'M'
+    jne fail_free_sig
+    cmp word [es:1], 0
+    jne fail_free_owner
+    cmp word [es:3], 2
+    jb fail_free_size
 
     mov ax, [psp_seg]
     dec ax
@@ -65,6 +77,15 @@ fail_first_owner:
 fail_first_size:
     mov dx, fail_first_size_msg
     jmp fail
+fail_free_sig:
+    mov dx, fail_free_sig_msg
+    jmp fail
+fail_free_owner:
+    mov dx, fail_free_owner_msg
+    jmp fail
+fail_free_size:
+    mov dx, fail_free_size_msg
+    jmp fail
 fail_prog_sig:
     mov dx, fail_prog_sig_msg
     jmp fail
@@ -91,6 +112,9 @@ pass_msg: db "PASS: HIGHMCB", 13, 10, "$"
 fail_first_sig_msg: db "FAIL: HIGHMCB FIRST SIG", 13, 10, "$"
 fail_first_owner_msg: db "FAIL: HIGHMCB FIRST OWNER", 13, 10, "$"
 fail_first_size_msg: db "FAIL: HIGHMCB FIRST SIZE", 13, 10, "$"
+fail_free_sig_msg: db "FAIL: HIGHMCB FREE SIG", 13, 10, "$"
+fail_free_owner_msg: db "FAIL: HIGHMCB FREE OWNER", 13, 10, "$"
+fail_free_size_msg: db "FAIL: HIGHMCB FREE SIZE", 13, 10, "$"
 fail_prog_sig_msg: db "FAIL: HIGHMCB PROG SIG", 13, 10, "$"
 fail_prog_owner_msg: db "FAIL: HIGHMCB PROG OWNER", 13, 10, "$"
 fail_one_alloc_msg: db "FAIL: HIGHMCB ONE ALLOC", 13, 10, "$"

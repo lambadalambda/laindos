@@ -1451,14 +1451,18 @@ int21_handler:
     mov [cs:exec_path_seg], ds
     call load_exec_program
     jc .exec_program_err
-    call update_exec_environment_path
     cmp byte [cs:exec_is_exe], 0
     jne .exec_run_exe
     call exec_com_dyn
     jmp .exec_program_returned
 .exec_run_exe:
     call setup_exe_dyn
-    jc .exec_program_err
+    jnc .exec_program_returned
+    mov [cs:exec_status], ax
+    call free_prog_mcb
+    call free_exec_environment
+    mov ax, [cs:exec_status]
+    jmp .exec_program_err
 .exec_program_returned:
     pop ax
     mov [cs:saved_sp], ax

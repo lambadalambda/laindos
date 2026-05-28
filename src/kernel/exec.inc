@@ -1,4 +1,5 @@
 load_exec_program:
+    mov word [cs:exec_env_seg], 0
     mov ds, [cs:exec_path_seg]
     mov si, [cs:exec_path_off]
     call resolve_path
@@ -16,6 +17,12 @@ load_exec_program:
     mov [cs:kfsize_hi], ax
     call exec_read_first_sector
     jc .io_err
+    call update_exec_environment_path
+    jnc .env_ready
+    mov ax, 8
+    stc
+    ret
+.env_ready:
     mov ax, SEC_BUF
     mov ds, ax
     cmp word [0], 0x5A4D
@@ -74,6 +81,7 @@ load_exec_program:
     test dx, dx
     jz .exe_size_ok
 .exe_too_large:
+    call free_exec_environment
     mov ax, 8
     stc
     ret
@@ -130,6 +138,7 @@ load_exec_program:
     adc dx, 0
     test dx, dx
     jz .com_size_ok
+    call free_exec_environment
     mov ax, 8
     stc
     ret
@@ -141,6 +150,7 @@ load_exec_program:
     mov bx, [cs:prog_par]
     call alloc_mem_direct
     jnc .alloc_ok
+    call free_exec_environment
     mov ax, 8
     stc
     ret
@@ -160,6 +170,7 @@ load_exec_program:
     cmp ax, 0
     je .loaded
     call free_prog_mcb
+    call free_exec_environment
 .io_err:
     mov ax, 1
     stc
@@ -248,7 +259,9 @@ update_exec_environment_path:
     push es
     push si
     push di
-    mov ax, ENV_SEG
+    call alloc_exec_environment
+    jc .fail
+    mov ax, [cs:exec_env_seg]
     mov es, ax
     xor di, di
     call write_environment_vars
@@ -306,7 +319,7 @@ update_exec_environment_path:
 .copy_loop:
     lodsb
     test al, al
-    jz .done
+    jz .path_done
     cmp al, '/'
     je .slash
     cmp al, '\'
@@ -322,14 +335,85 @@ update_exec_environment_path:
 .store:
     stosb
     loop .copy_loop
-.done:
+.path_done:
     xor al, al
     stosb
+    clc
+    jmp .done
+.fail:
+    stc
+.done:
     pop di
     pop si
     pop es
     pop ds
     pop cx
+    pop ax
+    ret
+
+alloc_exec_environment:
+    push bx
+    push ds
+    mov word [cs:exec_env_seg], 0
+    mov bx, ENV_PARAS
+    call alloc_mem_direct
+    jc .fail
+    mov [cs:exec_env_seg], ax
+    push ax
+    dec ax
+    mov ds, ax
+    mov word [ds:1], ENV_OWNER_TEMP
+    pop ax
+    clc
+    pop ds
+    pop bx
+    ret
+.fail:
+    stc
+    pop ds
+    pop bx
+    ret
+
+free_exec_environment:
+    push ax
+    push ds
+    mov ax, [cs:exec_env_seg]
+    test ax, ax
+    jz .done
+    dec ax
+    mov ds, ax
+    cmp byte [ds:0], MCB_SIG_M
+    je .free
+    cmp byte [ds:0], MCB_SIG_Z
+    jne .clear
+.free:
+    mov word [ds:1], 0
+.clear:
+    mov word [cs:exec_env_seg], 0
+.done:
+    pop ds
+    pop ax
+    ret
+
+assign_exec_environment_owner:
+    push ax
+    push bx
+    push ds
+    mov bx, [cs:exec_env_seg]
+    test bx, bx
+    jz .done
+    dec bx
+    mov ds, bx
+    cmp byte [ds:0], MCB_SIG_M
+    je .assign
+    cmp byte [ds:0], MCB_SIG_Z
+    jne .done
+.assign:
+    mov ax, [cs:cur_psp]
+    mov [ds:1], ax
+.done:
+    pop ds
+    pop bx
     pop ax
     ret
 
@@ -751,10 +835,12 @@ build_psp:
     pop ax
     mov bx, [cs:cur_psp]
     mov [es:0x16], bx
-    mov word [es:0x2C], ENV_SEG
+    mov bx, [cs:exec_env_seg]
+    mov [es:0x2C], bx
     mov [cs:dta_seg], ax
     mov word [cs:dta_off], 0x0080
     mov [cs:cur_psp], ax
+    call assign_exec_environment_owner
     ret
 
 setup_exe:

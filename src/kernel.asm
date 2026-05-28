@@ -150,8 +150,6 @@ kernel_entry:
     mov word [cur_dir_cluster], ROOT_CLUSTER
     mov byte [cur_dir_path], 0
 
-    call init_environment
-
     mov ax, MCB_START
     mov es, ax
     mov byte [es:0], MCB_SIG_Z
@@ -193,6 +191,8 @@ kernel_entry:
     call read_sector
     pop bx
     pop es
+    jc .halt
+    call init_environment
     jc .halt
 
     mov dx, SEC_BUF
@@ -527,11 +527,13 @@ init_environment:
     push es
     push si
     push di
-    push cs
-    pop ds
-    mov ax, ENV_SEG
+    call alloc_exec_environment
+    jc .fail
+    mov ax, [cs:exec_env_seg]
     mov es, ax
     xor di, di
+    push cs
+    pop ds
     call write_environment_vars
     mov ax, 1
     stosw
@@ -562,6 +564,11 @@ init_environment:
     loop .ext_loop
     xor ax, ax
     stosb
+    clc
+    jmp .done
+.fail:
+    stc
+.done:
     pop di
     pop si
     pop es
@@ -1473,7 +1480,7 @@ trace_exec_env:
     push cx
     push ds
     push si
-    mov ax, ENV_SEG
+    mov ax, [cs:exec_env_seg]
     dec ax
     mov ds, ax
     mov al, [0]
@@ -1486,7 +1493,8 @@ trace_exec_env:
     pop ds
     mov si, msg_xenv
     call serial_print
-    mov ax, ENV_SEG - 1
+    mov ax, [cs:exec_env_seg]
+    dec ax
     call serial_print_hex_word
     mov si, msg_x_sig
     call serial_print
@@ -1502,7 +1510,7 @@ trace_exec_env:
     call serial_print_hex_word
     mov si, msg_x_bytes
     call serial_print
-    mov ax, ENV_SEG
+    mov ax, [cs:exec_env_seg]
     mov ds, ax
     xor si, si
     mov cx, 8
@@ -1825,6 +1833,7 @@ running:   dw 0
 saved_ss:  dw 0
 saved_sp:  dw 0
 com_stack_top: dw 0
+exec_env_seg: dw 0
 vga_row:   dw 0
 vga_col:   dw 0
 console_ext_pending: db 0
@@ -2207,14 +2216,8 @@ kernel_end:
 %if (kernel_end - kernel_entry) > ((SEC_BUF - RELOC_SEG) * 16)
 %error "kernel overlaps SEC_BUF"
 %endif
-%if SEC_BUF >= ENV_SEG
-%error "SEC_BUF must remain below ENV_SEG"
-%endif
-%if (kernel_end - kernel_entry) > ((ENV_SEG - RELOC_SEG) * 16)
-%error "kernel overlaps ENV_SEG"
-%endif
-%if ENV_SEG >= ROOT_SEG
-%error "ENV_SEG must remain below ROOT_SEG"
+%if SEC_BUF >= ROOT_SEG
+%error "SEC_BUF must remain below ROOT_SEG"
 %endif
 %if (ROOT_SEG + ROOT_BUF_PARAS) > (RELOC_SEG + (KERNEL_STACK_TOP / 16))
 %error "ROOT buffer overlaps kernel stack"

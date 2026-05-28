@@ -15,7 +15,7 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 - Runs the Monkey Island demo and full VGA Monkey Island images when the corresponding local `vendor/` archives are present.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
-- `make test` currently runs the automated QEMU regression ladder and passes `43/43` tests.
+- `make test` currently runs the automated QEMU regression ladder and passes `44/44` tests.
 
 ## Scope
 
@@ -51,10 +51,9 @@ Current important segment layout:
 0060:0000  FAT scratch buffer
 0340:0000  relocated kernel
 09C0:0000  sector buffer
-09E0:0000  default environment block
 0A00:0000  root directory buffer
 0340:BC00  kernel stack top (physical 0F000)
-1000:0000  start of MCB-managed program memory
+1000:0000  start of MCB-managed program and environment memory
 A000:0000  VGA graphics memory
 ```
 

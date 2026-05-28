@@ -39,3 +39,4 @@
 - [x] [Bound EXE And Overlay Relocations](issues/bound-exe-and-overlay-relocations.md)
 - [x] [Harden MCB Walks And Memory Top Sizing](issues/harden-mcb-walks-and-memory-top-sizing.md)
 - [x] [Boot Wolfenstein 3D Shareware](issues/boot-wolfenstein-3d-shareware.md)
+- [x] [Wrap Environment Blocks In MCBs](issues/wrap-environment-blocks-in-mcbs.md)

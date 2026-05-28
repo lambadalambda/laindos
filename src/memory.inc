@@ -3,9 +3,10 @@
 LOAD_SEG equ 0x1000
 RELOC_SEG equ 0x0340
 SEC_BUF equ 0x09C0
-ENV_SEG equ 0x09E0
 MCB_START equ 0x1000
 MEM_TOP equ 0xA000
+ENV_PARAS equ 16
+ENV_OWNER_TEMP equ 0xFFFF
 %if (MEM_TOP & 0xFF) != 0
 %error "MEM_TOP must be 256-byte aligned"
 %endif

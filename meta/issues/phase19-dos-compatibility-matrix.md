@@ -32,7 +32,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | PSP creation and command tails | implemented/partial | high | Covered by `PSPTEST`, `ARGTEST`, `ARGEXE`, and game smokes. |
 | `AH=4B00h` EXEC | implemented/partial | high | Supports COM/EXE, MZ relocation, command tails, MaxAlloc. Needs more parameter-block and environment edge tests. |
 | `AH=4B03h` overlay load | implemented/partial | high | Covered by overlay regression; preserve for MI2-style overlays. |
-| Environment block, `COMSPEC`, `PATH`, executable path tail | partial/missing | high | Tracked by Phase 15; needed for broader installer and shell compatibility. |
+| Environment block, `COMSPEC`, `PATH`, executable path tail | implemented/partial | high | Environment blocks are MCB-allocated per process and preserve current default variables/path tail behavior; custom EXEC environment inheritance remains minimal. |
 | `AH=4Dh` child return code | implemented/partial | medium | Needs tests around repeated reads and failed EXEC paths. |
 | `AH=62h` get PSP | implemented | medium | Trivial but common runtime call; returns the current PSP segment. |
 | `AH=31h` TSR/keep process | missing/deferred | low | Defer unless a target installer/runtime requires it. |
