@@ -1788,3 +1788,16 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 ### Tests Run
 
 - `python3 scripts/test_createapi.py`
+
+## 2026-05-28 DOS State APIs
+
+### Confirmed Facts
+
+- Added `src/stateapi.asm` / `scripts/test_stateapi.py` for `INT 21h AH=33h`, `AH=54h`, `AH=2Eh`, `AH=2Bh`, and `AH=2Dh` compatibility state behavior.
+- Before implementation the test first failed on missing verify-state handling with unhandled `INT 21h AH=54` / `AH=2E` markers.
+- `AH=33h` covers break flag get/set, boot-drive query, and true-version query; `AH=54h` / `AH=2Eh` now get and set the verify flag using the `AH=2Eh` `AL` input.
+- `AH=2Bh` now validates and stores the DOS date, including leap-day acceptance and bad-date rejection; `AH=2Ah` returns the stored date. `AH=2Dh` validates and stores explicit time state; `AH=2Ch` returns that state after a set-time call and otherwise keeps the BIOS tick-derived time path.
+
+### Tests Run
+
+- `python3 scripts/test_stateapi.py`

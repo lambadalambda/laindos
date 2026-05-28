@@ -1866,6 +1866,7 @@ dos_drive_num: db 0
 dos_drive_letter: db 'A'
 dos_drive_count: db 1
 break_flag: db 0
+verify_flag: db 0
 kret:  db 3
 dos_first_mcb: dw MCB_START
 dos_list_of_lists: times 32 db 0
@@ -1881,6 +1882,11 @@ exe_load_seg:   dw 0
 
 dta_seg: dw 0
 dta_off: dw 0
+date_year: dw 2026
+date_month: db 5
+date_day: db 21
+date_weekday: db 0
+time_set: db 0
 time_hour: db 0
 time_min: db 0
 time_sec: db 0

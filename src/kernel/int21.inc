@@ -74,8 +74,14 @@ int21_handler:
     je .parse_fcb
     cmp ah, 0x2A
     je .get_date
+    cmp ah, 0x2B
+    je near .set_date
     cmp ah, 0x2C
     je .get_time
+    cmp ah, 0x2D
+    je near .set_time
+    cmp ah, 0x2E
+    je near .set_verify_flag
     cmp ah, 0x2F
     je .get_dta
     cmp ah, 0x30
@@ -94,6 +100,8 @@ int21_handler:
     je .find_next
     cmp ah, 0x52
     je .get_list_of_lists
+    cmp ah, 0x54
+    je near .get_verify_flag
     cmp ah, 0x56
     je .rename_file
     cmp ah, 0x57
@@ -733,6 +741,13 @@ int21_handler:
     mov bx, 0x031E
     xor dx, dx
     jmp iret_nc
+.set_verify_flag:
+    and al, 1
+    mov [cs:verify_flag], al
+    jmp iret_nc
+.get_verify_flag:
+    mov al, [cs:verify_flag]
+    jmp iret_nc
 .alloc_mem:
     push bx
     push cx
@@ -1252,12 +1267,55 @@ int21_handler:
     pop ds
     jmp iret_cy
 .get_date:
-    mov al, 0
-    mov cx, 2026
-    mov dh, 5
-    mov dl, 21
+    mov al, [cs:date_weekday]
+    mov cx, [cs:date_year]
+    mov dh, [cs:date_month]
+    mov dl, [cs:date_day]
+    jmp iret_nc
+.set_date:
+    cmp cx, 1980
+    jb .sd_bad
+    cmp cx, 2099
+    ja .sd_bad
+    cmp dh, 1
+    jb .sd_bad
+    cmp dh, 12
+    ja .sd_bad
+    cmp dl, 1
+    jb .sd_bad
+    mov al, 31
+    cmp dh, 4
+    je .sd_30
+    cmp dh, 6
+    je .sd_30
+    cmp dh, 9
+    je .sd_30
+    cmp dh, 11
+    je .sd_30
+    cmp dh, 2
+    jne .sd_check_day
+    mov al, 28
+    test cl, 3
+    jnz .sd_check_day
+    inc al
+    jmp .sd_check_day
+.sd_30:
+    mov al, 30
+.sd_check_day:
+    cmp dl, al
+    ja .sd_bad
+    mov [cs:date_year], cx
+    mov [cs:date_month], dh
+    mov [cs:date_day], dl
+    mov byte [cs:date_weekday], 0
+    xor al, al
+    jmp iret_nc
+.sd_bad:
+    mov al, 0xFF
     jmp iret_nc
 .get_time:
+    cmp byte [cs:time_set], 0
+    jne .gt_stored
     push ax
     push bx
     push si
@@ -1312,6 +1370,31 @@ int21_handler:
     pop si
     pop bx
     pop ax
+    jmp iret_nc
+.gt_stored:
+    mov ch, [cs:time_hour]
+    mov cl, [cs:time_min]
+    mov dh, [cs:time_sec]
+    mov dl, [cs:time_hund]
+    jmp iret_nc
+.set_time:
+    cmp ch, 24
+    jae .st_bad
+    cmp cl, 60
+    jae .st_bad
+    cmp dh, 60
+    jae .st_bad
+    cmp dl, 100
+    jae .st_bad
+    mov [cs:time_hour], ch
+    mov [cs:time_min], cl
+    mov [cs:time_sec], dh
+    mov [cs:time_hund], dl
+    mov byte [cs:time_set], 1
+    xor al, al
+    jmp iret_nc
+.st_bad:
+    mov al, 0xFF
     jmp iret_nc
 .exec:
     cmp al, 0

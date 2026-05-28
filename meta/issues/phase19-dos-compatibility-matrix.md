@@ -75,12 +75,12 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=0Eh/19h` current drive | implemented/partial | medium | Tracks selected logical drive and returns a stable logical drive count; still maps all supported drive letters to the boot image. |
 | `AH=1Ah/2Fh` DTA | implemented | high | Covered by find-first/find-next behavior. |
 | `AH=25h/35h` vectors | implemented | high | Required by games. |
-| `AH=2Ah/2Ch` date/time | implemented/partial | medium | Time advances from BIOS ticks; set-date/time missing. |
+| `AH=2Ah/2Bh/2Ch/2Dh` date/time | implemented/partial | medium | Date is state-backed; time advances from BIOS ticks until `AH=2Dh` sets explicit state. |
 | `AH=30h` DOS version | implemented/minimal | medium | Keep target-version behavior explicit. |
 | `AH=36h` disk free | minimal stub | medium | Replace total-as-free with real FAT free cluster count. |
 | `AH=44h` IOCTL | minimal stub | high | Expand caller-driven subfunctions: get info, status, removable/local queries. |
 | `AH=1Bh/1Ch` drive data | missing | low/medium | Some installers query media geometry. |
-| `AH=33h/54h` Ctrl-C and verify state | missing/stub candidate | low/medium | Often queried defensively. |
+| `AH=33h/54h/2Eh` Ctrl-C and verify state | implemented/partial | low/medium | Break get/set, boot-drive, true-version, and verify get/set are covered by `STATEAPI`. |
 
 ### Deferred or Out of Scope Until Needed
 

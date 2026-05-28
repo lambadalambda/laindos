@@ -19,6 +19,7 @@ DEFAULT_TESTS = [
     "scripts/test_bigreloc.py",
     "scripts/test_keyboard.py",
     "scripts/test_flushread.py",
+    "scripts/test_stateapi.py",
     "scripts/test_mousecb.py",
     "scripts/test_mouseratio.py",
     "scripts/test_xms.py",
