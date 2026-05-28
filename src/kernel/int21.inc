@@ -18,6 +18,8 @@ int21_handler:
     je .read_line_buffered
     cmp ah, 0x0B
     je .stdin_status
+    cmp ah, 0x0C
+    je .flush_and_read
     cmp ah, 0x0E
     je .select_disk
     cmp ah, 0x00
@@ -312,6 +314,34 @@ int21_handler:
     pop cx
     pop bx
     jmp iret_nc
+.flush_and_read:
+    call console_flush_input
+    cmp al, 0x01
+    je .flush_read_char_echo
+    cmp al, 0x06
+    je .flush_direct_console_io
+    cmp al, 0x07
+    je .flush_read_char_direct
+    cmp al, 0x08
+    je .flush_read_char_no_echo
+    cmp al, 0x0A
+    je .flush_read_line_buffered
+    jmp iret_nc
+.flush_read_char_echo:
+    mov ah, 0x01
+    jmp .read_char_echo
+.flush_direct_console_io:
+    mov ah, 0x06
+    jmp .direct_console_io
+.flush_read_char_direct:
+    mov ah, 0x07
+    jmp .read_char_direct
+.flush_read_char_no_echo:
+    mov ah, 0x08
+    jmp .read_char_no_echo
+.flush_read_line_buffered:
+    mov ah, 0x0A
+    jmp .read_line_buffered
 .get_drive:
     mov al, [cs:dos_drive_num]
     jmp iret_nc

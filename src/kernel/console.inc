@@ -49,6 +49,20 @@ console_input_status:
     xor al, al
     ret
 
+console_flush_input:
+    push ax
+    mov byte [cs:console_ext_pending], 0
+.loop:
+    mov ah, 0x01
+    int 0x16
+    jz .done
+    xor ah, ah
+    int 0x16
+    jmp .loop
+.done:
+    pop ax
+    ret
+
 console_read_char:
     cmp byte [cs:console_ext_pending], 0
     je .read_bios
