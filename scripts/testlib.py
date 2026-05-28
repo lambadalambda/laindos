@@ -11,10 +11,35 @@ import time
 DEFAULT_FAIL_MARKERS = ("FAIL:", "EXC ", "INT 21h AH=")
 DEFAULT_STOP_MARKERS = ("HALT",)
 REPO_ROOT = os.path.dirname(os.path.dirname(__file__))
+DEFAULT_QEMU = os.path.abspath(os.path.join(
+    REPO_ROOT,
+    "..",
+    "qemu-ascendancy",
+    "build-asc",
+    "qemu-system-i386-unsigned",
+))
 
 
 def build_dir():
     return os.environ.get("LAINDOS_TEST_BUILD_DIR", os.path.join(REPO_ROOT, "build"))
+
+
+def qemu_binary():
+    configured = os.environ.get("LAINDOS_QEMU")
+    if configured:
+        if os.sep in configured:
+            return os.path.abspath(configured)
+        return configured
+    if os.path.exists(DEFAULT_QEMU):
+        return DEFAULT_QEMU
+    return "qemu-system-i386"
+
+
+def qemu_args(args):
+    args = list(args)
+    if args and args[0] == "qemu-system-i386":
+        args[0] = qemu_binary()
+    return args
 
 
 def read_stream(stream, chunks):
@@ -31,7 +56,7 @@ def read_stream(stream, chunks):
 
 def start_qemu(args):
     proc = subprocess.Popen(
-        args,
+        qemu_args(args),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )

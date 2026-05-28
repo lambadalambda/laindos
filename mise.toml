@@ -1,3 +1,6 @@
+[env]
+LAINDOS_QEMU = "../qemu-ascendancy/build-asc/qemu-system-i386-unsigned"
+
 [tasks.test]
 description = "Run automated QEMU boot tests"
 run = "python3 scripts/test_boot.py"
@@ -12,7 +15,7 @@ run = "make run"
 
 [tasks.run-monkey-full]
 description = "Boot full VGA Monkey Island in QEMU"
-run = "python3 scripts/build_monkey_full.py && qemu-system-i386 -drive file=build/monkey_full.img,format=raw -boot order=c -serial stdio -monitor none -device sb16"
+run = 'python3 scripts/build_monkey_full.py && "$LAINDOS_QEMU" -drive file=build/monkey_full.img,format=raw -boot order=c -serial stdio -monitor none -device sb16'
 
 [tasks.run-monkey-full-bochs]
 description = "Boot full VGA Monkey Island in Bochs"
@@ -24,7 +27,7 @@ run = "python3 scripts/build_games_hd_all.py"
 
 [tasks.run-games-hd-all]
 description = "Boot all-games hard disk image in QEMU"
-run = "python3 scripts/build_games_hd_all.py && qemu-system-i386 -drive file=build/games_hd_all.img,format=raw -boot order=c -serial stdio -monitor none -device sb16"
+run = 'python3 scripts/build_games_hd_all.py && "$LAINDOS_QEMU" -drive file=build/games_hd_all.img,format=raw -boot order=c -serial stdio -monitor none -device sb16'
 
 [tasks.clean]
 description = "Remove build artifacts"

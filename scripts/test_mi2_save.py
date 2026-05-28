@@ -9,6 +9,7 @@ import sys
 import tempfile
 import threading
 import time
+from testlib import qemu_binary
 
 IMG = os.environ.get("LAINDOS_MI2_SAVE_IMG", "build/games_hd_all.img")
 MONITOR = os.path.join(tempfile.gettempdir(), "laindos-mi2-save.sock")
@@ -136,7 +137,7 @@ def run_qemu_save_attempt():
             pass
     proc = subprocess.Popen(
         [
-            "qemu-system-i386",
+            qemu_binary(),
             "-drive", f"file={IMG},format=raw",
             "-boot", "order=c",
             "-serial", "stdio",

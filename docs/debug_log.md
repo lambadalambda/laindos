@@ -2,6 +2,46 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-28 Ascendancy QEMU SAHF Root Cause
+
+### Symptoms
+
+- Stock QEMU master and the earlier `floatx80` trig experiment both still froze Ascendancy at the same first Logic Factory framebuffer hash `8e5010bd947253405c00ac7f16d5cb0edf00901e17394d2e567a733b635c61b6`.
+- The patched-trig run passed the temporary `FPUTEST`, but full Ascendancy still had no `Thank you for playing Ascendancy.`, no `EXC ` marker, and no visible progress.
+
+### Confirmed Facts
+
+- A stopped monitor sample showed the old stall was not a single endless `FPREM`: the DOS/4GW helper often had `FSW=3820` with C2 clear and should have returned without range reduction.
+- Stack sampling identified the repeating caller chain as Ascendancy code around `0x1a26a2`, calling the DOS/4GW `FCOS` wrapper at `0x1c699a`; a higher loop around `0x171c09..0x171cb9` repeatedly called that rotation helper.
+- The repeated x87 value `0.739085...` is the fixed point of `cos(x)`, which suggested the wrapper was repeatedly re-running `FCOS` on its own result instead of accepting the first in-range result.
+- A new temporary real-mode reproducer, `build/dos4gwtrig.asm` / `build/d4gwtrig.img`, mimics the DOS/4GW helper pattern exactly: `fnstsw [bp-2]`, `mov ah,[bp-1]`, `or ah,1`, `sahf`, `jnp exit`, otherwise `fprem` and `clc`.
+- On stock QEMU and on the earlier trig-patched QEMU, that reproducer failed on a clean 10-degree input: `FAIL: DOS4GWTRIG CLEAN COUNT=0041 SW=3800 ENTRY=3800 AX=3800 MEM=3800 FLAGS=0212`.
+- `FNSTSW AX` and `FNSTSW [mem]` both reported `0x3800`, so the x87 C2 bit itself was clear. The helper still returned with CF clear because QEMU evaluated the post-`SAHF` `JNP` using stale lazy parity state from the preceding `OR AH,1`.
+- In QEMU `target/i386/tcg/emit.c.inc`, `gen_SAHF` updated `cpu_cc_src` but did not switch the lazy condition-code mode to `CC_OP_EFLAGS`.
+- Adding `set_cc_op(s, CC_OP_EFLAGS);` at the end of `gen_SAHF` is sufficient for `DOS4GWTRIG` to pass.
+- After removing the earlier `floatx80` trig experiment, the isolated one-line `SAHF` fix still passes `DOS4GWTRIG` and `FPUTEST`.
+- With only the `SAHF` fix in QEMU, Ascendancy no longer stops at the old hash. The probe reaches framebuffer hash `fe0a77132d945126590a8a506487e7f4a9bbac57946e907b39039ae20c80bc55` and execution is elsewhere (`EIP=001a4115`) rather than in the DOS/4GW x87 wrapper.
+- The isolated QEMU patch is saved in this repo as `docs/qemu-sahf-ccop.patch`.
+
+### Tests And Probes Run
+
+- `/Users/lainsoykaf/repos/qemu-ascendancy/build-asc/qemu-system-i386-unsigned -drive file=build/fputest.img,format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic`
+- `python3 build/run_asc_stock.py` against stock/patched QEMU before the `SAHF` fix: old stuck hash `8e5010...` at both screenshots.
+- `python3 build/run_asc_stock.py` with stopped monitor snapshots and stack dumps around `0x1c696e`, `0x1a26a2`, and `0x171c20`.
+- `nasm -f bin build/dos4gwtrig.asm -o build/d4gwtrig.com`
+- `nasm '-DBOOT_FILE="D4GWTRIGCOM"' -f bin src/kernel.asm -o build/d4gwtrig_kernel.bin`
+- `python3 scripts/mkimage.py build/boot.bin build/d4gwtrig_kernel.bin build/d4gwtrig.img build/d4gwtrig.com`
+- `qemu-system-i386 -drive file=build/d4gwtrig.img,format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic` failed before the fix.
+- `/Users/lainsoykaf/repos/qemu-ascendancy/build-asc/qemu-system-i386-unsigned -drive file=build/d4gwtrig.img,format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic` passes after the fix.
+- `ninja qemu-system-i386-unsigned` in `/Users/lainsoykaf/repos/qemu-ascendancy/build-asc`.
+- `python3 build/run_asc_stock.py` with the isolated `SAHF` fix: new framebuffer hash `fe0a77...`, no old x87-helper stall.
+
+### Follow-Ups
+
+- Keep the useful QEMU patch isolated to `target/i386/tcg/emit.c.inc`; the earlier `floatx80` trig experiment is not needed for this Ascendancy stall.
+- Consider turning `DOS4GWTRIG` into a small upstream QEMU i386 TCG regression because it does not depend on Ascendancy or LainDOS internals beyond booting a COM program.
+- The current Ascendancy probe likely stops on a later screen waiting for input; verify interactive gameplay under the `SAHF`-fixed QEMU separately if needed.
+
 ## 2026-05-27 Parallel QEMU Test Runner
 
 ### Symptoms

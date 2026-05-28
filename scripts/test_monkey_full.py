@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from testlib import qemu_binary
 
 IMG = "build/monkey_full.img"
 TIMEOUT = 25
@@ -34,7 +35,7 @@ def run_qemu():
         pass
     proc = subprocess.Popen(
         [
-            "qemu-system-i386",
+            qemu_binary(),
             "-drive", f"file={IMG},format=raw",
             "-boot", "order=c",
             "-serial", "stdio",

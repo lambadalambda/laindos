@@ -1,5 +1,6 @@
 NASM := nasm
-QEMU := qemu-system-i386
+PATCHED_QEMU := $(abspath ../qemu-ascendancy/build-asc/qemu-system-i386-unsigned)
+QEMU ?= $(if $(LAINDOS_QEMU),$(LAINDOS_QEMU),$(if $(wildcard $(PATCHED_QEMU)),$(PATCHED_QEMU),qemu-system-i386))
 PYTHON := python3
 RUN_TEST := $(PYTHON) scripts/run_test.py
 TEST_JOBS ?= 4

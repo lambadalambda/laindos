@@ -1,0 +1,12 @@
+diff --git a/target/i386/tcg/emit.c.inc b/target/i386/tcg/emit.c.inc
+index ce636b6..50f47f0 100644
+--- a/target/i386/tcg/emit.c.inc
++++ b/target/i386/tcg/emit.c.inc
+@@ -3772,6 +3772,7 @@ static void gen_SAHF(DisasContext *s, X86DecodedInsn *decode)
+     tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, CC_O);
+     tcg_gen_andi_tl(s->T0, s->T0, CC_S | CC_Z | CC_A | CC_P | CC_C);
+     tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, s->T0);
++    set_cc_op(s, CC_OP_EFLAGS);
+ }
+ 
+ static void gen_SALC(DisasContext *s, X86DecodedInsn *decode)
