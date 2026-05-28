@@ -1801,3 +1801,15 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 ### Tests Run
 
 - `python3 scripts/test_stateapi.py`
+
+## 2026-05-28 Drive Allocation Data APIs
+
+### Confirmed Facts
+
+- Added `tests/programs/drivedata.asm` / `scripts/test_drivedata.py` for `INT 21h AH=1Bh` and `AH=1Ch` allocation-info compatibility.
+- Before implementation the regression failed on unhandled `INT 21h AH=1B` with `FAIL: DRIVEDATA AH1B`.
+- `AH=1Bh` now returns allocation data for the default drive. `AH=1Ch` accepts default-drive (`DL=0`) and supported logical drive requests, returns sectors per cluster, bytes per sector, total clusters, and `DS:BX` pointing at the BPB media descriptor byte, and returns `AL=FFh` for invalid drives.
+
+### Tests Run
+
+- `python3 scripts/test_drivedata.py`

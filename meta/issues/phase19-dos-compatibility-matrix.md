@@ -79,7 +79,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=30h` DOS version | implemented/minimal | medium | Keep target-version behavior explicit. |
 | `AH=36h` disk free | minimal stub | medium | Replace total-as-free with real FAT free cluster count. |
 | `AH=44h` IOCTL | minimal stub | high | Expand caller-driven subfunctions: get info, status, removable/local queries. |
-| `AH=1Bh/1Ch` drive data | missing | low/medium | Some installers query media geometry. |
+| `AH=1Bh/1Ch` drive data | implemented/partial | low/medium | Returns BPB allocation data and media ID for supported logical drives; invalid drive returns `AL=FFh`. |
 | `AH=33h/54h/2Eh` Ctrl-C and verify state | implemented/partial | low/medium | Break get/set, boot-drive, true-version, and verify get/set are covered by `STATEAPI`. |
 
 ### Deferred or Out of Scope Until Needed

@@ -68,6 +68,10 @@ int21_handler:
     je .get_drive
     cmp ah, 0x1A
     je .set_dta
+    cmp ah, 0x1B
+    je near .get_default_drive_data
+    cmp ah, 0x1C
+    je near .get_drive_data
     cmp ah, 0x25
     je .set_vector
     cmp ah, 0x29
@@ -375,6 +379,26 @@ int21_handler:
     mov [cs:dos_drive_letter], al
 .select_disk_return:
     mov al, [cs:dos_drive_count]
+    jmp iret_nc
+.get_default_drive_data:
+    xor dl, dl
+.get_drive_data:
+    test dl, dl
+    jz .gdd_valid_drive
+    mov al, [cs:dos_drive_count]
+    cmp dl, al
+    jbe .gdd_valid_drive
+    mov al, 0xFF
+    jmp iret_nc
+.gdd_valid_drive:
+    push cs
+    pop ds
+    mov bx, bpb_copy+21
+    xor ax, ax
+    mov al, [cs:kspc]
+    mov cx, [cs:bpb_copy+11]
+    mov dx, [cs:kmax_cluster]
+    sub dx, 2
     jmp iret_nc
 .set_dta:
     mov [cs:dta_off], dx
