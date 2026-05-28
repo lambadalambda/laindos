@@ -2,7 +2,7 @@
 - [ ] [Phase 19: DOS Compatibility Matrix](issues/phase19-dos-compatibility-matrix.md)
 - [ ] [Deduplicate INT 21h Exit Frames](issues/deduplicate-int21-exit-frames.md)
 - [ ] [Centralize Handle Initialization And Device Metadata](issues/centralize-handle-initialization-and-device-metadata.md)
-- [ ] [Extract Shared QEMU Test Harness](issues/extract-shared-qemu-test-harness.md)
+- [ ] [Continue QEMU Test Harness Consolidation](issues/continue-qemu-test-harness-consolidation.md)
 - [ ] [Improve FAT Write Durability And Rollback](issues/improve-fat-write-durability-and-rollback.md)
 - [ ] [Separate Sector Buffers From Read Cache](issues/separate-sector-buffers-from-read-cache.md)
 - [ ] [Fill Missing DOS Compatibility APIs](issues/fill-missing-dos-compatibility-apis.md)

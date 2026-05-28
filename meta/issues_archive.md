@@ -40,3 +40,4 @@
 - [x] [Harden MCB Walks And Memory Top Sizing](issues/harden-mcb-walks-and-memory-top-sizing.md)
 - [x] [Boot Wolfenstein 3D Shareware](issues/boot-wolfenstein-3d-shareware.md)
 - [x] [Wrap Environment Blocks In MCBs](issues/wrap-environment-blocks-in-mcbs.md)
+- [x] [Extract Shared QEMU Test Harness](issues/extract-shared-qemu-test-harness.md)
