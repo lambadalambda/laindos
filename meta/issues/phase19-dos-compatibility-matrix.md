@@ -78,7 +78,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=2Ah/2Bh/2Ch/2Dh` date/time | implemented/partial | medium | Date is state-backed; time advances from BIOS ticks until `AH=2Dh` sets explicit state. |
 | `AH=30h` DOS version | implemented/minimal | medium | Keep target-version behavior explicit. |
 | `AH=36h` disk free | minimal stub | medium | Replace total-as-free with real FAT free cluster count. |
-| `AH=44h` IOCTL | minimal stub | high | Expand caller-driven subfunctions: get info, status, removable/local queries. |
+| `AH=44h` IOCTL | implemented/partial | high | Covers get/set info, input/output status, removable drive query, and local drive/handle queries for local files/devices. |
 | `AH=1Bh/1Ch` drive data | implemented/partial | low/medium | Returns BPB allocation data and media ID for supported logical drives; invalid drive returns `AL=FFh`. |
 | `AH=33h/54h/2Eh` Ctrl-C and verify state | implemented/partial | low/medium | Break get/set, boot-drive, true-version, and verify get/set are covered by `STATEAPI`. |
 
@@ -88,7 +88,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | --- | --- | --- | --- |
 | FCB calls | missing/deferred | low | Implement only if a target program uses them. |
 | Sharing/locking `AH=5Ch` | missing/deferred | low | Single-tasking local DOS can return sensible unsupported/no-op behavior if needed. |
-| Network calls `AH=5Eh/5Fh`, IOCTL remote queries | missing/deferred | low | Return local/not-remote semantics only if callers require it. |
+| Network calls `AH=5Eh/5Fh` | missing/deferred | low | Return local/not-remote semantics only if callers require it. |
 | NLS/code pages `AH=38h/65h/66h` | missing/deferred | low | Defer unless installer/runtime requires country/code-page data. |
 | Installable DOS device drivers | missing/deferred | low | Prefer built-in device-name compatibility before CONFIG.SYS/device-driver work. |
 

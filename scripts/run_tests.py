@@ -36,6 +36,7 @@ DEFAULT_TESTS = [
     "scripts/test_drive.py",
     "scripts/test_dosstruct.py",
     "scripts/test_ioctlstat.py",
+    "scripts/test_ioctlext.py",
     "scripts/test_fat16.py",
     "scripts/test_partitioned_fat16.py",
     "scripts/test_fat16_large.py",

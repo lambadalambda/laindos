@@ -24,3 +24,4 @@ Reviews identified missing or skeletal DOS APIs that may affect installers, util
 - `INT 21h AH=5Ah/5Bh/67h` compatibility behavior is covered by `tests/programs/createapi.asm` / `scripts/test_createapi.py`; `AH=67h` is a no-op set-handle-count compatibility response and does not expand the fixed handle table.
 - `INT 21h AH=33h/54h/2Eh/2Bh/2Dh` compatibility state behavior is covered by `tests/programs/stateapi.asm` / `scripts/test_stateapi.py`.
 - `INT 21h AH=1Bh/1Ch` drive allocation data is covered by `tests/programs/drivedata.asm` / `scripts/test_drivedata.py`.
+- Extended `INT 21h AH=44h` IOCTL local compatibility is covered by `tests/programs/ioctlext.asm` / `scripts/test_ioctlext.py`.

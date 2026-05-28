@@ -3272,12 +3272,22 @@ int21_handler:
 .ioctl_no_trace:
     cmp al, 0
     je .ioctl_get
+    cmp al, 1
+    je .ioctl_set
     cmp al, 6
     je .ioctl_input_status
     cmp al, 7
     je .ioctl_output_status
+    cmp al, 8
+    je .ioctl_removable_drive
+    cmp al, 9
+    je .ioctl_local_drive
+    cmp al, 0x0A
+    je .ioctl_local_handle
     mov ax, 1
     jmp iret_cy
+.ioctl_set:
+    jmp .ioctl_get
 .ioctl_get:
     cmp bx, MAX_HANDLES
     jae .ioctl_bad_handle
@@ -3436,6 +3446,72 @@ int21_handler:
     mov ax, 0xFFFF
     jmp iret_nc
 .ioctl_output_bad_pop:
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    jmp .ioctl_bad_handle
+
+.ioctl_removable_drive:
+    call .ioctl_validate_drive_bl
+    jc .ioctl_bad_drive
+    xor ax, ax
+    cmp byte [cs:kdrv], 0x80
+    jb .ioctl_removable_done
+    mov ax, 1
+.ioctl_removable_done:
+    jmp iret_nc
+.ioctl_local_drive:
+    call .ioctl_validate_drive_bl
+    jc .ioctl_bad_drive
+    xor dx, dx
+    jmp iret_nc
+.ioctl_bad_drive:
+    mov ax, 15
+    jmp iret_cy
+.ioctl_validate_drive_bl:
+    test bl, bl
+    jz .ioctl_drive_ok
+    mov al, [cs:dos_drive_count]
+    cmp bl, al
+    jbe .ioctl_drive_ok
+    stc
+    ret
+.ioctl_drive_ok:
+    clc
+    ret
+.ioctl_local_handle:
+    cmp bx, MAX_HANDLES
+    jae .ioctl_bad_handle
+    cmp bx, 5
+    jae .ioctl_local_handle_table
+    push bx
+    push cx
+    push si
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    pop si
+    pop cx
+    pop bx
+    je .ioctl_local_handle_ok
+.ioctl_local_handle_table:
+    push bx
+    push cx
+    push dx
+    push si
+    call resolve_handle_for_use
+    jc .ioctl_local_handle_bad_pop
+    pop si
+    pop dx
+    pop cx
+    pop bx
+.ioctl_local_handle_ok:
+    xor dx, dx
+    jmp iret_nc
+.ioctl_local_handle_bad_pop:
     pop si
     pop dx
     pop cx

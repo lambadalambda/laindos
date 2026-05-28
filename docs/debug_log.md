@@ -1813,3 +1813,15 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 ### Tests Run
 
 - `python3 scripts/test_drivedata.py`
+
+## 2026-05-28 Extended IOCTL Compatibility
+
+### Confirmed Facts
+
+- Added `tests/programs/ioctlext.asm` / `scripts/test_ioctlext.py` for additional `INT 21h AH=44h` local IOCTL behavior.
+- Before implementation the regression failed at `AX=4401h` with `FAIL: IOCTLEXT SET INFO`.
+- `AX=4401h` now validates handles and returns current device information as a compatibility no-op. `AX=4408h` reports removable media for floppy-backed images and non-removable for hard-disk-backed images. `AX=4409h` and `AX=440Ah` report supported drives/handles as local, with invalid-drive and invalid-handle errors preserved.
+
+### Tests Run
+
+- `python3 scripts/test_ioctlext.py`
