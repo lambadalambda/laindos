@@ -1,6 +1,8 @@
 NASM := nasm
 PATCHED_QEMU := $(abspath ../qemu-ascendancy/build-asc/qemu-system-i386-unsigned)
+DEFAULT_QEMU_VGA := std,retrace=precise
 QEMU ?= $(if $(LAINDOS_QEMU),$(LAINDOS_QEMU),$(if $(wildcard $(PATCHED_QEMU)),$(PATCHED_QEMU),qemu-system-i386))
+QEMU_VGA ?= $(if $(LAINDOS_QEMU_VGA),$(LAINDOS_QEMU_VGA),$(DEFAULT_QEMU_VGA))
 PYTHON := python3
 RUN_TEST := $(PYTHON) scripts/run_test.py
 TEST_JOBS ?= 4
@@ -188,7 +190,7 @@ $(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(M
 	$(PYTHON) scripts/mkimage.py $< $(KERNEL_BIN) $@ $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(MEMTEST) $(CLOSETEST) $(REGTEST) $(MOUSETEST) $(MOUSEHW) $(MIIOTEST) $(WRITETEST) $(BIGRELOC) $(KEYTEST) $(EXTKEY) $(TIMETEST) $(OVLTEST) $(OVERLAY) $(SHELLCOM) $(EXECTEST) $(PSPTEST) $(PSPCHILD) $(CONSOLETEST) $(SAVEWR) $(DIRMUT) $(READWRAP) $(FREECOM) $(CTRUNCTEST) $(RNGUARDTEST) $(BADRELOCTEST) $(BADRELOCEXE) $(TESTFILE) MIDEMO:$(SUBTEST)
 
 run: $(DISK_IMG)
-	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -nographic
+	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -vga $(QEMU_VGA) -nographic
 
 test: $(DISK_IMG)
 	$(PYTHON) scripts/run_tests.py -j $(TEST_JOBS)

@@ -18,6 +18,7 @@ Typical command shape:
   -boot order=c \
   -serial stdio \
   -monitor unix:/tmp/laindos.sock,server,nowait \
+  -vga std,retrace=precise \
   -vnc 127.0.0.1:51 \
   -device sb16
 ```
@@ -41,6 +42,7 @@ General rules:
 - Hash screenshots when checking whether a screen is truly changing.
 - Do not wait a long time blindly if CPU sampling can show the active loop quickly.
 - Try short discriminator sweeps before deeper debugging: `-cpu ...`, `-vga ...`, sound on/off.
+- Use `-vga std,retrace=precise` for QEMU game runs so VGA status polling loops, including Wolf3D's `0x3DA` startup loop, see retrace transitions.
 - Keep QEMU regression runs sequential when they share `build/`.
 - Ascendancy needs the local QEMU `SAHF` fix unless your installed QEMU already includes it; see `docs/qemu-sahf-ccop.patch`.
 

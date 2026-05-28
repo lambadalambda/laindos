@@ -2427,6 +2427,8 @@ int21_handler:
     mov ax, [cs:si+handles+H_DIR_OFF]
     cmp ax, DEV_NUL
     je .rf_done
+    cmp ax, DEV_EMM
+    je .rf_done
     cmp ax, DEV_CON
     je .rf_con
     jmp .rf_err_pop
@@ -2705,6 +2707,8 @@ int21_handler:
 .wf_device:
     mov ax, [cs:si+handles+H_DIR_OFF]
     cmp ax, DEV_NUL
+    je .wf_device_done
+    cmp ax, DEV_EMM
     je .wf_device_done
     cmp ax, DEV_CON
     je .wf_device_con

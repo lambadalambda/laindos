@@ -2,6 +2,50 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-28 Wolfenstein 3D QEMU VGA Status Stall
+
+### Symptoms
+
+- The standalone `build/wolf3d.img` path under patched QEMU loads `WOLF3D.EXE` but stays on a black framebuffer.
+- Serial shows `EXE loaded` with no `EXC ` marker and no unhandled `INT 21h AH=` marker.
+
+### Confirmed Facts
+
+- The all-games hard disk now includes Wolf3D shareware files under `WOLF3D` from `vendor/wolf3dsw.zip`.
+- User confirmed the same `build/games_hd_all.img` starts Wolf3D fine in 86Box by running `C:\WOLF3D\WOLF3D.EXE`; it reaches the red hardware detection screen.
+- The 86Box screen detects mouse and Sound Blaster and reaches visible UI without EMS/XMS indicators, so XMS/EMS is not the startup blocker for this shareware path.
+- A QEMU monitor sample during the black screen lands in a real-mode loop reading VGA status port `0x3DA` with interrupts disabled.
+- A standalone VGA status probe shows QEMU's port `0x3DA` value changes while interrupts are enabled and the BIOS tick advances, but remains fixed at `0x09` during a tight `CLI` loop. `-icount shift=auto` did not change that behavior.
+- Running Wolf3D under real DOS 4.0 from `/Users/lainsoykaf/repos/MS-DOS/build/dos40.img` in QEMU, with the Wolf3D files exposed as `file=fat:rw:/Users/lainsoykaf/repos/laindos/build/wolf3d_files`, reproduces the same all-black framebuffer hash as the LainDOS/QEMU run: `f3ee47648d6ba080ffab59f9c5cc84d66a44ee6de07c5fa3edbe222e95021062`.
+- The real-DOS/QEMU stopped state also has `DX=0x03DA`, `EIP=0x66`, and `IF=0`, so the default-QEMU failure is independent of LainDOS.
+- The advisor hypothesis was right about the QEMU-side root class but wrong about which retrace setting would help on this build: explicit `-vga std,retrace=dumb` keeps the `CLI` VGA-status probe stuck at `0x09`, while `-vga std,retrace=precise` makes the probe pass.
+- `WOLF3D_VGA='std,retrace=precise' python3 build/run_wolf3d_probe.py` reaches visible Wolf3D output under LainDOS/QEMU: `sha256=3e88b7df9eec9e7c6eebf89b4d7442ea3f0b1a604973e50cb5dbea1633b961bd colors=79 nonblack=233588`.
+- `make run` and the interactive mise QEMU run tasks now default to `std,retrace=precise` through `QEMU_VGA` / `LAINDOS_QEMU_VGA`, including `run-games-hd-all`.
+- Added minimal XMS support: `INT 2Fh AX=4300h/4310h`, an XMS entry point for version/query/allocate/free/move/lock/unlock/handle-info, and `scripts/test_xms.py`.
+- Added minimal EMS support: `EMMXXXX0` device detection plus `INT 67h` status/page-frame/free-pages/allocate/map/free/version/handle-count/page-count behavior, and `scripts/test_ems.py`.
+- To make room for the new handlers, moved the sector buffer to `0x0920`, environment to `0x0940`, root buffer to `0x0960`, and kernel stack top to `0340:BC00` (`0x0F000` physical). Boot sectors now load the root directory at the same `0x0960` segment the kernel uses.
+- After XMS/EMS support, `WOLF3D_VGA='std,retrace=precise' python3 build/run_wolf3d_probe.py` produces `sha256=8a3e7874915bfd54ded0487c121c3a8ff27bcfb137e7162da3f19f091e8c7fb7 colors=80 nonblack=233588`; the screenshot shows EMS and XMS green through `1000`, while MAIN is green through `288` and dark at `320`.
+- `python3 build/run_wolf3d_keyprobe.py` presses through the startup screen and reaches the Wolf3D title screen: `sha256=8de1e718bb13e71876cc2756cb18e6cc1b592b66692c3a183efea5dadd5054f7 colors=135 nonblack=231496`, with no `EXC ` or unhandled `INT 21h AH=` marker.
+- Full `make test` passed with the new XMS/EMS tests included: `36/36` in 11.11s.
+- XMS `AH=0Bh` now has a backed move path. `scripts/test_xms.py` copies 32 bytes conventional-to-XMS, clears the destination, copies XMS-to-conventional, verifies the round trip, and checks that an out-of-bounds XMS source move fails.
+- Full `make test` passed after XMS move support and review cleanup: `36/36` in 10.96s.
+- EMS page mapping is now backed. The advertised page frame moved from the non-writable UMA/ROM area to a writable `9000h` conventional-memory window; `INT 67h AH=44h` saves/loads 16 KB pages through `INT 15h AH=87h`.
+- `scripts/test_ems.py` now verifies page-frame persistence by writing logical page 0, remapping page 1, then remapping page 0 and comparing the original bytes.
+- Reserving the frame from the MCB arena at `8000h`, `8C00h`, or `9000h` made Wolf3D fail with its not-enough-memory screen. The current `9000h` frame is therefore a compatibility window rather than a protected DOS allocation; this preserves Wolf3D's conventional memory but carries a collision risk for programs that also allocate/use that range directly.
+- With the unreserved writable `9000h` frame, `python3 build/run_wolf3d_smoke.py` reaches Wolf3D floor 1 with visible wall/floor textures and no `EXC `, `INT 21h AH=`, or `PML_MapEMS` marker. `WOLF_GAME_WAIT=20 python3 build/run_wolf3d_smoke.py` remains stable through the screenshot point.
+- Full `make test` passed after EMS backing and review cleanup: `36/36` in 11.09s, kernel `23719` bytes.
+- User then reproduced the expected collision risk interactively: one Wolf3D run reached gameplay and then crashed with `EXC 06 at 9999:9CA4` and bytes starting `C5 C8 CA D1...`; a second run did not crash. The bogus `9999` code segment and intermittence match execution through corrupted heap/data, most likely from the unreserved EMS frame overlapping Wolf3D conventional allocations.
+- Probed alternate non-MCB frame locations with `LAINDOS_EMS_FRAME_SEG=0xB000/0xC000/0xD000/0xE000 python3 scripts/test_ems.py`; all failed `FAIL: EMS BACKING`, so QEMU does not provide a usable non-overlapping writable upper-memory frame in this configuration.
+- EMS is now gated behind `ENABLE_EMS=1` and default builds hide `EMMXXXX0`/`INT 67h`. `scripts/test_ems.py` compiles with `-DENABLE_EMS=1` so the experimental backed implementation remains covered.
+- With default EMS hidden and XMS still enabled, `python3 build/run_wolf3d_smoke.py` reaches floor 1 with visible textures. Three repeated short smoke runs reached the screenshot point with no `EXC `, unhandled `INT 21h AH=`, or `PML_MapEMS` marker.
+- Full `make test` passed with EMS hidden by default, a safe absent `INT 67h` handler installed, and EMS explicitly enabled only for `scripts/test_ems.py`: `36/36` in 11.42s, default kernel `23137` bytes.
+
+### Follow-Ups
+
+- Treat Wolf3D startup as a QEMU VGA-status/timing issue unless a separate 86Box failure appears. Use `-vga std,retrace=precise` for QEMU Wolf3D runs.
+- The current XMS support includes backed `AH=0Bh` moves for the single allocated block. EMS has a backed single-handle implementation only when built with `ENABLE_EMS=1`; keep it hidden by default until there is a safe non-overlapping frame, UMB support, or a target that can tolerate the `9000h` compatibility window.
+- If QEMU support is desired, isolate a minimal `0x3DA`/`IF=0` reproducer for QEMU before changing LainDOS.
+
 ## 2026-05-28 Ascendancy QEMU SAHF Root Cause
 
 ### Symptoms

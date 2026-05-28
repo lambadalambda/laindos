@@ -11,9 +11,11 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 - Provides a small shell with `AUTOEXEC.BAT`, current directory support, environment/PATH handling, and parent/child `EXEC` coverage.
 - Implements the core DOS file APIs used by the current suite: open/read/write/seek/close, create/truncate, delete, rename, attributes, timestamps, disk free, FindFirst/FindNext, and writable FAT12/FAT16 paths.
 - Provides a built-in `INT 33h` mouse service backed by PS/2 mouse packets, including movement/buttons, callbacks, scaling, and edge clamping.
+- Provides minimal XMS APIs for game startup detection and backed XMS moves. Experimental backed EMS support exists behind `ENABLE_EMS=1` but is hidden in default builds.
 - Runs the Monkey Island demo and full VGA Monkey Island images when the corresponding local `vendor/` archives are present.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
-- `make test` currently runs the automated QEMU regression ladder and passes `34/34` tests.
+- Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
+- `make test` currently runs the automated QEMU regression ladder and passes `36/36` tests.
 
 ## Scope
 
@@ -24,6 +26,7 @@ Implemented or in active use:
 - Real-mode boot, FAT filesystem access, and DOS API dispatch.
 - FAT12, FAT16, raw HD images, and simple partitioned FAT16 images.
 - DOS memory allocation through MCBs.
+- Minimal XMS detection, query, allocation, handle-release behavior, and XMS block moves.
 - Basic device names and console I/O.
 - Minimal shell, batch startup, and PATH lookup.
 - Built-in mouse driver behavior for games that call `INT 33h` directly.
@@ -32,7 +35,7 @@ Still out of scope unless a target forces it:
 
 - Full `COMMAND.COM` compatibility.
 - Native DOS device driver loading or `CONFIG.SYS` processing.
-- EMS, XMS, UMB/HMA, load-high behavior, SHARE, redirectors, printing, or networking.
+- Full XMS multi-handle/reallocation/HMA behavior, full multi-handle EMS/named-handle behavior, UMB/HMA, load-high behavior, SHARE, redirectors, printing, or networking.
 - Implementing sound hardware in DOS; games talk to emulator-provided hardware such as `-device sb16` directly.
 - General DPMI/VCPI services. DOS extenders that manage protected mode themselves may work if their real-mode DOS calls and CPU assumptions are satisfied.
 
@@ -47,14 +50,17 @@ Current important segment layout:
 0040:0000  BIOS Data Area
 0060:0000  FAT scratch buffer
 0340:0000  relocated kernel
-08C0:0000  sector buffer
-08E0:0000  default environment block
-0920:0000  root directory buffer
+0920:0000  sector buffer
+0940:0000  default environment block
+0960:0000  root directory buffer
+0340:BC00  kernel stack top (physical 0F000)
 1000:0000  start of MCB-managed program memory
 A000:0000  VGA graphics memory
 ```
 
 Disk I/O delegates to BIOS `INT 13h`. Filesystem and DOS API layers are intentionally small and case-insensitive for 8.3 names.
+
+When built with `ENABLE_EMS=1`, the experimental EMS frame uses `9000:0000`. That frame is writable and backed, but it is not carved out of the DOS MCB arena; reserving 64 KiB there drops Wolfenstein 3D below its conventional-memory threshold, while leaving it unreserved can corrupt programs that also allocate that range. Default builds therefore hide EMS.
 
 The low-memory layout is tight. See `src/memory.inc` and the compile-time assertions near the end of `src/kernel.asm` before moving buffers or adding large kernel features.
 
@@ -113,10 +119,16 @@ Build the full VGA Monkey Island hard-disk image from `vendor/monkey_full.zip`:
 python3 scripts/build_monkey_full.py
 ```
 
-Build the all-games image with Monkey Island, Monkey Island 2, Simon demo, and Ascendancy when the corresponding local archives are present:
+Build the all-games image with Monkey Island, Monkey Island 2, Simon demo, Ascendancy, and Wolfenstein 3D shareware when the corresponding local archives are present:
 
 ```sh
 python3 scripts/build_games_hd_all.py
+```
+
+Build the experimental Wolfenstein 3D shareware image from `vendor/wolf3dsw.zip`:
+
+```sh
+python3 scripts/build_wolf3d.py
 ```
 
 Run the all-games image through mise:
@@ -124,6 +136,15 @@ Run the all-games image through mise:
 ```sh
 mise run run-games-hd-all
 ```
+
+Wolfenstein 3D also has mise helpers:
+
+```sh
+mise run build-wolf3d
+mise run run-wolf3d
+```
+
+Wolfenstein 3D needs QEMU's precise VGA retrace mode for the startup status-polling loop. Local QEMU run tasks default `LAINDOS_QEMU_VGA`/`QEMU_VGA` to `std,retrace=precise`; the default QEMU retrace path can leave it on a black screen even under real DOS.
 
 For interactive mouse testing, avoid `-nographic`; use a normal display, VNC, or the 86Box profile described in `docs/emulator_workflows.md`.
 

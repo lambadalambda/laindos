@@ -18,11 +18,13 @@ MI2_DEMO_ZIP = "vendor/mi2demo.zip"
 MI2_FULL_ZIP = "vendor/Monkey_Island_2_-_LeChucks_Revenge_1991.zip"
 SIMON_DEMO_ZIP = "vendor/simon1demo.zip"
 ASCENDANCY_ZIP = "vendor/Ascendancy_1995.zip"
+WOLF3D_ZIP = "vendor/wolf3dsw.zip"
 MONKEY_FULL_DIR = os.path.join(BUILDDIR, "monkey_full_files")
 MI2_DEMO_DIR = os.path.join(BUILDDIR, "mi2demo")
 MI2_FULL_DIR = os.path.join(BUILDDIR, "mi2full")
 SIMON_DEMO_DIR = os.path.join(BUILDDIR, "simon1demo")
 ASCENDANCY_DIR = os.path.join(BUILDDIR, "ascendancy")
+WOLF3D_DIR = os.path.join(BUILDDIR, "wolf3d")
 ASCENDANCY_FILES_DIR = os.path.join(ASCENDANCY_DIR, "ascendy")
 ASCENDANCY_CD_IMG = os.path.join(ASCENDANCY_FILES_DIR, "cd", "ascendancy.img")
 ASCENDANCY_CD_COB = os.path.join(ASCENDANCY_FILES_DIR, "ASCEND02.COB")
@@ -30,6 +32,17 @@ ASCENDANCY_COB_CFG = os.path.join(ASCENDANCY_FILES_DIR, "COB.CFG")
 RAW_CD_SECTOR = 2352
 ISO_SECTOR = 2048
 RAW_CD_DATA_OFF = 16
+WOLF3D_REQUIRED = {
+    "AUDIOHED.WL1",
+    "AUDIOT.WL1",
+    "GAMEMAPS.WL1",
+    "MAPHEAD.WL1",
+    "VGADICT.WL1",
+    "VGAGRAPH.WL1",
+    "VGAHEAD.WL1",
+    "VSWAP.WL1",
+    "WOLF3D.EXE",
+}
 
 
 def run(cmd):
@@ -75,6 +88,35 @@ def extract_flat(zip_path, output_dir):
                 continue
             with archive.open(info) as src, open(os.path.join(output_dir, basename), "wb") as dst:
                 dst.write(src.read())
+
+
+def extract_required_flat(zip_path, output_dir, required, label):
+    if not os.path.isfile(zip_path):
+        print(f"Missing {zip_path}", file=sys.stderr)
+        sys.exit(1)
+    if os.path.isdir(output_dir):
+        shutil.rmtree(output_dir)
+    os.makedirs(output_dir)
+    extracted = []
+    with zipfile.ZipFile(zip_path) as archive:
+        names = {os.path.basename(info.filename).upper() for info in archive.infolist() if not info.is_dir()}
+        missing = sorted(required - names)
+        if missing:
+            print(f"{label} archive is missing required files:", file=sys.stderr)
+            for name in missing:
+                print(f"  {name}", file=sys.stderr)
+            sys.exit(1)
+        for info in archive.infolist():
+            if info.is_dir():
+                continue
+            basename = os.path.basename(info.filename).upper()
+            if basename not in required:
+                continue
+            target = os.path.join(output_dir, basename)
+            with archive.open(info) as src, open(target, "wb") as dst:
+                dst.write(src.read())
+            extracted.append(target)
+    return sorted(extracted, key=lambda path: os.path.basename(path).upper())
 
 
 def files_in(dirname):
@@ -181,6 +223,7 @@ def main():
     safe_extract(MI2_FULL_ZIP, MI2_FULL_DIR)
     extract_flat(SIMON_DEMO_ZIP, SIMON_DEMO_DIR)
     safe_extract(ASCENDANCY_ZIP, ASCENDANCY_DIR)
+    wolf3d_files = extract_required_flat(WOLF3D_ZIP, WOLF3D_DIR, WOLF3D_REQUIRED, "Wolf3D")
     install_ascendancy_cd_cob()
 
     run(["nasm", "-f", "bin", "src/boot16.asm", "-o", BOOT])
@@ -226,6 +269,7 @@ def main():
     cmd.extend(f"MI2:{path}" for path in mi2_full_files)
     cmd.extend(f"SIMON:{path}" for path in files_in(SIMON_DEMO_DIR))
     cmd.extend(f"ASCEND:{path}" for path in ascendancy_files)
+    cmd.extend(f"WOLF3D:{path}" for path in wolf3d_files)
     run(cmd)
 
 

@@ -30,6 +30,10 @@ alloc_device_handle:
     je .supported
     cmp al, DEV_NUL
     je .supported
+%if ENABLE_EMS
+    cmp al, DEV_EMM
+    je .supported
+%endif
     mov ax, 5
     stc
     ret
@@ -85,6 +89,12 @@ detect_device_path:
 .read_name:
     cmp byte [ds:si], 0
     je .not_found
+%if ENABLE_EMS
+    push si
+    call match_emm_device
+    pop si
+    jnc .found_emm
+%endif
     call dev_upper_lodsb
     mov bl, al
     cmp byte [ds:si], 0
@@ -131,6 +141,11 @@ detect_device_path:
     cmp dl, 'N'
     jne .not_found
     mov al, DEV_PRN
+    jmp .found
+%if ENABLE_EMS
+.found_emm:
+    mov al, DEV_EMM
+%endif
 .found:
     pop si
     pop dx
@@ -167,6 +182,33 @@ dev_name_end:
 .yes:
     clc
     ret
+
+%if ENABLE_EMS
+match_emm_device:
+    call dev_upper_lodsb
+    cmp al, 'E'
+    jne .no
+    call dev_upper_lodsb
+    cmp al, 'M'
+    jne .no
+    call dev_upper_lodsb
+    cmp al, 'M'
+    jne .no
+    mov cx, 4
+.x_loop:
+    call dev_upper_lodsb
+    cmp al, 'X'
+    jne .no
+    loop .x_loop
+    lodsb
+    cmp al, '0'
+    jne .no
+    call dev_name_end
+    ret
+.no:
+    stc
+    ret
+%endif
 
 cur_dir_path_parent:
     push ax

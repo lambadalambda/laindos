@@ -16,3 +16,4 @@
 - [ ] [Extract Disk I/O CHS Helper](issues/extract-disk-io-chs-helper.md)
 - [ ] [Centralize Directory Slot Writeback](issues/centralize-directory-slot-writeback.md)
 - [ ] [Add Shell Command Dispatch Table](issues/add-shell-command-dispatch-table.md)
+- [ ] [Boot Wolfenstein 3D Shareware](issues/boot-wolfenstein-3d-shareware.md)

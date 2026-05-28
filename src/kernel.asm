@@ -10,7 +10,7 @@ VGA_ROWS equ 25
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x0060
-ROOT_SEG  equ 0x0920
+ROOT_SEG  equ 0x0960
 PSP_SEG   equ 0x3000
 TEMP_SEG  equ 0x4000
 
@@ -33,6 +33,16 @@ H_DIR_LBA_HI equ 26
 MAX_HANDLES equ 20
 SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
+KERNEL_STACK_TOP equ 0xBC00
+XMS_TOTAL_KB equ 1024
+EMS_TOTAL_PAGES equ 64
+%ifndef EMS_FRAME_SEG
+%define EMS_FRAME_SEG 0x9000
+%endif
+EMS_FRAME_PARAS equ 0x1000
+EMS_FRAME_PHYS_LO equ ((EMS_FRAME_SEG << 4) & 0xFFFF)
+EMS_FRAME_PHYS_HI equ ((EMS_FRAME_SEG << 4) >> 16)
+EMS_BACKING_HI equ 0x0020
 
 ATTR_RDONLY equ 0x01
 ATTR_HIDDEN equ 0x02
@@ -53,6 +63,7 @@ DEV_CON equ 1
 DEV_NUL equ 2
 DEV_AUX equ 3
 DEV_PRN equ 4
+DEV_EMM equ 5
 
 %ifndef TRACE_DOS
 %define TRACE_DOS 0
@@ -60,6 +71,10 @@ DEV_PRN equ 4
 
 %ifndef TRACE_EXEC_STATE
 %define TRACE_EXEC_STATE 0
+%endif
+
+%ifndef ENABLE_EMS
+%define ENABLE_EMS 0
 %endif
 
 kernel_entry:
@@ -91,7 +106,7 @@ kernel_entry:
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov sp, 0x5C00
+    mov sp, KERNEL_STACK_TOP
     sti
     cld
     fninit
@@ -605,6 +620,8 @@ init_interrupts:
     mov [es:0x20*4+2], cs
     mov [es:0x21*4], word int21_handler
     mov [es:0x21*4+2], cs
+    mov [es:0x2F*4], word int2f_handler
+    mov [es:0x2F*4+2], cs
     mov ax, kernel_entry
     mov [es:0x22*4], ax
     mov [es:0x22*4+2], cs
@@ -614,6 +631,13 @@ init_interrupts:
     mov [es:0x24*4+2], cs
     mov [es:0x33*4], word int33_handler
     mov [es:0x33*4+2], cs
+%if ENABLE_EMS
+    mov [es:0x67*4], word int67_handler
+    mov [es:0x67*4+2], cs
+%else
+    mov [es:0x67*4], word int67_absent_handler
+    mov [es:0x67*4+2], cs
+%endif
     mov [es:0x74*4], word irq12_handler
     mov [es:0x74*4+2], cs
     mov [es:0x01*4], word exc01_handler
@@ -723,6 +747,496 @@ int24_handler:
     mov al, 3
     iret
 
+int2f_handler:
+    cmp ax, 0x4300
+    je .xms_installed
+    cmp ax, 0x4310
+    je .xms_entry
+    xor al, al
+    iret
+.xms_installed:
+    mov al, 0x80
+    jmp iret_nc
+.xms_entry:
+    mov bx, xms_entry
+    push cs
+    pop es
+    jmp iret_nc
+
+xms_entry:
+    cmp ah, 0x00
+    je .version
+    cmp ah, 0x08
+    je .query
+    cmp ah, 0x09
+    je .alloc
+    cmp ah, 0x0A
+    je .free
+    cmp ah, 0x0B
+    je .move
+    cmp ah, 0x0C
+    je .lock
+    cmp ah, 0x0D
+    je .unlock
+    cmp ah, 0x0E
+    je .info
+    xor ax, ax
+    mov bl, 0x80
+    retf
+.version:
+    mov ax, 0x0200
+    xor bx, bx
+    xor dx, dx
+    retf
+.query:
+    mov ax, XMS_TOTAL_KB
+    sub ax, [cs:xms_alloc_kb]
+    mov dx, ax
+    xor bl, bl
+    retf
+.alloc:
+    cmp word [cs:xms_alloc_kb], 0
+    jne .no_mem
+    test dx, dx
+    jz .no_mem
+    cmp dx, XMS_TOTAL_KB
+    ja .no_mem
+    mov [cs:xms_alloc_kb], dx
+    mov ax, 1
+    mov dx, 1
+    xor bl, bl
+    retf
+.no_mem:
+    xor ax, ax
+    mov bl, 0xA0
+    retf
+.free:
+    cmp dx, 1
+    jne .bad_handle
+    cmp word [cs:xms_alloc_kb], 0
+    je .bad_handle
+    mov word [cs:xms_alloc_kb], 0
+    mov ax, 1
+    xor bl, bl
+    retf
+.move:
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    push es
+    mov ax, [ds:si]
+    mov [cs:xms_move_len], ax
+    mov dx, [ds:si+2]
+    test dx, dx
+    jnz .move_bad_len
+    test ax, 1
+    jnz .move_bad_len
+    test ax, ax
+    jz .move_ok
+    shr ax, 1
+    mov [cs:xms_move_words], ax
+    mov bx, [ds:si+4]
+    mov ax, [ds:si+6]
+    mov dx, [ds:si+8]
+    call xms_endpoint_phys
+    jc .move_bad_handle
+    mov [cs:xms_src_phys], ax
+    mov [cs:xms_src_phys+2], dx
+    mov bx, [ds:si+10]
+    mov ax, [ds:si+12]
+    mov dx, [ds:si+14]
+    call xms_endpoint_phys
+    jc .move_bad_handle
+    mov [cs:xms_dst_phys], ax
+    mov [cs:xms_dst_phys+2], dx
+    push cs
+    pop ds
+    mov ax, [cs:xms_move_len]
+    dec ax
+    mov di, xms_gdt + 0x10
+    mov bx, [cs:xms_src_phys]
+    mov dx, [cs:xms_src_phys+2]
+    call xms_set_desc
+    mov ax, [cs:xms_move_len]
+    dec ax
+    mov di, xms_gdt + 0x18
+    mov bx, [cs:xms_dst_phys]
+    mov dx, [cs:xms_dst_phys+2]
+    call xms_set_desc
+    mov ax, 0x8700
+    mov cx, [cs:xms_move_words]
+    mov si, xms_gdt
+    push cs
+    pop es
+    int 0x15
+    jc .move_failed
+    test ah, ah
+    jnz .move_failed
+.move_ok:
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    mov ax, 1
+    xor bl, bl
+    retf
+.move_bad_len:
+    mov bl, 0xA7
+    jmp .move_err
+.move_bad_handle:
+    mov bl, 0xA3
+    jmp .move_err
+.move_failed:
+    mov bl, 0xAB
+.move_err:
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    xor ax, ax
+    retf
+.info:
+    cmp dx, 1
+    jne .bad_handle
+    cmp word [cs:xms_alloc_kb], 0
+    je .bad_handle
+    mov ax, 1
+    xor bh, bh
+    xor bl, bl
+    mov dx, [cs:xms_alloc_kb]
+    retf
+.lock:
+    cmp dx, 1
+    jne .bad_handle
+    cmp word [cs:xms_alloc_kb], 0
+    je .bad_handle
+    mov ax, 1
+    xor bx, bx
+    mov dx, 0x0010
+    retf
+.unlock:
+    cmp dx, 1
+    jne .bad_handle
+    cmp word [cs:xms_alloc_kb], 0
+    je .bad_handle
+    mov ax, 1
+    xor bl, bl
+    retf
+.bad_handle:
+    xor ax, ax
+    mov bl, 0xA2
+    retf
+
+xms_endpoint_phys:
+    test bx, bx
+    jz xms_real_ptr_to_phys
+    cmp bx, 1
+    jne .bad
+    cmp word [cs:xms_alloc_kb], 0
+    je .bad
+    cmp dx, 0x0010
+    jae .bad
+    push ax
+    push dx
+    push cx
+    push di
+    mov cx, ax
+    mov di, dx
+    add cx, [cs:xms_move_len]
+    adc di, 0
+    mov ax, [cs:xms_alloc_kb]
+    mov dx, 1024
+    mul dx
+    cmp di, dx
+    ja .bad_pop
+    jb .in_bounds
+    cmp cx, ax
+    ja .bad_pop
+.in_bounds:
+    pop di
+    pop cx
+    pop dx
+    pop ax
+    add dx, 0x0010
+    clc
+    ret
+.bad_pop:
+    pop di
+    pop cx
+    pop dx
+    pop ax
+.bad:
+    stc
+    ret
+
+xms_real_ptr_to_phys:
+    push bx
+    push cx
+    mov bx, dx
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shl bx, 1
+    shr dx, 12
+    add ax, bx
+    adc dx, 0
+    pop cx
+    pop bx
+    clc
+    ret
+
+xms_set_desc:
+    mov [di], ax
+    mov [di+2], bx
+    mov [di+4], dl
+    mov byte [di+5], 0x93
+    mov word [di+6], 0
+    ret
+
+%if !ENABLE_EMS
+int67_absent_handler:
+    mov ah, 0x80
+    iret
+%endif
+
+%if ENABLE_EMS
+int67_handler:
+    cmp ah, 0x40
+    je .ok
+    cmp ah, 0x41
+    je .frame
+    cmp ah, 0x42
+    je .pages
+    cmp ah, 0x43
+    je .alloc
+    cmp ah, 0x44
+    je .map
+    cmp ah, 0x45
+    je .free
+    cmp ah, 0x46
+    je .version
+    cmp ah, 0x4B
+    je .handles
+    cmp ah, 0x4C
+    je .info
+    mov ah, 0x80
+    iret
+.ok:
+    xor ah, ah
+    iret
+.frame:
+    xor ah, ah
+    mov bx, EMS_FRAME_SEG
+    iret
+.pages:
+    mov bx, EMS_TOTAL_PAGES
+    sub bx, [cs:ems_alloc_pages]
+    mov dx, EMS_TOTAL_PAGES
+    xor ah, ah
+    iret
+.alloc:
+    cmp word [cs:ems_alloc_pages], 0
+    jne .no_pages
+    test bx, bx
+    jz .no_pages
+    cmp bx, EMS_TOTAL_PAGES
+    ja .no_pages
+    mov [cs:ems_alloc_pages], bx
+    call ems_clear_map
+    mov dx, 1
+    xor ah, ah
+    iret
+.no_pages:
+    mov ah, 0x88
+    iret
+.map:
+    cmp dx, 1
+    jne .bad_handle
+    cmp word [cs:ems_alloc_pages], 0
+    je .bad_handle
+    cmp al, 3
+    ja .bad_page
+    cmp bx, [cs:ems_alloc_pages]
+    jae .bad_page
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    push es
+    mov [cs:ems_req_phys], al
+    mov [cs:ems_req_logical], bx
+    xor bh, bh
+    mov bl, al
+    shl bx, 1
+    mov si, bx
+    mov bx, [cs:si+ems_map_pages]
+    cmp bx, 0xFFFF
+    je .map_load_new
+    call ems_logical_phys
+    mov [cs:xms_dst_phys], ax
+    mov [cs:xms_dst_phys+2], dx
+    mov al, [cs:ems_req_phys]
+    call ems_frame_phys
+    mov [cs:xms_src_phys], ax
+    mov [cs:xms_src_phys+2], dx
+    call ems_copy_16k
+    jc .map_io_error
+.map_load_new:
+    mov bx, [cs:ems_req_logical]
+    call ems_logical_phys
+    mov [cs:xms_src_phys], ax
+    mov [cs:xms_src_phys+2], dx
+    mov al, [cs:ems_req_phys]
+    call ems_frame_phys
+    mov [cs:xms_dst_phys], ax
+    mov [cs:xms_dst_phys+2], dx
+    call ems_copy_16k
+    jc .map_io_error
+    xor bh, bh
+    mov bl, [cs:ems_req_phys]
+    shl bx, 1
+    mov si, bx
+    mov bx, [cs:ems_req_logical]
+    mov [cs:si+ems_map_pages], bx
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    xor ah, ah
+    iret
+.map_io_error:
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    mov ah, 0x80
+    iret
+.bad_page:
+    mov ah, 0x8A
+    iret
+.free:
+    cmp dx, 1
+    jne .bad_handle
+    cmp word [cs:ems_alloc_pages], 0
+    je .bad_handle
+    mov word [cs:ems_alloc_pages], 0
+    call ems_clear_map
+    xor ah, ah
+    iret
+.version:
+    xor ah, ah
+    mov al, 0x40
+    iret
+.handles:
+    xor ah, ah
+    mov bx, 1
+    iret
+.info:
+    cmp dx, 1
+    jne .bad_handle
+    cmp word [cs:ems_alloc_pages], 0
+    je .bad_handle
+    mov bx, [cs:ems_alloc_pages]
+    xor ah, ah
+    iret
+.bad_handle:
+    mov ah, 0x83
+    iret
+
+ems_clear_map:
+    mov word [cs:ems_map_pages], 0xFFFF
+    mov word [cs:ems_map_pages+2], 0xFFFF
+    mov word [cs:ems_map_pages+4], 0xFFFF
+    mov word [cs:ems_map_pages+6], 0xFFFF
+    ret
+
+ems_logical_phys:
+    push cx
+    mov ax, bx
+    xor dx, dx
+    mov cx, 14
+.shift:
+    shl ax, 1
+    rcl dx, 1
+    loop .shift
+    add dx, EMS_BACKING_HI
+    pop cx
+    ret
+
+ems_frame_phys:
+    push cx
+    xor ah, ah
+    xor dx, dx
+    mov cx, 14
+.shift:
+    shl ax, 1
+    rcl dx, 1
+    loop .shift
+    add ax, EMS_FRAME_PHYS_LO
+    adc dx, EMS_FRAME_PHYS_HI
+    pop cx
+    ret
+
+ems_copy_16k:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    push es
+    push cs
+    pop ds
+    mov ax, 0x3FFF
+    mov di, xms_gdt + 0x10
+    mov bx, [cs:xms_src_phys]
+    mov dx, [cs:xms_src_phys+2]
+    call xms_set_desc
+    mov ax, 0x3FFF
+    mov di, xms_gdt + 0x18
+    mov bx, [cs:xms_dst_phys]
+    mov dx, [cs:xms_dst_phys+2]
+    call xms_set_desc
+    mov ax, 0x8700
+    mov cx, 0x2000
+    mov si, xms_gdt
+    push cs
+    pop es
+    int 0x15
+    jc .fail
+    test ah, ah
+    jnz .fail
+    clc
+    jmp .done
+.fail:
+    stc
+.done:
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+%endif
+
 do_terminate:
     push ds
     push si
@@ -731,6 +1245,11 @@ do_terminate:
     mov word [cs:mouse_callback_off], 0
     mov word [cs:mouse_callback_seg], 0
     mov byte [cs:mouse_in_callback], 0
+%if ENABLE_EMS
+    mov word [cs:ems_alloc_pages], 0
+    call ems_clear_map
+%endif
+    mov word [cs:xms_alloc_kb], 0
     call close_owned_handles
     mov byte [cs:console_ext_pending], 0
     mov si, [cs:mcb_first]
@@ -1614,6 +2133,18 @@ mouse_press_x_l: dw 320
 mouse_press_y_l: dw 100
 mouse_press_x_r: dw 320
 mouse_press_y_r: dw 100
+xms_alloc_kb: dw 0
+xms_move_len: dw 0
+xms_move_words: dw 0
+xms_src_phys: dd 0
+xms_dst_phys: dd 0
+xms_gdt: times 48 db 0
+%if ENABLE_EMS
+ems_alloc_pages: dw 0
+ems_map_pages: times 4 dw 0xFFFF
+ems_req_logical: dw 0
+ems_req_phys: db 0
+%endif
 kernel_end:
 
 %if mouse_callback_seg != (mouse_callback_off + 2)
@@ -1638,9 +2169,24 @@ kernel_end:
 %if ENV_SEG >= ROOT_SEG
 %error "ENV_SEG must remain below ROOT_SEG"
 %endif
-%if ROOT_SEG <= (RELOC_SEG + 0x05C0)
-%error "ROOT_SEG overlaps kernel stack"
+%if (ROOT_SEG + ROOT_BUF_PARAS) > (RELOC_SEG + (KERNEL_STACK_TOP / 16))
+%error "ROOT buffer overlaps kernel stack"
+%endif
+%if (RELOC_SEG + (KERNEL_STACK_TOP / 16)) > MCB_START
+%error "kernel stack overlaps MCB arena"
 %endif
 %if (ROOT_SEG + ROOT_BUF_PARAS) > MCB_START
 %error "ROOT_SEG overlaps MCB arena"
+%endif
+%if ENABLE_EMS && EMS_FRAME_SEG <= MCB_START
+%error "EMS frame must be inside conventional arena"
+%endif
+%if ENABLE_EMS && EMS_FRAME_SEG == MEM_TOP
+%error "EMS frame must not overlap VGA graphics memory"
+%endif
+%if ENABLE_EMS && (EMS_FRAME_SEG + EMS_FRAME_PARAS) > 0xF000
+%error "EMS frame must remain below system ROM"
+%endif
+%if ENABLE_EMS && (EMS_FRAME_SEG & 0x03FF) != 0
+%error "EMS frame must be 16K-aligned"
 %endif
