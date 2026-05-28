@@ -40,6 +40,8 @@ int33_handler:
     je .get_motion
     cmp ax, 0x000C
     je .set_callback
+    cmp ax, 0x000F
+    je .set_ratio
     iret
 .reset:
     mov word [cs:mouse_min_x], 0
@@ -58,6 +60,13 @@ int33_handler:
     mov word [cs:mouse_callback_mask], 0
     mov word [cs:mouse_callback_off], 0
     mov word [cs:mouse_callback_seg], 0
+    mov byte [cs:mouse_in_callback], 0
+    mov word [cs:mouse_ratio_x], 8
+    mov word [cs:mouse_ratio_y], 8
+    mov word [cs:mouse_scale_rem_x], 0
+    mov word [cs:mouse_scale_rem_y], 0
+    mov word [cs:mouse_event_dx], 0
+    mov word [cs:mouse_event_dy], 0
     mov ax, 0xFFFF
     mov bx, 2
     iret
@@ -75,6 +84,8 @@ int33_handler:
 .set_pos:
     mov [cs:mouse_x], cx
     mov [cs:mouse_y], dx
+    mov word [cs:mouse_scale_rem_x], 0
+    mov word [cs:mouse_scale_rem_y], 0
     push ax
     call mouse_clamp_position
     pop ax
@@ -140,6 +151,28 @@ int33_handler:
     mov [cs:mouse_callback_off], dx
     mov [cs:mouse_callback_seg], es
     iret
+.set_ratio:
+    test cx, cx
+    jnz .ratio_x_ok
+    inc cx
+.ratio_x_ok:
+    cmp cx, 2048
+    jbe .ratio_x_capped
+    mov cx, 2048
+.ratio_x_capped:
+    test dx, dx
+    jnz .ratio_y_ok
+    inc dx
+.ratio_y_ok:
+    cmp dx, 2048
+    jbe .ratio_y_capped
+    mov dx, 2048
+.ratio_y_capped:
+    mov [cs:mouse_ratio_x], cx
+    mov [cs:mouse_ratio_y], dx
+    mov word [cs:mouse_scale_rem_x], 0
+    mov word [cs:mouse_scale_rem_y], 0
+    iret
 
 mouse_trace_return:
     cmp word [cs:mouse_trace_left], 0
@@ -191,6 +224,74 @@ mouse_clamp_position:
     mov ax, [cs:mouse_max_y]
 .y_ok:
     mov [cs:mouse_y], ax
+    ret
+
+mouse_scale_x:
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    add ax, [cs:mouse_scale_rem_x]
+    cwd
+    idiv word [cs:mouse_ratio_x]
+    mov [cs:mouse_scale_rem_x], dx
+    ret
+
+mouse_scale_y:
+    shl ax, 1
+    shl ax, 1
+    shl ax, 1
+    add ax, [cs:mouse_scale_rem_y]
+    cwd
+    idiv word [cs:mouse_ratio_y]
+    mov [cs:mouse_scale_rem_y], dx
+    ret
+
+mouse_apply_delta_x:
+    mov bx, [cs:mouse_x]
+    test ax, ax
+    js .neg
+    add bx, ax
+    jc .max
+    cmp bx, [cs:mouse_max_x]
+    jbe .store
+.max:
+    mov bx, [cs:mouse_max_x]
+    jmp .store
+.neg:
+    neg ax
+    cmp bx, ax
+    jb .min
+    sub bx, ax
+    cmp bx, [cs:mouse_min_x]
+    jae .store
+.min:
+    mov bx, [cs:mouse_min_x]
+.store:
+    mov [cs:mouse_x], bx
+    ret
+
+mouse_apply_delta_y:
+    mov bx, [cs:mouse_y]
+    test ax, ax
+    js .neg
+    add bx, ax
+    jc .max
+    cmp bx, [cs:mouse_max_y]
+    jbe .store
+.max:
+    mov bx, [cs:mouse_max_y]
+    jmp .store
+.neg:
+    neg ax
+    cmp bx, ax
+    jb .min
+    sub bx, ax
+    cmp bx, [cs:mouse_min_y]
+    jae .store
+.min:
+    mov bx, [cs:mouse_min_y]
+.store:
+    mov [cs:mouse_y], bx
     ret
 
 mouse_init_ps2:
@@ -352,6 +453,9 @@ mouse_ps2_byte:
     mov byte [cs:mouse_packet_index], 2
     ret
 .packet:
+    mov word [cs:mouse_event_mask], 0
+    mov word [cs:mouse_event_dx], 0
+    mov word [cs:mouse_event_dy], 0
     mov al, [cs:mouse_packet0]
     and al, 0x07
     xor ah, ah
@@ -364,8 +468,14 @@ mouse_ps2_byte:
     jz .x_pos
     mov ah, 0xFF
 .x_pos:
+    test ax, ax
+    jz .x_no_event
+    or word [cs:mouse_event_mask], 0x0001
+.x_no_event:
+    mov [cs:mouse_event_dx], ax
     add [cs:mouse_motion_x], ax
-    add [cs:mouse_x], ax
+    call mouse_scale_x
+    call mouse_apply_delta_x
 .skip_x:
     test byte [cs:mouse_packet0], 0x80
     jnz .skip_y
@@ -375,17 +485,29 @@ mouse_ps2_byte:
     jz .y_pos
     mov ah, 0xFF
 .y_pos:
+    test ax, ax
+    jz .y_no_event
+    or word [cs:mouse_event_mask], 0x0001
+.y_no_event:
     neg ax
+    mov [cs:mouse_event_dy], ax
     add [cs:mouse_motion_y], ax
-    add [cs:mouse_y], ax
+    call mouse_scale_y
+    call mouse_apply_delta_y
 .skip_y:
     call mouse_clamp_position
     mov bx, [cs:mouse_buttons]
     mov ax, [cs:mouse_new_buttons]
     test bx, 0x0001
+    jz .left_was_up
+    test ax, 0x0001
     jnz .left_done
+    or word [cs:mouse_event_mask], 0x0004
+    jmp .left_done
+.left_was_up:
     test ax, 0x0001
     jz .left_done
+    or word [cs:mouse_event_mask], 0x0002
     inc word [cs:mouse_press_count_l]
     mov cx, [cs:mouse_x]
     mov [cs:mouse_press_x_l], cx
@@ -393,9 +515,15 @@ mouse_ps2_byte:
     mov [cs:mouse_press_y_l], cx
 .left_done:
     test bx, 0x0002
+    jz .right_was_up
+    test ax, 0x0002
     jnz .right_done
+    or word [cs:mouse_event_mask], 0x0010
+    jmp .right_done
+.right_was_up:
     test ax, 0x0002
     jz .right_done
+    or word [cs:mouse_event_mask], 0x0008
     inc word [cs:mouse_press_count_r]
     mov cx, [cs:mouse_x]
     mov [cs:mouse_press_x_r], cx
@@ -403,6 +531,33 @@ mouse_ps2_byte:
     mov [cs:mouse_press_y_r], cx
 .right_done:
     mov [cs:mouse_buttons], ax
+    call mouse_invoke_callback
+.done:
+    ret
+
+mouse_invoke_callback:
+    mov ax, [cs:mouse_event_mask]
+    test ax, [cs:mouse_callback_mask]
+    jz .done
+    cmp word [cs:mouse_callback_seg], 0
+    je .done
+    cmp byte [cs:mouse_in_callback], 0
+    jne .done
+    mov byte [cs:mouse_in_callback], 1
+    pusha
+    push ds
+    push es
+    and ax, [cs:mouse_callback_mask]
+    mov bx, [cs:mouse_buttons]
+    mov cx, [cs:mouse_x]
+    mov dx, [cs:mouse_y]
+    mov si, [cs:mouse_event_dx]
+    mov di, [cs:mouse_event_dy]
+    call far [cs:mouse_callback_off]
+    pop es
+    pop ds
+    popa
+    mov byte [cs:mouse_in_callback], 0
 .done:
     ret
 

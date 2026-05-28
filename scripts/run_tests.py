@@ -18,6 +18,8 @@ DEFAULT_TESTS = [
     "scripts/test_write.py",
     "scripts/test_bigreloc.py",
     "scripts/test_keyboard.py",
+    "scripts/test_mousecb.py",
+    "scripts/test_mouseratio.py",
     "scripts/test_overlay.py",
     "scripts/test_shell.py",
     "scripts/test_console.py",

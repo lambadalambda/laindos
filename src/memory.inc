@@ -2,8 +2,8 @@
 %define __MEMORY_INC__
 LOAD_SEG equ 0x1000
 RELOC_SEG equ 0x0340
-SEC_BUF equ 0x08A0
-ENV_SEG equ 0x08C0
+SEC_BUF equ 0x08C0
+ENV_SEG equ 0x08E0
 MCB_START equ 0x1000
 MEM_TOP equ 0xA000
 %if (MEM_TOP & 0xFF) != 0

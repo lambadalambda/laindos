@@ -1607,3 +1607,42 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - `make test`
 - `python3 scripts/test_monkey_full.py`
 - `git diff --check`
+## 2026-05-28 Ascendancy Play Screen Input Probe
+
+### Symptoms
+
+- User reported Ascendancy now reaches the play screen under 86Box but does not appear to react.
+- Initial suspicion is mouse/input rather than QEMU's known Ascendancy x87 stall, because this needs the 86Box path and QEMU is already known unreliable for this game.
+
+### Confirmed Facts
+
+- `/Applications/86Box.app/Contents/MacOS/86Box` exists on this host.
+- `vendor/Ascendancy_1995.zip` is present locally, and `python3 scripts/build_games_hd_all.py` rebuilt `build/games_hd_all.img` with the mouse-callback kernel.
+- Recreated the isolated 86Box profile under `build/86box-serial-file/` from the local `monkey` 86Box VM config/NVR, with `gfxcard = s3_trio64_pci`, PS/2 mouse, and COM1 on stdio.
+- Before this fix, built-in INT 33h support stored `AX=000Ch` callback state (`mouse_callback_mask`, `mouse_callback_off`, `mouse_callback_seg`) but never invoked the callback from PS/2 packet handling.
+- Phase 8 mouse notes explicitly left callback invocation as future compatibility work if another program requires it.
+- Implemented generic `INT 33h AX=000Ch` callback invocation on motion and left/right press/release events, with callback re-entrancy guard and callback cleanup on reset/process termination.
+- User-assisted 86Box Ascendancy run confirmed the mouse now works at the play screen, but movement was weirdly slow.
+- Added `INT 33h AX=000Fh` mickey/pixel ratio support. Position deltas are scaled by signed `delta * 8 / ratio` with signed remainders; raw motion counters and callback SI/DI remain raw mickeys.
+- Follow-up review noted callback SI/DI should be per-event rather than cumulative, so callback invocation now passes per-packet deltas while `AX=000Bh` keeps cumulative-since-last-query behavior.
+- Ratio inputs are clamped to nonzero values at or below 2048 to avoid bad guest input causing `idiv` faults or signed overflow.
+- User-assisted 86Box retest with `AX=000Fh` support confirmed Ascendancy mouse speed feels much better.
+- User reported mouse wraparound in multiple games: moving left past the minimum appeared at the right edge, and moving up past the minimum appeared at the bottom edge.
+- Root cause: scaled signed deltas were added directly into unsigned `mouse_x`/`mouse_y`, then the unsigned clamp saw underflowed values like `0xFFFF` and clamped them to the maximum edge.
+- Fixed position updates to apply scaled deltas through signed saturating helpers for X/Y before the final range clamp.
+- Extended `scripts/test_mouseratio.py`/`src/mouseratio.asm` with top-left and bottom-right edge regressions. The top-left case failed before the saturating add fix with `FAIL: MOUSERATIO EDGE` and passes after.
+- Current normal kernel size is `22488` bytes. A temporary attempt to move `SEC_BUF`/`ENV_SEG` to `0x08E0`/`0x0900` for more headroom caused an early `EXC 06` because `ENV_SEG=0x0900` collides with the kernel stack top at `CS:5C00`; that layout was reverted.
+
+### Tests Run
+
+- `python3 scripts/test_mousecb.py`
+- `python3 scripts/test_mouseratio.py`
+- `python3 -m py_compile scripts/test_mousecb.py scripts/test_mouseratio.py scripts/run_tests.py`
+- `git diff --check`
+- `make test` (`34/34` passed)
+- `python3 scripts/build_games_hd_all.py`
+
+### Next Probes
+
+- Run a short 86Box smoke with the rebuilt `build/games_hd_all.img` if more manual validation is needed.
+- If any game still has odd mouse behavior, add targeted tracing for its `INT 33h` setup calls and consider the next generic mouse-driver functions (`AX=0013h` double-speed threshold or `AX=001Ah/001Bh` sensitivity) rather than app-specific fixes.

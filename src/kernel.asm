@@ -727,6 +727,10 @@ do_terminate:
     push ds
     push si
     push ax
+    mov word [cs:mouse_callback_mask], 0
+    mov word [cs:mouse_callback_off], 0
+    mov word [cs:mouse_callback_seg], 0
+    mov byte [cs:mouse_in_callback], 0
     call close_owned_handles
     mov byte [cs:console_ext_pending], 0
     mov si, [cs:mcb_first]
@@ -1588,6 +1592,14 @@ mouse_log_ax: dw 0
 mouse_callback_mask: dw 0
 mouse_callback_off: dw 0
 mouse_callback_seg: dw 0
+mouse_event_mask: dw 0
+mouse_ratio_x: dw 8
+mouse_ratio_y: dw 8
+mouse_scale_rem_x: dw 0
+mouse_scale_rem_y: dw 0
+mouse_event_dx: dw 0
+mouse_event_dy: dw 0
+mouse_in_callback: db 0
 mouse_ps2_enabled: db 0
 mouse_cmd: db 0
 mouse_ps2_stage: db 0
@@ -1603,6 +1615,10 @@ mouse_press_y_l: dw 100
 mouse_press_x_r: dw 320
 mouse_press_y_r: dw 100
 kernel_end:
+
+%if mouse_callback_seg != (mouse_callback_off + 2)
+%error "mouse callback far pointer layout changed"
+%endif
 
 %if LOAD_SEG <= RELOC_SEG
 %error "LOAD_SEG must be above RELOC_SEG"
