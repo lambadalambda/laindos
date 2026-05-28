@@ -28,6 +28,7 @@ DEFAULT_TESTS = [
     "scripts/test_console.py",
     "scripts/test_devnames.py",
     "scripts/test_diskfree.py",
+    "scripts/test_dup.py",
     "scripts/test_drive.py",
     "scripts/test_dosstruct.py",
     "scripts/test_ioctlstat.py",

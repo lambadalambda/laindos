@@ -10,11 +10,11 @@ VGA_ROWS equ 25
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x0060
-ROOT_SEG  equ 0x0960
+ROOT_SEG  equ 0x09C0
 PSP_SEG   equ 0x3000
 TEMP_SEG  equ 0x4000
 
-HANDLE_SIZE equ 28
+HANDLE_SIZE equ 32
 H_USED      equ 0
 H_MODE      equ 1
 H_CLUSTER   equ 2
@@ -30,6 +30,9 @@ H_TIME      equ 20
 H_DATE      equ 22
 H_OWNER     equ 24
 H_DIR_LBA_HI equ 26
+H_REFCOUNT  equ 28
+H_ALIAS     equ 30
+H_ALIAS_NONE equ 0xFFFF
 MAX_HANDLES equ 20
 SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
@@ -1343,7 +1346,7 @@ close_owned_handles:
     mov ax, [cs:cur_psp]
     test ax, ax
     jz .done
-    mov word [cs:coh_index], 5
+    mov word [cs:coh_index], 0
 .loop:
     mov ax, [cs:coh_index]
     cmp ax, MAX_HANDLES
@@ -1351,23 +1354,13 @@ close_owned_handles:
     mov cx, HANDLE_SIZE
     mul cx
     mov bx, ax
-    cmp byte [cs:bx+handles+H_USED], 0
-    je .next
+    cmp byte [cs:bx+handles+H_USED], 1
+    jne .next
     mov ax, [cs:cur_psp]
     cmp [cs:bx+handles+H_OWNER], ax
     jne .next
-    mov ax, [cs:bx+handles+H_DIR_LBA]
-    or ax, [cs:bx+handles+H_DIR_LBA_HI]
-    je .mark_free
-    cmp byte [cs:bx+handles+H_MODE], 0
-    je .mark_free
-    mov si, bx
-    call flush_handle_dir_entry
-    call flush_fat
-.mark_free:
-    mov byte [cs:bx+handles+H_USED], 0
-    mov byte [cs:bx+handles+H_MODE], 0
-    mov word [cs:bx+handles+H_OWNER], 0
+    mov bx, [cs:coh_index]
+    call close_table_handle
 .next:
     inc word [cs:coh_index]
     jmp .loop
@@ -1930,6 +1923,11 @@ sf_req_hi: dw 0
 sf_ret_lo: dw 0
 sf_ret_hi: dw 0
 ioctl_func: db 0
+dup_root: dw 0
+dup_dest: dw 0
+dup_new_root: dw 0
+dup_status: dw 0
+dup_is_device: db 0
 
 cur_dir_cluster: dw 0
 cur_dir_path: times 64 db 0

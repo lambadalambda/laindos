@@ -1736,3 +1736,26 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - Run a short 86Box smoke with the rebuilt `build/games_hd_all.img` if more manual validation is needed.
 - If any game still has odd mouse behavior, add targeted tracing for its `INT 33h` setup calls and consider the next generic mouse-driver functions (`AX=0013h` double-speed threshold or `AX=001Ah/001Bh` sensitivity) rather than app-specific fixes.
+
+## 2026-05-28 Duplicate Handle API Regression Work
+
+### Confirmed Facts
+
+- Added `INT 21h AH=45h/46h` support with shared root handles, alias slots, and root refcounts so duplicate file handles share file position and close lifetime.
+- Initial `src/duptest.asm` failed with unhandled `INT 21h AH=45`; after implementation it verifies shared position, closing the original while aliases remain, forced duplication, bad-handle errors, forced duplicate over an aliased root, and forcing an alias back into a closed root slot.
+- The first full-suite run exposed `WRITE-STDERR` missing because standard-handle table checks used `mul` without preserving caller `DX`; preserving `DX` fixed `scripts/test_write.py`.
+- The next full-suite run exposed `FAIL: REGPRES IOCTL REGS` because IOCTL table paths returned with caller `SI` clobbered by `resolve_handle_for_use`; preserving `SI` fixed `scripts/test_regpres.py`.
+- Review highlighted the closed-root revival path and same-handle standard-slot validation. `DUPTEST` now covers revival, and `AH=46h BX==CX` validates explicit table entries for handles below 5 while preserving implicit CON behavior for unused standard slots.
+- To keep the enlarged kernel below scratch buffers, the sector buffer moved to `0x0980`, environment to `0x09A0`, and root buffer to `0x09C0`. The default kernel is currently `24707` bytes and the EMS-enabled kernel is `25289` bytes.
+
+### Tests Run
+
+- `python3 scripts/test_dup.py`
+- `python3 scripts/test_write.py`
+- `python3 scripts/test_regpres.py`
+- `python3 scripts/test_savewrite.py`
+- `python3 scripts/test_termflush.py`
+- `python3 scripts/test_readwrap.py`
+- `python3 scripts/test_console.py`
+- `python3 scripts/test_shell.py`
+- `make test` (`38/38` passed)

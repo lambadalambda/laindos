@@ -50,9 +50,9 @@ Current important segment layout:
 0040:0000  BIOS Data Area
 0060:0000  FAT scratch buffer
 0340:0000  relocated kernel
-0920:0000  sector buffer
-0940:0000  default environment block
-0960:0000  root directory buffer
+0980:0000  sector buffer
+09A0:0000  default environment block
+09C0:0000  root directory buffer
 0340:BC00  kernel stack top (physical 0F000)
 1000:0000  start of MCB-managed program memory
 A000:0000  VGA graphics memory

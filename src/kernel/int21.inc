@@ -48,6 +48,10 @@ int21_handler:
     je .file_attrs
     cmp ah, 0x44
     je .ioctl
+    cmp ah, 0x45
+    je .duplicate_handle
+    cmp ah, 0x46
+    je .force_duplicate_handle
     cmp ah, 0x47
     je .get_curdir
     cmp ah, 0x48
@@ -1935,6 +1939,8 @@ int21_handler:
     mov word [cs:bx+handles+H_DATE], FAT_DATE
     mov ax, [cs:cur_psp]
     mov [cs:bx+handles+H_OWNER], ax
+    mov word [cs:bx+handles+H_REFCOUNT], 1
+    mov word [cs:bx+handles+H_ALIAS], H_ALIAS_NONE
     pop cx
     pop bx
     pop di
@@ -2072,6 +2078,8 @@ int21_handler:
     mov [cs:di+handles+H_DATE], ax
     mov ax, [cs:cur_psp]
     mov [cs:di+handles+H_OWNER], ax
+    mov word [cs:di+handles+H_REFCOUNT], 1
+    mov word [cs:di+handles+H_ALIAS], H_ALIAS_NONE
     pop ax
     cmp word [cs:trace_left], 0
     je .of_no_handle_trace
@@ -2171,49 +2179,27 @@ int21_handler:
     popa
 .cf_no_trace:
     cmp bx, 5
-    jb .cf_std_handle
-    push bx
+    jae .cf_table_handle
+    push ax
     push cx
     push dx
     push si
     mov ax, bx
     mov cx, HANDLE_SIZE
     mul cx
-    mov bx, ax
-    cmp byte [cs:bx+handles+H_USED], 0
-    je .cf_invalid_pop
-    mov ax, [cs:bx+handles+H_DIR_LBA]
-    or ax, [cs:bx+handles+H_DIR_LBA_HI]
-    je .cf_mark_free
-    cmp byte [cs:bx+handles+H_MODE], 0
-    je .cf_mark_free
-    mov si, bx
-    call flush_handle_dir_entry
-    jc .cf_flush_err_pop
-    call flush_fat
-    jc .cf_flush_err_pop
-.cf_mark_free:
-    mov byte [cs:bx+handles+H_USED], 0
-    mov byte [cs:bx+handles+H_MODE], 0
-    mov word [cs:bx+handles+H_OWNER], 0
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
     pop si
     pop dx
     pop cx
-    pop bx
+    pop ax
+    je .cf_std_handle
+.cf_table_handle:
+    call close_table_handle
+    jc .cf_status_err
     jmp iret_nc
-.cf_flush_err_pop:
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    mov ax, 5
+.cf_status_err:
     jmp iret_cy
-.cf_invalid_pop:
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    jmp .cf_err
 .cf_std_handle:
     jmp iret_nc
 .cf_err:
@@ -2236,14 +2222,10 @@ int21_handler:
     mov [cs:rf_buf_seg], ds
     mov [cs:rf_start_buf_off], dx
     mov [cs:rf_start_buf_seg], ds
-    mov ax, bx
-    mov cx, HANDLE_SIZE
-    mul cx
-    mov [cs:rf_hoff], ax
-    mov si, ax
     mov word [cs:rf_read], 0
-    cmp byte [cs:si+handles+H_USED], 0
-    je .rf_err_pop
+    call resolve_handle_for_use
+    jc .rf_err_pop
+    mov [cs:rf_hoff], si
     mov ax, [cs:si+handles+H_DIR_LBA]
     or ax, [cs:si+handles+H_DIR_LBA_HI]
     je .rf_device
@@ -2496,7 +2478,22 @@ int21_handler:
     cmp bx, MAX_HANDLES
     jae .wf_invalid
     cmp bx, 5
-    jb .wf_stdio
+    jae .wf_file
+    push ax
+    push cx
+    push dx
+    push si
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    pop si
+    pop dx
+    pop cx
+    pop ax
+    je .wf_stdio
+.wf_file:
     push bx
     push cx
     push dx
@@ -2509,13 +2506,9 @@ int21_handler:
     mov word [cs:wf_written], 0
     mov [cs:wf_buf_off], dx
     mov [cs:wf_buf_seg], ds
-    mov ax, bx
-    mov cx, HANDLE_SIZE
-    mul cx
-    mov [cs:wf_hoff], ax
-    mov si, ax
-    cmp byte [cs:si+handles+H_USED], 0
-    je .wf_file_invalid_pop
+    call resolve_handle_for_use
+    jc .wf_file_invalid_pop
+    mov [cs:wf_hoff], si
     mov ax, [cs:si+handles+H_DIR_LBA]
     or ax, [cs:si+handles+H_DIR_LBA_HI]
     je .wf_device
@@ -2879,16 +2872,8 @@ int21_handler:
     mov [cs:sf_origin], al
     mov [cs:sf_req_lo], dx
     mov [cs:sf_req_hi], cx
-    push cx
-    push dx
-    mov ax, bx
-    mov cx, HANDLE_SIZE
-    mul cx
-    mov si, ax
-    pop dx
-    pop cx
-    cmp byte [cs:si+handles+H_USED], 0
-    je .sf_err_saved
+    call resolve_handle_for_use
+    jc .sf_err_saved
     cmp byte [cs:sf_origin], 0
     je .sf_start
     cmp byte [cs:sf_origin], 1
@@ -3073,10 +3058,10 @@ int21_handler:
     mov ax, 1
     jmp iret_cy
 .ioctl_get:
-    cmp bx, 5
-    jb .ioctl_stdio
     cmp bx, MAX_HANDLES
     jae .ioctl_bad_handle
+    cmp bx, 5
+    jae .ioctl_get_table
     push bx
     push ax
     push cx
@@ -3085,13 +3070,24 @@ int21_handler:
     mov cx, HANDLE_SIZE
     mul cx
     mov bx, ax
+    cmp byte [cs:bx+handles+H_USED], 0
     pop dx
     pop cx
     pop ax
-    cmp byte [cs:bx+handles+H_USED], 0
-    je .ioctl_bad_handle_pop
-    mov dx, [cs:bx+handles+H_DIR_LBA]
-    or dx, [cs:bx+handles+H_DIR_LBA_HI]
+    pop bx
+    je .ioctl_stdio
+.ioctl_get_table:
+    push bx
+    push ax
+    push cx
+    push si
+    call resolve_handle_for_use
+    jc .ioctl_get_bad_pop
+    mov dx, [cs:si+handles+H_DIR_LBA]
+    or dx, [cs:si+handles+H_DIR_LBA_HI]
+    pop si
+    pop cx
+    pop ax
     pop bx
     je .ioctl_stdio
     xor dh, dh
@@ -3100,17 +3096,20 @@ int21_handler:
 .ioctl_stdio:
     mov dx, 0x80D3
     jmp iret_nc
-.ioctl_bad_handle_pop:
+.ioctl_get_bad_pop:
+    pop si
+    pop cx
+    pop ax
     pop bx
 .ioctl_bad_handle:
     mov ax, 6
     jmp iret_cy
 
 .ioctl_input_status:
-    cmp bx, 5
-    jb .ioctl_input_stdio
     cmp bx, MAX_HANDLES
     jae .ioctl_bad_handle
+    cmp bx, 5
+    jae .ioctl_input_table
     push bx
     push cx
     push dx
@@ -3119,31 +3118,44 @@ int21_handler:
     mul cx
     mov bx, ax
     cmp byte [cs:bx+handles+H_USED], 0
-    je .ioctl_input_bad_pop
-    mov ax, [cs:bx+handles+H_DIR_LBA]
-    or ax, [cs:bx+handles+H_DIR_LBA_HI]
+    pop dx
+    pop cx
+    pop bx
+    je .ioctl_input_stdio
+.ioctl_input_table:
+    push bx
+    push cx
+    push dx
+    push si
+    call resolve_handle_for_use
+    jc .ioctl_input_bad_pop
+    mov ax, [cs:si+handles+H_DIR_LBA]
+    or ax, [cs:si+handles+H_DIR_LBA_HI]
     je .ioctl_input_device_pop
-    mov ax, [cs:bx+handles+H_POS_HI]
-    cmp ax, [cs:bx+handles+H_SIZE_HI]
+    mov ax, [cs:si+handles+H_POS_HI]
+    cmp ax, [cs:si+handles+H_SIZE_HI]
     jb .ioctl_input_ready_pop
     ja .ioctl_input_empty_pop
-    mov ax, [cs:bx+handles+H_POS_LO]
-    cmp ax, [cs:bx+handles+H_SIZE_LO]
+    mov ax, [cs:si+handles+H_POS_LO]
+    cmp ax, [cs:si+handles+H_SIZE_LO]
     jb .ioctl_input_ready_pop
 .ioctl_input_empty_pop:
+    pop si
     pop dx
     pop cx
     pop bx
     xor ax, ax
     jmp iret_nc
 .ioctl_input_ready_pop:
+    pop si
     pop dx
     pop cx
     pop bx
     mov ax, 0xFFFF
     jmp iret_nc
 .ioctl_input_device_pop:
-    mov ax, [cs:bx+handles+H_DIR_OFF]
+    mov ax, [cs:si+handles+H_DIR_OFF]
+    pop si
     pop dx
     pop cx
     pop bx
@@ -3152,6 +3164,7 @@ int21_handler:
     xor ax, ax
     jmp iret_nc
 .ioctl_input_bad_pop:
+    pop si
     pop dx
     pop cx
     pop bx
@@ -3170,16 +3183,31 @@ int21_handler:
     cmp bx, MAX_HANDLES
     jae .ioctl_bad_handle
     cmp bx, 5
-    jb .ioctl_output_ready
-    push bx
+    jae .ioctl_output_table
+    push ax
     push cx
     push dx
+    push si
     mov ax, bx
     mov cx, HANDLE_SIZE
     mul cx
-    mov bx, ax
-    cmp byte [cs:bx+handles+H_USED], 0
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    pop si
+    pop dx
+    pop cx
+    pop ax
+    je .ioctl_output_ready
+.ioctl_output_table:
+    push bx
+    push cx
+    push dx
+    push si
+    call resolve_handle_for_use
+    jc .ioctl_output_bad_pop
+    cmp byte [cs:si+handles+H_USED], 0
     je .ioctl_output_bad_pop
+    pop si
     pop dx
     pop cx
     pop bx
@@ -3187,10 +3215,166 @@ int21_handler:
     mov ax, 0xFFFF
     jmp iret_nc
 .ioctl_output_bad_pop:
+    pop si
     pop dx
     pop cx
     pop bx
     jmp .ioctl_bad_handle
+
+.duplicate_handle:
+    cmp bx, MAX_HANDLES
+    jae .dh_bad_handle
+    push bx
+    push dx
+    push si
+    cmp bx, 5
+    jae .dh_table_source
+    mov ax, bx
+    mov dx, HANDLE_SIZE
+    mul dx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    je .dh_implicit_std
+.dh_table_source:
+    call resolve_handle_for_use
+    jc .dh_bad_handle_pop
+    mov [cs:dup_root], ax
+    call alloc_handle
+    jc .dh_no_handles_pop
+    mov dx, [cs:dup_root]
+    call make_alias_handle
+    pop si
+    pop dx
+    pop bx
+    jmp iret_nc
+.dh_implicit_std:
+    mov al, DEV_CON
+    call alloc_device_handle
+    jc .dh_device_err_pop
+    pop si
+    pop dx
+    pop bx
+    jmp iret_nc
+.dh_device_err_pop:
+    mov [cs:dup_status], ax
+    pop si
+    pop dx
+    pop bx
+    mov ax, [cs:dup_status]
+    jmp iret_cy
+.dh_no_handles_pop:
+    pop si
+    pop dx
+    pop bx
+    mov ax, 4
+    jmp iret_cy
+.dh_bad_handle_pop:
+    pop si
+    pop dx
+    pop bx
+.dh_bad_handle:
+    mov ax, 6
+    jmp iret_cy
+
+.force_duplicate_handle:
+    cmp bx, MAX_HANDLES
+    jae .fdh_bad_handle
+    cmp cx, MAX_HANDLES
+    jae .fdh_bad_handle
+    cmp bx, cx
+    je .fdh_same_handle
+    push bx
+    push cx
+    push dx
+    push si
+    mov [cs:dup_dest], cx
+    mov byte [cs:dup_is_device], 0
+    cmp bx, 5
+    jae .fdh_table_source
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    jne .fdh_table_source
+    mov byte [cs:dup_is_device], 1
+    jmp .fdh_source_ready
+.fdh_table_source:
+    call resolve_handle_for_use
+    jc .fdh_bad_handle_pop
+    mov [cs:dup_root], ax
+    cmp ax, [cs:dup_dest]
+    jne .fdh_source_ready
+    mov si, ax
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 2
+    jne .fdh_ok_pop
+    inc word [cs:si+handles+H_REFCOUNT]
+    mov byte [cs:si+handles+H_USED], 1
+    jmp .fdh_ok_pop
+.fdh_source_ready:
+    mov bx, [cs:dup_dest]
+    call close_handle_for_replace
+    jc .fdh_close_err_pop
+.fdh_dest_free:
+    cmp byte [cs:dup_is_device], 0
+    je .fdh_make_alias
+    mov ax, [cs:dup_dest]
+    mov dl, DEV_CON
+    call make_device_handle_at
+    jmp .fdh_ok_pop
+.fdh_make_alias:
+    mov ax, [cs:dup_dest]
+    mov dx, [cs:dup_root]
+    call make_alias_handle
+.fdh_ok_pop:
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    jmp iret_nc
+.fdh_same_handle:
+    cmp bx, 5
+    jae .fdh_same_table
+    push ax
+    push cx
+    push dx
+    push si
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    pop si
+    pop dx
+    pop cx
+    pop ax
+    je .fdh_same_ok
+.fdh_same_table:
+    push si
+    call resolve_handle_for_use
+    pop si
+    jc .fdh_bad_handle
+.fdh_same_ok:
+    jmp iret_nc
+.fdh_close_err_pop:
+    mov [cs:dup_status], ax
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    mov ax, [cs:dup_status]
+    jmp iret_cy
+.fdh_bad_handle_pop:
+    pop si
+    pop dx
+    pop cx
+    pop bx
+.fdh_bad_handle:
+    mov ax, 6
+    jmp iret_cy
 
 .get_curdir:
     test dl, dl
@@ -3520,12 +3704,8 @@ int21_handler:
     mov [cs:ft_mode], al
     mov [cs:ft_time], cx
     mov [cs:ft_date], dx
-    mov ax, bx
-    mov cx, HANDLE_SIZE
-    mul cx
-    mov si, ax
-    cmp byte [cs:si+handles+H_USED], 0
-    je .ft_bad_handle_saved
+    call resolve_handle_for_use
+    jc .ft_bad_handle_saved
     cmp byte [cs:ft_mode], 0
     je .ft_get
     cmp byte [cs:ft_mode], 1

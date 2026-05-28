@@ -63,11 +63,386 @@ alloc_device_handle:
     mov word [cs:bx+handles+H_DATE], 0
     mov ax, [cs:cur_psp]
     mov [cs:bx+handles+H_OWNER], ax
+    mov word [cs:bx+handles+H_REFCOUNT], 1
+    mov word [cs:bx+handles+H_ALIAS], H_ALIAS_NONE
     pop ax
     clc
     ret
 .full:
     mov ax, 4
+    stc
+    ret
+
+resolve_handle_for_use:
+    cmp bx, MAX_HANDLES
+    jae .bad
+    push bx
+    push cx
+    push dx
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 1
+    jne .bad_pop
+    mov ax, [cs:si+handles+H_ALIAS]
+    cmp ax, H_ALIAS_NONE
+    je .direct
+    cmp ax, MAX_HANDLES
+    jae .bad_pop
+    mov bx, ax
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    je .bad_pop
+    cmp word [cs:si+handles+H_ALIAS], H_ALIAS_NONE
+    jne .bad_pop
+    mov ax, bx
+    pop dx
+    pop cx
+    pop bx
+    clc
+    ret
+.direct:
+    mov ax, bx
+    pop dx
+    pop cx
+    pop bx
+    clc
+    ret
+.bad_pop:
+    pop dx
+    pop cx
+    pop bx
+.bad:
+    stc
+    ret
+
+make_alias_handle:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    mov ax, dx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    inc word [cs:si+handles+H_REFCOUNT]
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    push ax
+    push bx
+    push cx
+    push dx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov bx, ax
+    mov byte [cs:bx+handles+H_USED], 1
+    mov byte [cs:bx+handles+H_MODE], 0
+    mov word [cs:bx+handles+H_CLUSTER], 0
+    mov word [cs:bx+handles+H_POS_LO], 0
+    mov word [cs:bx+handles+H_POS_HI], 0
+    mov word [cs:bx+handles+H_SIZE_LO], 0
+    mov word [cs:bx+handles+H_SIZE_HI], 0
+    mov word [cs:bx+handles+H_LAST_CLUSTER], 0
+    mov word [cs:bx+handles+H_LAST_INDEX], 0
+    mov word [cs:bx+handles+H_DIR_LBA], 0
+    mov word [cs:bx+handles+H_DIR_LBA_HI], 0
+    mov word [cs:bx+handles+H_DIR_OFF], 0
+    mov word [cs:bx+handles+H_TIME], 0
+    mov word [cs:bx+handles+H_DATE], 0
+    mov ax, [cs:cur_psp]
+    mov [cs:bx+handles+H_OWNER], ax
+    mov word [cs:bx+handles+H_REFCOUNT], 0
+    pop dx
+    mov [cs:bx+handles+H_ALIAS], dx
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+
+make_device_handle_at:
+    push ax
+    push bx
+    push cx
+    push dx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov bx, ax
+    mov byte [cs:bx+handles+H_USED], 1
+    mov byte [cs:bx+handles+H_MODE], 2
+    mov word [cs:bx+handles+H_CLUSTER], 0
+    mov word [cs:bx+handles+H_POS_LO], 0
+    mov word [cs:bx+handles+H_POS_HI], 0
+    mov word [cs:bx+handles+H_SIZE_LO], 0
+    mov word [cs:bx+handles+H_SIZE_HI], 0
+    mov word [cs:bx+handles+H_LAST_CLUSTER], 0
+    mov word [cs:bx+handles+H_LAST_INDEX], 0
+    mov word [cs:bx+handles+H_DIR_LBA], 0
+    mov word [cs:bx+handles+H_DIR_LBA_HI], 0
+    pop dx
+    xor dh, dh
+    mov [cs:bx+handles+H_DIR_OFF], dx
+    mov word [cs:bx+handles+H_TIME], 0
+    mov word [cs:bx+handles+H_DATE], 0
+    mov ax, [cs:cur_psp]
+    mov [cs:bx+handles+H_OWNER], ax
+    mov word [cs:bx+handles+H_REFCOUNT], 1
+    mov word [cs:bx+handles+H_ALIAS], H_ALIAS_NONE
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+
+close_table_handle:
+    cmp bx, MAX_HANDLES
+    jae .bad
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 1
+    jne .bad_pop
+    mov dx, [cs:si+handles+H_ALIAS]
+    cmp dx, H_ALIAS_NONE
+    je .master
+    mov byte [cs:si+handles+H_USED], 0
+    mov byte [cs:si+handles+H_MODE], 0
+    mov word [cs:si+handles+H_OWNER], 0
+    mov word [cs:si+handles+H_ALIAS], H_ALIAS_NONE
+    mov ax, dx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov di, ax
+    cmp byte [cs:di+handles+H_USED], 0
+    je .ok_pop
+    dec word [cs:di+handles+H_REFCOUNT]
+    jnz .ok_pop
+    mov si, di
+    call close_root_handle
+    jc .io_pop
+    jmp .ok_pop
+.master:
+    cmp word [cs:si+handles+H_REFCOUNT], 1
+    jbe .last_master
+    dec word [cs:si+handles+H_REFCOUNT]
+    mov byte [cs:si+handles+H_USED], 2
+    jmp .ok_pop
+.last_master:
+    call close_root_handle
+    jc .io_pop
+.ok_pop:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    clc
+    ret
+.io_pop:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    mov ax, 5
+    stc
+    ret
+.bad_pop:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+.bad:
+    mov ax, 6
+    stc
+    ret
+
+close_root_handle:
+    push si
+    mov ax, [cs:si+handles+H_DIR_LBA]
+    or ax, [cs:si+handles+H_DIR_LBA_HI]
+    je .mark_free
+    cmp byte [cs:si+handles+H_MODE], 0
+    je .mark_free
+    call flush_handle_dir_entry
+    jc .err
+    call flush_fat
+    jc .err
+.mark_free:
+    pop si
+    mov byte [cs:si+handles+H_USED], 0
+    mov byte [cs:si+handles+H_MODE], 0
+    mov word [cs:si+handles+H_OWNER], 0
+    mov word [cs:si+handles+H_REFCOUNT], 0
+    mov word [cs:si+handles+H_ALIAS], H_ALIAS_NONE
+    clc
+    ret
+.err:
+    pop si
+    stc
+    ret
+
+close_handle_for_replace:
+    cmp bx, MAX_HANDLES
+    jae .bad
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    mov [cs:dup_dest], bx
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    je .ok_pop
+    cmp byte [cs:si+handles+H_USED], 1
+    je .used
+    cmp byte [cs:si+handles+H_USED], 2
+    je .closed_root
+    jmp .bad_pop
+.used:
+    mov dx, [cs:si+handles+H_ALIAS]
+    cmp dx, H_ALIAS_NONE
+    je .used_root
+    call close_table_handle
+    jc .io_pop
+    jmp .ok_pop
+.used_root:
+    mov cx, [cs:si+handles+H_REFCOUNT]
+    cmp cx, 1
+    ja .used_root_shared
+    call close_root_handle
+    jc .io_pop
+    jmp .ok_pop
+.used_root_shared:
+    dec cx
+    jmp .promote_alias
+.closed_root:
+    mov cx, [cs:si+handles+H_REFCOUNT]
+    test cx, cx
+    jnz .promote_alias
+    mov byte [cs:si+handles+H_USED], 0
+    mov byte [cs:si+handles+H_MODE], 0
+    mov word [cs:si+handles+H_OWNER], 0
+    mov word [cs:si+handles+H_ALIAS], H_ALIAS_NONE
+    jmp .ok_pop
+.promote_alias:
+    mov [cs:dup_status], cx
+    xor di, di
+.find_alias_loop:
+    cmp di, MAX_HANDLES
+    jae .bad_pop
+    mov ax, di
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov bx, ax
+    cmp byte [cs:bx+handles+H_USED], 1
+    jne .find_alias_next
+    mov ax, [cs:bx+handles+H_ALIAS]
+    cmp ax, [cs:dup_dest]
+    je .found_alias
+.find_alias_next:
+    inc di
+    jmp .find_alias_loop
+.found_alias:
+    mov [cs:dup_new_root], di
+    mov di, bx
+    mov al, [cs:si+handles+H_MODE]
+    mov [cs:di+handles+H_MODE], al
+    mov ax, [cs:si+handles+H_CLUSTER]
+    mov [cs:di+handles+H_CLUSTER], ax
+    mov ax, [cs:si+handles+H_POS_LO]
+    mov [cs:di+handles+H_POS_LO], ax
+    mov ax, [cs:si+handles+H_POS_HI]
+    mov [cs:di+handles+H_POS_HI], ax
+    mov ax, [cs:si+handles+H_SIZE_LO]
+    mov [cs:di+handles+H_SIZE_LO], ax
+    mov ax, [cs:si+handles+H_SIZE_HI]
+    mov [cs:di+handles+H_SIZE_HI], ax
+    mov ax, [cs:si+handles+H_LAST_CLUSTER]
+    mov [cs:di+handles+H_LAST_CLUSTER], ax
+    mov ax, [cs:si+handles+H_LAST_INDEX]
+    mov [cs:di+handles+H_LAST_INDEX], ax
+    mov ax, [cs:si+handles+H_DIR_LBA]
+    mov [cs:di+handles+H_DIR_LBA], ax
+    mov ax, [cs:si+handles+H_DIR_OFF]
+    mov [cs:di+handles+H_DIR_OFF], ax
+    mov ax, [cs:si+handles+H_TIME]
+    mov [cs:di+handles+H_TIME], ax
+    mov ax, [cs:si+handles+H_DATE]
+    mov [cs:di+handles+H_DATE], ax
+    mov ax, [cs:si+handles+H_DIR_LBA_HI]
+    mov [cs:di+handles+H_DIR_LBA_HI], ax
+    mov ax, [cs:dup_status]
+    mov [cs:di+handles+H_REFCOUNT], ax
+    mov word [cs:di+handles+H_ALIAS], H_ALIAS_NONE
+    xor bx, bx
+.update_alias_loop:
+    cmp bx, MAX_HANDLES
+    jae .free_old_root
+    cmp bx, [cs:dup_new_root]
+    je .update_alias_next
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov di, ax
+    cmp byte [cs:di+handles+H_USED], 1
+    jne .update_alias_next
+    mov ax, [cs:di+handles+H_ALIAS]
+    cmp ax, [cs:dup_dest]
+    jne .update_alias_next
+    mov ax, [cs:dup_new_root]
+    mov [cs:di+handles+H_ALIAS], ax
+.update_alias_next:
+    inc bx
+    jmp .update_alias_loop
+.free_old_root:
+    mov byte [cs:si+handles+H_USED], 0
+    mov byte [cs:si+handles+H_MODE], 0
+    mov word [cs:si+handles+H_OWNER], 0
+    mov word [cs:si+handles+H_REFCOUNT], 0
+    mov word [cs:si+handles+H_ALIAS], H_ALIAS_NONE
+.ok_pop:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    clc
+    ret
+.io_pop:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    mov ax, 5
+    stc
+    ret
+.bad_pop:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+.bad:
+    mov ax, 6
     stc
     ret
 
