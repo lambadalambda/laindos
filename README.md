@@ -93,6 +93,12 @@ Build the shell-boot Monkey Island demo floppy image:
 make monkey-demo
 ```
 
+Build the package published by the `nightly` GitHub release:
+
+```sh
+make nightly-package
+```
+
 Run the Monkey Island demo floppy in QEMU:
 
 ```sh
@@ -142,6 +148,8 @@ make monkey-demo
 ```
 
 The generated image is `build/shell_monkey.img`. Booting it starts the LainDOS shell at `A:\>`; run the demo with `midemo`.
+
+The `nightly` GitHub release is updated after each successful push to `main` with `laindos-monkey-demo-nightly.zip`, containing the bootable demo floppy image and usage notes.
 
 Build the older direct-boot Monkey Island demo image:
 

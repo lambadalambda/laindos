@@ -4,6 +4,13 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -13,5 +20,26 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y nasm qemu-system-x86
       - name: Run regression suite
         run: make test
-      - name: Build Monkey Island demo floppy
-        run: make monkey-demo
+      - name: Build Monkey Island demo package
+        run: make nightly-package
+      - name: Publish nightly release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git tag -f nightly "$GITHUB_SHA"
+          git push --force origin refs/tags/nightly
+
+          notes="$(mktemp)"
+          printf 'Automated nightly package for commit `%s`.\n\nThis release is updated after every successful push to `main`.\n' "$GITHUB_SHA" > "$notes"
+
+          if gh release view nightly >/dev/null 2>&1; then
+            gh release edit nightly --title "Nightly" --notes-file "$notes" --latest=false
+          else
+            gh release create nightly --title "Nightly" --notes-file "$notes" --latest=false
+          fi
+
+          gh release upload nightly \
+            build/laindos-monkey-demo-nightly.zip \
+            build/laindos-monkey-demo-nightly.zip.sha256 \
+            --clobber
