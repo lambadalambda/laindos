@@ -12,7 +12,7 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 - Implements the core DOS file APIs used by the current suite: open/read/write/seek/close, create/truncate, delete, rename, attributes, timestamps, disk free, FindFirst/FindNext, and writable FAT12/FAT16 paths.
 - Provides a built-in `INT 33h` mouse service backed by PS/2 mouse packets, including movement/buttons, callbacks, scaling, and edge clamping.
 - Provides minimal single-handle XMS APIs for game startup detection and backed XMS moves, using BIOS-reported extended memory capped at 15 MiB. Experimental backed EMS support exists behind `ENABLE_EMS=1` but is hidden in default builds.
-- Builds and runs a shell-boot Monkey Island demo floppy when the corresponding local `vendor/` files are present.
+- Builds and runs the bundled shell-boot Monkey Island demo floppy.
 - Runs the full VGA Monkey Island image when `vendor/monkey_full.zip` is present.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
@@ -135,7 +135,7 @@ QEMU selection order for tests and `make run`:
 
 ## Game Images
 
-Build the shell-boot Monkey Island demo floppy from loose files under `vendor/`:
+Build the shell-boot Monkey Island demo floppy from the bundled demo files under `vendor/`:
 
 ```sh
 make monkey-demo
@@ -149,7 +149,7 @@ Build the older direct-boot Monkey Island demo image:
 python3 scripts/build_monkey.py
 ```
 
-Game archives and loose game files are intentionally ignored under `vendor/`; provide them locally before running game-image builders or smoke tests.
+The Monkey Island demo loose files are tracked under `vendor/`; other game archives and loose game files remain ignored and should be provided locally before running the full-game builders or smoke tests.
 
 Build the full VGA Monkey Island hard-disk image from `vendor/monkey_full.zip`:
 

@@ -13,3 +13,5 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y nasm qemu-system-x86
       - name: Run regression suite
         run: make test
+      - name: Build Monkey Island demo floppy
+        run: make monkey-demo
