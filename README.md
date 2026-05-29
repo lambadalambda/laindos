@@ -209,6 +209,10 @@ For interactive mouse testing, avoid `-nographic`; use a normal display, VNC, or
 - If 86Box progresses but QEMU stalls, check `docs/emulator_workflows.md` and `docs/debug_log.md` before changing DOS behavior.
 - The current local QEMU workaround is saved as `docs/qemu-sahf-ccop.patch` and is committed separately in the sibling QEMU clone as `06cbfb3 target/i386: mark SAHF flags as materialized`.
 
+## Interactive Documentation
+
+`docs/site/` contains a static, browser-based walkthrough of the boot path with an embedded v86 emulator that runs `shell_monkey.img` in-page. The `.github/workflows/pages.yml` workflow builds the disk image (`make monkey-demo`), stages `docs/site/` plus the image, and publishes them to GitHub Pages on every push to `main`. To enable: in the repository's *Settings → Pages*, set **Source** to **GitHub Actions**.
+
 ## Project Tracking
 
 - Open work lives in `meta/issues.md` and detailed files under `meta/issues/`.

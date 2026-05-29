@@ -1,0 +1,76 @@
+// v86machine.jsx — real x86 emulation via v86, booting the LainDOS floppy.
+// The image is served same-origin from GitHub Pages so cross-origin reads work.
+const LAIN_IMG_URL = "shell_monkey.img";
+
+function V86Machine({ bootKey, onStatus }) {
+  const screenRef = React.useRef(null);
+  const termRef = React.useRef(null);
+  const [view, setView] = React.useState("screen");
+  const T = window.T;
+
+  const writeByte = React.useCallback((b) => {
+    const el = termRef.current;
+    if (!el) return;
+    if (b === 8 || b === 127) el.textContent = el.textContent.slice(0, -1);
+    else if (b === 13) { /* ignore CR; LF drives newlines */ }
+    else el.textContent += String.fromCharCode(b);
+    el.scrollTop = el.scrollHeight;
+  }, []);
+
+  React.useEffect(() => {
+    if (!window.V86) { onStatus("error", "v86 library did not load"); return; }
+    const screen = screenRef.current;
+    if (!screen) { onStatus("error", "screen container did not mount"); return; }
+    screen.replaceChildren(document.createElement("div"), document.createElement("canvas"));
+    if (termRef.current) termRef.current.textContent = "";
+    setView("screen");
+    let started = false, emu;
+    try {
+      emu = new window.V86({
+        wasm_path: "https://cdn.jsdelivr.net/npm/v86/build/v86.wasm",
+        screen_container: screen,
+        bios: { url: "https://cdn.jsdelivr.net/npm/v86/bios/seabios.bin" },
+        vga_bios: { url: "https://cdn.jsdelivr.net/npm/v86/bios/bochs-vgabios.bin" },
+        fda: { url: LAIN_IMG_URL },
+        memory_size: 32 * 1024 * 1024,
+        vga_memory_size: 8 * 1024 * 1024,
+        autostart: true,
+      });
+    } catch (e) {
+      onStatus("error", String(e && e.message || e));
+      return;
+    }
+    onStatus("booting");
+    emu.add_listener("emulator-started", () => { started = true; onStatus("running"); });
+    emu.add_listener("serial0-output-byte", writeByte);
+    emu.add_listener("download-error", () => onStatus("error", "could not load the floppy image"));
+    const t = setTimeout(() => { if (!started) onStatus("stalled"); }, 14000);
+    return () => {
+      clearTimeout(t);
+      try { emu.destroy && emu.destroy(); } catch (e) {}
+      screen.replaceChildren();
+    };
+  }, [bootKey, onStatus, writeByte]);
+
+  const seg = (v, label) => (
+    <button key={v} onClick={() => setView(v)} style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, padding: "4px 10px", cursor: "pointer",
+      border: `1px solid ${view === v ? T.amber : T.line}`, borderRadius: 6,
+      background: view === v ? "#1a1a12" : "rgba(0,0,0,0.5)", color: view === v ? T.amber : T.dim }}>{label}</button>
+  );
+
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div ref={screenRef} className="v86-screen" style={{ display: view === "screen" ? "flex" : "none",
+        position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", background: "#000" }} />
+      <pre ref={termRef} className="v86-term" style={{ display: view === "serial" ? "block" : "none",
+        position: "absolute", inset: 0, margin: 0, overflow: "auto", padding: "12px 14px" }} />
+      <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 5, zIndex: 5 }}>
+        {seg("screen", "Screen")}
+        {seg("serial", "Serial · COM1")}
+      </div>
+    </div>
+  );
+}
+window.V86Machine = V86Machine;
+window.LAIN_IMG_URL = LAIN_IMG_URL;
