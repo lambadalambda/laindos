@@ -1942,6 +1942,7 @@ saved_ss:  dw 0
 saved_sp:  dw 0
 com_stack_top: dw 0
 exec_env_seg: dw 0
+exec_env_owned: db 0
 vga_row:   dw 0
 vga_col:   dw 0
 console_ext_pending: db 0

@@ -1,5 +1,6 @@
 load_exec_program:
     mov word [cs:exec_env_seg], 0
+    mov byte [cs:exec_env_owned], 0
     mov ds, [cs:exec_path_seg]
     mov si, [cs:exec_path_off]
     call resolve_path
@@ -254,11 +255,25 @@ exec_copy_command_tail:
 
 update_exec_environment_path:
     push ax
+    push bx
     push cx
     push ds
     push es
     push si
     push di
+    mov ax, [cs:exec_param_seg]
+    test ax, ax
+    jz .default_env
+    mov ds, ax
+    mov bx, [cs:exec_param_off]
+    mov ax, [bx]
+    test ax, ax
+    jz .default_env
+    mov [cs:exec_env_seg], ax
+    mov byte [cs:exec_env_owned], 0
+    clc
+    jmp .done
+.default_env:
     call alloc_exec_environment
     jc .fail
     mov ax, [cs:exec_env_seg]
@@ -344,6 +359,7 @@ update_exec_environment_path:
     pop es
     pop ds
     pop cx
+    pop bx
     pop ax
     ret
 
@@ -351,10 +367,12 @@ alloc_exec_environment:
     push bx
     push ds
     mov word [cs:exec_env_seg], 0
+    mov byte [cs:exec_env_owned], 0
     mov bx, ENV_PARAS
     call alloc_mem_direct
     jc .fail
     mov [cs:exec_env_seg], ax
+    mov byte [cs:exec_env_owned], 1
     push ax
     dec ax
     mov ds, ax
@@ -376,6 +394,8 @@ free_exec_environment:
     mov ax, [cs:exec_env_seg]
     test ax, ax
     jz .done
+    cmp byte [cs:exec_env_owned], 1
+    jne .clear
     dec ax
     mov ds, ax
     cmp byte [ds:0], MCB_SIG_M
@@ -386,6 +406,7 @@ free_exec_environment:
     mov word [ds:1], 0
 .clear:
     mov word [cs:exec_env_seg], 0
+    mov byte [cs:exec_env_owned], 0
 .done:
     pop ds
     pop ax
@@ -398,6 +419,8 @@ assign_exec_environment_owner:
     mov bx, [cs:exec_env_seg]
     test bx, bx
     jz .done
+    cmp byte [cs:exec_env_owned], 1
+    jne .done
     dec bx
     mov ds, bx
     cmp byte [ds:0], MCB_SIG_M
