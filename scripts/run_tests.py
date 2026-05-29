@@ -39,6 +39,7 @@ DEFAULT_TESTS = [
     "scripts/test_dup.py",
     "scripts/test_commit.py",
     "scripts/test_createapi.py",
+    "scripts/test_handlecnt.py",
     "scripts/test_drive.py",
     "scripts/test_dosstruct.py",
     "scripts/test_parsefcb.py",

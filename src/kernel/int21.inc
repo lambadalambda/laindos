@@ -3915,9 +3915,4 @@ int21_handler:
     jmp iret_cy
 
 .set_handle_count:
-    test bx, bx
-    jz .shc_bad
     jmp iret_nc
-.shc_bad:
-    mov ax, 1
-    jmp iret_cy
