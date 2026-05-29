@@ -63,3 +63,4 @@
 - [x] [Cover AH=56h Rename Edge Cases](issues/cover-ah56h-rename-edge-cases.md)
 - [x] [Cover AH=57h File Time Persistence](issues/cover-ah57h-file-time-persistence.md)
 - [x] [Cover EXEC Parameter Block Edge Cases](issues/cover-exec-parameter-block-edge-cases.md)
+- [x] [Strengthen FindFirst FindNext Wildcard Semantics](issues/strengthen-findfirst-findnext-wildcard-semantics.md)

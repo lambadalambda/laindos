@@ -1,24 +1,12 @@
 #!/usr/bin/env python3
 import os
-import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import build_dir, build_nasm_test_image, check_markers, run_serial_image
 
-QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
 IMG = os.path.join(BUILDDIR, "findnext.img")
 KERNEL = os.path.join(BUILDDIR, "findnext_kernel.bin")
 TIMEOUT = 8
-
-
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
 
 
 def write_fixture(name, data):
@@ -30,57 +18,22 @@ def write_fixture(name, data):
 
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
-    run([
-        "nasm", '-DBOOT_FILE="FINDNEXTCOM"', "-f", "bin", "src/kernel.asm",
-        "-o", KERNEL,
-    ])
-    run(["nasm", "-f", "bin", "tests/programs/findnext.asm", "-o", os.path.join(BUILDDIR, "findnext.com")])
     a_txt = write_fixture("a.txt", b"alpha\n")
     b_txt = write_fixture("b.txt", b"bravo\n")
+    aa_txt = write_fixture("aa.txt", b"alpha alpha\n")
     z_com = write_fixture("z.com", b"dummy\n")
-    run([
-        "python3", "scripts/mkimage.py",
-        os.path.join(BUILDDIR, "boot.bin"),
-        KERNEL,
-        IMG,
-        os.path.join(BUILDDIR, "findnext.com"),
-        a_txt,
-        b_txt,
-        z_com,
-    ])
-
-
-def run_qemu():
-    output, _ = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
-    return output
+    noext = write_fixture("noext", b"extensionless\n")
+    build_nasm_test_image(
+        BUILDDIR, IMG, KERNEL,
+        "FINDNEXTCOM", "tests/programs/findnext.asm", "findnext.com",
+        extra_files=(a_txt, b_txt, aa_txt, z_com, noext),
+    )
 
 
 def main():
     build_image()
-    output = run_qemu()
-    failed = False
-    for marker in ["PASS: FINDNEXT", "Program exited, code=00"]:
-        if marker in output:
-            print(f"  PASS: found '{marker}'")
-        else:
-            print(f"  FAIL: missing '{marker}'")
-            failed = True
-    for marker in ["FAIL:", "EXC ", "INT 21h AH="]:
-        if marker in output:
-            print(f"  FAIL: unexpected '{marker}'")
-            failed = True
-    if failed:
-        print("\n--- QEMU serial output ---")
-        print(output)
-        print("--- end ---")
+    output = run_serial_image(IMG, TIMEOUT)
+    if not check_markers(output, required=("PASS: FINDNEXT", "Program exited, code=00", "HALT")):
         sys.exit(1)
     print("\nFindNext DTA test passed.")
 
