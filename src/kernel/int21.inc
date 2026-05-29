@@ -973,7 +973,7 @@ int21_handler:
     inc dl
     jmp iret_nc
 .bc_true_version:
-    mov bx, 0x031E
+    mov bx, 0x1E03
     xor dx, dx
     jmp iret_nc
 .set_verify_flag:

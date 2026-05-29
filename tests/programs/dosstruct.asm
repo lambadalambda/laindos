@@ -87,9 +87,9 @@ start:
     mov ax, 0x3306
     int 0x21
     jc fail_break
-    cmp bh, 3
+    cmp bl, 3
     jne fail_break
-    cmp bl, 0x1E
+    cmp bh, 0x1E
     jne fail_break
     cmp dx, 0
     jne fail_break

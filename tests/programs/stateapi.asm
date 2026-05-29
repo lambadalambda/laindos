@@ -33,7 +33,7 @@ start:
     mov ax, 0x3306
     int 0x21
     jc fail_break_ver
-    cmp bx, 0x031E
+    cmp bx, 0x1E03
     jne fail_break_ver
     cmp dx, 0
     jne fail_break_ver

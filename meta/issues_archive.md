@@ -67,3 +67,4 @@
 - [x] [Cover AH=29h Parse Filename Semantics](issues/cover-ah29h-parse-filename-semantics.md)
 - [x] [Cover AH=67h Set Handle Count Semantics](issues/cover-ah67h-set-handle-count-semantics.md)
 - [x] [Cover Date Time API Edge Semantics](issues/cover-date-time-api-edge-semantics.md)
+- [x] [Cover DOS Version Identity Semantics](issues/cover-dos-version-identity-semantics.md)
