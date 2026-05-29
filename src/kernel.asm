@@ -895,21 +895,12 @@ mount_bios_hard_disk_c:
     mov word [cs:kio_lba_hi], 0
     call read_sector
     jc .err
-    push ds
-    push es
-    mov ax, SEC_BUF
-    mov ds, ax
-    push cs
-    pop es
-    xor si, si
-    mov di, bpb_copy
-    mov cx, 64
-    cld
-    rep movsb
-    pop es
-    pop ds
+    call copy_secbuf_to_bpb
     call parse_bpb_geometry
+    jnc .mounted_bpb
+    call mount_mbr_partition
     jc .err
+.mounted_bpb:
     mov byte [cs:kdrv], 0x80
     call query_bios_disk_geometry
     mov word [cs:cur_dir_cluster], ROOT_CLUSTER
@@ -931,6 +922,131 @@ mount_bios_hard_disk_c:
     pop cx
     pop bx
     pop ax
+    ret
+
+copy_secbuf_to_bpb:
+    push ax
+    push cx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, SEC_BUF
+    mov ds, ax
+    push cs
+    pop es
+    xor si, si
+    mov di, bpb_copy
+    mov cx, 64
+    cld
+    rep movsb
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop cx
+    pop ax
+    ret
+
+mount_mbr_partition:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    mov ax, SEC_BUF
+    mov ds, ax
+    cmp word [0x1FE], 0xAA55
+    jne .err
+    mov si, 0x1BE
+    mov cx, 4
+.active_loop:
+    cmp byte [si], 0x80
+    jne .active_next
+    call mbr_entry_is_fat
+    jnc .found
+.active_next:
+    add si, 16
+    loop .active_loop
+    mov si, 0x1BE
+    mov cx, 4
+.any_loop:
+    call mbr_entry_is_fat
+    jnc .found
+    add si, 16
+    loop .any_loop
+    jmp .err
+.found:
+    mov ax, [si+8]
+    mov [cs:mbr_part_lba], ax
+    mov dx, [si+10]
+    mov [cs:mbr_part_lba_hi], dx
+    or ax, dx
+    jz .err
+    mov word [cs:kpart_lba], 0
+    mov word [cs:kpart_lba_hi], 0
+    mov ax, SEC_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:mbr_part_lba]
+    mov dx, [cs:mbr_part_lba_hi]
+    mov [cs:kio_lba_hi], dx
+    call read_sector
+    jc .err
+    call copy_secbuf_to_bpb
+    mov bx, bpb_copy
+    mov ax, [cs:bx+0x1C]
+    or ax, [cs:bx+0x1E]
+    jnz .parse
+    mov ax, [cs:mbr_part_lba]
+    mov [cs:bx+0x1C], ax
+    mov ax, [cs:mbr_part_lba_hi]
+    mov [cs:bx+0x1E], ax
+.parse:
+    call parse_bpb_geometry
+    jc .err
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.err:
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
+
+mbr_entry_is_fat:
+    mov al, [si+4]
+    cmp al, 0x01
+    je .type_ok
+    cmp al, 0x04
+    je .type_ok
+    cmp al, 0x06
+    je .type_ok
+    cmp al, 0x0E
+    je .type_ok
+    stc
+    ret
+.type_ok:
+    mov ax, [si+8]
+    or ax, [si+10]
+    jz .bad
+    clc
+    ret
+.bad:
+    stc
     ret
 
 activate_drive:
@@ -2545,6 +2661,8 @@ active_drive_num: db 0
 drive_req: db 0
 drive_prev: db 0
 drive_load_lba: dw 0
+mbr_part_lba: dw 0
+mbr_part_lba_hi: dw 0
 drive_present: times 3 db 0
 drive_bios: times 3 db 0
 drive_kspc: times 3 db 0

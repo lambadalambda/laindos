@@ -2,6 +2,30 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-30 FreeDOS VHD As Attached C: Disk
+
+### Symptoms
+
+- Booting `build/shell_monkey.img` from `A:` with `/Users/lainsoykaf/Downloads/FreeDOS.VHD` attached as the IDE hard disk left no usable `C:` drive; `C:` printed `Path not found` and the shell stayed at `A:\>`.
+
+### Confirmed Facts
+
+- `qemu-img info /Users/lainsoykaf/Downloads/FreeDOS.VHD` reports `file format: vpc`, virtual size `420 MiB`.
+- Reproduced under QEMU with `-drive file=build/shell_monkey.img,format=raw,if=floppy` and `-drive file=/Users/lainsoykaf/Downloads/FreeDOS.VHD,format=vpc,if=ide,index=0,media=disk`.
+- Logical sector 0 is an MBR, not a FAT BPB. The active partition entry is type `06` and starts at LBA `63`.
+- The partition boot sector at LBA `63` is a FAT16 BPB with OEM `FRDOS5.1`, hidden sectors `63`, and label/type bytes `FREEDOS2025` / `FAT16`.
+- The previous floppy-boot C: mount path only accepted a FAT BPB directly at hard-disk sector 0, so it rejected MBR-partitioned hard disks before creating logical `C:`.
+- The mount path now falls back to MBR parsing, selects an active FAT12/FAT16 partition or first FAT12/FAT16 partition, reads its VBR, and mounts that BPB as logical `C:`.
+- `scripts/test_multidrive.py` now runs the existing direct multi-drive regression against both a raw FAT hard disk and an MBR-wrapped FAT16 attached hard disk whose BPB hidden-sector field is left at zero, covering the kernel's partition-offset fallback.
+
+### Tests And Smokes Run
+
+- `python3 scripts/test_multidrive.py` failed before the fix on the partitioned attached hard disk with `FAIL: MULTIDRIVE SELECT C COUNT`.
+- `python3 scripts/test_multidrive.py` passes after the fix for both raw and partitioned attached hard disks.
+- `python3 scripts/build_shell_monkey.py`
+- QEMU smoke with `/Users/lainsoykaf/Downloads/FreeDOS.VHD` as `format=vpc` now switches from `A:\>` to `C:\>`, lists FreeDOS root entries including `FREEDOS`, `GAMES`, `KERNEL.SYS`, and exits cleanly with `Program exited, code=00` and `HALT`.
+- `make test` passed `67/67`.
+
 ## 2026-05-29 Floppy Boot With Attached C: Hard Disk
 
 ### Symptoms

@@ -6,7 +6,7 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 
 ## Current Status
 
-- Boots FAT12 floppy images, raw FAT hard-disk images, a minimal partitioned FAT16 hard-disk layout, and floppy boots with an attached raw FAT hard disk exposed as `C:`.
+- Boots FAT12 floppy images, raw FAT hard-disk images, simple MBR-partitioned FAT12/FAT16 hard disks, and floppy boots with an attached raw or partitioned FAT hard disk exposed as `C:`.
 - Loads `.COM` and MZ `.EXE` programs with PSP setup, relocation, terminate vectors, environment blocks, and MCB allocation.
 - Provides a small shell with `AUTOEXEC.BAT`, current directory support, environment/PATH handling, and parent/child `EXEC` coverage.
 - Implements the core DOS file APIs used by the current suite: open/read/write/seek/close, create/truncate, delete, rename, attributes, timestamps, disk free, FindFirst/FindNext, and writable FAT12/FAT16 paths.
@@ -25,7 +25,7 @@ LainDOS focuses on practical game compatibility rather than abstract DOS complet
 Implemented or in active use:
 
 - Real-mode boot, FAT filesystem access, and DOS API dispatch.
-- FAT12, FAT16, raw HD images, and simple partitioned FAT16 images.
+- FAT12, FAT16, raw HD images, and simple MBR-partitioned FAT12/FAT16 images.
 - DOS memory allocation through MCBs.
 - Minimal XMS detection, query, single-block allocation, handle-release behavior, and XMS block moves.
 - Basic device names and console I/O.
@@ -171,7 +171,7 @@ Build the all-games image with Monkey Island, Monkey Island 2, Simon demo, Ascen
 python3 scripts/build_games_hd_all.py
 ```
 
-The same `build/games_hd_all.img` can be attached as a second QEMU drive while booting `build/shell_monkey.img`; LainDOS keeps the shell on `A:` and exposes the attached hard disk as `C:` for commands such as `C:`, `CD \MI2`, and `MONKEY2`.
+The same `build/games_hd_all.img`, or a simple MBR-partitioned FAT12/FAT16 hard disk such as a FreeDOS VHD, can be attached as a second QEMU drive while booting `build/shell_monkey.img`; LainDOS keeps the shell on `A:` and exposes the attached hard disk as `C:` for commands such as `C:`, `CD \MI2`, and `MONKEY2`.
 
 Build the experimental Wolfenstein 3D shareware image from `vendor/wolf3dsw.zip`:
 
@@ -200,7 +200,7 @@ For interactive mouse testing, avoid `-nographic`; use a normal display, VNC, or
 
 1. **Tiny DOS programs** exercise one API surface at a time under QEMU.
 2. **Shell and utility tests** cover command dispatch, file I/O, environment/PATH, device names, memory reports, and directory mutation.
-3. **Filesystem image tests** cover FAT12/FAT16, large images, partitioned FAT16, corrupt FAT entries, high-LBA directories, and write durability.
+3. **Filesystem image tests** cover FAT12/FAT16, large images, partitioned FAT16, attached partitioned `C:` volumes, corrupt FAT entries, high-LBA directories, and write durability.
 4. **Game images** validate the behavior that motivated the DOS API work.
 5. **Emulator cross-checks** use 86Box, Bochs, and real DOS in QEMU when QEMU behavior looks suspicious.
 
