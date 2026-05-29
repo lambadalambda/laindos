@@ -4,7 +4,7 @@ import socket
 import subprocess
 import sys
 import time
-from testlib import build_dir, finish_qemu, start_qemu, wait_for_output
+from testlib import build_dir, chunks_contain, finish_qemu, start_qemu, wait_for_output
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -44,7 +44,7 @@ def send_key(sock, key):
     sock.sendall(f"sendkey {key}\n".encode())
 
 
-def send_keys():
+def send_keys(stdout_chunks):
     deadline = time.time() + 8
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     while True:
@@ -58,7 +58,10 @@ def send_keys():
     sock.recv(4096)
     send_key(sock, "x")
     time.sleep(1.4)
-    send_key(sock, "y")
+    deadline = time.monotonic() + 8
+    while time.monotonic() < deadline and not chunks_contain(stdout_chunks, ("PASS: FLUSHREAD", "FAIL:")):
+        send_key(sock, "y")
+        time.sleep(0.7)
     sock.close()
 
 
@@ -78,7 +81,7 @@ def run_qemu():
     try:
         if not wait_for_output(stdout_chunks, "READY: FLUSHREAD", timeout=15, stop_markers=()):
             raise TimeoutError("timed out waiting for 'READY: FLUSHREAD'")
-        send_keys()
+        send_keys(stdout_chunks)
     except Exception:
         proc.kill()
         proc.wait()

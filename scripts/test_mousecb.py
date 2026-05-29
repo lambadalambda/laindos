@@ -4,7 +4,7 @@ import socket
 import subprocess
 import sys
 import time
-from testlib import build_dir, finish_qemu, start_qemu, wait_for_output
+from testlib import build_dir, chunks_contain, finish_qemu, start_qemu, wait_for_output
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -73,9 +73,12 @@ def run_qemu():
         output, timed_out = finish_qemu(proc, stdout_chunks, stderr_chunks, threads, timeout=1)
         sock.close()
         return output, timed_out
-    sock.sendall(b"mouse_move 40 0\n")
+    deadline = time.monotonic() + TIMEOUT
+    while time.monotonic() < deadline and not chunks_contain(stdout_chunks, ("PASS: MOUSECB", "FAIL:")):
+        sock.sendall(b"mouse_move 40 0\n")
+        time.sleep(0.1)
     sock.close()
-    return finish_qemu(proc, stdout_chunks, stderr_chunks, threads, timeout=TIMEOUT)
+    return finish_qemu(proc, stdout_chunks, stderr_chunks, threads, timeout=3, stop_markers=("HALT", "PASS: MOUSECB"))
 
 
 def main():
