@@ -2062,8 +2062,7 @@ fa_ret_attr: dw 0
 
 cf_attr: db 0
 cf_handle: dw 0
-cf_entry_idx: dw 0
-cf_entry_seg: dw 0
+cf_first_cluster: dw 0
 cf_entry_lba: dw 0
 cf_entry_lba_hi: dw 0
 cf_entry_off: dw 0
@@ -2076,8 +2075,6 @@ temp_counter: dw 0
 
 rn_new_off: dw 0
 rn_new_seg: dw 0
-rn_src_idx: dw 0
-rn_src_off: dw 0
 rn_src_dir_off: dw 0
 rn_src_lba: dw 0
 rn_src_lba_hi: dw 0
@@ -2117,6 +2114,7 @@ pr_sep_char: db 0
 
 dir_flush_lba: dw 0
 dir_flush_lba_hi: dw 0
+dir_slot_off: dw 0
 dir_update_hoff: dw 0
 dir_ext_old_next: dw 0
 dir_ext_fail_once: db 0

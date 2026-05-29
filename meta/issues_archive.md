@@ -50,3 +50,4 @@
 - [x] [Separate Sector Buffers From Read Cache](issues/separate-sector-buffers-from-read-cache.md)
 - [x] [Extract Disk I/O CHS Helper](issues/extract-disk-io-chs-helper.md)
 - [x] [Add Shell Command Dispatch Table](issues/add-shell-command-dispatch-table.md)
+- [x] [Centralize Directory Slot Writeback](issues/centralize-directory-slot-writeback.md)
