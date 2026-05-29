@@ -1,6 +1,7 @@
 // data.jsx — real LainDOS content: nav tracks, boot stages, memory map.
-// Source excerpts and line numbers reflect the current state of
+// Boot-path source excerpts and line numbers reflect the current state of
 // src/boot.asm and src/kernel.asm in this repository (CC0).
+// Page-specific tracks keep their own excerpts with their page data.
 
 // ---------- left-nav tracks ----------
 const NAV = [
@@ -19,8 +20,8 @@ const NAV = [
       ["s7", "Handoff — the game runs"],
     ],
   },
-  { id: "dosapi", label: "The DOS API · INT 21h", kind: "track", status: "wip",
-    blurb: "How AH=… dispatches into file & process services" },
+  { id: "dosapi", label: "The DOS API · INT 21h", kind: "track", status: "done",
+    blurb: "What DOS API coverage means for games and tools" },
   { id: "fs", label: "Filesystem · FAT12/16", kind: "track", status: "soon",
     blurb: "Cluster chains, directories, 8.3 names" },
   { id: "mem", label: "Memory · MCB / XMS", kind: "track", status: "soon",

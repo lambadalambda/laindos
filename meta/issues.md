@@ -1,6 +1,5 @@
 
 - [ ] [Track Deferred DOS Compatibility APIs](issues/track-deferred-dos-compatibility-apis.md)
-- [ ] [Fill INT 21h Documentation Track](issues/fill-int21-docs-track.md)
 - [ ] [Fill Filesystem Documentation Track](issues/fill-filesystem-docs-track.md)
 - [ ] [Fill Memory Documentation Track](issues/fill-memory-docs-track.md)
 - [ ] [Fill Program Loading Documentation Track](issues/fill-program-loading-docs-track.md)
