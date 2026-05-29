@@ -20,6 +20,7 @@ DEFAULT_TESTS = [
     "scripts/test_stratapi.py",
     "scripts/test_memfail.py",
     "scripts/test_write.py",
+    "scripts/test_rwedge.py",
     "scripts/test_bigreloc.py",
     "scripts/test_keyboard.py",
     "scripts/test_flushread.py",

@@ -74,3 +74,4 @@
 - [x] [Cover Console Character Edge Semantics](issues/cover-console-character-edge-semantics.md)
 - [x] [Cover State API Edge Semantics](issues/cover-state-api-edge-semantics.md)
 - [x] [Cover Seek Edge Semantics](issues/cover-seek-edge-semantics.md)
+- [x] [Cover Read Write Edge Semantics](issues/cover-read-write-edge-semantics.md)
