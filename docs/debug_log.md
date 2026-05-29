@@ -1856,3 +1856,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - The first run failed with `FAIL: DIREDGE CD DRIVE` because `AH=3Bh` accepted `Z:\` as root instead of rejecting the unsupported drive.
 - Added generic drive-prefix validation for directory path APIs before `AH=39h`, `AH=3Ah`, and `AH=3Bh` resolve or mutate paths.
 - `python3 scripts/test_diredge.py` now passes.
+
+## 2026-05-29 FindFirst FindNext Edge Semantics
+
+- Added `FINDEDGE` coverage for `INT 21h AH=4Eh/4Fh` no active search state, no-match/path/drive error codes, drive-qualified root wildcard searches, and exhausted `FindNext` errors.
+- The first run failed with `FAIL: FINDEDGE BAD DRIVE` because `FindFirst("Z:\\*.COM")` returned the path-error path instead of invalid-drive error 15.
+- Reused path drive-prefix validation for `AH=4Eh` and treated drive-qualified root parents such as `A:\` as root-directory searches.
+- `python3 scripts/test_findedge.py` now passes.

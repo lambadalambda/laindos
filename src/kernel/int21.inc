@@ -3666,6 +3666,8 @@ int21_handler:
     push bx
     push es
     push di
+    call .validate_path_drive
+    jc .ff_drive_err
     mov [cs:ff_path_off], dx
     mov [cs:ff_path_seg], ds
     mov ax, ds
@@ -3689,6 +3691,27 @@ int21_handler:
 .ff_scan_done:
     cmp word [cs:ff_sep_off], 0
     je .ff_bare_name
+    mov ds, [cs:ff_path_seg]
+    mov si, [cs:ff_path_off]
+    mov al, [ds:si]
+    call ascii_upper
+    cmp al, 'A'
+    jb .ff_has_path
+    cmp al, 'Z'
+    ja .ff_has_path
+    cmp byte [ds:si+1], ':'
+    jne .ff_has_path
+    add si, 2
+.ff_drive_root_scan:
+    cmp si, [cs:ff_sep_off]
+    jae .ff_root_path
+    cmp byte [ds:si], '\'
+    je .ff_drive_root_next
+    cmp byte [ds:si], '/'
+    jne .ff_has_path
+.ff_drive_root_next:
+    inc si
+    jmp .ff_drive_root_scan
 .ff_has_path:
     mov ds, [cs:ff_path_seg]
     mov di, [cs:ff_sep_off]
@@ -3774,6 +3797,10 @@ int21_handler:
     jnc .ff_found
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     mov ax, 2
+    jmp iret_cy
+.ff_drive_err:
+    INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
+    mov ax, 15
     jmp iret_cy
 .ff_err:
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
