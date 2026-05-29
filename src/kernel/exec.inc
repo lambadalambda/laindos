@@ -772,7 +772,7 @@ overlay_copy_range:
     ret
 
 exec_com:
-    mov byte [cs:ret_code], 0xFF
+    mov byte [cs:ret_code], 0
     mov word [cs:running], 1
     push ss
     pop ax
@@ -1031,7 +1031,7 @@ setup_exe_dyn:
     ret
 
 exec_exe_dyn:
-    mov byte [cs:ret_code], 0xFF
+    mov byte [cs:ret_code], 0
     mov word [cs:running], 1
     push ss
     pop ax
@@ -1059,7 +1059,7 @@ exec_exe_dyn:
     retf
 
 exec_com_dyn:
-    mov byte [cs:ret_code], 0xFF
+    mov byte [cs:ret_code], 0
     mov word [cs:running], 1
     push ss
     pop ax
@@ -1096,7 +1096,7 @@ exec_com_dyn:
     retf
 
 exec_exe:
-    mov byte [cs:ret_code], 0xFF
+    mov byte [cs:ret_code], 0
     mov word [cs:running], 1
     push ss
     pop ax

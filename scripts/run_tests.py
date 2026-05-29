@@ -27,6 +27,7 @@ DEFAULT_TESTS = [
     "scripts/test_xms.py",
     "scripts/test_ems.py",
     "scripts/test_overlay.py",
+    "scripts/test_retcode.py",
     "scripts/test_shell.py",
     "scripts/test_console.py",
     "scripts/test_devnames.py",

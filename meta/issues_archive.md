@@ -56,3 +56,4 @@
 - [x] [Fill Missing DOS Compatibility APIs](issues/fill-missing-dos-compatibility-apis.md)
 - [x] [Implement Real AH=36h Disk Free Counts](issues/implement-real-ah36h-disk-free-counts.md)
 - [x] [Strengthen AH=43h Attribute Semantics](issues/strengthen-ah43h-attribute-semantics.md)
+- [x] [Cover AH=4Dh Return Code Edge Cases](issues/cover-ah4dh-return-code-edge-cases.md)
