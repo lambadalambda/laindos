@@ -21,7 +21,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
-| `AH=01h/02h/06h/07h/08h/09h/0Ah/0Bh` | implemented/partial | high | Existing shell and console tests cover core behavior; keep extended-key two-byte behavior protected. |
+| `AH=01h/02h/06h/07h/08h/09h/0Ah/0Bh` | implemented/partial | high | Shell, `CONSOLE`, `KEY`, and `EXTKEY` cover core behavior, direct-console empty/data status, output return values, zero-length buffered input, line editing, stdin status, and extended-key two-byte behavior. |
 | `AH=03h/04h/05h` AUX/PRN I/O | missing/deferred | low | Depends on serial/printer device policy. |
 | `AH=0Ch` flush and read | implemented | medium | Covered by `FLUSHREAD`; clears the DOS pending extended-key state and BIOS keyboard buffer before dispatching AL subfunction `01h`/`06h`/`07h`/`08h`/`0Ah`. |
 

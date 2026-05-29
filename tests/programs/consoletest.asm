@@ -9,6 +9,20 @@ start:
     mov dl, 0xFF
     int 0x21
     jnz fail_status
+    cmp ax, 0x0600
+    jne fail_status
+
+    mov dx, zero_line_buf
+    mov ah, 0x0A
+    int 0x21
+    cmp byte [zero_line_buf+1], 0
+    jne fail_line_zero
+
+    mov ah, 0x02
+    mov dl, 't'
+    int 0x21
+    cmp al, 't'
+    jne fail_output
 
     mov ah, 0x06
     mov dl, 'o'
@@ -81,6 +95,9 @@ fail_poll:
     jmp fail
 fail_line:
     mov dx, fail_line_msg
+    jmp fail
+fail_line_zero:
+    mov dx, fail_line_zero_msg
 fail:
     mov ah, 0x09
     int 0x21
@@ -96,4 +113,6 @@ fail_read_direct_msg: db "FAIL: CONSOLE READ DIRECT", 13, 10, "$"
 fail_read_08_msg: db "FAIL: CONSOLE READ 08", 13, 10, "$"
 fail_poll_msg: db "FAIL: CONSOLE POLL", 13, 10, "$"
 fail_line_msg: db "FAIL: CONSOLE LINE", 13, 10, "$"
+fail_line_zero_msg: db "FAIL: CONSOLE LINE ZERO", 13, 10, "$"
+zero_line_buf: db 0, 0xCC
 line_buf: db 8, 0, 0, 0, 0, 0, 0, 0, 0, 0
