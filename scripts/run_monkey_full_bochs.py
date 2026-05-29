@@ -50,7 +50,7 @@ def serial_has_boot_marker():
     if not os.path.exists(SERIAL_LOG):
         return False
     with open(SERIAL_LOG, "r", encoding="ascii", errors="replace") as f:
-        return "MiniDOS booted" in f.read()
+        return "LainDOS booted" in f.read()
 
 
 def smoke(seconds):
@@ -63,7 +63,7 @@ def smoke(seconds):
             print("Bochs smoke failed: panic found in log")
             return 1
         if not serial_has_boot_marker():
-            print("Bochs smoke failed: missing 'MiniDOS booted' serial marker")
+            print("Bochs smoke failed: missing 'LainDOS booted' serial marker")
             return 1
         return 0
     except subprocess.TimeoutExpired:
@@ -77,9 +77,9 @@ def smoke(seconds):
             print("Bochs smoke failed: panic found in log")
             return 1
         if not serial_has_boot_marker():
-            print("Bochs smoke failed: missing 'MiniDOS booted' serial marker")
+            print("Bochs smoke failed: missing 'LainDOS booted' serial marker")
             return 1
-        print(f"Bochs smoke ran for {seconds} seconds and reached 'MiniDOS booted'")
+        print(f"Bochs smoke ran for {seconds} seconds and reached 'LainDOS booted'")
         return 0
 
 

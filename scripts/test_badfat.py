@@ -111,7 +111,7 @@ def main():
     output = run_qemu()
     failed = False
     for marker in [
-        "MiniDOS booted",
+        "LainDOS booted",
         "PASS: BADFAT",
         "Program exited, code=00",
         "HALT",

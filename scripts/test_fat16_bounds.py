@@ -47,7 +47,7 @@ def main():
     output = run_qemu()
     after = read_probe_sector()
     failed = False
-    for marker in ["MiniDOS booted", "PASS: FAT16BOUND", "HALT"]:
+    for marker in ["LainDOS booted", "PASS: FAT16BOUND", "HALT"]:
         if marker in output:
             print(f"  PASS: found '{marker}'")
         else:

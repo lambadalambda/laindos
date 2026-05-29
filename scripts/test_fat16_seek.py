@@ -57,7 +57,7 @@ def main():
     output, timed_out = run_qemu()
     failed = False
     for marker in [
-        "MiniDOS booted",
+        "LainDOS booted",
         "PASS: FATSEEK",
         "Program exited, code=00",
         "HALT",

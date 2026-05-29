@@ -105,7 +105,7 @@ Success test:
 
 ```text
 Boots in QEMU.
-Prints "MiniDOS booted".
+Prints "LainDOS booted".
 Can read sectors using BIOS.
 ```
 

@@ -1835,7 +1835,7 @@ trace_exec_mcb:
 
 %include "src/kernel/console.inc"
 
-msg_booted:   db "MiniDOS booted", 13, 10, 0
+msg_booted:   db "LainDOS booted", 13, 10, 0
 msg_mem:      db "Conventional memory: ", 0
 msg_kib:      db " KB", 13, 10, 0
 msg_ints:     db "INT 20h/21h installed", 13, 10, 0

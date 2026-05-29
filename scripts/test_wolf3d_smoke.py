@@ -55,7 +55,7 @@ def main():
         sys.exit(1)
     run_cmd(["python3", "scripts/build_wolf3d.py"])
     output = run_qemu()
-    failed = not check_markers(output, ["MiniDOS booted", "EXE loaded"], dump_on_failure=False)
+    failed = not check_markers(output, ["LainDOS booted", "EXE loaded"], dump_on_failure=False)
     failed = not framebuffer_active(SCREENSHOT, "Wolf3D framebuffer") or failed
     if failed:
         print("\n--- QEMU serial output ---")

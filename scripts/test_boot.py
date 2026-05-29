@@ -8,7 +8,7 @@ DISK_IMG = os.path.join(os.path.dirname(__file__), "..", "build", "disk.img")
 TIMEOUT = 10
 
 EXPECTED = [
-    "MiniDOS booted",
+    "LainDOS booted",
     "Conventional memory:",
     "KB",
     "INT 20h/21h installed",

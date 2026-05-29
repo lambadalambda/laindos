@@ -41,7 +41,7 @@ def main():
     build_image()
     output = run_qemu()
     failed = False
-    for marker in ["MiniDOS booted", "Invalid BPB", "HALT"]:
+    for marker in ["LainDOS booted", "Invalid BPB", "HALT"]:
         if marker in output:
             print(f"  PASS: found '{marker}'")
         else:

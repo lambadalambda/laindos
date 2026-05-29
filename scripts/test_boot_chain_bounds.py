@@ -81,14 +81,14 @@ def run_case(base_img, label, fat_bits, value, boot_order):
         "-serial", "stdio",
         "-monitor", "none",
         "-nographic",
-    ], TIMEOUT, stop_markers=("NoK", "MiniDOS booted", "EXC "))
+    ], TIMEOUT, stop_markers=("NoK", "LainDOS booted", "EXC "))
     failed = False
     if "NoK" in output:
         print(f"  PASS: {label} failed in boot loader")
     else:
         print(f"  FAIL: {label} missing NoK")
         failed = True
-    for marker in ["MiniDOS booted", "EXC ", "HALT"]:
+    for marker in ["LainDOS booted", "EXC ", "HALT"]:
         if marker in output:
             print(f"  FAIL: {label} unexpected '{marker}'")
             failed = True

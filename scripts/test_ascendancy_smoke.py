@@ -67,7 +67,7 @@ def main():
     if not prompt_ok:
         print("  FAIL: timed out waiting for C:\\>")
     forbidden = DEFAULT_FAIL_MARKERS + ("DOS/4GW fatal error", "Please place the Ascendancy CD")
-    required = ["MiniDOS booted", "LainDOS Shell", "C:\\ASCEND>ascend", "DOS/4GW", "Ascendancy"]
+    required = ["LainDOS booted", "LainDOS Shell", "C:\\ASCEND>ascend", "DOS/4GW", "Ascendancy"]
     failed = not prompt_ok
     failed = not check_markers(output, required, forbidden, dump_on_failure=False) or failed
     failed = not framebuffer_active(SCREENSHOT, "Ascendancy framebuffer") or failed

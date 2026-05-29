@@ -254,7 +254,7 @@ def main():
 
     output = run_qemu_save_attempt()
     failed = False
-    for marker in ["MiniDOS booted", "LainDOS Shell", "C:\\MI2>monkey2"]:
+    for marker in ["LainDOS booted", "LainDOS Shell", "C:\\MI2>monkey2"]:
         if marker in output:
             print(f"  PASS: found '{marker}'")
         else:
