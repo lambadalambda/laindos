@@ -17,12 +17,35 @@ start:
     jc fail_ioctl
     test dx, 0x0080
     jnz fail_file_info
+    cmp dx, 0
+    jne fail_file_info
 
     mov bx, [handle]
     mov dx, 0x0020
     mov ax, 0x4401
     int 0x21
     jc fail_set_info
+
+    mov bx, 0x00FE
+    mov ax, 0x4400
+    int 0x21
+    jnc fail_invalid_handle
+    cmp ax, 6
+    jne fail_invalid_handle
+
+    mov bx, 0x00FE
+    mov ax, 0x4401
+    int 0x21
+    jnc fail_invalid_handle
+    cmp ax, 6
+    jne fail_invalid_handle
+
+    mov bx, [handle]
+    mov ax, 0x4402
+    int 0x21
+    jnc fail_unsupported
+    cmp ax, 1
+    jne fail_unsupported
 
     mov bx, 1
     mov ax, 0x4400
@@ -53,6 +76,13 @@ start:
     cmp ax, 6
     jne fail_invalid_handle
 
+    mov bx, 0x00FE
+    mov ax, 0x4406
+    int 0x21
+    jnc fail_invalid_handle
+    cmp ax, 6
+    jne fail_invalid_handle
+
     mov bl, 0
     mov ax, 0x4408
     int 0x21
@@ -74,6 +104,13 @@ start:
     cmp ax, 15
     jne fail_invalid_drive
 
+    mov bx, 0x00FF
+    mov ax, 0x4408
+    int 0x21
+    jnc fail_invalid_drive
+    cmp ax, 15
+    jne fail_invalid_drive
+
     mov bl, 0
     mov ax, 0x4409
     int 0x21
@@ -82,6 +119,13 @@ start:
     jnz fail_local_drive
 
     mov bl, 2
+    mov ax, 0x4409
+    int 0x21
+    jnc fail_invalid_drive
+    cmp ax, 15
+    jne fail_invalid_drive
+
+    mov bx, 0x00FF
     mov ax, 0x4409
     int 0x21
     jnc fail_invalid_drive
@@ -133,6 +177,9 @@ fail_file_info:
 fail_set_info:
     mov dx, fail_set_info_msg
     jmp fail
+fail_unsupported:
+    mov dx, fail_unsupported_msg
+    jmp fail
 fail_device_info:
     mov dx, fail_device_info_msg
     jmp fail
@@ -167,6 +214,7 @@ fail_open_msg: db "FAIL: IOCTLEXT OPEN", 13, 10, "$"
 fail_ioctl_msg: db "FAIL: IOCTLEXT IOCTL", 13, 10, "$"
 fail_file_info_msg: db "FAIL: IOCTLEXT FILE INFO", 13, 10, "$"
 fail_set_info_msg: db "FAIL: IOCTLEXT SET INFO", 13, 10, "$"
+fail_unsupported_msg: db "FAIL: IOCTLEXT UNSUPPORTED", 13, 10, "$"
 fail_device_info_msg: db "FAIL: IOCTLEXT DEVICE INFO", 13, 10, "$"
 fail_output_status_msg: db "FAIL: IOCTLEXT OUTPUT STATUS", 13, 10, "$"
 fail_invalid_handle_msg: db "FAIL: IOCTLEXT INVALID HANDLE", 13, 10, "$"

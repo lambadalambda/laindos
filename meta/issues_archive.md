@@ -70,3 +70,4 @@
 - [x] [Cover DOS Version Identity Semantics](issues/cover-dos-version-identity-semantics.md)
 - [x] [Cover Current Drive Selection Semantics](issues/cover-current-drive-selection-semantics.md)
 - [x] [Cover Drive Data FAT16 Semantics](issues/cover-drive-data-fat16-semantics.md)
+- [x] [Cover IOCTL Edge Semantics](issues/cover-ioctl-edge-semantics.md)
