@@ -1512,12 +1512,57 @@ int21_handler:
     mov [cs:date_year], cx
     mov [cs:date_month], dh
     mov [cs:date_day], dl
-    mov byte [cs:date_weekday], 0
+    push bx
+    push cx
+    push dx
+    push si
+    call .compute_weekday
+    mov [cs:date_weekday], al
+    pop si
+    pop dx
+    pop cx
+    pop bx
     xor al, al
     jmp iret_nc
 .sd_bad:
     mov al, 0xFF
     jmp iret_nc
+.compute_weekday:
+    mov ax, [cs:date_year]
+    sub ax, 1980
+    mov bx, ax
+    mov cx, 365
+    mul cx
+    mov si, ax
+    mov ax, bx
+    add ax, 3
+    mov cl, 2
+    shr ax, cl
+    add si, ax
+    xor bx, bx
+    mov bl, [cs:date_month]
+    dec bx
+    shl bx, 1
+    mov ax, [cs:date_month_offsets + bx]
+    add si, ax
+    cmp byte [cs:date_month], 3
+    jb .cw_no_leap_day
+    mov ax, [cs:date_year]
+    test ax, 3
+    jnz .cw_no_leap_day
+    inc si
+.cw_no_leap_day:
+    xor ax, ax
+    mov al, [cs:date_day]
+    dec ax
+    add si, ax
+    add si, 2
+    mov ax, si
+    xor dx, dx
+    mov bx, 7
+    div bx
+    mov al, dl
+    ret
 .get_time:
     cmp byte [cs:time_set], 0
     jne .gt_stored

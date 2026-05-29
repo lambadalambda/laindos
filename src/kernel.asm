@@ -10,7 +10,7 @@ VGA_ROWS equ 25
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x0060
-ROOT_SEG  equ 0x0A00
+ROOT_SEG  equ 0x0A20
 PSP_SEG   equ 0x3000
 TEMP_SEG  equ 0x4000
 
@@ -2004,7 +2004,8 @@ dta_off: dw 0
 date_year: dw 2026
 date_month: db 5
 date_day: db 21
-date_weekday: db 0
+date_weekday: db 4
+date_month_offsets: dw 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334
 time_set: db 0
 time_hour: db 0
 time_min: db 0

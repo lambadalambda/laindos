@@ -1843,3 +1843,9 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 ### Tests Run
 
 - `python3 scripts/test_ioctlext.py`
+
+## 2026-05-29 Date/Time Weekday Size Follow-Up
+
+- Added `DATETIME` coverage for `INT 21h AH=2Ah/2Bh/2Ch/2Dh` weekday and boundary behavior; the first probe failed with `FAIL: DATETIME WEEKDAY` because `AH=2Bh` stored weekday 0 unconditionally.
+- Implementing weekday calculation made the EMS-enabled kernel exceed the fixed-buffer guard with `src/kernel.asm:2327: error: kernel overlaps SEC_BUF` during `make test`.
+- Preserved the guard and moved the fixed buffers upward by one 512-byte slot: `SEC_BUF=0x09E0`, `READ_CACHE_BUF=0x0A00`, and `ROOT_SEG=0x0A20`; the boot loaders must use the same `ROOT_SEG` because they preload the root directory for the kernel.

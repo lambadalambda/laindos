@@ -75,7 +75,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=0Eh/19h` current drive | implemented/partial | medium | Tracks selected logical drive and returns a stable logical drive count; still maps all supported drive letters to the boot image. |
 | `AH=1Ah/2Fh` DTA | implemented | high | Covered by find-first/find-next behavior. |
 | `AH=25h/35h` vectors | implemented | high | Required by games. |
-| `AH=2Ah/2Bh/2Ch/2Dh` date/time | implemented/partial | medium | Date is state-backed; time advances from BIOS ticks until `AH=2Dh` sets explicit state. |
+| `AH=2Ah/2Bh/2Ch/2Dh` date/time | implemented/partial | medium | Date is state-backed with weekday calculation; time advances from BIOS ticks until `AH=2Dh` sets explicit state. `DATETIME`, `STATEAPI`, and shell `TIME` cover boundary validation, invalid-call preservation, and tick-derived time. |
 | `AH=30h` DOS version | implemented/minimal | medium | Keep target-version behavior explicit. |
 | `AH=36h` disk free | implemented/partial | medium | Counts free clusters from the active FAT and returns `AX=FFFFh` for invalid drives; covered by `DISKFREE` on FAT12 and FAT16. |
 | `AH=44h` IOCTL | implemented/partial | high | Covers get/set info, input/output status, removable drive query, and local drive/handle queries for local files/devices. |
