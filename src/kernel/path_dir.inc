@@ -424,6 +424,15 @@ close_handle_for_replace:
     stc
     ret
 
+ascii_upper:
+    cmp al, 'a'
+    jb .done
+    cmp al, 'z'
+    ja .done
+    sub al, 32
+.done:
+    ret
+
 detect_device_path:
     push bx
     push dx
@@ -514,12 +523,7 @@ detect_device_path:
 
 dev_upper_lodsb:
     lodsb
-    cmp al, 'a'
-    jb .done
-    cmp al, 'z'
-    ja .done
-    sub al, 32
-.done:
+    call ascii_upper
     ret
 
 dev_name_end:
@@ -596,6 +600,294 @@ cur_dir_path_parent:
     pop ax
     ret
 
+store_cur_dir_path:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    push es
+    mov bx, si
+    xor dx, dx
+    mov al, [ds:bx]
+    call ascii_upper
+    cmp al, 'A'
+    jb .check_abs_sep
+    cmp al, 'Z'
+    ja .check_abs_sep
+    cmp byte [ds:bx+1], ':'
+    jne .check_abs_sep
+    add bx, 2
+    mov dl, 1
+.check_abs_sep:
+    cmp dl, 1
+    je .absolute
+    cmp byte [ds:bx], '\'
+    je .absolute
+    cmp byte [ds:bx], '/'
+    jne .component_loop
+.absolute:
+    mov byte [cs:cur_dir_path], 0
+.absolute_skip_sep:
+    cmp byte [ds:bx], '\'
+    je .absolute_advance
+    cmp byte [ds:bx], '/'
+    jne .component_loop
+.absolute_advance:
+    inc bx
+    jmp .absolute_skip_sep
+.component_loop:
+    cmp byte [ds:bx], '\'
+    je .skip_sep
+    cmp byte [ds:bx], '/'
+    je .skip_sep
+    cmp byte [ds:bx], 0
+    je .done
+    cmp byte [ds:bx], '.'
+    jne .append_component
+    mov al, [ds:bx+1]
+    test al, al
+    jz .skip_dot_end
+    cmp al, '\'
+    je .skip_dot_one
+    cmp al, '/'
+    je .skip_dot_one
+    cmp al, '.'
+    jne .append_component
+    mov al, [ds:bx+2]
+    test al, al
+    jz .parent_end
+    cmp al, '\'
+    je .parent_component
+    cmp al, '/'
+    jne .append_component
+.parent_component:
+    add bx, 2
+    call cur_dir_path_parent
+    jmp .component_loop
+.parent_end:
+    call cur_dir_path_parent
+    jmp .done
+.skip_dot_one:
+    inc bx
+    jmp .component_loop
+.skip_dot_end:
+    jmp .done
+.skip_sep:
+    inc bx
+    jmp .component_loop
+.append_component:
+    push ds
+    push cs
+    pop es
+    mov di, cur_dir_path
+    mov cx, 63
+.find_end:
+    cmp byte [es:di], 0
+    je .have_end
+    inc di
+    dec cx
+    jnz .find_end
+    mov byte [es:di], 0
+.have_end:
+    cmp di, cur_dir_path
+    je .copy_component
+    test cx, cx
+    jz .skip_component_rest
+    mov byte [es:di], '\'
+    inc di
+    dec cx
+.copy_component:
+    cmp byte [ds:bx], 0
+    je .component_copied
+    cmp byte [ds:bx], '\'
+    je .component_copied
+    cmp byte [ds:bx], '/'
+    je .component_copied
+    test cx, cx
+    jz .skip_component_rest
+    mov al, [ds:bx]
+    call ascii_upper
+    mov [es:di], al
+    inc di
+    inc bx
+    dec cx
+    jmp .copy_component
+.skip_component_rest:
+    cmp byte [ds:bx], 0
+    je .component_copied
+    cmp byte [ds:bx], '\'
+    je .component_copied
+    cmp byte [ds:bx], '/'
+    je .component_copied
+    inc bx
+    jmp .skip_component_rest
+.component_copied:
+    mov byte [es:di], 0
+    pop ds
+    jmp .component_loop
+.done:
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+chdir_dot_only_path:
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    mov bx, si
+    mov ax, [cs:cur_dir_cluster]
+    mov [cs:cd_walk_cluster], ax
+    xor dx, dx
+    mov al, [ds:bx]
+    call ascii_upper
+    cmp al, 'A'
+    jb .check_abs_sep
+    cmp al, 'Z'
+    ja .check_abs_sep
+    cmp byte [ds:bx+1], ':'
+    jne .check_abs_sep
+    add bx, 2
+    mov dl, 1
+.check_abs_sep:
+    cmp dl, 1
+    je .set_root
+    cmp byte [ds:bx], '\'
+    je .set_root
+    cmp byte [ds:bx], '/'
+    jne .component_loop
+.set_root:
+    mov word [cs:cd_walk_cluster], ROOT_CLUSTER
+.component_loop:
+    cmp byte [ds:bx], '\'
+    je .skip_sep
+    cmp byte [ds:bx], '/'
+    je .skip_sep
+    cmp byte [ds:bx], 0
+    je .success
+    cmp byte [ds:bx], '.'
+    jne .not_dot_only
+    mov al, [ds:bx+1]
+    test al, al
+    jz .dot_end
+    cmp al, '\'
+    je .dot_one
+    cmp al, '/'
+    je .dot_one
+    cmp al, '.'
+    jne .not_dot_only
+    mov al, [ds:bx+2]
+    test al, al
+    jz .dotdot_end
+    cmp al, '\'
+    je .dotdot_component
+    cmp al, '/'
+    jne .not_dot_only
+.dotdot_component:
+    mov dh, 1
+    add bx, 2
+    call chdir_walk_parent
+    jc .not_dot_only
+    jmp .component_loop
+.dotdot_end:
+    mov dh, 1
+    call chdir_walk_parent
+    jc .not_dot_only
+    jmp .success
+.dot_one:
+    mov dh, 1
+    inc bx
+    jmp .component_loop
+.dot_end:
+    mov dh, 1
+    jmp .success
+.skip_sep:
+    inc bx
+    jmp .component_loop
+.success:
+    cmp dh, 1
+    jne .not_dot_only
+    mov ax, [cs:cd_walk_cluster]
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    clc
+    ret
+.not_dot_only:
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    stc
+    ret
+
+chdir_walk_parent:
+    cmp word [cs:cd_walk_cluster], ROOT_CLUSTER
+    je .root
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+    push si
+    push di
+    push cs
+    pop es
+    mov di, name_buf
+    mov cx, 11
+    mov al, ' '
+    rep stosb
+    mov byte [cs:name_buf], '.'
+    mov byte [cs:name_buf+1], '.'
+    mov ax, [cs:cd_walk_cluster]
+    xor bx, bx
+    xor dx, dx
+    mov byte [cs:ff_attr_mask], 0
+    call find_in_dir
+    jc .err
+    test byte [es:di+11], ATTR_DIR
+    jz .err
+    mov ax, [es:di+26]
+    mov [cs:cd_walk_cluster], ax
+    pop di
+    pop si
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.err:
+    pop di
+    pop si
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
+.root:
+    clc
+    ret
+
 resolve_path:
     push bx
     mov [cs:rp_path], si
@@ -604,9 +896,11 @@ resolve_path:
     je .rp_abs
     cmp byte [ds:si], '/'
     je .rp_abs
-    cmp byte [ds:si], 'A'
+    mov al, [ds:si]
+    call ascii_upper
+    cmp al, 'A'
     jb .rp_rel
-    cmp byte [ds:si], 'Z'
+    cmp al, 'Z'
     ja .rp_rel
     cmp byte [ds:si+1], ':'
     jne .rp_rel
@@ -720,12 +1014,7 @@ resolve_path:
     je .rp_copy_sep
     cmp al, '/'
     je .rp_copy_sep
-    cmp al, 'a'
-    jb .rp_no_lower
-    cmp al, 'z'
-    ja .rp_no_lower
-    sub al, 32
-.rp_no_lower:
+    call ascii_upper
     cmp al, '.'
     je .rp_dot
     stosb
@@ -1416,12 +1705,7 @@ parse_83name:
     je .pl_dot
     cmp al, '*'
     je .pl_star
-    cmp al, 'a'
-    jb .pl_noupper
-    cmp al, 'z'
-    ja .pl_noupper
-    sub al, 32
-.pl_noupper:
+    call ascii_upper
     test bx, bx
     jnz .pl_ext_char
     cmp di, name_buf + 8
@@ -1482,9 +1766,11 @@ parse_root_path:
     mov [cs:pr_dir_cluster], ax
     mov word [cs:pr_last_sep], 0xFFFF
     mov bx, si
-    cmp byte [ds:bx], 'A'
+    mov al, [ds:bx]
+    call ascii_upper
+    cmp al, 'A'
     jb .scan
-    cmp byte [ds:bx], 'Z'
+    cmp al, 'Z'
     ja .scan
     cmp byte [ds:bx+1], ':'
     jne .scan
@@ -1507,9 +1793,11 @@ parse_root_path:
     cmp bx, 0xFFFF
     jne .have_parent
     mov si, [cs:pr_path_off]
-    cmp byte [ds:si], 'A'
+    mov al, [ds:si]
+    call ascii_upper
+    cmp al, 'A'
     jb .no_parent_name
-    cmp byte [ds:si], 'Z'
+    cmp al, 'Z'
     ja .no_parent_name
     cmp byte [ds:si+1], ':'
     jne .no_parent_name
@@ -1522,9 +1810,11 @@ parse_root_path:
     cmp byte [ds:bx+1], 0
     je .err
     mov si, [cs:pr_path_off]
-    cmp byte [ds:si], 'A'
+    mov al, [ds:si]
+    call ascii_upper
+    cmp al, 'A'
     jb .root_check
-    cmp byte [ds:si], 'Z'
+    cmp al, 'Z'
     ja .root_check
     cmp byte [ds:si+1], ':'
     jne .root_check
@@ -1555,9 +1845,11 @@ parse_root_path:
     je .set_abs_parent
     cmp byte [ds:si], '/'
     je .set_abs_parent
-    cmp byte [ds:si], 'A'
+    mov al, [ds:si]
+    call ascii_upper
+    cmp al, 'A'
     jb .call_resolve_parent
-    cmp byte [ds:si], 'Z'
+    cmp al, 'Z'
     ja .call_resolve_parent
     cmp byte [ds:si+1], ':'
     jne .call_resolve_parent

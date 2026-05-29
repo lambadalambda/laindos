@@ -51,3 +51,4 @@
 - [x] [Extract Disk I/O CHS Helper](issues/extract-disk-io-chs-helper.md)
 - [x] [Add Shell Command Dispatch Table](issues/add-shell-command-dispatch-table.md)
 - [x] [Centralize Directory Slot Writeback](issues/centralize-directory-slot-writeback.md)
+- [x] [Unify ASCII Case Conversion And Path Canonicalization](issues/unify-ascii-case-conversion-and-path-canonicalization.md)

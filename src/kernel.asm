@@ -2054,6 +2054,7 @@ cur_dir_cluster: dw 0
 cur_dir_path: times 64 db 0
 cd_path_off: dw 0
 cd_path_seg: dw 0
+cd_walk_cluster: dw 0
 of_mode: db 0
 of_status: dw 0
 dev_type: db 0

@@ -324,11 +324,7 @@ update_exec_environment_path:
     je .slash
     cmp al, '\'
     je .slash
-    cmp al, 'a'
-    jb .store
-    cmp al, 'z'
-    ja .store
-    sub al, 32
+    call ascii_upper
     jmp .store
 .slash:
     mov al, '\'

@@ -738,12 +738,7 @@ int21_handler:
     cmp al, ':'
     jne .pf_name
     mov al, [ds:bx]
-    cmp al, 'a'
-    jb .pf_drive_upper
-    cmp al, 'z'
-    ja .pf_drive_upper
-    sub al, 32
-.pf_drive_upper:
+    call ascii_upper
     cmp al, 'A'
     jb .pf_name
     cmp al, 'Z'
@@ -800,12 +795,7 @@ int21_handler:
     pop bx
     jmp iret_nc
 .pf_store_char:
-    cmp al, 'a'
-    jb .pfsc_done
-    cmp al, 'z'
-    ja .pfsc_done
-    sub al, 32
-.pfsc_done:
+    call ascii_upper
     ret
 .alloc_strategy:
     mov [cs:log_ax], ax
@@ -1595,9 +1585,11 @@ int21_handler:
     mov [cs:cd_path_off], dx
     mov [cs:cd_path_seg], ds
     mov si, dx
-    cmp byte [ds:si], 'A'
+    mov al, [ds:si]
+    call ascii_upper
+    cmp al, 'A'
     jb .cd_check_root
-    cmp byte [ds:si], 'Z'
+    cmp al, 'Z'
     ja .cd_check_root
     cmp byte [ds:si+1], ':'
     jne .cd_check_root
@@ -1638,6 +1630,16 @@ int21_handler:
     jmp iret_nc
 .cd_resolve:
     mov si, dx
+    call chdir_dot_only_path
+    jc .cd_resolve_full
+    mov [cs:cur_dir_cluster], ax
+    mov ds, [cs:cd_path_seg]
+    mov si, [cs:cd_path_off]
+    call store_cur_dir_path
+    INT21_POP_FRAME_DS_SI_ES_DI_BX
+    jmp iret_nc
+.cd_resolve_full:
+    mov si, dx
     call resolve_path
     jc .cd_err
     test byte [es:di+11], ATTR_DIR
@@ -1646,62 +1648,10 @@ int21_handler:
     mov [cs:cur_dir_cluster], ax
     mov ds, [cs:cd_path_seg]
     mov si, [cs:cd_path_off]
-    cmp byte [ds:si], 'A'
-    jb .cd_check_dot_path
-    cmp byte [ds:si], 'Z'
-    ja .cd_check_dot_path
-    cmp byte [ds:si+1], ':'
-    jne .cd_check_dot_path
-    add si, 2
-.cd_check_dot_path:
-    cmp byte [ds:si], '.'
-    jne .cd_copy_path
-    cmp byte [ds:si+1], 0
-    je .cd_same_dir
-    cmp byte [ds:si+1], '.'
-    jne .cd_copy_path
-    cmp byte [ds:si+2], 0
-    jne .cd_copy_path
-    call cur_dir_path_parent
+    call store_cur_dir_path
     INT21_POP_FRAME_DS_SI_ES_DI_BX
     jmp iret_nc
 .cd_same_dir:
-    INT21_POP_FRAME_DS_SI_ES_DI_BX
-    jmp iret_nc
-.cd_copy_path:
-    push cs
-    pop es
-    mov di, cur_dir_path
-    mov cx, 62
-    mov ds, [cs:cd_path_seg]
-    mov si, [cs:cd_path_off]
-    cmp byte [ds:si], 'A'
-    jb .cd_skip_sep
-    cmp byte [ds:si], 'Z'
-    ja .cd_skip_sep
-    cmp byte [ds:si+1], ':'
-    jne .cd_skip_sep
-    add si, 2
-.cd_skip_sep:
-    cmp byte [ds:si], '\'
-    je .cd_ss
-    cmp byte [ds:si], '/'
-    je .cd_ss
-    jmp .cd_copy
-.cd_ss:
-    inc si
-    jmp .cd_skip_sep
-.cd_copy:
-    lodsb
-    stosb
-    dec cx
-    jz .cd_trunc
-    test al, al
-    jnz .cd_copy
-    INT21_POP_FRAME_DS_SI_ES_DI_BX
-    jmp iret_nc
-.cd_trunc:
-    mov byte [es:di-1], 0
     INT21_POP_FRAME_DS_SI_ES_DI_BX
     jmp iret_nc
 .cd_err:

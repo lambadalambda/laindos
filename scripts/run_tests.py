@@ -51,6 +51,7 @@ DEFAULT_TESTS = [
     "scripts/test_dirextrollback.py",
     "scripts/test_envmcb.py",
     "scripts/test_envpath.py",
+    "scripts/test_pathcanon.py",
     "scripts/test_findattr.py",
     "scripts/test_findnext.py",
     "scripts/test_findtime.py",
