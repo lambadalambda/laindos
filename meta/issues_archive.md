@@ -73,3 +73,4 @@
 - [x] [Cover IOCTL Edge Semantics](issues/cover-ioctl-edge-semantics.md)
 - [x] [Cover Console Character Edge Semantics](issues/cover-console-character-edge-semantics.md)
 - [x] [Cover State API Edge Semantics](issues/cover-state-api-edge-semantics.md)
+- [x] [Cover Seek Edge Semantics](issues/cover-seek-edge-semantics.md)

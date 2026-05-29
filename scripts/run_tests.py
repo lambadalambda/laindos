@@ -66,6 +66,7 @@ DEFAULT_TESTS = [
     "scripts/test_findnext.py",
     "scripts/test_findtime.py",
     "scripts/test_readcache.py",
+    "scripts/test_seekedge.py",
     "scripts/test_regpres.py",
     "scripts/test_savewrite.py",
     "scripts/test_rnguard.py",

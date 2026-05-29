@@ -3016,20 +3016,20 @@ int21_handler:
 
 .seek_file:
     cmp bx, MAX_HANDLES
-    jae .sf_err
+    jae .sf_bad_handle
     push si
     mov [cs:sf_origin], al
     mov [cs:sf_req_lo], dx
     mov [cs:sf_req_hi], cx
     call resolve_handle_for_use
-    jc .sf_err_saved
+    jc .sf_bad_handle_saved
     cmp byte [cs:sf_origin], 0
     je .sf_start
     cmp byte [cs:sf_origin], 1
     je .sf_cur
     cmp byte [cs:sf_origin], 2
     je .sf_end
-    jmp .sf_err_saved
+    jmp .sf_bad_origin_saved
 .sf_start:
     mov [cs:si+handles+H_POS_LO], dx
     mov [cs:si+handles+H_POS_HI], cx
@@ -3085,10 +3085,14 @@ int21_handler:
 .sf_no_trace:
     pop si
     jmp iret_nc
-.sf_err_saved:
+.sf_bad_origin_saved:
     pop si
-.sf_err:
     mov ax, 1
+    jmp iret_cy
+.sf_bad_handle_saved:
+    pop si
+.sf_bad_handle:
+    mov ax, 6
     jmp iret_cy
 
 .file_attrs:
