@@ -60,3 +60,4 @@
 - [x] [Verify AH=58h Allocation Strategy](issues/verify-ah58h-allocation-strategy.md)
 - [x] [Honor EXEC Custom Environment Segment](issues/honor-exec-custom-environment-segment.md)
 - [x] [Cover Memory Allocator Failure Paths](issues/cover-memory-allocator-failure-paths.md)
+- [x] [Cover AH=56h Rename Edge Cases](issues/cover-ah56h-rename-edge-cases.md)

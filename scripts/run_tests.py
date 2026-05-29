@@ -63,6 +63,7 @@ DEFAULT_TESTS = [
     "scripts/test_readcache.py",
     "scripts/test_regpres.py",
     "scripts/test_savewrite.py",
+    "scripts/test_rnguard.py",
     "scripts/test_termflush.py",
     "scripts/test_dirmut.py",
     "scripts/test_readwrap.py",
