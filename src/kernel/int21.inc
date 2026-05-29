@@ -1739,12 +1739,38 @@ int21_handler:
     INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
     mov ax, [cs:ov_status]
     jmp iret_cy
+.validate_path_drive:
+    push ax
+    push si
+    mov si, dx
+    mov al, [ds:si]
+    call ascii_upper
+    cmp al, 'A'
+    jb .vpd_ok
+    cmp al, 'Z'
+    ja .vpd_ok
+    cmp byte [ds:si+1], ':'
+    jne .vpd_ok
+    sub al, 'A' - 1
+    cmp al, [cs:dos_drive_count]
+    jbe .vpd_ok
+    pop si
+    pop ax
+    stc
+    ret
+.vpd_ok:
+    pop si
+    pop ax
+    clc
+    ret
 .chdir:
     push ds
     push si
     push es
     push di
     push bx
+    call .validate_path_drive
+    jc .cd_drive_err
     mov [cs:cd_path_off], dx
     mov [cs:cd_path_seg], ds
     mov si, dx
@@ -1817,6 +1843,10 @@ int21_handler:
 .cd_same_dir:
     INT21_POP_FRAME_DS_SI_ES_DI_BX
     jmp iret_nc
+.cd_drive_err:
+    INT21_POP_FRAME_DS_SI_ES_DI_BX
+    mov ax, 15
+    jmp iret_cy
 .cd_err:
     INT21_POP_FRAME_DS_SI_ES_DI_BX
     mov ax, 3
@@ -1830,6 +1860,8 @@ int21_handler:
     push bx
     push cx
     push dx
+    call .validate_path_drive
+    jc .md_drive_err
     mov si, dx
     call parse_root_path
     jc .md_path_err
@@ -1902,6 +1934,9 @@ int21_handler:
 .md_path_err:
     mov ax, 3
     jmp .md_err
+.md_drive_err:
+    mov ax, 15
+    jmp .md_err
 .md_no_slot:
     mov ax, 5
     jmp .md_err
@@ -1921,6 +1956,8 @@ int21_handler:
     push bx
     push cx
     push dx
+    call .validate_path_drive
+    jc .rd_drive_err
     mov si, dx
     call parse_root_path
     jc .rd_path_err
@@ -1969,6 +2006,9 @@ int21_handler:
     jmp .rd_err
 .rd_path_err:
     mov ax, 3
+    jmp .rd_err
+.rd_drive_err:
+    mov ax, 15
     jmp .rd_err
 .rd_access:
     mov ax, 5

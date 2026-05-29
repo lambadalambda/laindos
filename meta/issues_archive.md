@@ -76,3 +76,4 @@
 - [x] [Cover Seek Edge Semantics](issues/cover-seek-edge-semantics.md)
 - [x] [Cover Read Write Edge Semantics](issues/cover-read-write-edge-semantics.md)
 - [x] [Cover Dup Handle Edge Semantics](issues/cover-dup-handle-edge-semantics.md)
+- [x] [Cover Directory Current Edge Semantics](issues/cover-directory-current-edge-semantics.md)

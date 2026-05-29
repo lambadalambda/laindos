@@ -1849,3 +1849,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Added `DATETIME` coverage for `INT 21h AH=2Ah/2Bh/2Ch/2Dh` weekday and boundary behavior; the first probe failed with `FAIL: DATETIME WEEKDAY` because `AH=2Bh` stored weekday 0 unconditionally.
 - Implementing weekday calculation made the EMS-enabled kernel exceed the fixed-buffer guard with `src/kernel.asm:2327: error: kernel overlaps SEC_BUF` during `make test`.
 - Preserved the guard and moved the fixed buffers upward by one 512-byte slot: `SEC_BUF=0x09E0`, `READ_CACHE_BUF=0x0A00`, and `ROOT_SEG=0x0A20`; the boot loaders must use the same `ROOT_SEG` because they preload the root directory for the kernel.
+
+## 2026-05-29 Directory Current Edge Semantics
+
+- Added `DIREDGE` coverage for `INT 21h AH=39h/3Ah/3Bh/47h` empty paths, file-as-directory rejection, invalid drive-qualified paths, and current-directory preservation after failed `CHDIR`.
+- The first run failed with `FAIL: DIREDGE CD DRIVE` because `AH=3Bh` accepted `Z:\` as root instead of rejecting the unsupported drive.
+- Added generic drive-prefix validation for directory path APIs before `AH=39h`, `AH=3Ah`, and `AH=3Bh` resolve or mutate paths.
+- `python3 scripts/test_diredge.py` now passes.

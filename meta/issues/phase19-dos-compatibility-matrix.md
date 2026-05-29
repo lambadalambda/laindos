@@ -62,7 +62,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
-| `AH=39h/3Ah/3Bh/47h` | implemented/partial | high | Directory mutation tests cover core behavior; `AH=47h` validates requested drives against the supported logical drive count. |
+| `AH=39h/3Ah/3Bh/47h` | implemented/partial | high | `DIRMUT` covers core directory mutation behavior; `PATHCANON` covers normalized current-directory paths; `DIREDGE` covers empty paths, file-as-directory rejection, invalid drive-qualified directory paths, current-directory preservation after failures, and `AH=47h` valid/invalid drive requests. |
 | `AH=4Eh/4Fh` find first/next | implemented/partial | high | `FINDNEXT`, `FINDATTR`, `FINDTIME`, and `PATHCANON` cover DTA layout/state, wildcard matching, attribute filters, timestamps, and multi-component paths. |
 | `AH=56h` rename | implemented/partial | medium | `RNGUARD`, `SAVEWRITE`, and `HIGHDIR` cover normal, open-handle, read-only, same-directory overwrite, cross-directory failure, multi-component, and high-directory rename behavior. |
 | DOS device names `CON`, `NUL`, `AUX`, `PRN` | implemented/partial | high | Phase 17 is archived; `DEVNAMES` covers case-insensitive and extension-insensitive `CON`/`NUL`, keeps prefix lookalikes as files, and verifies unsupported `AUX`/`PRN` return access denied. |
