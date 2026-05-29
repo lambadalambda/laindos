@@ -118,7 +118,9 @@ ld: cmp si,0xFFF8
     jmp ld
 ldk:
     mov dl,[drv]
-    jmp far LOAD_SEG:0
+    db 0xEA
+    dw 0
+    dw LOAD_SEG
 
 fat_next:
     push bx
