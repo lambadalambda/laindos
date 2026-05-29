@@ -31,8 +31,9 @@
   }
 
   /* v86 screen */
-  .v86-screen { color: #e9e7da; }
+  .v86-screen { color: #e9e7da; overflow: hidden; }
   .v86-screen > div { white-space: pre; font: 15px/1.04 'IBM Plex Mono', monospace; }
+  .v86-screen > div, .v86-screen canvas { flex: 0 0 auto; transform-origin: center center; }
   .v86-screen canvas { image-rendering: pixelated; max-width: 100%; max-height: 100%; }
 
   /* v86 serial terminal */

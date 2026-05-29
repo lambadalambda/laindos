@@ -2,6 +2,22 @@
 // The image is served same-origin from GitHub Pages so cross-origin reads work.
 const LAIN_IMG_URL = "shell_monkey.img";
 
+function fitV86Output(screen) {
+  const text = screen.querySelector(":scope > div");
+  const canvas = screen.querySelector(":scope > canvas");
+  const active = canvas && getComputedStyle(canvas).display !== "none" ? canvas : text;
+  if (!active) return;
+
+  active.style.transform = "none";
+  const rect = active.getBoundingClientRect();
+  const width = active === canvas ? rect.width || canvas.width : active.scrollWidth || rect.width;
+  const height = active === canvas ? rect.height || canvas.height : active.scrollHeight || rect.height;
+  if (!width || !height || !screen.clientWidth || !screen.clientHeight) return;
+
+  const scale = Math.min(1, screen.clientWidth / width, screen.clientHeight / height);
+  active.style.transform = `scale(${scale})`;
+}
+
 function V86Machine({ bootKey, onStatus }) {
   const screenRef = React.useRef(null);
   const termRef = React.useRef(null);
@@ -45,8 +61,24 @@ function V86Machine({ bootKey, onStatus }) {
     emu.add_listener("serial0-output-byte", writeByte);
     emu.add_listener("download-error", () => onStatus("error", "could not load the floppy image"));
     const t = setTimeout(() => { if (!started) onStatus("stalled"); }, 14000);
+    let fitFrame = 0;
+    const scheduleFit = () => {
+      cancelAnimationFrame(fitFrame);
+      fitFrame = requestAnimationFrame(() => fitV86Output(screen));
+    };
+    const resizeObserver = new ResizeObserver(scheduleFit);
+    resizeObserver.observe(screen);
+    Array.from(screen.children).forEach(child => resizeObserver.observe(child));
+    const mutationObserver = new MutationObserver(scheduleFit);
+    mutationObserver.observe(screen, { childList: true, characterData: true, subtree: true });
+    window.addEventListener("resize", scheduleFit);
+    scheduleFit();
     return () => {
       clearTimeout(t);
+      cancelAnimationFrame(fitFrame);
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      window.removeEventListener("resize", scheduleFit);
       try { emu.destroy && emu.destroy(); } catch (e) {}
       screen.replaceChildren();
     };
