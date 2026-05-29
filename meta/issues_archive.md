@@ -59,3 +59,4 @@
 - [x] [Cover AH=4Dh Return Code Edge Cases](issues/cover-ah4dh-return-code-edge-cases.md)
 - [x] [Verify AH=58h Allocation Strategy](issues/verify-ah58h-allocation-strategy.md)
 - [x] [Honor EXEC Custom Environment Segment](issues/honor-exec-custom-environment-segment.md)
+- [x] [Cover Memory Allocator Failure Paths](issues/cover-memory-allocator-failure-paths.md)

@@ -42,7 +42,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
 | MCB arena and ownership | implemented/partial | high | Covered by memory, register-preservation, and game smokes. |
-| `AH=48h/49h/4Ah` | implemented/partial | high | Preserve non-return registers, largest-block failure returns, PSP top updates. Add more failure-path tests. |
+| `AH=48h/49h/4Ah` | implemented/partial | high | `MEMFAIL`, `MEMREG`, and `REGPRES` cover failure returns, largest-block sizes, PSP top updates, and register preservation. |
 | `AH=58h` allocation strategy | implemented/partial | medium | `STRATAPI` covers get/set, first/best/last allocation choices, and unsupported strategy/subfunction failures; UMB strategies remain unsupported. |
 | EXE `MinAlloc`/`MaxAlloc` loading | implemented | high | Covered by `EXEMAX`; protect packed-EXE load segment with `PACKSEG`. |
 
