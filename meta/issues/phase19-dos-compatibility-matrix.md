@@ -65,7 +65,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=39h/3Ah/3Bh/47h` | implemented/partial | high | Directory mutation tests cover core behavior; `AH=47h` validates requested drives against the supported logical drive count. |
 | `AH=4Eh/4Fh` find first/next | implemented/partial | high | Preserve DTA layout and wildcard behavior. |
 | `AH=56h` rename | implemented/partial | medium | Strengthen cross-directory and overwrite failure behavior. |
-| DOS device names `CON`, `NUL`, `AUX`, `PRN` | missing/partial | high | Tracked by Phase 17. |
+| DOS device names `CON`, `NUL`, `AUX`, `PRN` | implemented/partial | high | Phase 17 is archived; `DEVNAMES` covers case-insensitive and extension-insensitive `CON`/`NUL`, keeps prefix lookalikes as files, and verifies unsupported `AUX`/`PRN` return access denied. |
 | `AH=29h` parse filename | missing | low/medium | Useful for old FCB-era utilities and installers. |
 
 ### Disk, IOCTL, and Miscellaneous
