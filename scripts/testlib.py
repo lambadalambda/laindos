@@ -58,6 +58,32 @@ def run_cmd(cmd):
         sys.exit(result.returncode)
 
 
+def build_nasm_test_image(builddir, img, kernel, boot_file, program_source, program_name, extra_files=(), kernel_defines=()):
+    os.makedirs(builddir, exist_ok=True)
+    boot = os.path.join(builddir, "boot.bin")
+    program = os.path.join(builddir, program_name)
+    run_cmd(["nasm", "-f", "bin", "src/boot.asm", "-o", boot])
+    kernel_cmd = ["nasm", f'-DBOOT_FILE="{boot_file}"']
+    kernel_cmd.extend(kernel_defines)
+    kernel_cmd.extend(["-f", "bin", "src/kernel.asm", "-o", kernel])
+    run_cmd(kernel_cmd)
+    run_cmd(["nasm", "-f", "bin", program_source, "-o", program])
+    run_cmd(["python3", "scripts/mkimage.py", boot, kernel, img, program, *extra_files])
+    return program
+
+
+def run_serial_image(img, timeout=10, qemu="qemu-system-i386", drive_opts="if=floppy"):
+    output, _ = run_qemu_capture([
+        qemu,
+        "-drive", f"file={img},format=raw,{drive_opts}",
+        "-boot", "order=a",
+        "-serial", "stdio",
+        "-monitor", "none",
+        "-nographic",
+    ], timeout)
+    return output
+
+
 def remove_if_exists(path):
     try:
         os.unlink(path)

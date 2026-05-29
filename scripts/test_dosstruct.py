@@ -1,69 +1,22 @@
 #!/usr/bin/env python3
 import os
-import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import build_dir, build_nasm_test_image, check_markers, run_serial_image
 
-QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
 IMG = os.path.join(BUILDDIR, "dosstruct.img")
 KERNEL = os.path.join(BUILDDIR, "dosstruct_kernel.bin")
 TIMEOUT = 10
 
 
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-
-
 def build_image():
-    os.makedirs(BUILDDIR, exist_ok=True)
-    boot = os.path.join(BUILDDIR, "boot.bin")
-    test_com = os.path.join(BUILDDIR, "dosstruct.com")
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", boot])
-    run([
-        "nasm", '-DBOOT_FILE="DOSSTRUCCOM"', "-f", "bin", "src/kernel.asm",
-        "-o", KERNEL,
-    ])
-    run(["nasm", "-f", "bin", "tests/programs/dosstruct.asm", "-o", test_com])
-    run(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, test_com])
-
-
-def run_qemu():
-    output, _ = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
-    return output
+    build_nasm_test_image(BUILDDIR, IMG, KERNEL, "DOSSTRUCCOM", "tests/programs/dosstruct.asm", "dosstruct.com")
 
 
 def main():
     build_image()
-    output = run_qemu()
-    failed = False
-    for marker in ["PASS: DOSSTRUCT", "Program exited, code=00", "HALT"]:
-        if marker in output:
-            print(f"  PASS: found '{marker}'")
-        else:
-            print(f"  FAIL: missing '{marker}'")
-            failed = True
-    for marker in ["FAIL:", "EXC ", "INT 21h AH="]:
-        if marker in output:
-            print(f"  FAIL: unexpected '{marker}'")
-            failed = True
-    if failed:
-        print("\n--- QEMU serial output ---")
-        print(output)
-        print("--- end ---")
+    output = run_serial_image(IMG, TIMEOUT)
+    if not check_markers(output, required=("PASS: DOSSTRUCT", "Program exited, code=00", "HALT")):
         sys.exit(1)
     print("\nDOS structure API test passed.")
 
