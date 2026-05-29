@@ -6,7 +6,7 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 
 ## Current Status
 
-- Boots FAT12 floppy images, raw FAT hard-disk images, and a minimal partitioned FAT16 hard-disk layout.
+- Boots FAT12 floppy images, raw FAT hard-disk images, a minimal partitioned FAT16 hard-disk layout, and floppy boots with an attached raw FAT hard disk exposed as `C:`.
 - Loads `.COM` and MZ `.EXE` programs with PSP setup, relocation, terminate vectors, environment blocks, and MCB allocation.
 - Provides a small shell with `AUTOEXEC.BAT`, current directory support, environment/PATH handling, and parent/child `EXEC` coverage.
 - Implements the core DOS file APIs used by the current suite: open/read/write/seek/close, create/truncate, delete, rename, attributes, timestamps, disk free, FindFirst/FindNext, and writable FAT12/FAT16 paths.
@@ -16,7 +16,7 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 - Runs the full VGA Monkey Island image when `vendor/monkey_full.zip` is present.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
-- `make test` currently runs the automated QEMU regression ladder and passes `65/65` tests.
+- `make test` currently runs the automated QEMU regression ladder and passes `67/67` tests.
 
 ## Scope
 
@@ -51,10 +51,10 @@ Current important segment layout:
 0040:0000  BIOS Data Area
 0060:0000  FAT scratch buffer
 0340:0000  relocated kernel
-09E0:0000  sector buffer
-0A00:0000  read cache buffer
-0A20:0000  root directory buffer
-0340:BC00  kernel stack top (physical 0F000)
+0AC0:0000  sector buffer
+0AE0:0000  read cache buffer
+0B00:0000  root directory buffer
+0340:C800  kernel stack top (physical 0FC00)
 1000:0000  start of MCB-managed program and environment memory
 A000:0000  VGA graphics memory
 ```
@@ -170,6 +170,8 @@ Build the all-games image with Monkey Island, Monkey Island 2, Simon demo, Ascen
 ```sh
 python3 scripts/build_games_hd_all.py
 ```
+
+The same `build/games_hd_all.img` can be attached as a second QEMU drive while booting `build/shell_monkey.img`; LainDOS keeps the shell on `A:` and exposes the attached hard disk as `C:` for commands such as `C:`, `CD \MI2`, and `MONKEY2`.
 
 Build the experimental Wolfenstein 3D shareware image from `vendor/wolf3dsw.zip`:
 

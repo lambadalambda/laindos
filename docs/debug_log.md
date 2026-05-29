@@ -2,6 +2,39 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-29 Floppy Boot With Attached C: Hard Disk
+
+### Symptoms
+
+- Booting `build/shell_monkey.img` as `A:` with `build/games_hd_all.img` attached did not expose the attached hard disk as `C:`.
+- The shell also treated a standalone `C:` line as an external command instead of a drive switch.
+
+### Confirmed Facts
+
+- Added `tests/programs/multidrive.asm`, `scripts/test_multidrive.py`, and `scripts/test_multidrive_shell.py` for a floppy boot with a second IDE hard-disk image.
+- The first direct regression failed at `FAIL: MULTIDRIVE SELECT C COUNT`, confirming that the kernel only exposed the BIOS boot drive.
+- LainDOS now keeps per-drive geometry, BPB, current-directory, and BIOS-drive slots for `A:`/`B:`/`C:` and mounts BIOS `80h` as logical `C:` when booting from a floppy.
+- File handles now remember their owning drive, and FindFirst stores the active drive in the DTA so FindNext resumes against the same volume.
+- The shell accepts standalone drive-switch commands such as `A:`, `B:`, and `C:`.
+- Full `make test` initially exposed a FAT16 hard-disk boot reboot loop. The FAT16 root buffer at `ROOT_SEG=0x0B00` is 16 KiB and ended exactly at the old stack top physical `0x0F000`, so loading the root directory overwrote the active kernel stack.
+- Raising `KERNEL_STACK_TOP` to `0xC800` gives the FAT16 root buffer a guard below the stack while keeping the stack below `MCB_START`; a compile-time guard now rejects layouts that leave too little root/stack separation.
+- Review follow-up made failed drive switches restore the previous drive geometry and buffers before returning carry set.
+- Review follow-up expanded `MULTIDRIVE.COM` to cover interleaved open handles across A:/C:, FindNext continuing on C: after selecting A:, and C: write verification after an A: I/O interlude.
+
+### Tests And Smokes Run
+
+- `python3 scripts/test_drive.py`
+- `python3 scripts/test_multidrive.py`
+- `python3 scripts/test_multidrive_shell.py`
+- `python3 -m py_compile scripts/test_multidrive.py scripts/test_multidrive_shell.py scripts/run_tests.py`
+- `git diff --check`
+- `python3 scripts/test_drivedata.py`
+- `python3 scripts/run_tests.py scripts/test_diskfree.py scripts/test_fat16.py scripts/test_fat16_bounds.py scripts/test_partitioned_fat16.py scripts/test_fat16_large.py scripts/test_badfat.py scripts/test_highdir.py scripts/test_fat16_seek.py scripts/test_multidrive.py scripts/test_multidrive_shell.py`
+- `make test` passed `67/67`.
+- `python3 scripts/build_shell_monkey.py`
+- `python3 scripts/build_games_hd_all.py`
+- QEMU acceptance smoke booted `build/shell_monkey.img` as floppy with `build/games_hd_all.img` attached as IDE disk, switched to `C:`, changed to `C:\MI2`, launched `MONKEY2`, observed game startup screen clearing, and saw no `FAIL:`, `EXC `, `INT 21h AH=`, `Bad command or file name`, or returned `C:\MI2>` prompt during the smoke window.
+
 ## 2026-05-28 Environment MCB Blocks
 
 ### Confirmed Facts

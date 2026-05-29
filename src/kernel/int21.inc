@@ -476,6 +476,9 @@ int21_handler:
     mov al, [cs:dos_drive_count]
     cmp dl, al
     jae .select_disk_return
+    mov al, dl
+    call activate_drive
+    jc .select_disk_return
     mov [cs:dos_drive_num], dl
     mov al, 'A'
     add al, dl
@@ -494,6 +497,8 @@ int21_handler:
     mov al, 0xFF
     jmp iret_nc
 .gdd_valid_drive:
+    call activate_drive_for_dl
+    jc .gdd_invalid_drive
     push cs
     pop ds
     mov bx, bpb_copy+21
@@ -502,6 +507,9 @@ int21_handler:
     mov cx, [cs:bpb_copy+11]
     mov dx, [cs:kmax_cluster]
     sub dx, 2
+    jmp iret_nc
+.gdd_invalid_drive:
+    mov al, 0xFF
     jmp iret_nc
 .set_dta:
     mov [cs:dta_off], dx
@@ -608,6 +616,8 @@ int21_handler:
     mov ax, 0xFFFF
     jmp iret_nc
 .gdf_valid_drive:
+    call activate_drive_for_dl
+    jc .gdf_invalid_drive
     push si
     xor bx, bx
     mov si, 2
@@ -628,6 +638,9 @@ int21_handler:
     sub dx, 2
     mov cx, [cs:bpb_copy+11]
     pop si
+    jmp iret_nc
+.gdf_invalid_drive:
+    mov ax, 0xFFFF
     jmp iret_nc
 .country_info:
     cmp al, 0xFF
@@ -1740,28 +1753,16 @@ int21_handler:
     mov ax, [cs:ov_status]
     jmp iret_cy
 .validate_path_drive:
-    push ax
     push si
     mov si, dx
-    mov al, [ds:si]
-    call ascii_upper
-    cmp al, 'A'
-    jb .vpd_ok
-    cmp al, 'Z'
-    ja .vpd_ok
-    cmp byte [ds:si+1], ':'
-    jne .vpd_ok
-    sub al, 'A' - 1
-    cmp al, [cs:dos_drive_count]
-    jbe .vpd_ok
+    call activate_drive_for_path
+    jc .vpd_err
     pop si
-    pop ax
-    stc
-    ret
-.vpd_ok:
-    pop si
-    pop ax
     clc
+    ret
+.vpd_err:
+    pop si
+    stc
     ret
 .chdir:
     push ds
@@ -2458,6 +2459,8 @@ int21_handler:
     mov ax, [cs:si+handles+H_DIR_LBA]
     or ax, [cs:si+handles+H_DIR_LBA_HI]
     je .rf_device
+    call activate_drive_for_handle
+    jc .rf_err_pop
     mov ax, [cs:si+handles+H_POS_LO]
     mov [cs:rf_start_lo], ax
     mov ax, [cs:si+handles+H_POS_HI]
@@ -2730,6 +2733,8 @@ int21_handler:
     mov ax, [cs:si+handles+H_DIR_LBA]
     or ax, [cs:si+handles+H_DIR_LBA_HI]
     je .wf_device
+    call activate_drive_for_handle
+    jc .wf_file_invalid_pop
     cmp byte [cs:si+handles+H_MODE], 0
     je .wf_file_access_pop
     mov ax, [cs:si+handles+H_POS_HI]
@@ -3409,6 +3414,9 @@ int21_handler:
 .ioctl_removable_drive:
     call .ioctl_validate_drive_bl
     jc .ioctl_bad_drive
+    mov dl, bl
+    call activate_drive_for_dl
+    jc .ioctl_bad_drive
     xor ax, ax
     cmp byte [cs:kdrv], 0x80
     jb .ioctl_removable_done
@@ -3417,6 +3425,9 @@ int21_handler:
     jmp iret_nc
 .ioctl_local_drive:
     call .ioctl_validate_drive_bl
+    jc .ioctl_bad_drive
+    mov dl, bl
+    call activate_drive_for_dl
     jc .ioctl_bad_drive
     xor dx, dx
     jmp iret_nc
@@ -3635,6 +3646,8 @@ int21_handler:
     jbe .gc_drive_ok
     jmp .gc_bad_drive
 .gc_drive_ok:
+    call activate_drive_for_dl
+    jc .gc_bad_drive
     push ds
     push si
     push es
@@ -3830,6 +3843,9 @@ int21_handler:
     mov ax, [cs:dta_seg]
     mov ds, ax
     mov si, [cs:dta_off]
+    mov al, [ds:si]
+    call activate_drive
+    jc .fn_bad_drive
     mov cl, [ds:si+12]
     mov [cs:ff_attr_mask], cl
     mov bx, [ds:si+13]
@@ -3847,6 +3863,10 @@ int21_handler:
     jnc .fn_found
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     mov ax, 2
+    jmp iret_cy
+.fn_bad_drive:
+    INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
+    mov ax, 15
     jmp iret_cy
 .fn_found:
     call store_find_dta

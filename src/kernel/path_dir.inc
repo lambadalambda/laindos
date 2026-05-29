@@ -45,6 +45,9 @@ init_handle_entry:
     mov [cs:bx+handles+H_OWNER], ax
     mov word [cs:bx+handles+H_REFCOUNT], 1
     mov word [cs:bx+handles+H_ALIAS], H_ALIAS_NONE
+    mov al, [cs:active_drive_num]
+    mov [cs:bx+handles+H_DRIVE], al
+    mov byte [cs:bx+handles+H_DRIVE+1], 0
     ret
 
 alloc_device_handle:
@@ -743,6 +746,8 @@ chdir_dot_only_path:
     push si
     push di
     push ds
+    call activate_drive_for_path
+    jc .not_dot_only
     mov bx, si
     mov ax, [cs:cur_dir_cluster]
     mov [cs:cd_walk_cluster], ax
@@ -884,6 +889,8 @@ chdir_walk_parent:
 
 resolve_path:
     push bx
+    call activate_drive_for_path
+    jc .rp_drive_err
     mov [cs:rp_path], si
     mov [cs:rp_path_seg], ds
     cmp byte [ds:si], '\'
@@ -1054,6 +1061,10 @@ resolve_path:
     pop bx
     ret
 .rp_notfound:
+    stc
+    pop bx
+    ret
+.rp_drive_err:
     stc
     pop bx
     ret
@@ -1758,6 +1769,8 @@ parse_root_path:
     push ax
     push bx
     push dx
+    call activate_drive_for_path
+    jc .err
     mov byte [cs:pr_abs], 0
     mov [cs:pr_path_off], si
     mov ax, [cs:cur_dir_cluster]
@@ -1958,6 +1971,8 @@ store_find_dta:
     mov ax, [cs:dta_seg]
     mov es, ax
     mov di, [cs:dta_off]
+    mov al, [cs:active_drive_num]
+    mov [es:di], al
     mov ax, [cs:ff_entry_idx]
     mov [es:di+13], ax
     mov ax, [cs:ff_dir_cluster]

@@ -110,6 +110,8 @@ flush_handle_dir_entry:
     push es
     push di
     mov [cs:dir_update_hoff], si
+    call activate_drive_for_handle
+    jc .done
     mov ax, [cs:si+handles+H_DIR_LBA]
     mov dx, [cs:si+handles+H_DIR_LBA_HI]
     or ax, dx
@@ -160,6 +162,9 @@ entry_has_open_handle:
 .loop:
     cmp byte [cs:bx+handles+H_USED], 0
     je .next
+    mov al, [cs:active_drive_num]
+    cmp [cs:bx+handles+H_DRIVE], al
+    jne .next
     mov ax, [cs:ff_entry_lba]
     cmp [cs:bx+handles+H_DIR_LBA], ax
     jne .next

@@ -38,6 +38,8 @@ execute_line:
     call skip_command_prefix
     cmp byte [si], 0
     je .done
+    call change_drive_command
+    jc .done
     mov bx, command_table
 .builtin_loop:
     mov di, [bx]
@@ -239,6 +241,50 @@ do_echo:
     ret
 
 do_rem:
+    ret
+
+change_drive_command:
+    push ax
+    push dx
+    push si
+    mov al, [si]
+    cmp al, 'A'
+    jb .no
+    cmp al, 'Z'
+    ja .no
+    cmp byte [si+1], ':'
+    jne .no
+    mov dx, si
+    add dx, 2
+.tail:
+    mov si, dx
+    cmp byte [si], 0
+    je .change
+    cmp byte [si], ' '
+    jne .no
+    inc dx
+    jmp .tail
+.change:
+    mov dl, al
+    sub dl, 'A'
+    mov ah, 0x0E
+    int 0x21
+    cmp dl, al
+    jb .handled
+    mov dx, path_not_found_msg
+    mov ah, 0x09
+    int 0x21
+.handled:
+    pop si
+    pop dx
+    pop ax
+    stc
+    ret
+.no:
+    pop si
+    pop dx
+    pop ax
+    clc
     ret
 
 print_prompt:

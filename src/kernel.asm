@@ -10,11 +10,11 @@ VGA_ROWS equ 25
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x0060
-ROOT_SEG  equ 0x0A20
+ROOT_SEG  equ 0x0B00
 PSP_SEG   equ 0x3000
 TEMP_SEG  equ 0x4000
 
-HANDLE_SIZE equ 32
+HANDLE_SIZE equ 34
 H_USED      equ 0
 H_MODE      equ 1
 H_CLUSTER   equ 2
@@ -32,11 +32,13 @@ H_OWNER     equ 24
 H_DIR_LBA_HI equ 26
 H_REFCOUNT  equ 28
 H_ALIAS     equ 30
+H_DRIVE     equ 32
 H_ALIAS_NONE equ 0xFFFF
 MAX_HANDLES equ 20
 SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
-KERNEL_STACK_TOP equ 0xBC00
+KERNEL_STACK_TOP equ 0xC800
+STACK_ROOT_GUARD_PARAS equ 0x80
 %ifndef XMS_MAX_KB
 %define XMS_MAX_KB 15360
 %endif
@@ -407,6 +409,13 @@ iret_nc_nz:
     iret
 
 init_bpb_geometry:
+    call parse_bpb_geometry
+    jc .done
+    call init_drive_table
+.done:
+    ret
+
+parse_bpb_geometry:
     push ds
     push bx
     push cs
@@ -530,28 +539,576 @@ init_bpb_geometry:
 
     pop bx
     pop ds
-    push ds
-    xor ax, ax
-    mov ds, ax
-    mov al, [0x500]
-    pop ds
-    mov [cs:kdrv], al
-    mov byte [cs:dos_drive_num], 0
-    mov byte [cs:dos_drive_letter], 'A'
-    mov byte [cs:dos_drive_count], 1
-    cmp al, 0x80
-    jb .drive_done
-    call query_bios_disk_geometry
-    mov byte [cs:dos_drive_num], 2
-    mov byte [cs:dos_drive_letter], 'C'
-    mov byte [cs:dos_drive_count], 3
-.drive_done:
     clc
     ret
 .bad:
     pop bx
     pop ds
     stc
+    ret
+
+init_drive_table:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    push cs
+    pop ds
+    mov cx, 3
+    xor bx, bx
+.clear_loop:
+    mov byte [cs:drive_present+bx], 0
+    mov byte [cs:drive_cur_paths+bx+0], 0
+    inc bx
+    loop .clear_loop
+    push ds
+    xor ax, ax
+    mov ds, ax
+    mov al, [0x500]
+    pop ds
+    mov [cs:kdrv], al
+    cmp al, 0x80
+    jb .floppy_boot
+    call query_bios_disk_geometry
+    mov byte [cs:dos_drive_num], 2
+    mov byte [cs:dos_drive_letter], 'C'
+    mov byte [cs:dos_drive_count], 3
+    mov byte [cs:active_drive_num], 2
+    mov word [cs:cur_dir_cluster], ROOT_CLUSTER
+    mov byte [cs:cur_dir_path], 0
+    mov al, 0
+    call save_active_drive_slot
+    mov al, 1
+    call save_active_drive_slot
+    mov al, 2
+    call save_active_drive_slot
+    call load_active_volume_buffers
+    jc .done
+    jmp .done
+.floppy_boot:
+    mov byte [cs:dos_drive_num], 0
+    mov byte [cs:dos_drive_letter], 'A'
+    mov byte [cs:dos_drive_count], 1
+    mov byte [cs:active_drive_num], 0
+    mov word [cs:cur_dir_cluster], ROOT_CLUSTER
+    mov byte [cs:cur_dir_path], 0
+    mov al, 0
+    call save_active_drive_slot
+    call mount_bios_hard_disk_c
+    jc .restore_floppy
+    mov byte [cs:dos_drive_num], 2
+    mov byte [cs:dos_drive_count], 3
+    mov byte [cs:active_drive_num], 0xFF
+    xor al, al
+    call activate_drive
+    mov al, 1
+    call save_active_drive_slot
+    mov byte [cs:dos_drive_num], 0
+    mov byte [cs:dos_drive_letter], 'A'
+    jmp .done
+.restore_floppy:
+    mov byte [cs:active_drive_num], 0xFF
+    xor al, al
+    call activate_drive
+    mov byte [cs:dos_drive_num], 0
+    mov byte [cs:dos_drive_letter], 'A'
+    mov byte [cs:dos_drive_count], 1
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+save_active_drive_slot:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    xor bh, bh
+    mov bl, al
+    cmp bl, 3
+    jae .done
+    mov byte [cs:drive_present+bx], 1
+    mov al, [cs:kdrv]
+    mov [cs:drive_bios+bx], al
+    mov al, [cs:kspc]
+    mov [cs:drive_kspc+bx], al
+    mov al, [cs:knum_fats]
+    mov [cs:drive_knum_fats+bx], al
+    mov al, [cs:kfat_bits]
+    mov [cs:drive_kfat_bits+bx], al
+    mov si, bx
+    shl si, 1
+    mov ax, [cs:krsta]
+    mov [cs:drive_krsta+si], ax
+    mov ax, [cs:krsc]
+    mov [cs:drive_krsc+si], ax
+    mov ax, [cs:kdsta]
+    mov [cs:drive_kdsta+si], ax
+    mov ax, [cs:kbio_spt]
+    mov [cs:drive_kbio_spt+si], ax
+    mov ax, [cs:kbio_heads]
+    mov [cs:drive_kbio_heads+si], ax
+    mov ax, [cs:kfat_start]
+    mov [cs:drive_kfat_start+si], ax
+    mov ax, [cs:kfat_secs]
+    mov [cs:drive_kfat_secs+si], ax
+    mov ax, [cs:kfat_eoc]
+    mov [cs:drive_kfat_eoc+si], ax
+    mov ax, [cs:kfat_eoc_value]
+    mov [cs:drive_kfat_eoc_value+si], ax
+    mov ax, [cs:kfat_reserved]
+    mov [cs:drive_kfat_reserved+si], ax
+    mov ax, [cs:kroot_entries]
+    mov [cs:drive_kroot_entries+si], ax
+    mov ax, [cs:kroot_bytes]
+    mov [cs:drive_kroot_bytes+si], ax
+    mov ax, [cs:kmax_cluster]
+    mov [cs:drive_kmax_cluster+si], ax
+    mov ax, [cs:kpart_lba]
+    mov [cs:drive_kpart_lba+si], ax
+    mov ax, [cs:kpart_lba_hi]
+    mov [cs:drive_kpart_lba_hi+si], ax
+    mov si, bx
+    shl si, 6
+    push ds
+    push es
+    push cs
+    pop ds
+    push cs
+    pop es
+    mov di, drive_bpbs
+    add di, si
+    mov si, bpb_copy
+    mov cx, 64
+    cld
+    rep movsb
+    pop es
+    pop ds
+    mov si, bx
+    shl si, 1
+    mov ax, [cs:cur_dir_cluster]
+    mov [cs:drive_cur_clusters+si], ax
+    mov si, bx
+    shl si, 6
+    push ds
+    push es
+    push cs
+    pop ds
+    push cs
+    pop es
+    mov di, drive_cur_paths
+    add di, si
+    mov si, cur_dir_path
+    mov cx, 64
+    cld
+    rep movsb
+    pop es
+    pop ds
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+save_active_drive_cwd:
+    push ax
+    push bx
+    push cx
+    push ds
+    push es
+    push si
+    push di
+    xor bh, bh
+    mov bl, [cs:active_drive_num]
+    cmp bl, 3
+    jae .done
+    mov si, bx
+    shl si, 1
+    mov ax, [cs:cur_dir_cluster]
+    mov [cs:drive_cur_clusters+si], ax
+    mov si, bx
+    shl si, 6
+    push cs
+    pop ds
+    push cs
+    pop es
+    mov di, drive_cur_paths
+    add di, si
+    mov si, cur_dir_path
+    mov cx, 64
+    cld
+    rep movsb
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+load_active_drive_cwd:
+    push ax
+    push bx
+    push cx
+    push ds
+    push es
+    push si
+    push di
+    xor bh, bh
+    mov bl, [cs:active_drive_num]
+    cmp bl, 3
+    jae .done
+    mov si, bx
+    shl si, 1
+    mov ax, [cs:drive_cur_clusters+si]
+    mov [cs:cur_dir_cluster], ax
+    mov si, bx
+    shl si, 6
+    push cs
+    pop ds
+    push cs
+    pop es
+    mov di, cur_dir_path
+    add si, drive_cur_paths
+    mov cx, 64
+    cld
+    rep movsb
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+load_drive_slot_geometry:
+    push ax
+    push bx
+    push si
+    xor bh, bh
+    mov bl, al
+    mov al, [cs:drive_bios+bx]
+    mov [cs:kdrv], al
+    mov al, [cs:drive_kspc+bx]
+    mov [cs:kspc], al
+    mov al, [cs:drive_knum_fats+bx]
+    mov [cs:knum_fats], al
+    mov al, [cs:drive_kfat_bits+bx]
+    mov [cs:kfat_bits], al
+    mov si, bx
+    shl si, 1
+    mov ax, [cs:drive_krsta+si]
+    mov [cs:krsta], ax
+    mov ax, [cs:drive_krsc+si]
+    mov [cs:krsc], ax
+    mov ax, [cs:drive_kdsta+si]
+    mov [cs:kdsta], ax
+    mov ax, [cs:drive_kbio_spt+si]
+    mov [cs:kbio_spt], ax
+    mov ax, [cs:drive_kbio_heads+si]
+    mov [cs:kbio_heads], ax
+    mov ax, [cs:drive_kfat_start+si]
+    mov [cs:kfat_start], ax
+    mov ax, [cs:drive_kfat_secs+si]
+    mov [cs:kfat_secs], ax
+    mov ax, [cs:drive_kfat_eoc+si]
+    mov [cs:kfat_eoc], ax
+    mov ax, [cs:drive_kfat_eoc_value+si]
+    mov [cs:kfat_eoc_value], ax
+    mov ax, [cs:drive_kfat_reserved+si]
+    mov [cs:kfat_reserved], ax
+    mov ax, [cs:drive_kroot_entries+si]
+    mov [cs:kroot_entries], ax
+    mov ax, [cs:drive_kroot_bytes+si]
+    mov [cs:kroot_bytes], ax
+    mov ax, [cs:drive_kmax_cluster+si]
+    mov [cs:kmax_cluster], ax
+    mov ax, [cs:drive_kpart_lba+si]
+    mov [cs:kpart_lba], ax
+    mov ax, [cs:drive_kpart_lba_hi+si]
+    mov [cs:kpart_lba_hi], ax
+    mov si, bx
+    shl si, 6
+    push cx
+    push ds
+    push es
+    push cs
+    pop ds
+    push cs
+    pop es
+    mov di, bpb_copy
+    add si, drive_bpbs
+    mov cx, 64
+    cld
+    rep movsb
+    pop es
+    pop ds
+    pop cx
+    pop si
+    pop bx
+    pop ax
+    ret
+
+mount_bios_hard_disk_c:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov byte [cs:drive_present+2], 0
+    mov byte [cs:kdrv], 0x80
+    mov word [cs:kpart_lba], 0
+    mov word [cs:kpart_lba_hi], 0
+    mov word [cs:kbio_spt], 63
+    mov word [cs:kbio_heads], 16
+    call query_bios_disk_geometry
+    mov ax, SEC_BUF
+    mov es, ax
+    xor bx, bx
+    xor ax, ax
+    mov word [cs:kio_lba_hi], 0
+    call read_sector
+    jc .err
+    push ds
+    push es
+    mov ax, SEC_BUF
+    mov ds, ax
+    push cs
+    pop es
+    xor si, si
+    mov di, bpb_copy
+    mov cx, 64
+    cld
+    rep movsb
+    pop es
+    pop ds
+    call parse_bpb_geometry
+    jc .err
+    mov byte [cs:kdrv], 0x80
+    call query_bios_disk_geometry
+    mov word [cs:cur_dir_cluster], ROOT_CLUSTER
+    mov byte [cs:cur_dir_path], 0
+    mov byte [cs:active_drive_num], 2
+    mov al, 2
+    call save_active_drive_slot
+    clc
+    jmp .done
+.err:
+    mov byte [cs:drive_present+2], 0
+    stc
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+activate_drive:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov [cs:drive_req], al
+    mov al, [cs:active_drive_num]
+    mov [cs:drive_prev], al
+    mov al, [cs:drive_req]
+    cmp al, 3
+    jae .err
+    xor bh, bh
+    mov bl, al
+    cmp byte [cs:drive_present+bx], 0
+    je .err
+    cmp al, [cs:active_drive_num]
+    je .ok
+    call flush_fat
+    jc .err
+    call save_active_drive_cwd
+    mov al, [cs:drive_req]
+    call load_drive_slot_geometry
+    mov byte [cs:rf_cache_valid], 0
+    mov byte [cs:fat16_cache_valid], 0
+    mov byte [cs:fat_dirty], 0
+    call load_active_volume_buffers
+    jc .restore_old
+    mov al, [cs:drive_req]
+    mov [cs:active_drive_num], al
+    call load_active_drive_cwd
+.ok:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.restore_old:
+    mov al, [cs:drive_prev]
+    cmp al, 3
+    jae .err
+    call load_drive_slot_geometry
+    mov byte [cs:rf_cache_valid], 0
+    mov byte [cs:fat16_cache_valid], 0
+    mov byte [cs:fat_dirty], 0
+    call load_active_volume_buffers
+.err:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
+
+load_active_volume_buffers:
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+    cmp byte [cs:kfat_bits], 16
+    je .root
+    mov ax, FAT_SEG
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:kfat_start]
+    mov cx, [cs:kfat_secs]
+    call read_sector_loop
+    jc .err
+.root:
+    mov ax, ROOT_SEG
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:krsta]
+    mov cx, [cs:krsc]
+    call read_sector_loop
+    jc .err
+    clc
+    jmp .done
+.err:
+    stc
+.done:
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+read_sector_loop:
+    push dx
+    mov [cs:drive_load_lba], ax
+.loop:
+    test cx, cx
+    jz .ok
+    mov word [cs:kio_lba_hi], 0
+    mov ax, [cs:drive_load_lba]
+    push cx
+    call read_sector
+    pop cx
+    jc .err
+    inc word [cs:drive_load_lba]
+    dec cx
+    jmp .loop
+.ok:
+    pop dx
+    clc
+    ret
+.err:
+    pop dx
+    stc
+    ret
+
+activate_drive_for_path:
+    push ax
+    push bx
+    push si
+    mov al, [ds:si]
+    call ascii_upper
+    cmp al, 'A'
+    jb .default
+    cmp al, 'Z'
+    ja .default
+    cmp byte [ds:si+1], ':'
+    jne .default
+    sub al, 'A'
+    jmp .activate
+.default:
+    mov al, [cs:dos_drive_num]
+.activate:
+    mov [cs:drive_req], al
+    call activate_drive
+    jc .err
+    pop si
+    pop bx
+    pop ax
+    clc
+    ret
+.err:
+    pop si
+    pop bx
+    pop ax
+    stc
+    ret
+
+activate_drive_for_dl:
+    push ax
+    test dl, dl
+    jz .default
+    mov al, dl
+    dec al
+    jmp .activate
+.default:
+    mov al, [cs:dos_drive_num]
+.activate:
+    call activate_drive
+    pop ax
+    ret
+
+activate_drive_for_handle:
+    push ax
+    mov al, [cs:si+handles+H_DRIVE]
+    call activate_drive
+    pop ax
     ret
 
 query_bios_disk_geometry:
@@ -1984,6 +2541,33 @@ int13_scratch: times 32 db 0
 dos_drive_num: db 0
 dos_drive_letter: db 'A'
 dos_drive_count: db 1
+active_drive_num: db 0
+drive_req: db 0
+drive_prev: db 0
+drive_load_lba: dw 0
+drive_present: times 3 db 0
+drive_bios: times 3 db 0
+drive_kspc: times 3 db 0
+drive_knum_fats: times 3 db 0
+drive_kfat_bits: times 3 db 0
+drive_krsta: times 3 dw 0
+drive_krsc: times 3 dw 0
+drive_kdsta: times 3 dw 0
+drive_kbio_spt: times 3 dw 0
+drive_kbio_heads: times 3 dw 0
+drive_kfat_start: times 3 dw 0
+drive_kfat_secs: times 3 dw 0
+drive_kfat_eoc: times 3 dw 0
+drive_kfat_eoc_value: times 3 dw 0
+drive_kfat_reserved: times 3 dw 0
+drive_kroot_entries: times 3 dw 0
+drive_kroot_bytes: times 3 dw 0
+drive_kmax_cluster: times 3 dw 0
+drive_kpart_lba: times 3 dw 0
+drive_kpart_lba_hi: times 3 dw 0
+drive_bpbs: times 3 * 64 db 0
+drive_cur_clusters: times 3 dw 0
+drive_cur_paths: times 3 * 64 db 0
 break_flag: db 0
 verify_flag: db 0
 kret:  db 3
@@ -2334,6 +2918,9 @@ kernel_end:
 %endif
 %if (ROOT_SEG + ROOT_BUF_PARAS) > (RELOC_SEG + (KERNEL_STACK_TOP / 16))
 %error "ROOT buffer overlaps kernel stack"
+%endif
+%if (ROOT_SEG + ROOT_BUF_PARAS + STACK_ROOT_GUARD_PARAS) > (RELOC_SEG + (KERNEL_STACK_TOP / 16))
+%error "ROOT buffer leaves too little kernel stack guard"
 %endif
 %if (RELOC_SEG + (KERNEL_STACK_TOP / 16)) > MCB_START
 %error "kernel stack overlaps MCB arena"

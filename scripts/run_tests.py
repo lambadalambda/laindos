@@ -44,6 +44,8 @@ DEFAULT_TESTS = [
     "scripts/test_createapi.py",
     "scripts/test_handlecnt.py",
     "scripts/test_drive.py",
+    "scripts/test_multidrive.py",
+    "scripts/test_multidrive_shell.py",
     "scripts/test_diredge.py",
     "scripts/test_drivepath.py",
     "scripts/test_dosstruct.py",
