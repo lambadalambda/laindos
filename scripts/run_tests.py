@@ -41,6 +41,7 @@ DEFAULT_TESTS = [
     "scripts/test_createapi.py",
     "scripts/test_drive.py",
     "scripts/test_dosstruct.py",
+    "scripts/test_parsefcb.py",
     "scripts/test_ioctlstat.py",
     "scripts/test_ioctlext.py",
     "scripts/test_fat16.py",

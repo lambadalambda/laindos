@@ -684,118 +684,230 @@ int21_handler:
     push di
     push bp
     mov bp, di
+    mov dl, al
+    xor dh, dh
+    test dl, 0x02
+    jnz .pf_init_name
     mov byte [es:bp], 0
+.pf_init_name:
+    test dl, 0x04
+    jnz .pf_init_ext
     mov di, bp
     inc di
-    mov cx, 11
+    mov cx, 8
     mov al, ' '
     rep stosb
+.pf_init_ext:
+    test dl, 0x08
+    jnz .pf_after_init
+    mov di, bp
+    add di, 9
+    mov cx, 3
+    mov al, ' '
+    rep stosb
+.pf_after_init:
+    test dl, 0x01
+    jz .pf_scan_start
 .pf_skip:
     mov al, [ds:si]
-    cmp al, ' '
-    je .pf_skip_one
-    cmp al, 9
-    jne .pf_scan_start
+    call .pf_is_separator
+    jnc .pf_scan_start
 .pf_skip_one:
     inc si
     jmp .pf_skip
 .pf_scan_start:
-    mov bx, si
-.pf_scan:
     mov al, [ds:si]
-    test al, al
-    jz .pf_scan_done
-    cmp al, 13
-    je .pf_scan_done
-    cmp al, ' '
-    je .pf_scan_done
-    cmp al, 9
-    je .pf_scan_done
-    inc si
-    cmp al, '\'
-    je .pf_component
-    cmp al, '/'
-    je .pf_component
+    call .pf_is_end
+    jc .pf_done
+    mov al, [ds:si+1]
     cmp al, ':'
-    je .pf_drive
-    jmp .pf_scan
-.pf_drive:
-    mov al, [ds:si-2]
-    call .pf_store_char
-    cmp al, 'A'
-    jb .pf_component
-    cmp al, 'Z'
-    ja .pf_component
-    sub al, 'A' - 1
-    mov [es:bp], al
-.pf_component:
-    mov bx, si
-    jmp .pf_scan
-.pf_scan_done:
-    mov dx, si
-    mov di, bp
-    mov al, [ds:bx+1]
-    cmp al, ':'
-    jne .pf_name
-    mov al, [ds:bx]
+    jne .pf_parse_name
+    mov al, [ds:si]
     call ascii_upper
     cmp al, 'A'
-    jb .pf_name
+    jb .pf_bad_drive
     cmp al, 'Z'
-    ja .pf_name
+    ja .pf_bad_drive
     sub al, 'A' - 1
-    mov [es:di], al
-    add bx, 2
-.pf_name:
-    inc di
-    mov cx, 8
-.pf_name_loop:
-    cmp bx, dx
-    jae .pf_ext_blank
-    mov al, [ds:bx]
+    mov [es:bp], al
+    add si, 2
+    test dl, 0x01
+    jz .pf_parse_name
+.pf_drive_skip:
+    mov al, [ds:si]
+    call .pf_is_separator
+    jnc .pf_parse_name
+    inc si
+    jmp .pf_drive_skip
+.pf_parse_name:
+    mov al, [ds:si]
+    call .pf_is_end
+    jc .pf_done
     cmp al, '.'
     je .pf_dot
+    call .pf_is_separator
+    jc .pf_done
+    mov di, bp
+    inc di
+    mov cx, 8
+    mov al, ' '
+    push di
+    rep stosb
+    pop di
+    mov cx, 8
+.pf_name_loop:
+    mov al, [ds:si]
+    call .pf_is_end
+    jc .pf_done
+    cmp al, '.'
+    je .pf_dot
+    call .pf_is_separator
+    jc .pf_done
+    cmp al, '*'
+    je .pf_name_star
+    cmp al, '?'
+    je .pf_name_question
     cmp cx, 0
-    je .pf_skip_name_extra
-    call .pf_store_char
+    je .pf_name_advance
+    call ascii_upper
     mov [es:di], al
     inc di
-    inc bx
     dec cx
+    inc si
     jmp .pf_name_loop
-.pf_skip_name_extra:
-    inc bx
+.pf_name_question:
+    mov dh, 1
+    cmp cx, 0
+    je .pf_name_advance
+    mov byte [es:di], '?'
+    inc di
+    dec cx
+.pf_name_advance:
+    inc si
     jmp .pf_name_loop
-.pf_ext_blank:
-    add di, cx
-    jmp .pf_done
+.pf_name_star:
+    mov dh, 1
+    mov al, '?'
+    rep stosb
+    inc si
+.pf_name_star_skip:
+    mov al, [ds:si]
+    call .pf_is_end
+    jc .pf_done
+    cmp al, '.'
+    je .pf_dot
+    call .pf_is_separator
+    jc .pf_done
+    inc si
+    jmp .pf_name_star_skip
 .pf_dot:
-    add di, cx
-    inc bx
+    inc si
+    mov di, bp
+    add di, 9
+    mov cx, 3
+    mov al, ' '
+    push di
+    rep stosb
+    pop di
     mov cx, 3
 .pf_ext_loop:
-    cmp bx, dx
-    jae .pf_done
+    mov al, [ds:si]
+    call .pf_is_end
+    jc .pf_done
+    call .pf_is_separator
+    jc .pf_done
+    cmp al, '*'
+    je .pf_ext_star
+    cmp al, '?'
+    je .pf_ext_question
     cmp cx, 0
-    je .pf_done
-    mov al, [ds:bx]
-    call .pf_store_char
+    je .pf_ext_advance
+    call ascii_upper
     mov [es:di], al
     inc di
-    inc bx
     dec cx
+    inc si
     jmp .pf_ext_loop
+.pf_ext_question:
+    mov dh, 1
+    cmp cx, 0
+    je .pf_ext_advance
+    mov byte [es:di], '?'
+    inc di
+    dec cx
+.pf_ext_advance:
+    inc si
+    jmp .pf_ext_loop
+.pf_ext_star:
+    mov dh, 1
+    mov al, '?'
+    rep stosb
+    inc si
+.pf_ext_star_skip:
+    mov al, [ds:si]
+    call .pf_is_end
+    jc .pf_done
+    call .pf_is_separator
+    jc .pf_done
+    inc si
+    jmp .pf_ext_star_skip
+.pf_bad_drive:
+    add si, 2
+    mov dh, 0xFF
 .pf_done:
-    mov si, dx
-    xor al, al
+    mov al, dh
     pop bp
     pop di
     pop dx
     pop cx
     pop bx
     jmp iret_nc
-.pf_store_char:
-    call ascii_upper
+.pf_is_end:
+    test al, al
+    jz .pf_char_yes
+    cmp al, 13
+    je .pf_char_yes
+    cmp al, ' '
+    jb .pf_char_yes
+    clc
+    ret
+.pf_is_separator:
+    cmp al, 9
+    je .pf_char_yes
+    cmp al, ' '
+    je .pf_char_yes
+    cmp al, ':'
+    je .pf_char_yes
+    cmp al, ';'
+    je .pf_char_yes
+    cmp al, '.'
+    je .pf_char_yes
+    cmp al, ','
+    je .pf_char_yes
+    cmp al, '='
+    je .pf_char_yes
+    cmp al, '+'
+    je .pf_char_yes
+    cmp al, '/'
+    je .pf_char_yes
+    cmp al, '"'
+    je .pf_char_yes
+    cmp al, '['
+    je .pf_char_yes
+    cmp al, ']'
+    je .pf_char_yes
+    cmp al, '\'
+    je .pf_char_yes
+    cmp al, '<'
+    je .pf_char_yes
+    cmp al, '>'
+    je .pf_char_yes
+    cmp al, '|'
+    je .pf_char_yes
+    clc
+    ret
+.pf_char_yes:
+    stc
     ret
 .alloc_strategy:
     mov [cs:log_ax], ax

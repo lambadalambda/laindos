@@ -66,7 +66,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=4Eh/4Fh` find first/next | implemented/partial | high | `FINDNEXT`, `FINDATTR`, `FINDTIME`, and `PATHCANON` cover DTA layout/state, wildcard matching, attribute filters, timestamps, and multi-component paths. |
 | `AH=56h` rename | implemented/partial | medium | `RNGUARD`, `SAVEWRITE`, and `HIGHDIR` cover normal, open-handle, read-only, same-directory overwrite, cross-directory failure, multi-component, and high-directory rename behavior. |
 | DOS device names `CON`, `NUL`, `AUX`, `PRN` | implemented/partial | high | Phase 17 is archived; `DEVNAMES` covers case-insensitive and extension-insensitive `CON`/`NUL`, keeps prefix lookalikes as files, and verifies unsupported `AUX`/`PRN` return access denied. |
-| `AH=29h` parse filename | missing | low/medium | Useful for old FCB-era utilities and installers. |
+| `AH=29h` parse filename | implemented/partial | low/medium | `PARSEFCB` covers drive parsing, option-bit preservation, leading separator handling, wildcard return/asterisk expansion, invalid drive reporting, and separator termination. |
 
 ### Disk, IOCTL, and Miscellaneous
 
