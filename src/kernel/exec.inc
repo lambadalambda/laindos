@@ -810,7 +810,9 @@ exec_com:
     mov ss, ax
     mov sp, 0xFFFE
     push word 0x0000
-    jmp far PSP_SEG:0x0100
+    db 0xEA
+    dw 0x0100
+    dw PSP_SEG
 
 .back:
     ret
