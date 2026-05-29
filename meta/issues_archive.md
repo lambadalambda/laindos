@@ -72,3 +72,4 @@
 - [x] [Cover Drive Data FAT16 Semantics](issues/cover-drive-data-fat16-semantics.md)
 - [x] [Cover IOCTL Edge Semantics](issues/cover-ioctl-edge-semantics.md)
 - [x] [Cover Console Character Edge Semantics](issues/cover-console-character-edge-semantics.md)
+- [x] [Cover State API Edge Semantics](issues/cover-state-api-edge-semantics.md)

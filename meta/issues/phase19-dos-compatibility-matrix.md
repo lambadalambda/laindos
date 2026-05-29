@@ -80,7 +80,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=36h` disk free | implemented/partial | medium | Counts free clusters from the active FAT and returns `AX=FFFFh` for invalid drives; covered by `DISKFREE` on FAT12 and FAT16. |
 | `AH=44h` IOCTL | implemented/partial | high | `IOCTLEXT` and `IOCTLST` cover get/set info, input/output status, removable drive query, local drive/handle queries, unsupported subfunctions, and bad handle/drive errors for local files/devices. |
 | `AH=1Bh/1Ch` drive data | implemented/partial | low/medium | `DRIVEDATA` covers default and explicit supported drives, FAT12/FAT16 BPB allocation values, media ID pointers, and boundary/high invalid-drive `AL=FFh` returns. |
-| `AH=33h/54h/2Eh` Ctrl-C and verify state | implemented/partial | low/medium | Break get/set, boot-drive, true-version, and verify get/set are covered by `STATEAPI`. |
+| `AH=33h/54h/2Eh` Ctrl-C and verify state | implemented/partial | low/medium | `STATEAPI` covers break get/set normalization, unsupported break subfunction failure, boot-drive, true-version, verify get/set normalization, and `AH=2Eh` `DL` independence. |
 
 ### Deferred or Out of Scope Until Needed
 

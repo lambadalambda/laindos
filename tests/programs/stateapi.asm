@@ -22,6 +22,37 @@ start:
     jne fail_break_get
 
     mov ax, 0x3301
+    mov dl, 2
+    int 0x21
+    jc fail_break_set
+    mov ax, 0x3300
+    int 0x21
+    jc fail_break_get
+    cmp dl, 0
+    jne fail_break_get
+
+    mov ax, 0x3301
+    mov dl, 3
+    int 0x21
+    jc fail_break_set
+    mov ax, 0x3300
+    int 0x21
+    jc fail_break_get
+    cmp dl, 1
+    jne fail_break_get
+
+    mov ax, 0x3302
+    int 0x21
+    jnc fail_break_badfunc
+    cmp ax, 1
+    jne fail_break_badfunc
+    mov ax, 0x3300
+    int 0x21
+    jc fail_break_get
+    cmp dl, 1
+    jne fail_break_get
+
+    mov ax, 0x3301
     xor dl, dl
     int 0x21
     jc fail_break_set
@@ -38,6 +69,33 @@ start:
     cmp dx, 0
     jne fail_break_ver
 
+    mov ah, 0x54
+    int 0x21
+    jc fail_verify_get
+    cmp al, 0
+    jne fail_verify_get
+    mov ax, 0x2E01
+    xor dl, dl
+    int 0x21
+    jc fail_verify_set
+    mov ah, 0x54
+    int 0x21
+    jc fail_verify_get
+    cmp al, 1
+    jne fail_verify_get
+    mov ax, 0x2E03
+    mov dl, 0xFF
+    int 0x21
+    jc fail_verify_set
+    mov ah, 0x54
+    int 0x21
+    jc fail_verify_get
+    cmp al, 1
+    jne fail_verify_get
+    mov ax, 0x2E02
+    mov dl, 0xFF
+    int 0x21
+    jc fail_verify_set
     mov ah, 0x54
     int 0x21
     jc fail_verify_get
@@ -160,6 +218,9 @@ fail_break_get:
 fail_break_set:
     mov dx, fail_break_set_msg
     jmp fail
+fail_break_badfunc:
+    mov dx, fail_break_badfunc_msg
+    jmp fail
 fail_break_boot:
     mov dx, fail_break_boot_msg
     jmp fail
@@ -198,6 +259,7 @@ fail:
 pass_msg: db 'PASS: STATEAPI', 13, 10, '$'
 fail_break_get_msg: db 'FAIL: STATEAPI BREAK GET', 13, 10, '$'
 fail_break_set_msg: db 'FAIL: STATEAPI BREAK SET', 13, 10, '$'
+fail_break_badfunc_msg: db 'FAIL: STATEAPI BREAK BADFUNC', 13, 10, '$'
 fail_break_boot_msg: db 'FAIL: STATEAPI BOOT', 13, 10, '$'
 fail_break_ver_msg: db 'FAIL: STATEAPI VERSION', 13, 10, '$'
 fail_verify_get_msg: db 'FAIL: STATEAPI VERIFY GET', 13, 10, '$'
