@@ -1,75 +1,79 @@
 #!/usr/bin/env python3
 import os
-import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import build_dir, check_markers, run_cmd, run_qemu_capture
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
-IMG = os.path.join(BUILDDIR, "diskfree.img")
-KERNEL = os.path.join(BUILDDIR, "diskfree_kernel.bin")
 TIMEOUT = 8
 
 
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-
-
-def build_image():
+def build_image(label, image_format=None, boot_source="src/boot.asm"):
     os.makedirs(BUILDDIR, exist_ok=True)
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
-    run([
+    boot = os.path.join(BUILDDIR, f"{label}_boot.bin")
+    kernel = os.path.join(BUILDDIR, f"{label}_kernel.bin")
+    program = os.path.join(BUILDDIR, "diskfree.com")
+    img = os.path.join(BUILDDIR, f"{label}.img")
+    run_cmd(["nasm", "-f", "bin", boot_source, "-o", boot])
+    run_cmd([
         "nasm", '-DBOOT_FILE="DISKFREECOM"', "-f", "bin", "src/kernel.asm",
-        "-o", KERNEL,
+        "-o", kernel,
     ])
-    run(["nasm", "-f", "bin", "tests/programs/diskfree.asm", "-o", os.path.join(BUILDDIR, "diskfree.com")])
-    run([
-        "python3", "scripts/mkimage.py",
-        os.path.join(BUILDDIR, "boot.bin"),
-        KERNEL,
-        IMG,
-        os.path.join(BUILDDIR, "diskfree.com"),
-    ])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/diskfree.asm", "-o", program])
+    mkimage_cmd = ["python3", "scripts/mkimage.py"]
+    if image_format:
+        mkimage_cmd.append(f"--format={image_format}")
+    mkimage_cmd.extend([boot, kernel, img, program])
+    run_cmd(mkimage_cmd)
+    return img
 
 
-def run_qemu():
+def run_qemu(img, drive_opts="if=floppy", boot_order="a", timeout=TIMEOUT):
+    drive_arg = f"file={img},format=raw"
+    if drive_opts:
+        drive_arg = f"{drive_arg},{drive_opts}"
     output, _ = run_qemu_capture([
         QEMU,
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-boot", "order=a",
+        "-drive", drive_arg,
+        "-boot", f"order={boot_order}",
         "-serial", "stdio",
         "-monitor", "none",
         "-nographic",
-    ], TIMEOUT)
+    ], timeout)
     return output
 
 
+def run_case(name, label, **kwargs):
+    print(f"\n{name}")
+    img = build_image(label, kwargs.get("image_format"), kwargs.get("boot_source", "src/boot.asm"))
+    output = run_qemu(
+        img,
+        kwargs.get("drive_opts", "if=floppy"),
+        kwargs.get("boot_order", "a"),
+        kwargs.get("timeout", TIMEOUT),
+    )
+    return check_markers(
+        output,
+        required=("PASS: DISKFREE", "Program exited, code=00", "HALT"),
+        output_label=f"{name} QEMU serial output",
+    )
+
+
 def main():
-    build_image()
-    output = run_qemu()
-    failed = False
-    for marker in ["PASS: DISKFREE", "Program exited, code=00"]:
-        if marker in output:
-            print(f"  PASS: found '{marker}'")
-        else:
-            print(f"  FAIL: missing '{marker}'")
-            failed = True
-    for marker in ["FAIL:", "EXC ", "INT 21h AH="]:
-        if marker in output:
-            print(f"  FAIL: unexpected '{marker}'")
-            failed = True
+    failed = not run_case("FAT12 floppy disk free", "fat12")
+    if not run_case(
+        "FAT16 hard disk free",
+        "fat16",
+        image_format="hd32m",
+        boot_source="src/boot16.asm",
+        drive_opts="",
+        boot_order="c",
+        timeout=12,
+    ):
+        failed = True
     if failed:
-        print("\n--- QEMU serial output ---")
-        print(output)
-        print("--- end ---")
         sys.exit(1)
-    print("\nDisk free test passed.")
+    print("\nDisk free tests passed.")
 
 
 if __name__ == "__main__":

@@ -77,7 +77,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=25h/35h` vectors | implemented | high | Required by games. |
 | `AH=2Ah/2Bh/2Ch/2Dh` date/time | implemented/partial | medium | Date is state-backed; time advances from BIOS ticks until `AH=2Dh` sets explicit state. |
 | `AH=30h` DOS version | implemented/minimal | medium | Keep target-version behavior explicit. |
-| `AH=36h` disk free | minimal stub | medium | Replace total-as-free with real FAT free cluster count. |
+| `AH=36h` disk free | implemented/partial | medium | Counts free clusters from the active FAT and returns `AX=FFFFh` for invalid drives; covered by `DISKFREE` on FAT12 and FAT16. |
 | `AH=44h` IOCTL | implemented/partial | high | Covers get/set info, input/output status, removable drive query, and local drive/handle queries for local files/devices. |
 | `AH=1Bh/1Ch` drive data | implemented/partial | low/medium | Returns BPB allocation data and media ID for supported logical drives; invalid drive returns `AL=FFh`. |
 | `AH=33h/54h/2Eh` Ctrl-C and verify state | implemented/partial | low/medium | Break get/set, boot-drive, true-version, and verify get/set are covered by `STATEAPI`. |

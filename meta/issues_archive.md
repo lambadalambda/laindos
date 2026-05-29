@@ -53,3 +53,5 @@
 - [x] [Centralize Directory Slot Writeback](issues/centralize-directory-slot-writeback.md)
 - [x] [Unify ASCII Case Conversion And Path Canonicalization](issues/unify-ascii-case-conversion-and-path-canonicalization.md)
 - [x] [Continue QEMU Test Harness Consolidation](issues/continue-qemu-test-harness-consolidation.md)
+- [x] [Fill Missing DOS Compatibility APIs](issues/fill-missing-dos-compatibility-apis.md)
+- [x] [Implement Real AH=36h Disk Free Counts](issues/implement-real-ah36h-disk-free-counts.md)

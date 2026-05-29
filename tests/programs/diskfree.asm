@@ -64,12 +64,19 @@ start:
     cmp bx, [before_free]
     jae fail_free_after
 
-    mov dl, 1
+    mov ah, 0x19
+    int 0x21
+    inc al
+    mov [valid_drive], al
+    inc al
+    mov [invalid_drive], al
+
+    mov dl, [valid_drive]
     mov ah, 0x36
     int 0x21
     cmp ax, 0xFFFF
     je fail_drive
-    mov dl, 3
+    mov dl, [invalid_drive]
     mov ah, 0x36
     int 0x21
     cmp ax, 0xFFFF
@@ -131,6 +138,8 @@ before_spc: dw 0
 before_free: dw 0
 before_bps: dw 0
 before_total: dw 0
+valid_drive: db 0
+invalid_drive: db 0
 file_name: db "FREECHK.DAT", 0
 pass_msg: db "PASS: DISKFREE", 13, 10, "$"
 fail_ah36_msg: db "FAIL: DISKFREE AH36", 13, 10, "$"
