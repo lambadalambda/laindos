@@ -51,7 +51,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
 | `AH=3Ch/3Dh/3Eh/3Fh/40h/41h/42h` | implemented/partial | high | Existing write, readwrap, savewrite, dirmut, and game tests cover core paths. See Phase 9 and Phase 13 for related writable FAT work. |
-| `AH=43h` attributes | implemented/partial | medium | Strengthen read-only/hidden/system/archive semantics. |
+| `AH=43h` attributes | implemented/partial | medium | `ATTRAPI` covers mutable read-only/hidden/system/archive changes, protected directory/volume bit rejection, and directory-bit preservation. |
 | `AH=45h/46h` duplicate/force duplicate handle | implemented/partial | medium | Covered by `DUPTEST`; duplicated file handles share position and close lifetime. Standard-handle redirection remains minimal. |
 | `AH=57h` get/set file date/time | implemented/partial | medium | Preserve directory entry updates. |
 | `AH=5Ah/5Bh` temp/create-new | implemented/partial | medium | Covered by `CREATEAPI`; temp names use generated 8.3 `LDxxxx.TMP` names and skip existing collisions. |

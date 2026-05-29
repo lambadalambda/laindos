@@ -55,3 +55,4 @@
 - [x] [Continue QEMU Test Harness Consolidation](issues/continue-qemu-test-harness-consolidation.md)
 - [x] [Fill Missing DOS Compatibility APIs](issues/fill-missing-dos-compatibility-apis.md)
 - [x] [Implement Real AH=36h Disk Free Counts](issues/implement-real-ah36h-disk-free-counts.md)
+- [x] [Strengthen AH=43h Attribute Semantics](issues/strengthen-ah43h-attribute-semantics.md)

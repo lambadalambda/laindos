@@ -2965,7 +2965,11 @@ int21_handler:
     call resolve_path
     jc .fa_set_nf
     mov al, [cs:fa_attr]
-    mov [es:di+11], al
+    test al, ~ATTR_MUTABLE & 0xFF
+    jnz .fa_set_access
+    and al, ATTR_MUTABLE
+    and byte [es:di+11], ATTR_IMMUTABLE
+    or [es:di+11], al
     mov dx, [cs:ff_entry_lba_hi]
     mov ax, [cs:ff_entry_lba]
     call flush_dir_slot
@@ -2977,6 +2981,9 @@ int21_handler:
     mov ax, 2
     jmp iret_cy
 .fa_set_io_err:
+    mov ax, 5
+    jmp .fa_set_err
+.fa_set_access:
     mov ax, 5
     jmp .fa_set_err
 .fa_set_nf:
