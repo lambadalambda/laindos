@@ -37,6 +37,13 @@ LainDOS is a tiny single-tasking DOS implementation targeting x86 real mode. Its
 - When a phase is complete and acceptance criteria are satisfied, move its entry from `meta/issues.md` to `meta/issues_archive.md`, changing `- [ ]` to `- [x]`.
 - Do not delete issue detail files when archiving.
 
+### Keep documentation in lockstep
+
+- Any change to code, tests, scripts, workflows, configuration, or repository structure must update the relevant documentation in the same change, or explicitly state why no documentation update is needed.
+- Keep `README.md`, `docs/`, `docs/site/`, `meta/issues/`, and source excerpts in sync with the behavior and file layout they describe.
+- When changing implementation files that are quoted or line-referenced by the interactive docs, update the corresponding `docs/site/` excerpts and line numbers before committing.
+- Prefer small documentation updates alongside each topical code change so LainDOS remains a readable system rather than a pile of historical notes.
+
 ### Keep a debug log
 
 - Maintain `docs/debug_log.md` while debugging non-trivial issues.
