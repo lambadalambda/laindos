@@ -54,6 +54,15 @@ start:
     int 0x21
     jc fail_close
 
+    mov bx, [file_handle]
+    mov dx, read_buf
+    mov cx, 1
+    mov ah, 0x3F
+    int 0x21
+    jnc fail_close_orig_lifetime
+    cmp ax, 6
+    jne fail_close_orig_lifetime
+
     mov bx, [dup_handle]
     mov dl, 'C'
     call read_expect
@@ -91,6 +100,15 @@ start:
     mov ah, 0x3E
     int 0x21
     jc fail_close
+
+    mov bx, [force_handle]
+    mov dx, read_buf
+    mov cx, 1
+    mov ah, 0x3F
+    int 0x21
+    jnc fail_close_force_lifetime
+    cmp ax, 6
+    jne fail_close_force_lifetime
 
     mov dx, alt_filename
     xor cx, cx
@@ -171,6 +189,22 @@ start:
     cmp ax, 6
     jne fail_bad_handle
 
+    mov bx, 19
+    mov cx, 8
+    mov ah, 0x46
+    int 0x21
+    jnc fail_bad_handle
+    cmp ax, 6
+    jne fail_bad_handle
+
+    mov bx, 1
+    mov cx, 0x00FE
+    mov ah, 0x46
+    int 0x21
+    jnc fail_bad_handle
+    cmp ax, 6
+    jne fail_bad_handle
+
     mov dx, pass_msg
     mov ah, 0x09
     int 0x21
@@ -216,6 +250,12 @@ fail_shared_pos:
 fail_close_kept_dup:
     mov dx, fail_close_kept_dup_msg
     jmp fail
+fail_close_orig_lifetime:
+    mov dx, fail_close_orig_lifetime_msg
+    jmp fail
+fail_close_force_lifetime:
+    mov dx, fail_close_force_lifetime_msg
+    jmp fail
 fail_force_dup:
     mov dx, fail_force_dup_msg
     jmp fail
@@ -257,6 +297,8 @@ fail_open_msg: db "FAIL: DUP OPEN", 13, 10, "$"
 fail_dup_msg: db "FAIL: DUP AH45", 13, 10, "$"
 fail_shared_pos_msg: db "FAIL: DUP SHARED POS", 13, 10, "$"
 fail_close_kept_dup_msg: db "FAIL: DUP CLOSE KEPT", 13, 10, "$"
+fail_close_orig_lifetime_msg: db "FAIL: DUP CLOSE ORIG LIFE", 13, 10, "$"
+fail_close_force_lifetime_msg: db "FAIL: DUP CLOSE FORCE LIFE", 13, 10, "$"
 fail_force_dup_msg: db "FAIL: DUP AH46", 13, 10, "$"
 fail_force_revive_msg: db "FAIL: DUP FORCE REVIVE", 13, 10, "$"
 fail_force_shared_msg: db "FAIL: DUP FORCE SHARED", 13, 10, "$"

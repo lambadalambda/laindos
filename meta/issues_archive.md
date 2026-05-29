@@ -75,3 +75,4 @@
 - [x] [Cover State API Edge Semantics](issues/cover-state-api-edge-semantics.md)
 - [x] [Cover Seek Edge Semantics](issues/cover-seek-edge-semantics.md)
 - [x] [Cover Read Write Edge Semantics](issues/cover-read-write-edge-semantics.md)
+- [x] [Cover Dup Handle Edge Semantics](issues/cover-dup-handle-edge-semantics.md)
