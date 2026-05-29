@@ -860,6 +860,56 @@ build_psp:
     mov word [cs:dta_off], 0x0080
     mov [cs:cur_psp], ax
     call assign_exec_environment_owner
+    call exec_copy_default_fcbs
+    ret
+
+exec_copy_default_fcbs:
+    push ax
+    push bx
+    push cx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, [cs:exec_param_seg]
+    test ax, ax
+    jz .done
+    mov ds, ax
+    mov bx, [cs:exec_param_off]
+    mov si, [bx+6]
+    mov ax, [bx+8]
+    test ax, ax
+    jz .second
+    mov ds, ax
+    mov ax, [cs:prog_seg]
+    mov es, ax
+    mov di, 0x5C
+    mov cx, 16
+    cld
+    rep movsb
+.second:
+    mov ax, [cs:exec_param_seg]
+    mov ds, ax
+    mov bx, [cs:exec_param_off]
+    mov si, [bx+10]
+    mov ax, [bx+12]
+    test ax, ax
+    jz .done
+    mov ds, ax
+    mov ax, [cs:prog_seg]
+    mov es, ax
+    mov di, 0x6C
+    mov cx, 16
+    cld
+    rep movsb
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop cx
+    pop bx
+    pop ax
     ret
 
 setup_exe:
