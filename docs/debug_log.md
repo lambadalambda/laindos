@@ -1329,8 +1329,8 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - `python3 scripts/test_shell.py` passed again after adding `DIR`, bad-command, repeated child EXEC, and nested EXEC coverage.
 - `make test` passed again after the review fixes.
 - `python3 scripts/test_shell.py` and `make test` passed again after DTA search-state and volume-attribute-mask adjustments.
-- `python3 scripts/build_mi2.py` rebuilt `build/mi2.img`; a 15-second QEMU serial smoke found `MiniDOS booted` and `EXE loaded` with no `EXC `, runtime error, unhandled `INT 21h`, or `Error 1 loading sound overlay` markers.
-- `python3 scripts/build_monkey.py` rebuilt `build/monkey.img`; a 15-second QEMU serial smoke found `MiniDOS booted` and `EXE loaded` with no `EXC `, runtime error, unhandled `INT 21h`, or `File not found` markers.
+- `python3 scripts/build_mi2.py` rebuilt `build/mi2.img`; a 15-second QEMU serial smoke found `LainDOS booted` and `EXE loaded` with no `EXC `, runtime error, unhandled `INT 21h`, or `Error 1 loading sound overlay` markers.
+- `python3 scripts/build_monkey.py` rebuilt `build/monkey.img`; a 15-second QEMU serial smoke found `LainDOS booted` and `EXE loaded` with no `EXC `, runtime error, unhandled `INT 21h`, or `File not found` markers.
 
 ## 2026-05-22 Shell EXE Launch And VGA Console
 
@@ -1628,7 +1628,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 ### Confirmed Facts
 
 - Bochs rejects `hd10m` geometry when the declared CHS capacity exceeds the raw image size.
-- Exact 40/16/32 geometry starts in Bochs, but QEMU hard-disk boot then fails before LainDOS prints `MiniDOS booted`.
+- Exact 40/16/32 geometry starts in Bochs, but QEMU hard-disk boot then fails before LainDOS prints `LainDOS booted`.
 - A 20/16/63 geometry with 20,160 total sectors preserves the QEMU hard-disk boot path and fits Bochs' geometry check.
 - Timed-out Bochs runs can leave an image lock behind, so the launcher boots a per-run copy of `build/monkey_full.img` and removes that copy after Bochs exits.
 
@@ -1636,7 +1636,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - Added `scripts/run_monkey_full_bochs.py` to build the full Monkey image, generate `build/monkey_full.bochsrc`, and launch Bochs with SDL2 VGA output by default.
 - Added `mise run run-monkey-full-bochs` for interactive Bochs launch.
-- Added COM1 file logging and a `--smoke-seconds` mode for bounded non-interactive Bochs startup checks that require the `MiniDOS booted` serial marker.
+- Added COM1 file logging and a `--smoke-seconds` mode for bounded non-interactive Bochs startup checks that require the `LainDOS booted` serial marker.
 
 ### Tests Run
 
@@ -1863,3 +1863,19 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - The first run failed with `FAIL: FINDEDGE BAD DRIVE` because `FindFirst("Z:\\*.COM")` returned the path-error path instead of invalid-drive error 15.
 - Reused path drive-prefix validation for `AH=4Eh` and treated drive-qualified root parents such as `A:\` as root-directory searches.
 - `python3 scripts/test_findedge.py` now passes.
+
+## 2026-05-29 Drive-Qualified Relative Paths
+
+- Added `DRIVEPATH` coverage for DOS paths such as `A:LOCAL.TXT`, `A:*.TXT`, and `A:INNER` from a non-root current directory.
+- The first run failed with `FAIL: DRIVEPATH OPEN REL` because `resolve_path` treated all drive prefixes as root-qualified.
+- Updated path resolution, current-directory path storage, dot-only `CHDIR` traversal, and `FindFirst` bare-name parsing so drive-qualified relative paths stay current-directory-relative while `A:\...` remains root-qualified.
+- `python3 scripts/test_drivepath.py` now passes.
+- Phase 19 is archived after `make test` passed `65/65`; remaining deliberately deferred APIs are tracked by `Track Deferred DOS Compatibility APIs`.
+
+## 2026-05-29 Public Demo And Smoke Workflow
+
+- Added `make monkey-demo`, `make run-monkey-demo`, and `make test-monkey-demo` for the shell-boot Monkey Island demo floppy at `build/shell_monkey.img`.
+- Renamed the boot serial banner to `LainDOS booted` and updated all tests, docs, and smoke scripts to match.
+- Added GitHub Actions CI that installs NASM/QEMU and runs `make test`.
+- Verified `make test` passes `65/65` after the rename and drive-path fix.
+- Game smoke checks passed: `make test-monkey-demo`, `make test-monkey-full`, `make test-wolf3d-smoke`, and `make test-ascendancy-smoke`.

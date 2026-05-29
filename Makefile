@@ -49,7 +49,7 @@ TESTFILE  := $(BUILDDIR)/testfile.dat
 SUBTEST   := $(BUILDDIR)/subtest.dat
 DISK_IMG := $(BUILDDIR)/disk.img
 
-.PHONY: all clean run test test-serial test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-game-smokes
+.PHONY: all clean run test test-serial monkey-demo run-monkey-demo test-monkey-demo test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-game-smokes
 
 all: $(DISK_IMG)
 
@@ -205,6 +205,15 @@ test: $(DISK_IMG)
 test-serial: TEST_JOBS := 1
 test-serial: test
 
+monkey-demo: vendor/midemo.exe
+	$(PYTHON) scripts/build_shell_monkey.py
+
+run-monkey-demo: monkey-demo
+	$(QEMU) -drive file=$(BUILDDIR)/shell_monkey.img,format=raw,if=floppy -boot order=a -serial stdio -monitor none -vga $(QEMU_VGA) -device sb16
+
+test-monkey-demo: vendor/midemo.exe
+	$(RUN_TEST) $(PYTHON) scripts/test_shell_monkey.py
+
 test-monkey-full: vendor/monkey_full.zip
 	$(RUN_TEST) $(PYTHON) scripts/test_monkey_full.py
 
@@ -214,7 +223,7 @@ test-wolf3d-smoke: vendor/wolf3dsw.zip
 test-ascendancy-smoke: vendor/Ascendancy_1995.zip
 	$(RUN_TEST) $(PYTHON) scripts/test_ascendancy_smoke.py
 
-test-game-smokes: test-monkey-full test-wolf3d-smoke test-ascendancy-smoke
+test-game-smokes: test-monkey-demo test-monkey-full test-wolf3d-smoke test-ascendancy-smoke
 
 clean:
 	rm -rf $(BUILDDIR)

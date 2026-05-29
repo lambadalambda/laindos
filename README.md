@@ -12,10 +12,11 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 - Implements the core DOS file APIs used by the current suite: open/read/write/seek/close, create/truncate, delete, rename, attributes, timestamps, disk free, FindFirst/FindNext, and writable FAT12/FAT16 paths.
 - Provides a built-in `INT 33h` mouse service backed by PS/2 mouse packets, including movement/buttons, callbacks, scaling, and edge clamping.
 - Provides minimal single-handle XMS APIs for game startup detection and backed XMS moves, using BIOS-reported extended memory capped at 15 MiB. Experimental backed EMS support exists behind `ENABLE_EMS=1` but is hidden in default builds.
-- Runs the Monkey Island demo and full VGA Monkey Island images when the corresponding local `vendor/` archives are present.
+- Builds and runs a shell-boot Monkey Island demo floppy when the corresponding local `vendor/` files are present.
+- Runs the full VGA Monkey Island image when `vendor/monkey_full.zip` is present.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
-- `make test` currently runs the automated QEMU regression ladder and passes `44/44` tests.
+- `make test` currently runs the automated QEMU regression ladder and passes `65/65` tests.
 
 ## Scope
 
@@ -50,8 +51,9 @@ Current important segment layout:
 0040:0000  BIOS Data Area
 0060:0000  FAT scratch buffer
 0340:0000  relocated kernel
-09C0:0000  sector buffer
-0A00:0000  root directory buffer
+09E0:0000  sector buffer
+0A00:0000  read cache buffer
+0A20:0000  root directory buffer
 0340:BC00  kernel stack top (physical 0F000)
 1000:0000  start of MCB-managed program and environment memory
 A000:0000  VGA graphics memory
@@ -85,6 +87,24 @@ Default build and regression test:
 make test
 ```
 
+Build the shell-boot Monkey Island demo floppy image:
+
+```sh
+make monkey-demo
+```
+
+Run the Monkey Island demo floppy in QEMU:
+
+```sh
+make run-monkey-demo
+```
+
+Headless smoke-test the shell-launched Monkey Island demo:
+
+```sh
+make test-monkey-demo
+```
+
 Serial fallback:
 
 ```sh
@@ -99,6 +119,8 @@ mise run test
 mise run run
 mise run build-games-hd-all
 mise run run-games-hd-all
+mise run build-monkey-demo
+mise run test-monkey-demo
 ```
 
 QEMU selection order for tests and `make run`:
@@ -113,11 +135,21 @@ QEMU selection order for tests and `make run`:
 
 ## Game Images
 
-Build the original Monkey Island demo image from loose files under `vendor/`:
+Build the shell-boot Monkey Island demo floppy from loose files under `vendor/`:
+
+```sh
+make monkey-demo
+```
+
+The generated image is `build/shell_monkey.img`. Booting it starts the LainDOS shell at `A:\>`; run the demo with `midemo`.
+
+Build the older direct-boot Monkey Island demo image:
 
 ```sh
 python3 scripts/build_monkey.py
 ```
+
+Game archives and loose game files are intentionally ignored under `vendor/`; provide them locally before running game-image builders or smoke tests.
 
 Build the full VGA Monkey Island hard-disk image from `vendor/monkey_full.zip`:
 

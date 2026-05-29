@@ -18,6 +18,18 @@ run = "make run"
 description = "Boot full VGA Monkey Island in QEMU"
 run = 'python3 scripts/build_monkey_full.py && "$LAINDOS_QEMU" -drive file=build/monkey_full.img,format=raw -boot order=c -serial stdio -monitor none -vga "$LAINDOS_QEMU_VGA" -device sb16'
 
+[tasks.build-monkey-demo]
+description = "Build shell-boot Monkey Island demo floppy"
+run = "make monkey-demo"
+
+[tasks.run-monkey-demo]
+description = "Boot shell-boot Monkey Island demo floppy in QEMU"
+run = "make run-monkey-demo"
+
+[tasks.test-monkey-demo]
+description = "Run headless shell Monkey Island demo QEMU smoke"
+run = "make test-monkey-demo"
+
 [tasks.run-monkey-full-bochs]
 description = "Boot full VGA Monkey Island in Bochs"
 run = "python3 scripts/run_monkey_full_bochs.py"
