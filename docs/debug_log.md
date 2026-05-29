@@ -25,6 +25,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - `python3 scripts/build_shell_monkey.py`
 - QEMU smoke with `/Users/lainsoykaf/Downloads/FreeDOS.VHD` as `format=vpc` now switches from `A:\>` to `C:\>`, lists FreeDOS root entries including `FREEDOS`, `GAMES`, `KERNEL.SYS`, and exits cleanly with `Program exited, code=00` and `HALT`.
 - `make test` passed `67/67`.
+- Added `scripts/test_attached_hd_shell.py` as a local-only smoke for user-provided hard-disk images. It rebuilds the shell Monkey floppy, attaches the supplied image with QEMU `-snapshot`, runs `C:` and `DIR`, and supports optional `--expect` markers for images such as FreeDOS VHDs.
 
 ## 2026-05-29 Floppy Boot With Attached C: Hard Disk
 

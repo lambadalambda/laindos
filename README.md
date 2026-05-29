@@ -173,6 +173,16 @@ python3 scripts/build_games_hd_all.py
 
 The same `build/games_hd_all.img`, or a simple MBR-partitioned FAT12/FAT16 hard disk such as a FreeDOS VHD, can be attached as a second QEMU drive while booting `build/shell_monkey.img`; LainDOS keeps the shell on `A:` and exposes the attached hard disk as `C:` for commands such as `C:`, `CD \MI2`, and `MONKEY2`.
 
+Smoke-test a local external hard-disk image without writing to it:
+
+```sh
+python3 scripts/test_attached_hd_shell.py /path/to/FreeDOS.VHD --format=vpc --expect=KERNEL.SYS
+```
+
+The script rebuilds `build/shell_monkey.img`, attaches the supplied image with QEMU `-snapshot`, switches to `C:`, runs `DIR`, and exits. It also accepts `LAINDOS_HD_IMAGE` and optional `LAINDOS_HD_FORMAT`; `.vhd` paths default to QEMU's `vpc` format and other paths default to `raw`.
+
+The same smoke is available as `make test-attached-hd-shell` when `LAINDOS_HD_IMAGE` is set.
+
 Build the experimental Wolfenstein 3D shareware image from `vendor/wolf3dsw.zip`:
 
 ```sh
