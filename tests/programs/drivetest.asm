@@ -78,6 +78,17 @@ floppy_tests:
     cmp al, 0
     jne fail_select_unchanged
 
+    mov dl, 0xFF
+    mov ah, 0x0E
+    int 0x21
+    cmp al, 1
+    jne fail_select_count
+
+    mov ah, 0x19
+    int 0x21
+    cmp al, 0
+    jne fail_select_high_invalid
+
     jmp pass
 
 hd_tests:
@@ -191,6 +202,17 @@ hd_tests:
     cmp al, 2
     jne fail_select_unchanged
 
+    mov dl, 0xFF
+    mov ah, 0x0E
+    int 0x21
+    cmp al, 3
+    jne fail_select_count
+
+    mov ah, 0x19
+    int 0x21
+    cmp al, 2
+    jne fail_select_high_invalid
+
 pass:
     mov dx, pass_msg
     mov ah, 0x09
@@ -231,6 +253,9 @@ fail_select_c:
 fail_select_unchanged:
     mov dx, fail_select_unchanged_msg
     jmp fail
+fail_select_high_invalid:
+    mov dx, fail_select_high_invalid_msg
+    jmp fail
 fail_diskfree_c:
     mov dx, fail_diskfree_c_msg
     jmp fail
@@ -266,6 +291,7 @@ fail_select_a_msg: db "FAIL: DRIVE SELECT A", 13, 10, "$"
 fail_select_b_msg: db "FAIL: DRIVE SELECT B", 13, 10, "$"
 fail_select_c_msg: db "FAIL: DRIVE SELECT C", 13, 10, "$"
 fail_select_unchanged_msg: db "FAIL: DRIVE SELECT UNCHANGED", 13, 10, "$"
+fail_select_high_invalid_msg: db "FAIL: DRIVE SELECT HIGH INVALID", 13, 10, "$"
 fail_diskfree_c_msg: db "FAIL: DRIVE DISKFREE C", 13, 10, "$"
 fail_diskfree_b_msg: db "FAIL: DRIVE DISKFREE B", 13, 10, "$"
 fail_diskfree_default_msg: db "FAIL: DRIVE DISKFREE DEFAULT", 13, 10, "$"

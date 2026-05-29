@@ -72,7 +72,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
-| `AH=0Eh/19h` current drive | implemented/partial | medium | Tracks selected logical drive and returns a stable logical drive count; still maps all supported drive letters to the boot image. |
+| `AH=0Eh/19h` current drive | implemented/partial | medium | `DRIVE` covers get/set current drive, stable logical drive counts, and boundary/high invalid-drive requests preserving the previous drive; still maps all supported drive letters to the boot image. |
 | `AH=1Ah/2Fh` DTA | implemented | high | Covered by find-first/find-next behavior. |
 | `AH=25h/35h` vectors | implemented | high | Required by games. |
 | `AH=2Ah/2Bh/2Ch/2Dh` date/time | implemented/partial | medium | Date is state-backed with weekday calculation; time advances from BIOS ticks until `AH=2Dh` sets explicit state. `DATETIME`, `STATEAPI`, and shell `TIME` cover boundary validation, invalid-call preservation, and tick-derived time. |

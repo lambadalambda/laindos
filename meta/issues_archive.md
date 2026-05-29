@@ -68,3 +68,4 @@
 - [x] [Cover AH=67h Set Handle Count Semantics](issues/cover-ah67h-set-handle-count-semantics.md)
 - [x] [Cover Date Time API Edge Semantics](issues/cover-date-time-api-edge-semantics.md)
 - [x] [Cover DOS Version Identity Semantics](issues/cover-dos-version-identity-semantics.md)
+- [x] [Cover Current Drive Selection Semantics](issues/cover-current-drive-selection-semantics.md)
