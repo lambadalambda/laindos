@@ -620,10 +620,7 @@ store_cur_dir_path:
     cmp byte [ds:bx+1], ':'
     jne .check_abs_sep
     add bx, 2
-    mov dl, 1
 .check_abs_sep:
-    cmp dl, 1
-    je .absolute
     cmp byte [ds:bx], '\'
     je .absolute
     cmp byte [ds:bx], '/'
@@ -759,10 +756,7 @@ chdir_dot_only_path:
     cmp byte [ds:bx+1], ':'
     jne .check_abs_sep
     add bx, 2
-    mov dl, 1
 .check_abs_sep:
-    cmp dl, 1
-    je .set_root
     cmp byte [ds:bx], '\'
     je .set_root
     cmp byte [ds:bx], '/'
@@ -904,11 +898,15 @@ resolve_path:
     ja .rp_rel
     cmp byte [ds:si+1], ':'
     jne .rp_rel
-.rp_abs:
     add si, 2
-    cmp byte [ds:si-1], ':'
+    cmp byte [ds:si], '\'
     je .rp_abs_skip
-    sub si, 2
+    cmp byte [ds:si], '/'
+    je .rp_abs_skip
+    mov [cs:rp_path], si
+    mov ax, [cs:cur_dir_cluster]
+    jmp .rp_walk
+.rp_abs:
 .rp_abs_skip:
     mov [cs:rp_path], si
     mov ax, ROOT_CLUSTER

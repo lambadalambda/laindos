@@ -3774,6 +3774,15 @@ int21_handler:
     mov [cs:ff_dir_cluster], ax
     mov ds, [cs:ff_path_seg]
     mov si, [cs:ff_path_off]
+    mov al, [ds:si]
+    call ascii_upper
+    cmp al, 'A'
+    jb .ff_parse_name
+    cmp al, 'Z'
+    ja .ff_parse_name
+    cmp byte [ds:si+1], ':'
+    jne .ff_parse_name
+    add si, 2
 .ff_parse_name:
     call parse_83name
     mov ax, [cs:dta_seg]

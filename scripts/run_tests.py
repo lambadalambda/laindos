@@ -45,6 +45,7 @@ DEFAULT_TESTS = [
     "scripts/test_handlecnt.py",
     "scripts/test_drive.py",
     "scripts/test_diredge.py",
+    "scripts/test_drivepath.py",
     "scripts/test_dosstruct.py",
     "scripts/test_parsefcb.py",
     "scripts/test_ioctlstat.py",

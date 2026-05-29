@@ -22,7 +22,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
 | `AH=01h/02h/06h/07h/08h/09h/0Ah/0Bh` | implemented/partial | high | Shell, `CONSOLE`, `KEY`, and `EXTKEY` cover core behavior, direct-console empty/data status, output return values, zero-length buffered input, line editing, stdin status, and extended-key two-byte behavior. |
-| `AH=03h/04h/05h` AUX/PRN I/O | missing/deferred | low | Depends on serial/printer device policy. |
+| `AH=03h/04h/05h` AUX/PRN I/O | missing/deferred | low | Tracked by the deferred compatibility issue; depends on serial/printer device policy. |
 | `AH=0Ch` flush and read | implemented | medium | Covered by `FLUSHREAD`; clears the DOS pending extended-key state and BIOS keyboard buffer before dispatching AL subfunction `01h`/`06h`/`07h`/`08h`/`0Ah`. |
 
 ### Process, PSP, Environment, and EXEC
@@ -35,7 +35,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | Environment block, `COMSPEC`, `PATH`, executable path tail | implemented/partial | high | Default child environments are MCB-allocated per process; `EXECENV` covers caller-provided environment segment inheritance and ownership preservation. |
 | `AH=4Dh` child return code | implemented/partial | medium | `RETCODE` covers initial zero state, destructive reads, nonzero child codes, and failed-`EXEC` preservation; non-normal termination types remain minimal. |
 | `AH=62h` get PSP | implemented | medium | Trivial but common runtime call; returns the current PSP segment. |
-| `AH=31h` TSR/keep process | missing/deferred | low | Defer unless a target installer/runtime requires it. |
+| `AH=31h` TSR/keep process | missing/deferred | low | Tracked by the deferred compatibility issue; implement only when a target installer/runtime requires it. |
 
 ### Memory Management
 
@@ -62,8 +62,8 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
-| `AH=39h/3Ah/3Bh/47h` | implemented/partial | high | `DIRMUT` covers core directory mutation behavior; `PATHCANON` covers normalized current-directory paths; `DIREDGE` covers empty paths, file-as-directory rejection, invalid drive-qualified directory paths, current-directory preservation after failures, and `AH=47h` valid/invalid drive requests. |
-| `AH=4Eh/4Fh` find first/next | implemented/partial | high | `FINDNEXT`, `FINDATTR`, `FINDTIME`, `PATHCANON`, and `FINDEDGE` cover DTA layout/state, wildcard matching, attribute filters, timestamps, multi-component paths, error codes, invalid drives, drive-qualified root searches, and exhaustion behavior. |
+| `AH=39h/3Ah/3Bh/47h` | implemented/partial | high | `DIRMUT` covers core directory mutation behavior; `PATHCANON` covers normalized current-directory paths; `DIREDGE` covers empty paths, file-as-directory rejection, invalid drive-qualified directory paths, current-directory preservation after failures, and `AH=47h` valid/invalid drive requests; `DRIVEPATH` covers drive-qualified relative `CHDIR`. |
+| `AH=4Eh/4Fh` find first/next | implemented/partial | high | `FINDNEXT`, `FINDATTR`, `FINDTIME`, `PATHCANON`, `FINDEDGE`, and `DRIVEPATH` cover DTA layout/state, wildcard matching, attribute filters, timestamps, multi-component paths, error codes, invalid drives, drive-qualified root and relative searches, and exhaustion behavior. |
 | `AH=56h` rename | implemented/partial | medium | `RNGUARD`, `SAVEWRITE`, and `HIGHDIR` cover normal, open-handle, read-only, same-directory overwrite, cross-directory failure, multi-component, and high-directory rename behavior. |
 | DOS device names `CON`, `NUL`, `AUX`, `PRN` | implemented/partial | high | Phase 17 is archived; `DEVNAMES` covers case-insensitive and extension-insensitive `CON`/`NUL`, keeps prefix lookalikes as files, and verifies unsupported `AUX`/`PRN` return access denied. |
 | `AH=29h` parse filename | implemented/partial | low/medium | `PARSEFCB` covers drive parsing, option-bit preservation, leading separator handling, wildcard return/asterisk expansion, invalid drive reporting, and separator termination. |
@@ -86,11 +86,11 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
-| FCB calls | missing/deferred | low | Implement only if a target program uses them. |
-| Sharing/locking `AH=5Ch` | missing/deferred | low | Single-tasking local DOS can return sensible unsupported/no-op behavior if needed. |
-| Network calls `AH=5Eh/5Fh` | missing/deferred | low | Return local/not-remote semantics only if callers require it. |
-| NLS/code pages `AH=38h/65h/66h` | missing/deferred | low | Defer unless installer/runtime requires country/code-page data. |
-| Installable DOS device drivers | missing/deferred | low | Prefer built-in device-name compatibility before CONFIG.SYS/device-driver work. |
+| FCB calls | missing/deferred | low | Tracked by the deferred compatibility issue; implement only if a target program uses them. |
+| Sharing/locking `AH=5Ch` | missing/deferred | low | Tracked by the deferred compatibility issue; single-tasking local DOS can return sensible unsupported/no-op behavior if needed. |
+| Network calls `AH=5Eh/5Fh` | missing/deferred | low | Tracked by the deferred compatibility issue; return local/not-remote semantics only if callers require it. |
+| NLS/code pages `AH=38h/65h/66h` | missing/deferred | low | Tracked by the deferred compatibility issue; defer unless installer/runtime requires country/code-page data. |
+| Installable DOS device drivers | missing/deferred | low | Tracked by the deferred compatibility issue; prefer built-in device-name compatibility before CONFIG.SYS/device-driver work. |
 
 ## Acceptance Criteria
 
@@ -107,3 +107,4 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 - RBIL remains the best source for exact flags, register preservation, version differences, and undocumented quirks.
 - Game traces and small repro programs should decide implementation order.
 - Avoid adding broad compatibility stubs that hide real missing behavior unless a caller clearly treats success as acceptable.
+- Phase 19 is archiveable once the matrix is current and the intentionally deferred rows are tracked by `track-deferred-dos-compatibility-apis.md`.
