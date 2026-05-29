@@ -824,14 +824,20 @@ int21_handler:
     je .as_get
     cmp al, 1
     je .as_set
-    jmp iret_nc
+    jmp .as_bad
 .as_get:
     xor ax, ax
     mov al, [cs:alloc_strat]
     jmp iret_nc
 .as_set:
+    cmp bl, 2
+    ja .as_bad
     mov [cs:alloc_strat], bl
+    xor ax, ax
     jmp iret_nc
+.as_bad:
+    mov ax, 1
+    jmp iret_cy
 .break_check:
     cmp al, 0
     je .bc_get
