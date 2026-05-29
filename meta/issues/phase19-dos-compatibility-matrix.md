@@ -79,7 +79,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=30h` DOS version | implemented/partial | medium | `VERSIONAPI` locks the compatibility identity to DOS 3.30 for `AH=30h` and `AX=3306h` true-version byte ordering. |
 | `AH=36h` disk free | implemented/partial | medium | Counts free clusters from the active FAT and returns `AX=FFFFh` for invalid drives; covered by `DISKFREE` on FAT12 and FAT16. |
 | `AH=44h` IOCTL | implemented/partial | high | Covers get/set info, input/output status, removable drive query, and local drive/handle queries for local files/devices. |
-| `AH=1Bh/1Ch` drive data | implemented/partial | low/medium | Returns BPB allocation data and media ID for supported logical drives; invalid drive returns `AL=FFh`. |
+| `AH=1Bh/1Ch` drive data | implemented/partial | low/medium | `DRIVEDATA` covers default and explicit supported drives, FAT12/FAT16 BPB allocation values, media ID pointers, and boundary/high invalid-drive `AL=FFh` returns. |
 | `AH=33h/54h/2Eh` Ctrl-C and verify state | implemented/partial | low/medium | Break get/set, boot-drive, true-version, and verify get/set are covered by `STATEAPI`. |
 
 ### Deferred or Out of Scope Until Needed
