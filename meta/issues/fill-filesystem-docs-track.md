@@ -22,3 +22,4 @@ Expand the interactive documentation with a FAT filesystem track that explains F
 ## Notes
 
 - Keep license hygiene in mind: summarize behavior, do not copy reference implementation text.
+- Resolved with `docs/site/page_filesystem.jsx`, wired into the `fs` route and covered by `make check-docs-sync` source excerpt validation.

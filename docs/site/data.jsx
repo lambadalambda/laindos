@@ -24,7 +24,7 @@ const NAV = [
     blurb: "What DOS API coverage means for games and tools" },
   { id: "tests", label: "Tests · Regression Ladder", kind: "track", status: "done",
     blurb: "How to add repros, QEMU runs, and game smokes" },
-  { id: "fs", label: "Filesystem · FAT12/16", kind: "track", status: "soon",
+  { id: "fs", label: "Filesystem · FAT12/16", kind: "track", status: "done",
     blurb: "Cluster chains, directories, 8.3 names" },
   { id: "mem", label: "Memory · MCB / XMS", kind: "track", status: "soon",
     blurb: "The MCB arena and extended-memory shims" },
