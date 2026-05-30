@@ -78,6 +78,7 @@
 - [x] [Cover Dup Handle Edge Semantics](issues/cover-dup-handle-edge-semantics.md)
 - [x] [Cover Directory Current Edge Semantics](issues/cover-directory-current-edge-semantics.md)
 - [x] [Cover Find DTA Edge Semantics](issues/cover-find-dta-edge-semantics.md)
+- [x] [Triage Sokoban Hang](issues/triage-sokoban-hang.md)
 - [x] [Support Drive-Qualified Relative Paths](issues/support-drive-qualified-relative-paths.md)
 - [x] [Phase 19: DOS Compatibility Matrix](issues/phase19-dos-compatibility-matrix.md)
 - [x] [Fill INT 21h Documentation Track](issues/fill-int21-docs-track.md)

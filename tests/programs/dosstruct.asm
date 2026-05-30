@@ -11,6 +11,24 @@ start:
     int 0x21
     cmp word [es:bx-2], MCB_START
     jne fail_lol
+    mov si, bx
+    add si, 0x22
+    cmp word [es:si], 0xFFFF
+    jne fail_lol_nul_next
+    cmp word [es:si+2], 0xFFFF
+    jne fail_lol_nul_next
+    cmp word [es:si+4], 0x8004
+    jne fail_lol_nul_attr
+    add si, 10
+    mov di, nul_expected
+    mov cx, 8
+check_nul_name:
+    mov al, [di]
+    cmp al, [es:si]
+    jne fail_lol_nul_name
+    inc si
+    inc di
+    loop check_nul_name
 
     push cs
     pop es
@@ -103,6 +121,15 @@ start:
 fail_lol:
     mov dx, fail_lol_msg
     jmp fail
+fail_lol_nul_next:
+    mov dx, fail_lol_nul_next_msg
+    jmp fail
+fail_lol_nul_attr:
+    mov dx, fail_lol_nul_attr_msg
+    jmp fail
+fail_lol_nul_name:
+    mov dx, fail_lol_nul_name_msg
+    jmp fail
 fail_fcb_ret:
     mov dx, fail_fcb_ret_msg
     jmp fail
@@ -128,11 +155,15 @@ fail:
 
 fcb_path: db "c:foo.bar rest", 0
 ret_si: dw 0
+nul_expected: db "NUL     "
 fcb_expected: db "FOO     BAR"
 fcb_buf: times 16 db 0
 country_buf: times 34 db 0
 pass_msg: db "PASS: DOSSTRUCT", 13, 10, "$"
 fail_lol_msg: db "FAIL: DOSSTRUCT LOL", 13, 10, "$"
+fail_lol_nul_next_msg: db "FAIL: DOSSTRUCT LOL NUL NEXT", 13, 10, "$"
+fail_lol_nul_attr_msg: db "FAIL: DOSSTRUCT LOL NUL ATTR", 13, 10, "$"
+fail_lol_nul_name_msg: db "FAIL: DOSSTRUCT LOL NUL NAME", 13, 10, "$"
 fail_fcb_ret_msg: db "FAIL: DOSSTRUCT FCB RET", 13, 10, "$"
 fail_fcb_drive_msg: db "FAIL: DOSSTRUCT FCB DRIVE", 13, 10, "$"
 fail_fcb_name_msg: db "FAIL: DOSSTRUCT FCB NAME", 13, 10, "$"

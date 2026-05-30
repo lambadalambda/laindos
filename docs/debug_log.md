@@ -2,6 +2,35 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-30 Sokoban Device-Chain Triage
+
+### Symptoms
+
+- Local media is present as ignored proprietary archive `vendor/sokoban.zip`.
+- The archive identifies itself as Sokoban shareware by Jim Radcliffe; the executable in the tested archive prints `SokoBan 95`, `ShareWare Version`, and `Copyright 1995 By Jim Radcliffe`.
+- A direct-boot generated `hd10m` image reached `EXE loaded` and then left an inactive/black framebuffer before the fix.
+
+### Confirmed Facts
+
+- `SOKOBAN.EXE` is an MZ executable with no relocation entries, header paragraphs `0x20`, minimum allocation `0x0152`, `CS=SS=0x1abb`, `IP=0x0100`, and `SP=0x277e`.
+- QEMU monitor sampling found the program in a loop that walks DOS device-driver headers by following each header's first far pointer and comparing the 8-byte name at offset `+0x0A` against anti-debug device names including `SOFTICE`.
+- LainDOS's prior `INT 21h AH=52h` support only guaranteed `[ES:BX-2] == MCB_START`; the DOS 3.1-4.x NUL device header at `ES:BX+0x22` fell into unrelated data after the short `dos_list_of_lists` table.
+- Sokoban consequently followed bogus far pointers through the IVT and BIOS ROM instead of terminating the device-chain scan at the resident `NUL` header.
+- LainDOS now exposes a DOS 3.3-style NUL device header at `list_of_lists+0x22` with next pointer `FFFF:FFFF`, attributes `8004h`, and name `NUL     `.
+- After the fix, direct boot reaches the visible Sokoban screen; sending Enter/Space reaches the interactive puzzle view captured in `build/sokoban_after_key_screen.png`.
+- The game still emits non-blocking unhandled `INT 21h AH=E9` and `AH=E3` markers during startup, but they do not prevent reaching gameplay in this build.
+
+### Tests And Probes Run
+
+- Added focused coverage to `tests/programs/dosstruct.asm` for the `AH=52h` NUL device header shape. Before the implementation change, `python3 scripts/test_dosstruct.py` failed with `FAIL: DOSSTRUCT LOL NUL NEXT`.
+- Rebuilt the generated Sokoban repro with `nasm '-DBOOT_FILE="SOKOBAN EXE"' -f bin src/kernel.asm -o build/sokoban_kernel.bin` and `python3 scripts/mkimage.py --format=hd10m ... build/sokoban.img build/sokoban_files/*`.
+- Verified the fixed image under QEMU with VNC screendumps. `build/sokoban_fixed_screen.ppm` reported an active framebuffer, and `build/sokoban_after_key_screen.png` shows an interactive puzzle screen.
+- `python3 scripts/test_dosstruct.py` passes after the fix.
+
+### Closed State
+
+- The Sokoban hang was caused by incomplete `INT 21h AH=52h` list-of-lists device-chain data. The local triage issue is closed after the focused regression and gameplay smoke both pass.
+
 ## 2026-05-30 Micro Machines 2 Copy-Protection Triage
 
 ### Symptoms

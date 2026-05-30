@@ -9,5 +9,4 @@
 - [ ] [Document The Test Ladder And Regression Workflow](issues/document-test-ladder-and-regression-workflow.md)
 - [ ] [Add Documentation Source Sync Checks](issues/add-doc-source-sync-checks.md)
 - [ ] [Harden Interactive Documentation Delivery](issues/harden-interactive-docs-delivery.md)
-- [ ] [Triage Sokoban Hang](issues/triage-sokoban-hang.md)
 - [ ] [Triage Shortlines Hang](issues/triage-shortlines-hang.md)

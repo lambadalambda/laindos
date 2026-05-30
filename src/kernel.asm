@@ -2919,7 +2919,24 @@ break_flag: db 0
 verify_flag: db 0
 kret:  db 3
 dos_first_mcb: dw MCB_START
-dos_list_of_lists: times 32 db 0
+dos_list_of_lists:
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dw 512
+    dd 0
+    dd 0
+    dd 0
+    dw 0
+    db 3
+    db 3
+dos_nul_device:
+    dw 0xFFFF, 0xFFFF
+    dw 0x8004
+    dw 0, 0
+    db 'NUL     '
+dos_joined_drives: db 0
 
 exe_hdr_par:    dw 0
 exe_ss:         dw 0
