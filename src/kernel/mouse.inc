@@ -32,6 +32,8 @@ int33_handler:
     je .set_pos
     cmp ax, 0x0005
     je .get_button_press
+    cmp ax, 0x0006
+    je .get_button_release
     cmp ax, 0x0007
     je .set_x_range
     cmp ax, 0x0008
@@ -56,6 +58,8 @@ int33_handler:
     mov byte [cs:mouse_packet_index], 0
     mov word [cs:mouse_press_count_l], 0
     mov word [cs:mouse_press_count_r], 0
+    mov word [cs:mouse_release_count_l], 0
+    mov word [cs:mouse_release_count_r], 0
     mov word [cs:mouse_visible_count], 0xFFFF
     mov word [cs:mouse_callback_mask], 0
     mov word [cs:mouse_callback_off], 0
@@ -137,6 +141,33 @@ int33_handler:
     mov cx, [cs:mouse_press_x_r]
     mov dx, [cs:mouse_press_y_r]
     mov word [cs:mouse_press_count_r], 0
+    call mouse_trace_return
+    iret
+.get_button_release:
+    cmp bx, 0
+    je .get_left_release
+    cmp bx, 1
+    je .get_right_release
+    mov ax, [cs:mouse_buttons]
+    xor bx, bx
+    xor cx, cx
+    xor dx, dx
+    call mouse_trace_return
+    iret
+.get_left_release:
+    mov ax, [cs:mouse_buttons]
+    mov bx, [cs:mouse_release_count_l]
+    mov cx, [cs:mouse_release_x_l]
+    mov dx, [cs:mouse_release_y_l]
+    mov word [cs:mouse_release_count_l], 0
+    call mouse_trace_return
+    iret
+.get_right_release:
+    mov ax, [cs:mouse_buttons]
+    mov bx, [cs:mouse_release_count_r]
+    mov cx, [cs:mouse_release_x_r]
+    mov dx, [cs:mouse_release_y_r]
+    mov word [cs:mouse_release_count_r], 0
     call mouse_trace_return
     iret
 .get_motion:
@@ -503,6 +534,11 @@ mouse_ps2_byte:
     test ax, 0x0001
     jnz .left_done
     or word [cs:mouse_event_mask], 0x0004
+    inc word [cs:mouse_release_count_l]
+    mov cx, [cs:mouse_x]
+    mov [cs:mouse_release_x_l], cx
+    mov cx, [cs:mouse_y]
+    mov [cs:mouse_release_y_l], cx
     jmp .left_done
 .left_was_up:
     test ax, 0x0001
@@ -519,6 +555,11 @@ mouse_ps2_byte:
     test ax, 0x0002
     jnz .right_done
     or word [cs:mouse_event_mask], 0x0010
+    inc word [cs:mouse_release_count_r]
+    mov cx, [cs:mouse_x]
+    mov [cs:mouse_release_x_r], cx
+    mov cx, [cs:mouse_y]
+    mov [cs:mouse_release_y_r], cx
     jmp .right_done
 .right_was_up:
     test ax, 0x0002

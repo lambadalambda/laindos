@@ -88,6 +88,13 @@ image_start:
     jne .fail_button_data
     cmp bx, 0
     jne .fail_button_data
+    mov ax, 0x0006
+    xor bx, bx
+    int 0x33
+    cmp ax, 0
+    jne .fail_button_data
+    cmp bx, 0
+    jne .fail_button_data
 
     mov ax, 0x000B
     int 0x33

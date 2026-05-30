@@ -3193,6 +3193,12 @@ mouse_press_x_l: dw 320
 mouse_press_y_l: dw 100
 mouse_press_x_r: dw 320
 mouse_press_y_r: dw 100
+mouse_release_count_l: dw 0
+mouse_release_count_r: dw 0
+mouse_release_x_l: dw 320
+mouse_release_y_l: dw 100
+mouse_release_x_r: dw 320
+mouse_release_y_r: dw 100
 xms_alloc_kb: dw 0
 xms_move_len: dw 0
 xms_move_words: dw 0

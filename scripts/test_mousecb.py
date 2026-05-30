@@ -76,6 +76,10 @@ def run_qemu():
     deadline = time.monotonic() + TIMEOUT
     while time.monotonic() < deadline and not chunks_contain(stdout_chunks, ("PASS: MOUSECB", "FAIL:")):
         sock.sendall(b"mouse_move 40 0\n")
+        time.sleep(0.05)
+        sock.sendall(b"mouse_button 1\n")
+        time.sleep(0.05)
+        sock.sendall(b"mouse_button 0\n")
         time.sleep(0.1)
     sock.close()
     return finish_qemu(proc, stdout_chunks, stderr_chunks, threads, timeout=3, stop_markers=("HALT", "PASS: MOUSECB"))

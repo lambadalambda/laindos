@@ -7,17 +7,20 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 ### Symptoms
 
 - After the XMS fix, QEMU reaches `Caching data 15360K in extended memory`, then `DISNEY INTRO REEL 15`, then a black screen.
-- User manual comparison with the same image in 86Box progresses further to an image asking `do you want to enter the competition`; mouse movement works there, but clicking the Yes/No buttons does not activate them.
+- User manual comparison with the same image in 86Box progresses further to an image asking `do you want to enter the competition`; mouse movement works there, keyboard `Y`/`N` activates the prompt, but clicking the Yes/No buttons did not activate them before `INT 33h AX=0006h` support.
 
 ### Confirmed Facts
 
 - The fresh-boot memory complaint and XMS cache-path startup failure are separate and resolved by the large XMS move fix.
 - QEMU's remaining black screen diverged from 86Box, so initial QEMU probes prioritized video/timing and CPU-state differences before changing DOS APIs.
-- The 86Box prompt shows that LainDOS and the installed Stunt files can get past the intro on at least one emulator, but input handling at that prompt still needs a mouse-button/callback/coordinate probe.
+- The 86Box prompt shows that LainDOS and the installed Stunt files can get past the intro on at least one emulator. Keyboard `Y`/`N` works and mouse hover changes the cursor, so the remaining click failure points at mouse button edge delivery rather than video, keyboard, or coordinate scaling.
 - QEMU black-screen sampling stopped at `CS:IP=1033:6291`, `EFLAGS=0046` (`IF=0`), `ES=0040`, with BIOS tick `40:6C` frozen. The loop is Stunt code at linear `0x165c1`: `cmpw %es:0x6c,%bx; je 0x165c1`.
 - Forcing IF on at the stuck loop with gdb immediately advances QEMU to the same nonblack competition prompt class as 86Box (`stats=(208, 217732)`), proving the black screen is a timer/IF deadlock rather than a rendering failure.
 - Breakpoints around the preceding `INT 21h AH=4Eh` showed IF was already clear before the DOS call (`eflags=0x2` at `1033:6227`), but making DOS-style `INT 21h` returns set IF lets the subsequent Stunt timer wait advance.
 - Added `FINDEDGE` coverage for successful `FindFirst` returning with IF set even when the caller entered with interrupts disabled; this failed before the compatibility fix with `FAIL: FINDEDGE FIND IF`.
+- The built-in mouse driver had press-query support (`INT 33h AX=0005h`) but no release-query support (`AX=0006h`). That matched Stunt's symptom class: hover and keyboard work, but button activation on release has no latched release data to consume.
+- Added `AX=0006h` release counters and last-release coordinates for left/right buttons, cleared on reset and consumed the same way as press counters.
+- User manual retest with the current kernel confirmed the Stunt competition prompt mouse clicks now activate the prompt.
 
 ### Tests And Probes Run
 
@@ -26,11 +29,14 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - `python3 scripts/test_findedge.py` failed before the IF-return fix and passes after it.
 - `python3 scripts/test_xms.py` still passes, including the separate XMS far-call IF-preservation sanity check.
 - Disposable patched Stunt image `build/stunt_if_hd.img` with a current `SHELL.COM` kernel reaches a nonblack prompt-like screen by 5s and 15s under QEMU (`stats=(208, 217732)`), instead of the prior black screen (`stats=(1, 0)`).
+- `python3 scripts/test_mouse.py` covers reset-time empty press and release queries in the basic mouse API program.
+- `python3 scripts/test_mousecb.py` now drives monitor `mouse_move`, `mouse_button 1`, and `mouse_button 0`. It failed before the release-query fix with `FAIL: MOUSECB RELEASEDATA` and passes after the fix.
+- `make test` passes `73/73` after adding the release-query coverage, and `make test-game-smokes` still passes the Monkey demo, full Monkey, Wolf3D, and Ascendancy smoke tests.
 
-### Next Probes
+### Closed State
 
-- In 86Box, test whether keyboard shortcuts activate the competition prompt, then probe whether LainDOS receives mouse button transitions or only cursor movement.
-- If needed, add a scripted Stunt smoke around the post-intro prompt once proprietary-media handling and generated-image setup are formalized.
+- The post-intro QEMU black screen is fixed by DOS-return IF compatibility, and the prompt click failure is fixed by mouse release-query support.
+- A future scripted Stunt smoke can still be added once proprietary-media handling and generated-image setup are formalized.
 
 ## 2026-05-30 Stunt Island Fresh-Boot Memory Triage
 

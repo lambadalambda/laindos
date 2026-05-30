@@ -86,3 +86,4 @@
 - [x] [Triage Quake Bad Command Or Filename Launch Failure](issues/triage-quake-bad-command-or-filename-launch-failure.md)
 - [x] [Triage Civilization 1 Configuration And Startup Hang](issues/triage-civilization-1-configuration-and-startup-hang.md)
 - [x] [Triage Stunt Island Fresh-Boot Memory Failure](issues/triage-stunt-island-fresh-boot-memory-failure.md)
+- [x] [Triage Stunt Island Post-Intro Black Screen](issues/triage-stunt-island-post-intro-black-screen.md)

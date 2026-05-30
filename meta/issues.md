@@ -11,7 +11,6 @@
 - [ ] [Harden Interactive Documentation Delivery](issues/harden-interactive-docs-delivery.md)
 - [ ] [Fix Process Memory Release After Program Exit](issues/fix-process-memory-release-after-program-exit.md)
 - [ ] [Repair Spawn And Launcher EXEC Compatibility](issues/repair-spawn-and-launcher-exec-compatibility.md)
-- [ ] [Triage Stunt Island Post-Intro Black Screen](issues/triage-stunt-island-post-intro-black-screen.md)
 - [ ] [Triage Sokoban Hang](issues/triage-sokoban-hang.md)
 - [ ] [Triage Micro Machines 2 Hang](issues/triage-micro-machines-2-hang.md)
 - [ ] [Triage Shortlines Hang](issues/triage-shortlines-hang.md)

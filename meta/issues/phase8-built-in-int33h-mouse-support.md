@@ -35,6 +35,6 @@ Implement a minimal built-in DOS mouse service so Monkey Island can detect and u
 ## Notes
 
 - CTMouse is not the first implementation path because it is a TSR-style DOS driver and would require more program-loading, resident-memory, vector-preservation, and hardware support before it helps.
-- Implemented in commit `bd49ca5` with a built-in INT 33h API, PS/2 IRQ12 backend, packet decoder, motion counters, and button press latches.
+- Implemented in commit `bd49ca5` with a built-in INT 33h API, PS/2 IRQ12 backend, packet decoder, motion counters, and button press latches. Later compatibility work added event callbacks, mickey/pixel ratio scaling, edge clamping regressions, and `AX=0006h` button-release latches.
 - Verified: `make test` passes; `PASS: MOUSE` and `PASS: MOUSEHW` were confirmed via targeted QEMU runs, including monitor `mouse_move`; graphical Monkey Island run has working mouse input.
-- INT 33h AX=000Ch event callback addresses are stored but callback invocation remains a future compatibility enhancement if another program requires it.
+- INT 33h AX=000Ch event callback invocation and AX=0006h release queries are now covered by `tests/programs/mousecb.asm` and `scripts/test_mousecb.py`.

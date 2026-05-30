@@ -28,6 +28,7 @@ DEFAULT_TESTS = [
     "scripts/test_fcbfind.py",
     "scripts/test_versionapi.py",
     "scripts/test_datetime.py",
+    "scripts/test_mouse.py",
     "scripts/test_mousecb.py",
     "scripts/test_mouseratio.py",
     "scripts/test_xms.py",

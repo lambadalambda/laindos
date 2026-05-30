@@ -31,7 +31,7 @@ image_start:
     push cs
     pop es
     mov dx, callback - image_start
-    mov cx, 0x0001
+    mov cx, 0x0007
     mov ax, 0x000C
     int 0x33
 
@@ -41,18 +41,30 @@ image_start:
 
     mov cx, 0x8000
 wait_loop:
-    cmp word [callback_count - image_start], 0
-    jne check_callback
+    mov ax, [callback_seen - image_start]
+    and ax, 0x0007
+    cmp ax, 0x0007
+    je check_callback
     mov ax, 0x0003
     int 0x33
     loop wait_loop
     jmp fail_timeout
 
 check_callback:
-    test word [callback_ax - image_start], 0x0001
-    jz fail_mask
-    cmp word [callback_si - image_start], 0
+    cmp word [callback_motion_x - image_start], 0
     je fail_motion
+    mov ax, 0x0005
+    xor bx, bx
+    int 0x33
+    cmp bx, 0
+    je fail_press_data
+    mov ax, 0x0006
+    xor bx, bx
+    int 0x33
+    cmp ax, 0
+    jne fail_release_data
+    cmp bx, 0
+    je fail_release_data
 
     mov dx, pass_msg - image_start
     mov ah, 0x09
@@ -65,6 +77,11 @@ callback:
     push cs
     pop ds
     inc word [callback_count - image_start]
+    or [callback_seen - image_start], ax
+    test ax, 0x0001
+    jz .store_common
+    mov [callback_motion_x - image_start], si
+.store_common:
     mov [callback_ax - image_start], ax
     mov [callback_bx - image_start], bx
     mov [callback_cx - image_start], cx
@@ -80,11 +97,14 @@ fail_reset:
 fail_timeout:
     mov dx, fail_timeout_msg - image_start
     jmp print_fail
-fail_mask:
-    mov dx, fail_mask_msg - image_start
-    jmp print_fail
 fail_motion:
     mov dx, fail_motion_msg - image_start
+    jmp print_fail
+fail_press_data:
+    mov dx, fail_press_data_msg - image_start
+    jmp print_fail
+fail_release_data:
+    mov dx, fail_release_data_msg - image_start
 print_fail:
     mov ah, 0x09
     int 0x21
@@ -92,6 +112,8 @@ print_fail:
     int 0x21
 
 callback_count: dw 0
+callback_seen: dw 0
+callback_motion_x: dw 0
 callback_ax: dw 0
 callback_bx: dw 0
 callback_cx: dw 0
@@ -103,7 +125,8 @@ ready_msg: db 13, 10, "READY: MOUSECB$"
 pass_msg: db 13, 10, "PASS: MOUSECB$"
 fail_reset_msg: db "FAIL: MOUSECB RESET$"
 fail_timeout_msg: db "FAIL: MOUSECB TIMEOUT$"
-fail_mask_msg: db "FAIL: MOUSECB MASK$"
 fail_motion_msg: db "FAIL: MOUSECB MOTION$"
+fail_press_data_msg: db "FAIL: MOUSECB PRESSDATA$"
+fail_release_data_msg: db "FAIL: MOUSECB RELEASEDATA$"
 
 file_end:

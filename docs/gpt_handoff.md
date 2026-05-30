@@ -334,8 +334,13 @@ Minimum `INT 33h` later:
 | `AX=0002h` | hide cursor                |
 | `AX=0003h` | get position and buttons   |
 | `AX=0004h` | set position               |
+| `AX=0005h` | get button press data      |
+| `AX=0006h` | get button release data    |
 | `AX=0007h` | set horizontal range       |
 | `AX=0008h` | set vertical range         |
+| `AX=000Bh` | get motion counters        |
+| `AX=000Ch` | set event callback         |
+| `AX=000Fh` | set mickey/pixel ratio     |
 
 You can fake mouse movement at first with keyboard arrows mapped to an internal mouse position.
 
