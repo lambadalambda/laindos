@@ -83,3 +83,5 @@
 - [x] [Fill INT 21h Documentation Track](issues/fill-int21-docs-track.md)
 - [x] [Triage Duke Nukem 3D SETUP DOS/16M Spawn Error](issues/triage-duke3d-setup-dos16m-spawn-error.md)
 - [x] [Triage Boom And SMMU FreeDoom Hangs](issues/triage-boom-and-smmu-freedoom-hangs.md)
+- [x] [Triage Quake Bad Command Or Filename Launch Failure](issues/triage-quake-bad-command-or-filename-launch-failure.md)
+- [x] [Triage Civilization 1 Configuration And Startup Hang](issues/triage-civilization-1-configuration-and-startup-hang.md)

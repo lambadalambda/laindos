@@ -125,6 +125,10 @@ int21_handler:
     je .flush_and_read
     cmp ah, 0x0E
     je .select_disk
+    cmp ah, 0x11
+    je .fcb_find_first
+    cmp ah, 0x12
+    je .fcb_find_next
     cmp ah, 0x00
     je .terminate
     cmp ah, 0x39
@@ -542,6 +546,164 @@ int21_handler:
     mov bx, [cs:dta_off]
     mov es, [cs:dta_seg]
     jmp iret_nc
+.fcb_find_first:
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov si, dx
+    mov byte [cs:ff_attr_mask], 0
+    cmp byte [ds:si], 0xFF
+    jne .fcb_normal
+    mov al, [ds:si+6]
+    mov [cs:ff_attr_mask], al
+    add si, 7
+.fcb_normal:
+    mov al, [ds:si]
+    test al, al
+    jz .fcb_drive_current
+    dec al
+    cmp al, [cs:dos_drive_count]
+    jae .fcb_no_match
+    call activate_drive
+    jc .fcb_no_match
+    jmp .fcb_drive_ready
+.fcb_drive_current:
+    mov al, [cs:dos_drive_num]
+    call activate_drive
+    jc .fcb_no_match
+.fcb_drive_ready:
+    inc si
+    push cs
+    pop es
+    mov di, name_buf
+    mov cx, 11
+.fcb_copy_name:
+    lodsb
+    call ascii_upper
+    stosb
+    loop .fcb_copy_name
+    mov ax, [cs:cur_dir_cluster]
+    mov [cs:ff_dir_cluster], ax
+    call find_in_dir_filtered
+    jc .fcb_no_match
+    call .fcb_store_dta
+    call .fcb_save_state
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    xor al, al
+    jmp iret_nc
+.fcb_find_next:
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov al, [cs:fcb_drive_num]
+    call activate_drive
+    jc .fcb_no_match
+    push cs
+    pop ds
+    push cs
+    pop es
+    mov si, fcb_name
+    mov di, name_buf
+    mov cx, 11
+    rep movsb
+    mov al, [cs:fcb_attr_mask]
+    mov [cs:ff_attr_mask], al
+    mov ax, [cs:fcb_dir_cluster]
+    mov [cs:ff_dir_cluster], ax
+    mov bx, [cs:fcb_last_idx]
+    inc bx
+    call find_in_dir_from
+    jc .fcb_no_match
+    call .fcb_store_dta
+    call .fcb_save_state
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    xor al, al
+    jmp iret_nc
+.fcb_no_match:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    mov al, 0xFF
+    jmp iret_nc
+.fcb_store_dta:
+    push ax
+    push cx
+    push ds
+    push es
+    push si
+    push di
+    push es
+    pop ds
+    mov si, di
+    mov ax, [cs:dta_seg]
+    mov es, ax
+    mov di, [cs:dta_off]
+    mov al, [cs:active_drive_num]
+    inc al
+    stosb
+    mov cx, 32
+    rep movsb
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop cx
+    pop ax
+    ret
+.fcb_save_state:
+    push ax
+    push cx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, [cs:ff_dir_cluster]
+    mov [cs:fcb_dir_cluster], ax
+    mov ax, [cs:ff_entry_idx]
+    mov [cs:fcb_last_idx], ax
+    mov al, [cs:ff_attr_mask]
+    mov [cs:fcb_attr_mask], al
+    mov al, [cs:active_drive_num]
+    mov [cs:fcb_drive_num], al
+    push cs
+    pop ds
+    push cs
+    pop es
+    mov si, name_buf
+    mov di, fcb_name
+    mov cx, 11
+    rep movsb
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop cx
+    pop ax
+    ret
 .set_vector:
     cmp word [cs:trace_left], 0
     je .sv_no_trace

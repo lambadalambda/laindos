@@ -2,7 +2,7 @@
 
 ## Summary
 
-Quake reportedly fails to launch with `Bad command or filename`.
+Quake reportedly failed to launch with `Bad command or filename`. The launch, DPMI, file-stat, and remaining compatibility-probe blockers are fixed, and current VHD smokes reach visible gameplay.
 
 ## Requirements
 
@@ -17,6 +17,10 @@ Quake reportedly fails to launch with `Bad command or filename`.
 - The `Bad command or filename` failure is reproduced and traced to shell/path/EXEC behavior or a separate runtime blocker.
 - Quake begins its loader/startup path, or the remaining blocker is documented in a follow-up issue.
 - `make test` passes after any implementation change.
+
+## Resolution
+
+- Acceptance criteria are satisfied: the original shell/loader failure was reproduced and fixed, Quake now reaches visible gameplay from `vendor/FreeDOS.VHD`, and later compatibility work covered the remaining non-fatal `AH=60h` and `AX=5D06h` probes.
 
 ## Notes
 

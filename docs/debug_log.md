@@ -2,6 +2,26 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-30 Civilization 1 FCB Search Startup
+
+### Symptoms
+
+- `CIV` from the local Civilization floppy-image archive reached the game configuration flow, but after startup choices `1`, `1`, `1` it logged unhandled `INT 21h AH=11` and then trapped with `EXC 06`.
+- The current repro's configuration menu is readable enough to select video/sound/input options, so the immediate blocker was not text rendering.
+
+### Confirmed Facts
+
+- `vendor/sid-meiers-civilization-au.zip` contains two raw 1.44 MiB FAT floppy images; local repro files were extracted/generated under `build/` only.
+- Civilization uses FCB `FindFirst` during startup before it reaches its title/gameplay path.
+- Added narrow `INT 21h AH=11h`/`AH=12h` support for current-directory 8.3 FCB searches, including extended-FCB attribute masks. Success returns `AL=00h`, failure returns `AL=FFh`, and the successful DTA receives a drive byte plus the raw 32-byte directory entry.
+- After the FCB search support, Civilization reaches the title/menu path and visible new-game gameplay with the starting settler/advisor screen. The smoke showed an active framebuffer and no unhandled `INT 21h AH=` or `EXC ` marker.
+
+### Tests And Smokes Run
+
+- `scripts/test_fcbfind.py` builds `tests/programs/fcbfind.asm` and covers missing-file failure, exact match success, exhausted `FindNext`, wildcard success, and extended-FCB directory attribute-mask matching for FCB search.
+- Civilization smoke after the fix reached gameplay with 36 colors and 88456 nonblack pixels in the captured framebuffer.
+- Final verification for this round: `python3 scripts/test_fcbfind.py`, `python3 scripts/test_parsefcb.py`, `python3 scripts/test_compatapi.py`, `python3 -m py_compile scripts/test_fcbfind.py scripts/run_tests.py`, `git diff --check`, and `make test` pass. The full ladder reports `72/72`.
+
 ## 2026-05-30 Boom And SMMU FreeDoom VHD Triage
 
 ### Symptoms

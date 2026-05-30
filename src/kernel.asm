@@ -2755,6 +2755,11 @@ tn_dst_off: dw 0
 tn_root_off: dw 0
 tn_limit_off: dw 0
 tn_status: dw 0
+fcb_dir_cluster: dw 0
+fcb_last_idx: dw 0
+fcb_attr_mask: db 0
+fcb_drive_num: db 0
+fcb_name: times 11 db 0
 vga_row:   dw 0
 vga_col:   dw 0
 console_ext_pending: db 0

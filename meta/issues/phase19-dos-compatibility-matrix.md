@@ -64,6 +64,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
 | `AH=39h/3Ah/3Bh/47h` | implemented/partial | high | `DIRMUT` covers core directory mutation behavior; `PATHCANON` covers normalized current-directory paths; `DIREDGE` covers empty paths, file-as-directory rejection, invalid drive-qualified directory paths, current-directory preservation after failures, and `AH=47h` valid/invalid drive requests; `DRIVEPATH` covers drive-qualified relative `CHDIR`. |
+| `AH=11h/12h` FCB find first/next | implemented/partial | low/medium | `FCBFIND` covers missing, exact, wildcard, exhausted, and extended-FCB directory attribute-mask current-directory searches. LainDOS writes AL status plus a drive byte and raw directory entry to the DTA, which is enough for Civilization startup; broader FCB file APIs and richer FCB DTA semantics remain deferred. |
 | `AH=4Eh/4Fh` find first/next | implemented/partial | high | `FINDNEXT`, `FINDATTR`, `FINDTIME`, `PATHCANON`, `FINDEDGE`, and `DRIVEPATH` cover DTA layout/state, wildcard matching, attribute filters, timestamps, multi-component paths, error codes, invalid drives, drive-qualified root and relative searches, and exhaustion behavior. |
 | `AH=56h` rename | implemented/partial | medium | `RNGUARD`, `SAVEWRITE`, and `HIGHDIR` cover normal, open-handle, read-only, same-directory overwrite, cross-directory failure, multi-component, and high-directory rename behavior. |
 | DOS device names `CON`, `NUL`, `AUX`, `PRN` | implemented/partial | high | Phase 17 is archived; `DEVNAMES` covers case-insensitive and extension-insensitive `CON`/`NUL`, keeps prefix lookalikes as files, and verifies unsupported `AUX`/`PRN` return access denied. |
@@ -91,7 +92,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
-| FCB calls | missing/deferred | low | Tracked by the deferred compatibility issue; implement only if a target program uses them. |
+| FCB open/read/write/delete and richer metadata | missing/deferred | low | Tracked by the deferred compatibility issue; implement only if a target program uses them beyond the existing parser and current-directory search support. |
 | Sharing/locking `AH=5Ch` | missing/deferred | low | Tracked by the deferred compatibility issue; single-tasking local DOS can return sensible unsupported/no-op behavior if needed. |
 | Full DOS internal SDA and LFN semantics | missing/deferred | low | The currently implemented SDA/LFN behavior is compatibility-only for observed callers; broader internal layouts and long filename handling remain tracked by the deferred compatibility issue. |
 | Network calls `AH=5Eh/5Fh` | missing/deferred | low | Tracked by the deferred compatibility issue; return local/not-remote semantics only if callers require it. |
