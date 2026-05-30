@@ -10,7 +10,7 @@ VGA_ROWS equ 25
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x0060
-ROOT_SEG  equ 0x0B00
+ROOT_SEG  equ 0x0B40
 PSP_SEG   equ 0x3000
 TEMP_SEG  equ 0x4000
 
@@ -1653,27 +1653,52 @@ xms_entry:
     push ds
     push es
     mov ax, [ds:si]
-    mov [cs:xms_move_len], ax
     mov dx, [ds:si+2]
-    test dx, dx
-    jnz .move_bad_len
     test ax, 1
     jnz .move_bad_len
-    test ax, ax
-    jz .move_ok
-    shr ax, 1
-    mov [cs:xms_move_words], ax
+    mov [cs:xms_move_rem], ax
+    mov [cs:xms_move_rem+2], dx
     mov bx, [ds:si+4]
+    mov [cs:xms_src_handle], bx
     mov ax, [ds:si+6]
     mov dx, [ds:si+8]
-    call xms_endpoint_phys
+    call xms_prepare_endpoint
+    jc .move_bad_handle
+    mov [cs:xms_src_off], ax
+    mov [cs:xms_src_off+2], dx
+    mov bx, [ds:si+10]
+    mov [cs:xms_dst_handle], bx
+    mov ax, [ds:si+12]
+    mov dx, [ds:si+14]
+    call xms_prepare_endpoint
+    jc .move_bad_handle
+    mov [cs:xms_dst_off], ax
+    mov [cs:xms_dst_off+2], dx
+.move_loop:
+    mov ax, [cs:xms_move_rem]
+    or ax, [cs:xms_move_rem+2]
+    jz .move_ok
+    mov ax, 0xFFFE
+    cmp word [cs:xms_move_rem+2], 0
+    jne .move_have_chunk
+    cmp word [cs:xms_move_rem], ax
+    ja .move_have_chunk
+    mov ax, [cs:xms_move_rem]
+.move_have_chunk:
+    mov [cs:xms_move_len], ax
+    shr ax, 1
+    mov [cs:xms_move_words], ax
+    mov bx, [cs:xms_src_handle]
+    mov ax, [cs:xms_src_off]
+    mov dx, [cs:xms_src_off+2]
+    call xms_current_endpoint_phys
     jc .move_bad_handle
     mov [cs:xms_src_phys], ax
     mov [cs:xms_src_phys+2], dx
-    mov bx, [ds:si+10]
-    mov ax, [ds:si+12]
-    mov dx, [ds:si+14]
-    call xms_endpoint_phys
+    mov bx, [cs:xms_dst_handle]
+    mov ax, [cs:xms_dst_off]
+    mov dx, [cs:xms_dst_off+2]
+    call xms_current_endpoint_phys
     jc .move_bad_handle
     mov [cs:xms_dst_phys], ax
     mov [cs:xms_dst_phys+2], dx
@@ -1700,6 +1725,14 @@ xms_entry:
     jc .move_failed
     test ah, ah
     jnz .move_failed
+    mov ax, [cs:xms_move_len]
+    sub [cs:xms_move_rem], ax
+    sbb word [cs:xms_move_rem+2], 0
+    add [cs:xms_src_off], ax
+    adc word [cs:xms_src_off+2], 0
+    add [cs:xms_dst_off], ax
+    adc word [cs:xms_dst_off+2], 0
+    jmp .move_loop
 .move_ok:
     pop es
     pop ds
@@ -1761,7 +1794,7 @@ xms_entry:
 %endif
 
 %if ENABLE_XMS
-xms_endpoint_phys:
+xms_prepare_endpoint:
     test bx, bx
     jz xms_real_ptr_to_phys
     cmp bx, 1
@@ -1774,8 +1807,9 @@ xms_endpoint_phys:
     push di
     mov cx, ax
     mov di, dx
-    add cx, [cs:xms_move_len]
-    adc di, 0
+    add cx, [cs:xms_move_rem]
+    adc di, [cs:xms_move_rem+2]
+    jc .bad_pop
     mov ax, [cs:xms_alloc_kb]
     mov dx, 1024
     mul dx
@@ -1789,7 +1823,6 @@ xms_endpoint_phys:
     pop cx
     pop dx
     pop ax
-    add dx, 0x0010
     clc
     ret
 .bad_pop:
@@ -1797,6 +1830,19 @@ xms_endpoint_phys:
     pop cx
     pop dx
     pop ax
+.bad:
+    stc
+    ret
+
+xms_current_endpoint_phys:
+    test bx, bx
+    jz .ok
+    cmp bx, 1
+    jne .bad
+    add dx, 0x0010
+.ok:
+    clc
+    ret
 .bad:
     stc
     ret
@@ -3147,6 +3193,11 @@ mouse_press_y_r: dw 100
 xms_alloc_kb: dw 0
 xms_move_len: dw 0
 xms_move_words: dw 0
+xms_move_rem: dd 0
+xms_src_handle: dw 0
+xms_dst_handle: dw 0
+xms_src_off: dd 0
+xms_dst_off: dd 0
 xms_src_phys: dd 0
 xms_dst_phys: dd 0
 xms_gdt: times 48 db 0

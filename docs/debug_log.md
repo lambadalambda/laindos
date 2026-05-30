@@ -2,6 +2,45 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-30 Stunt Island Fresh-Boot Memory Triage
+
+### Symptoms
+
+- Reported issue: Stunt Island complains about memory even on a fresh boot.
+- With the local Stunt Island media installed into a generated hard-disk image, a fresh direct launch no longer reports a conventional-memory error. The game reaches its extended-memory cache path, then the Disney intro, and then a post-intro black screen.
+
+### Confirmed Facts
+
+- `vendor/FreeDOS.VHD` is present and mounts as `C:` under LainDOS, but `C:\GAMES` contains no Stunt Island directory. The visible game directories include `BOLITARE`, `BOOM`, `FREEDOOM`, `DUKE3D`, and `QUAKE`, among others.
+- Workspace globbing found no `stunt`, `STUNT`, `island`, or `ISLAND` game media/install tree outside the issue files.
+- The Stunt Island manual lists the requirement as 640K total RAM with 570K free RAM. Its troubleshooting text describes the memory failure as similar to `Not enough memory. Stunt Island requires 570,000 bytes free.`
+- A fresh LainDOS shell image with `FREE.COM`/`MEM.COM` reports 640K conventional total, 565K conventional free, and largest executable program size `560 K (574384 bytes)`, both from `A:` and after switching to the attached FreeDOS VHD as `C:`.
+- LainDOS is therefore just above a 570,000-decimal-byte threshold but below a strict 570 KiB threshold of 583,680 bytes. With the installed game binary now available, the fresh direct launch does not reproduce the manual's conventional-memory error.
+- `vendor/002514_stunt_island.7z` contains six raw 1.44 MiB FAT floppy images. Local generated artifacts under `build/` install those disks into `build/stunt_source_hd.img`; proprietary media and installed files remain untracked.
+- The installer runs under LainDOS and produces `C:\STUNTISL`. A fresh direct launch from that directory reaches `Caching data 15360K in extended memory.`
+- Disabling XMS in a temporary kernel copy makes Stunt skip the cache path and show `DISNEY INTRO REEL 15`, which isolates the original cache-path failure to LainDOS XMS behavior rather than conventional-memory availability.
+- The XMS move handler rejected DWORD move lengths with a nonzero high word. `tests/programs/xmstest.asm` now covers a single 65,536-byte conventional-to-XMS move, independent BIOS readback from the requested XMS physical address, and a 65,536-byte XMS-to-conventional move across the 64K boundary; `scripts/test_xms.py` failed before the DWORD-length fix with `FAIL: XMS MOVE 64K TO` and before the physical-address follow-up with `FAIL: XMS MOVE 64K BIOS CMP`.
+- XMS `AH=0Bh` now pre-validates full 32-bit extents and loops through conservative `0xFFFE`-byte BIOS block moves while converting handle-1 offsets to the 1 MiB physical base once per chunk. After the fix, Stunt's XMS-enabled fresh direct launch shows the cache screen, then the same `DISNEY INTRO REEL 15` frame observed on the no-XMS path.
+- The larger XMS move code made the EMS-enabled test kernel exceed the old scratch-buffer guard, so the runtime buffers moved to `SEC_BUF=0x0B00`, `READ_CACHE_BUF=0x0B20`, and `ROOT_SEG=0x0B40` while preserving the existing root-buffer guard below `0340:C800`.
+- Remaining behavior after the intro is a black screen with no DOS `INT 21h` failure marker. CPU sampling before the XMS fix showed real-mode game code looping with interrupts disabled, so this appears separate from the fresh-boot memory complaint.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_attached_hd_shell.py vendor/FreeDOS.VHD --expect GAMES --timeout 20` passes and confirms the attached VHD root contains `GAMES`.
+- QEMU shell probe of `C:`, `CD \GAMES`, `DIR` against `vendor/FreeDOS.VHD` confirms Stunt Island is not installed there.
+- Temporary generated `build/stunt_mem.img` with `SHELL.COM`, `FREE.COM`, and `MEM.COM` was used only for memory-report probing.
+- `python3 scripts/test_free.py` still passes.
+- `python3 scripts/test_xms.py` failed before the XMS DWORD-length fix, failed before the follow-up physical-address fix, and passes after both fixes.
+- `python3 scripts/run_tests.py scripts/test_xms.py scripts/test_free.py scripts/test_ems.py` passes after the XMS move and buffer-layout changes.
+- `make test` passes `72/72` after the XMS move, physical-address, and buffer-layout changes.
+- `make test-game-smokes` passes the shell Monkey demo, full Monkey, Wolf3D, and Ascendancy smoke tests.
+- `python3 scripts/test_attached_hd_shell.py vendor/FreeDOS.VHD --expect GAMES --timeout 20` passes.
+- Temporary Stunt smoke with a current-kernel `build/stunt_xmsfix_hd.img` shows `Caching data 15360K in extended memory` at 1s and `DISNEY INTRO REEL 15` at 3s, then the separate post-intro black screen.
+
+### Follow-Ups
+
+- Treat any post-intro black-screen work as a separate graphics/runtime investigation; the fresh-boot conventional-memory complaint and XMS cache-path failure are now explained by the XMS move-length compatibility gap.
+
 ## 2026-05-30 Civilization 1 FCB Search Startup
 
 ### Symptoms

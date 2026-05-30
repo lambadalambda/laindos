@@ -35,9 +35,9 @@ const NAV = [
 const MEMMAP = [
   { seg: "A000", name: "VGA graphics memory", note: "MEM_TOP — mode 13h framebuffer", key: "vga" },
   { seg: "1000", name: "Program + environment arena", note: "MCB_START — where games live", key: "arena", grow: true },
-  { seg: "0B00", name: "Root directory buffer", note: "ROOT_SEG", key: "root" },
-  { seg: "0AE0", name: "Read cache buffer", note: "READ_CACHE_BUF", key: "cache" },
-  { seg: "0AC0", name: "Sector buffer", note: "SEC_BUF", key: "sec" },
+  { seg: "0B40", name: "Root directory buffer", note: "ROOT_SEG", key: "root" },
+  { seg: "0B20", name: "Read cache buffer", note: "READ_CACHE_BUF", key: "cache" },
+  { seg: "0B00", name: "Sector buffer", note: "SEC_BUF", key: "sec" },
   { seg: "0340", name: "Relocated kernel", note: "RELOC_SEG — stack top at 0FC00h", key: "kernel" },
   { seg: "0060", name: "FAT scratch buffer", note: "FAT_SEG", key: "fat" },
   { seg: "0040", name: "BIOS Data Area", note: "tick count, equipment word", key: "bda" },
@@ -106,7 +106,7 @@ const STAGES = [
     id: "s1b", num: "01b", file: "src/boot.asm", kicker: "FAT12 by hand",
     title: "…and loads the kernel off the floppy",
     prose: [
-      "There's no file system driver yet, so the boot sector is one. Using the BIOS Parameter Block baked into its own first bytes, it reads the FAT to segment 0x60 and the root directory to 0x0A20, then scans 32-byte directory entries for the 8.3 name \"KERNEL  SYS\". That 0x0A20 copy is boot-sector staging; the relocated kernel later reloads active root directories into ROOT_SEG at 0x0B00.",
+      "There's no file system driver yet, so the boot sector is one. Using the BIOS Parameter Block baked into its own first bytes, it reads the FAT to segment 0x60 and the root directory to 0x0A20, then scans 32-byte directory entries for the 8.3 name \"KERNEL  SYS\". That 0x0A20 copy is boot-sector staging; the relocated kernel later reloads active root directories into ROOT_SEG at 0x0B40.",
       "Once found, it follows the file's cluster chain. FAT12 packs each 12-bit entry across byte boundaries, so fat_next reads a word and shifts by 4 bits for odd clusters. Each cluster is read with INT 13h to LOAD_SEG (0x1000); when the chain hits an end-of-chain marker (≥ 0xFF8) it jumps in.",
     ],
     code: [
@@ -292,13 +292,13 @@ const STAGES = [
     hi: [218, 219],
     annotations: [
       [183, "resolve_path walks the path one 8.3 component at a time, descending subdirectories, and returns the matching directory entry in ES:DI (or sets carry if not found). The default name comes from -DBOOT_FILE at assembly time (SHELL.COM on this image)."],
-      [217, "DS is pointed at SEC_BUF (0x0AC0) so `[0x0000]` reads the very first word of the file we just loaded."],
+      [217, "DS is pointed at SEC_BUF (0x0B00) so `[0x0000]` reads the very first word of the file we just loaded."],
       [218, "The bytes 'M','Z' are 4Dh,5Ah on disk; little-endian that's the word 0x5A4D. (The format is named after Mark Zbikowski, who designed it.) A match means a header-bearing .EXE…"],
       [219, "…and the EXE path computes minimum/maximum paragraph counts from the header. No match falls through to the COM path, which just reserves the file size plus a fixed slack."],
     ],
     regs: [
       ["ES:DI", "dir entry", "from resolve_path"],
-      ["DS", "0AC0", "= SEC_BUF, first sector"],
+      ["DS", "0B00", "= SEC_BUF, first sector"],
       ["[0]", "5A4Dh?", "'MZ' → EXE, else COM"],
     ],
     touches: ["sec", "root", "arena"],
