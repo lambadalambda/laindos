@@ -76,6 +76,7 @@
 <script type="text/babel" src="page_misc.jsx"></script>
 <script type="text/babel" src="page_dosapi.jsx"></script>
 <script type="text/babel" src="page_tests.jsx"></script>
+<script type="text/babel" src="page_programs.jsx"></script>
 
 <script type="text/babel">
   function App() {
@@ -102,6 +103,7 @@
     else if (route === "boot") page = <window.BootPage scrollReq={scrollReq} onActive={setSub} go={go} />;
     else if (route === "dosapi") page = <window.DosApiPage go={go} />;
     else if (route === "tests") page = <window.TestsPage go={go} />;
+    else if (route === "prog") page = <window.ProgramsPage go={go} />;
     else if (route === "run") page = <window.RunPage go={go} />;
     else {
       const item = window.NAV.find(n => n.id === route);

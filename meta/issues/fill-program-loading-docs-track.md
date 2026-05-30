@@ -22,3 +22,4 @@ Expand the interactive documentation with a program-loading track that explains 
 ## Notes
 
 - Keep this track synchronized with any future loader refactors.
+- Resolved with `docs/site/page_programs.jsx`, wired into the `prog` route and covered by `make check-docs-sync` source excerpt validation.

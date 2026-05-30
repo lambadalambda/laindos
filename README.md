@@ -277,7 +277,7 @@ For interactive mouse testing, avoid `-nographic`; use a normal display, VNC, or
 
 ## Interactive Documentation
 
-`docs/site/` contains static, browser-based documentation with an embedded v86 emulator that runs `shell_monkey.img` in-page. It currently includes the boot-path walkthrough and an end-user `INT 21h` compatibility guide describing which DOS APIs games and tools can rely on. The `.github/workflows/pages.yml` workflow builds the disk image (`make monkey-demo`), stages `docs/site/` plus the image, and publishes them to GitHub Pages on every push to `main`. To enable: in the repository's *Settings → Pages*, set **Source** to **GitHub Actions**.
+`docs/site/` contains static, browser-based documentation with an embedded v86 emulator that runs `shell_monkey.img` in-page. It currently includes the boot-path walkthrough, an end-user `INT 21h` compatibility guide, the regression test ladder, and a program-loading track for PSP/EXEC/COM/EXE behavior. The `.github/workflows/pages.yml` workflow builds the disk image (`make monkey-demo`), stages `docs/site/` plus the image, and publishes them to GitHub Pages on every push to `main`. To enable: in the repository's *Settings → Pages*, set **Source** to **GitHub Actions**.
 
 ## Project Tracking
 

@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_EXCERPT_DOCS = [
     ROOT / "docs/site/data.jsx",
-    ROOT / "docs/site/page_dosapi.jsx",
+    *sorted((ROOT / "docs/site").glob("page_*.jsx")),
 ]
 PATH_REF_DOCS = [
     ROOT / "README.md",

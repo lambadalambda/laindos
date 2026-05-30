@@ -28,7 +28,7 @@ const NAV = [
     blurb: "Cluster chains, directories, 8.3 names" },
   { id: "mem", label: "Memory · MCB / XMS", kind: "track", status: "soon",
     blurb: "The MCB arena and extended-memory shims" },
-  { id: "prog", label: "Programs · PSP / EXE / COM", kind: "track", status: "soon",
+  { id: "prog", label: "Programs · PSP / EXE / COM", kind: "track", status: "done",
     blurb: "Loading, relocating and EXEC-ing real programs" },
   { id: "run", label: "Run it", kind: "run" },
 ];
