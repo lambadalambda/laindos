@@ -26,6 +26,14 @@ run = "make monkey-demo"
 description = "Boot shell-boot Monkey Island demo floppy in QEMU"
 run = "make run-monkey-demo"
 
+[tasks.run-freedos-vhd]
+description = "Boot from A: with FreeDOS VHD attached as C:"
+run = '''
+python3 scripts/build_shell_monkey.py
+hd="${LAINDOS_FREEDOS_VHD:-vendor/FreeDOS.VHD}"
+"$LAINDOS_QEMU" -drive file=build/shell_monkey.img,format=raw,if=floppy -drive "file=$hd,format=vpc,if=ide,index=0,media=disk" -snapshot -boot order=a -serial stdio -monitor none -vga "$LAINDOS_QEMU_VGA" -device sb16
+'''
+
 [tasks.test-monkey-demo]
 description = "Run headless shell Monkey Island demo QEMU smoke"
 run = "make test-monkey-demo"

@@ -854,6 +854,20 @@ build_psp:
     pop ds
 
     pop ax
+    push ax
+    mov word [es:0x32], MAX_HANDLES
+    mov word [es:0x34], 0x0018
+    mov [es:0x36], ax
+    mov byte [es:0x18], 0
+    mov byte [es:0x19], 1
+    mov byte [es:0x1A], 2
+    mov byte [es:0x1B], 3
+    mov byte [es:0x1C], 4
+    mov di, 0x001D
+    mov cx, MAX_HANDLES - 5
+    mov al, 0xFF
+    rep stosb
+    pop ax
     mov bx, [cs:cur_psp]
     mov [es:0x16], bx
     mov bx, [cs:exec_env_seg]
@@ -1014,9 +1028,11 @@ setup_exe_dyn:
 
     cmp word [cs:exe_image_par], 0
     je .reloc_err
+    mov ax, [cs:exe_reloc_count]
+    test ax, ax
+    jz .reloc_table_ok
     cmp word [cs:exe_reloc_off], 0x1C
     jb .reloc_err
-    mov ax, [cs:exe_reloc_count]
     shl ax, 1
     jc .reloc_err
     shl ax, 1
@@ -1032,6 +1048,7 @@ setup_exe_dyn:
     shl dx, 1
     cmp ax, dx
     ja .reloc_err
+.reloc_table_ok:
 
     mov ax, [cs:prog_seg]
     call build_psp

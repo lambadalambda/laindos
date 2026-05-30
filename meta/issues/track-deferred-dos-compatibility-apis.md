@@ -19,9 +19,11 @@ Track DOS APIs that remain intentionally deferred after Phase 19 because no curr
 ## Deferred Areas
 
 - `AH=03h/04h/05h` AUX/PRN I/O policy.
-- `AH=31h` TSR/keep-process behavior.
 - FCB calls beyond `AH=29h` filename parsing.
+- `AH=60h` truename/path canonicalization.
+- `AX=5D06h` DOS swappable data area pointer.
 - `AH=5Ch` sharing/locking semantics.
 - `AH=5Eh/5Fh` network and redirector calls.
 - `AH=38h/65h/66h` NLS and code page APIs.
 - `CONFIG.SYS` and installable DOS device driver loading.
+- Full TSR environment-block retention and XMS/EMS cleanup semantics beyond CWSDPMI-style startup.

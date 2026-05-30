@@ -33,9 +33,9 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=4B00h` EXEC | implemented/partial | high | Supports COM/EXE, MZ relocation, command tails, MaxAlloc, caller-provided environment segments, default/null parameter blocks, and default FCB copying. Covered by `EXECPARAM`, `EXECENV`, `RETCODE`, shell, and game smokes. |
 | `AH=4B03h` overlay load | implemented/partial | high | Covered by overlay regression; preserve for MI2-style overlays. |
 | Environment block, `COMSPEC`, `PATH`, executable path tail | implemented/partial | high | Default child environments are MCB-allocated per process; `EXECENV` covers caller-provided environment segment inheritance and ownership preservation. |
-| `AH=4Dh` child return code | implemented/partial | medium | `RETCODE` covers initial zero state, destructive reads, nonzero child codes, and failed-`EXEC` preservation; non-normal termination types remain minimal. |
+| `AH=4Dh` child return code | implemented/partial | medium | `RETCODE` covers initial zero state, destructive reads, nonzero child codes, and failed-`EXEC` preservation; `TSR` covers AH=03h return type after `AH=31h`. |
 | `AH=62h` get PSP | implemented | medium | Trivial but common runtime call; returns the current PSP segment. |
-| `AH=31h` TSR/keep process | missing/deferred | low | Tracked by the deferred compatibility issue; implement only when a target installer/runtime requires it. |
+| `AH=31h` TSR/keep process | implemented/partial | medium | Keeps the requested PSP MCB resident, frees non-resident child-owned MCBs, closes owned handles, preserves installed vectors, and returns AH=03h through `AH=4Dh`; covered by `TSR` for CWSDPMI-style startup. Full TSR environment retention and XMS/EMS cleanup semantics remain deferred. |
 
 ### Memory Management
 
@@ -55,7 +55,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=45h/46h` duplicate/force duplicate handle | implemented/partial | medium | `DUPTEST` covers shared file position, close lifetime, force-dup replacement, preserved aliases, and invalid source/destination handle failures. Standard-handle redirection remains minimal. |
 | `AH=57h` get/set file date/time | implemented/partial | medium | `FINDTIME`, `SAVEWRITE`, and `REGPRES` cover default timestamps, set/get, unsupported subfunction failure, close/reopen persistence, FindFirst visibility, on-disk directory entry updates, and register preservation. |
 | `AH=5Ah/5Bh` temp/create-new | implemented/partial | medium | Covered by `CREATEAPI`; temp names use generated 8.3 `LDxxxx.TMP` names and skip existing collisions. |
-| `AH=67h` set handle count | implemented/partial | medium | `HANDLECNT` and `CREATEAPI` cover low-count minimum behavior and larger defensive requests; LainDOS still caps effective handles at the fixed 20-entry table. |
+| `AH=67h` set handle count | implemented/partial | medium | `HANDLECNT`, `CREATEAPI`, and `JFT` cover low-count minimum behavior, larger defensive requests, and fixed PSP JFT metadata; LainDOS still caps effective handles at the 20-entry table. |
 | `AH=68h` commit file | implemented/partial | medium | Covered by `COMMITTEST`; flushes directory metadata/FAT for real files and succeeds for implicit standard handles. |
 
 ### Directories and Paths

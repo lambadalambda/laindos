@@ -193,6 +193,8 @@ int21_handler:
     je .get_dta
     cmp ah, 0x30
     je .get_version
+    cmp ah, 0x31
+    je near .terminate_tsr
     cmp ah, 0x33
     je .break_check
     cmp ah, 0x35
@@ -261,7 +263,13 @@ int21_handler:
     jmp iret_cy
 .terminate:
     mov [cs:ret_code], al
+    mov byte [cs:ret_type], 0
     jmp do_terminate
+.terminate_tsr:
+    mov [cs:ret_code], al
+    mov byte [cs:ret_type], 3
+    mov [cs:tsr_keep_par], dx
+    jmp do_terminate_tsr
 .print_string:
     push ds
     push si
@@ -1667,9 +1675,10 @@ int21_handler:
     mov ax, 1
     jmp iret_cy
 .get_return_code:
-    xor ah, ah
+    mov ah, [cs:ret_type]
     mov al, [cs:ret_code]
     mov byte [cs:ret_code], 0
+    mov byte [cs:ret_type], 0
     jmp iret_nc
 .exec_program:
     push bx
@@ -2126,6 +2135,8 @@ int21_handler:
     mov [cs:bx+handles+H_DIR_OFF], ax
     mov word [cs:bx+handles+H_TIME], FAT_TIME
     mov word [cs:bx+handles+H_DATE], FAT_DATE
+    mov ax, [cs:cf_handle]
+    call psp_mark_handle_open
     INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     mov ax, [cs:cf_handle]
     jmp iret_nc
@@ -2133,6 +2144,7 @@ int21_handler:
     call alloc_device_handle
     jc .cr_device_err
     mov [cs:cf_handle], ax
+    call psp_mark_handle_open
     INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     mov ax, [cs:cf_handle]
     jmp iret_nc
@@ -2335,6 +2347,7 @@ int21_handler:
     mov ax, [es:si+24]
     mov [cs:di+handles+H_DATE], ax
     pop ax
+    call psp_mark_handle_open
     cmp word [cs:trace_left], 0
     je .of_no_handle_trace
     dec word [cs:trace_left]
@@ -2361,6 +2374,7 @@ int21_handler:
 .of_device:
     call alloc_device_handle
     jc .of_device_err
+    call psp_mark_handle_open
     push ax
     cmp word [cs:trace_left], 0
     je .of_device_no_trace
@@ -2427,10 +2441,12 @@ int21_handler:
 .cf_table_handle:
     call close_table_handle
     jc .cf_status_err
+    call psp_mark_handle_closed
     jmp iret_nc
 .cf_status_err:
     jmp iret_cy
 .cf_std_handle:
+    call psp_mark_handle_closed
     jmp iret_nc
 .cf_err:
     mov ax, 6
@@ -3505,6 +3521,7 @@ int21_handler:
     jc .dh_no_handles_pop
     mov dx, [cs:dup_root]
     call make_alias_handle
+    call psp_mark_handle_open
     pop si
     pop dx
     pop bx
@@ -3513,6 +3530,7 @@ int21_handler:
     mov al, DEV_CON
     call alloc_device_handle
     jc .dh_device_err_pop
+    call psp_mark_handle_open
     pop si
     pop dx
     pop bx
@@ -3592,6 +3610,8 @@ int21_handler:
     mov dx, [cs:dup_root]
     call make_alias_handle
 .fdh_ok_pop:
+    mov ax, [cs:dup_dest]
+    call psp_mark_handle_open
     pop si
     pop dx
     pop cx
@@ -4060,4 +4080,16 @@ int21_handler:
     jmp iret_cy
 
 .set_handle_count:
+    push ax
+    push es
+    mov ax, [cs:cur_psp]
+    test ax, ax
+    jz .shc_done
+    mov es, ax
+    mov word [es:0x32], MAX_HANDLES
+    mov word [es:0x34], 0x0018
+    mov [es:0x36], ax
+.shc_done:
+    pop es
+    pop ax
     jmp iret_nc

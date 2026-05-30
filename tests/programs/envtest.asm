@@ -34,6 +34,13 @@ start:
     call match_value
     jc fail_prompt
 
+    mov si, blaster_var
+    call find_var
+    jc fail_blaster
+    mov si, blaster_value
+    call match_value
+    jc fail_blaster
+
     call find_env_tail
     jc fail_tail
     cmp word [es:di], 1
@@ -148,6 +155,9 @@ fail_path:
 fail_prompt:
     mov dx, fail_prompt_msg
     jmp fail
+fail_blaster:
+    mov dx, fail_blaster_msg
+    jmp fail
 fail_tail:
     mov dx, fail_tail_msg
 fail:
@@ -164,10 +174,13 @@ path_var: db "PATH=", 0
 path_value: db "A:\;A:\BIN", 0
 prompt_var: db "PROMPT=", 0
 prompt_value: db "$P$G", 0
+blaster_var: db "BLASTER=", 0
+blaster_value: db "A220 I5 D1 H5 P330 T6", 0
 self_path: db "A:\ENVTEST.COM", 0
 pass_msg: db "PASS: ENVTEST", 13, 10, "$"
 fail_env_msg: db "FAIL: ENVTEST ENV", 13, 10, "$"
 fail_comspec_msg: db "FAIL: ENVTEST COMSPEC", 13, 10, "$"
 fail_path_msg: db "FAIL: ENVTEST PATH", 13, 10, "$"
 fail_prompt_msg: db "FAIL: ENVTEST PROMPT", 13, 10, "$"
+fail_blaster_msg: db "FAIL: ENVTEST BLASTER", 13, 10, "$"
 fail_tail_msg: db "FAIL: ENVTEST TAIL", 13, 10, "$"

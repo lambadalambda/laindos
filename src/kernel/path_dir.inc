@@ -25,6 +25,41 @@ alloc_handle:
     stc
     ret
 
+psp_mark_handle_open:
+    push ax
+    push bx
+    push es
+    mov bx, ax
+    cmp bx, MAX_HANDLES
+    jae .done
+    mov ax, [cs:cur_psp]
+    test ax, ax
+    jz .done
+    mov es, ax
+    mov [es:bx+0x18], bl
+.done:
+    pop es
+    pop bx
+    pop ax
+    ret
+
+psp_mark_handle_closed:
+    push ax
+    push bx
+    push es
+    cmp bx, MAX_HANDLES
+    jae .done
+    mov ax, [cs:cur_psp]
+    test ax, ax
+    jz .done
+    mov es, ax
+    mov byte [es:bx+0x18], 0xFF
+.done:
+    pop es
+    pop bx
+    pop ax
+    ret
+
 init_handle_entry:
     mov byte [cs:bx+handles+H_USED], 1
     mov byte [cs:bx+handles+H_MODE], al

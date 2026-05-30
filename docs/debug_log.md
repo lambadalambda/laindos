@@ -2,6 +2,45 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-30 BLASTER Environment Variable
+
+### Confirmed Facts
+
+- Some games, including Quake during startup, check the DOS `BLASTER` environment variable before probing Sound Blaster hardware.
+- LainDOS now adds `BLASTER=A220 I5 D1 H5 P330 T6` to the default MCB-backed environment alongside `COMSPEC`, `PATH`, and `PROMPT`.
+- The values match the common QEMU SB16 configuration used by LainDOS game tasks with `-device sb16`: base `220h`, IRQ `5`, low DMA `1`, high DMA `5`, MPU `330h`, and SB16 type `T6`.
+
+### Tests Run
+
+- `python3 scripts/test_envpath.py` failed before the fix with `FAIL: ENVTEST BLASTER`.
+- `python3 scripts/test_envpath.py` passes after the fix.
+
+## 2026-05-30 Quake From FreeDOS VHD
+
+### Symptoms
+
+- `QUAKE.EXE` from `vendor/FreeDOS.VHD` was visible in `C:\GAMES\QUAKE`, but launching `QUAKE` initially returned `Bad command or file name`.
+- After the EXE loader accepted the file, Quake's stub printed `Load error: no DPMI` because `CWSDPMI.EXE` needed TSR termination support.
+- After TSR support, Quake detected DPMI and loaded the protected-mode image, but failed at `Error fstating c:/games/quake/id1/pak0.pak`.
+
+### Confirmed Facts
+
+- `QUAKE.EXE` is an MZ executable with zero relocations and an unusual relocation-table offset. Relocation-table bounds should not reject a zero-relocation EXE.
+- `CWSDPMI.EXE` calls `INT 21h AH=31h`; handling this requires keeping the requested PSP MCB resident, preserving installed interrupt vectors, freeing non-resident child-owned MCBs, closing owned handles, and returning to the parent EXEC frame.
+- DOS4GW/CWSDPMI expects `INT 21h AH=4Dh` to report termination type `AH=03h` after a TSR exit, not just return code `AL`.
+- A traced Quake run after the TSR fix opened `c:/games/quake/id1/pak0.pak` successfully as a DOS handle and saw size `011D2CD3`, then the protected-mode runtime used the next handle number during stat cleanup. The missing PSP Job File Table metadata was the discriminator.
+- `build_psp` now initializes PSP JFT fields at `18h`, `32h`, and `34h`; open/create/dup/force-dup/close paths keep the fixed 20-entry PSP JFT in sync; `AH=67h` refreshes that fixed metadata while still not expanding beyond `MAX_HANDLES=20`.
+- Current Quake smoke reaches visible in-game first-level gameplay after acknowledging sound/CD prompts. The remaining observed unhandled calls after startup are non-fatal `AH=60h` truename and `AX=5D06h` probes.
+
+### Tests And Smokes Run
+
+- `python3 scripts/test_badreloc.py` failed before the zero-reloc loader fix with `FAIL: BADRELOC GOOD NORELOC`; it passes after the fix.
+- `python3 scripts/test_tsr.py` failed before `AH=31h` support with unhandled `INT 21h AH=31`; after adding TSR return-type coverage it passes.
+- `python3 scripts/test_jft.py` failed before PSP JFT initialization with `FAIL: JFT INIT`; it passes after JFT initialization and maintenance.
+- `python3 scripts/test_retcode.py` passes after adding TSR return-type state.
+- `make test` passed `69/69`.
+- QEMU smoke with `build/shell_monkey.img` and `vendor/FreeDOS.VHD` attached as `format=vpc`: `C:`, `CD \GAMES\QUAKE`, `QUAKE` now loads both PAK files and reaches gameplay. Screendumps captured the Quake startup prompts and in-game view.
+
 ## 2026-05-30 FreeDOS VHD As Attached C: Disk
 
 ### Symptoms

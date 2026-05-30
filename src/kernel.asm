@@ -1372,6 +1372,8 @@ write_environment_vars:
     call env_copy_drive_root
     mov si, env_bin_dir
     call env_copy_string
+    mov si, env_blaster
+    call env_copy_string
     mov si, env_prompt
     call env_copy_string
     xor al, al
@@ -1451,6 +1453,7 @@ init_interrupts:
 
 int20_handler:
     mov byte [cs:ret_code], 0
+    mov byte [cs:ret_type], 0
     jmp do_terminate
 
 exc01_handler:
@@ -2117,6 +2120,127 @@ do_terminate:
     sti
     jmp exec_com.back
 
+do_terminate_tsr:
+    call close_owned_handles
+    mov byte [cs:console_ext_pending], 0
+    mov word [cs:tsr_parent], 0
+    mov word [cs:tsr_psp_mcb], 0
+    mov ax, [cs:cur_psp]
+    test ax, ax
+    jz .return_to_parent
+    mov ds, ax
+    mov bx, [0x16]
+    mov [cs:tsr_parent], bx
+    mov si, ax
+    dec si
+    mov [cs:tsr_psp_mcb], si
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .mcb_ok
+    cmp byte [ds:0], MCB_SIG_Z
+    jne .free_extra
+.mcb_ok:
+    cmp [ds:1], ax
+    jne .free_extra
+    mov bx, [cs:tsr_keep_par]
+    cmp bx, 0x10
+    jae .keep_size_ok
+    mov bx, 0x10
+.keep_size_ok:
+    mov ax, [ds:3]
+    cmp bx, ax
+    jae .free_extra
+    sub ax, bx
+    cmp ax, 2
+    jb .free_extra
+    mov di, si
+    add di, bx
+    inc di
+    mov es, di
+    mov dl, [ds:0]
+    mov [es:0], dl
+    mov word [es:1], 0
+    dec ax
+    mov [es:3], ax
+    mov byte [ds:0], MCB_SIG_M
+    mov [ds:3], bx
+    mov si, di
+    mov ds, di
+    call tsr_merge_free_forward
+    mov ax, [cs:cur_psp]
+    mov es, ax
+    add ax, bx
+    mov [es:0x02], ax
+.free_extra:
+    call tsr_free_owned_extra
+.return_to_parent:
+    mov ax, [cs:tsr_parent]
+    mov [cs:cur_psp], ax
+    mov word [cs:running], 0
+    mov ax, cs
+    mov ds, ax
+    mov es, ax
+    mov ax, [cs:saved_ss]
+    cli
+    mov ss, ax
+    mov sp, [cs:saved_sp]
+    sti
+    jmp exec_com.back
+
+tsr_free_owned_extra:
+    mov si, [cs:mcb_first]
+.walk:
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .check
+    cmp byte [ds:0], MCB_SIG_Z
+    jne .done
+.check:
+    mov ax, [cs:cur_psp]
+    cmp [ds:1], ax
+    jne .merge_if_free
+    cmp si, [cs:tsr_psp_mcb]
+    je .next
+    mov word [ds:1], 0
+.merge_if_free:
+    cmp word [ds:1], 0
+    jne .next
+    call tsr_merge_free_forward
+.next:
+    cmp byte [ds:0], MCB_SIG_Z
+    je .done
+    call mcb_walk_next
+    jc .done
+    jmp .walk
+.done:
+    ret
+
+tsr_merge_free_forward:
+.loop:
+    mov ax, si
+    inc ax
+    add ax, [ds:3]
+    jb .done
+    cmp ax, MEM_TOP
+    jae .done
+    mov di, ax
+    mov es, ax
+    cmp byte [es:0], MCB_SIG_M
+    je .next_valid
+    cmp byte [es:0], MCB_SIG_Z
+    jne .done
+.next_valid:
+    cmp word [es:1], 0
+    jne .done
+    mov cx, [es:3]
+    inc cx
+    add [ds:3], cx
+    mov al, [es:0]
+    mov [ds:0], al
+    jmp .loop
+.done:
+    ret
+
 close_owned_handles:
     push ax
     push bx
@@ -2527,6 +2651,7 @@ env_comspec_name: db "COMSPEC=", 0
 env_path_name: db "PATH=", 0
 env_shell_name: db "SHELL.COM", 0
 env_bin_dir: db "BIN", 0
+env_blaster: db "BLASTER=A220 I5 D1 H5 P330 T6", 0
 env_prompt: db "PROMPT=$P$G", 0
 msg_unhandled: db "INT 21h AH=", 0
 msg_int33:     db "INT 33h AX=", 0
@@ -2610,7 +2735,11 @@ fname_exe:   db BOOT_FILE, 0
 
 mem_kib:   dw 0
 ret_code:  db 0
+ret_type:  db 0
 running:   dw 0
+tsr_keep_par: dw 0
+tsr_parent: dw 0
+tsr_psp_mcb: dw 0
 saved_ss:  dw 0
 saved_sp:  dw 0
 com_stack_top: dw 0

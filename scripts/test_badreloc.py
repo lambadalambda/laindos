@@ -29,7 +29,11 @@ def build_image():
         "-o", KERNEL,
     ])
     run(["nasm", "-f", "bin", "tests/programs/badreloc.asm", "-o", os.path.join(BUILDDIR, "badreloc.com")])
-    run(["python3", "scripts/mkbadreloc.py", os.path.join(BUILDDIR, "badreloc.exe")])
+    run([
+        "python3", "scripts/mkbadreloc.py",
+        os.path.join(BUILDDIR, "badreloc.exe"),
+        os.path.join(BUILDDIR, "goodnrel.exe"),
+    ])
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
@@ -37,6 +41,7 @@ def build_image():
         IMG,
         os.path.join(BUILDDIR, "badreloc.com"),
         os.path.join(BUILDDIR, "badreloc.exe"),
+        os.path.join(BUILDDIR, "goodnrel.exe"),
     ])
 
 
