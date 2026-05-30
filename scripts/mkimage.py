@@ -73,6 +73,17 @@ FORMATS = {
         'media': 0xF8,
         'drive': 0x80,
     },
+    'hd160m': {
+        'fat_bits': 16,
+        'total_sectors': 327600,
+        'sec_per_clus': 8,
+        'root_ent_cnt': 512,
+        'fat_sz': 160,
+        'sec_per_trk': 63,
+        'num_heads': 16,
+        'media': 0xF8,
+        'drive': 0x80,
+    },
 }
 
 fmt = FORMATS['1440k']
@@ -155,6 +166,9 @@ class Fat12Image:
     def alloc_cluster(self):
         c = self.next_cluster
         self.next_cluster += 1
+        max_cluster = (TOTAL_SECTORS - DATA_START) // SEC_PER_CLUS + 1
+        if self.next_cluster > max_cluster:
+            raise RuntimeError("disk image is full")
         return c
 
     def alloc_clusters(self, count):
@@ -224,20 +238,32 @@ class Fat12Image:
             self.image[root_offset:root_offset + 32] = entry
             root_offset += 32
 
+        self.write_subdirs()
+
+        fat1_offset = FAT_START * SECTOR_SIZE
+        self.image[fat1_offset:fat1_offset + len(self.fat)] = self.fat
+        fat2_offset = (FAT_START + FAT_SZ) * SECTOR_SIZE
+        self.image[fat2_offset:fat2_offset + len(self.fat)] = self.fat
+
+    def write_subdirs(self):
         for dirname, sd in self.subdirs.items():
-            dir_data = bytearray(SECTOR_SIZE * SEC_PER_CLUS)
+            dir_cluster_bytes = SECTOR_SIZE * SEC_PER_CLUS
+            dir_clusters = max(1, (len(sd['entries']) * 32 + dir_cluster_bytes - 1) // dir_cluster_bytes)
+            clusters = [sd['cluster']]
+            if dir_clusters > 1:
+                extra_first = self.alloc_clusters(dir_clusters - 1)
+                set_fat_entry(self.fat, sd['cluster'], extra_first)
+                clusters.extend(range(extra_first, extra_first + dir_clusters - 1))
+            dir_data = bytearray(dir_cluster_bytes * dir_clusters)
             off = 0
             for entry in sd['entries']:
                 if off + 32 > len(dir_data):
                     break
                 dir_data[off:off + 32] = entry
                 off += 32
-            write_cluster_data(self.image, sd['cluster'], bytes(dir_data))
-
-        fat1_offset = FAT_START * SECTOR_SIZE
-        self.image[fat1_offset:fat1_offset + len(self.fat)] = self.fat
-        fat2_offset = (FAT_START + FAT_SZ) * SECTOR_SIZE
-        self.image[fat2_offset:fat2_offset + len(self.fat)] = self.fat
+            for i, cluster in enumerate(clusters):
+                chunk_off = i * dir_cluster_bytes
+                write_cluster_data(self.image, cluster, bytes(dir_data[chunk_off:chunk_off + dir_cluster_bytes]))
 
     def _read_file(self, path):
         with open(path, 'rb') as f:
@@ -254,7 +280,7 @@ def main():
     if len(sys.argv) < 4:
         print(f"Usage: {sys.argv[0]} boot.bin kernel.bin disk.img [file1 ...]",
               file=sys.stderr)
-        print("  Optional first argument: --format=1440k, --format=2880k, --format=hd10m, --format=hd20m, --format=hd32m, or --format=hd96m",
+        print("  Optional first argument: --format=1440k, --format=2880k, --format=hd10m, --format=hd20m, --format=hd32m, --format=hd96m, or --format=hd160m",
               file=sys.stderr)
         print(f"  Files can be: FILE.EXT (root) or DIR/FILE.EXT (subdir)",
               file=sys.stderr)
@@ -337,15 +363,7 @@ def main():
         img.image[root_offset:root_offset + 32] = entry
         root_offset += 32
 
-    for dirname, sd in img.subdirs.items():
-        dir_data = bytearray(SECTOR_SIZE * SEC_PER_CLUS)
-        off = 0
-        for entry in sd['entries']:
-            if off + 32 > len(dir_data):
-                break
-            dir_data[off:off + 32] = entry
-            off += 32
-        write_cluster_data(img.image, sd['cluster'], bytes(dir_data))
+    img.write_subdirs()
 
     fat1_offset = FAT_START * SECTOR_SIZE
     img.image[fat1_offset:fat1_offset + len(img.fat)] = img.fat

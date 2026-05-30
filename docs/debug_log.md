@@ -2,6 +2,22 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-30 Local Extras Hard-Disk Image
+
+### Confirmed Facts
+
+- `vendor/FreeDOS.VHD` already carries a broad `C:\GAMES` tree including FreeDOS games plus Duke3D and Quake, but the local Norton Commander, Civilization, and Stunt Island media are separate ignored archives.
+- `vendor/003064_norton_commander.7z` contains three FAT12 floppy images with 82 unique root files.
+- `vendor/sid-meiers-civilization-au.zip` contains `1.img` and `2.img`; merging them yields 177 unique Civilization files, so `scripts/mkimage.py` now grows one-level subdirectories across multiple clusters instead of truncating directories after one cluster.
+- `vendor/002514_stunt_island.7z` contains six FAT12 floppy images. Their Stunt Island payload is installer-compressed into root plus `RES`, `SETS`, and `VAULT` source directories, so `build/extras_hd.img` includes the installer source reproducibly rather than relying on an old generated `build/STUNTISL` tree.
+
+### Tests And Probes Run
+
+- Added `scripts/build_extras_hd.py` to build `build/extras_hd.img` from the local ignored archives, the existing all-games media, Norton Commander, Civilization, and Stunt Island source disks.
+- Added `make extras-hd`, `make run-extras-hd`, `mise run build-extras-hd`, and `mise run run-extras-hd` workflow entries.
+- Verification passed: `python3 -m py_compile scripts/mkimage.py scripts/build_extras_hd.py scripts/build_games_hd_all.py`, `make extras-hd`, direct QEMU boot to `C:\>`, attached-shell root listing with `NC`, `CIV`, `INSTALL.EXE`, and `EXTRAS.TXT`, and a `C:\CIV` directory listing that finds `WONDERS2.PIC` beyond the first directory cluster.
+- Regression verification after the `mkimage.py` changes passed: `git diff --check`, `make test` (`75/75`), and `make test-game-smokes`.
+
 ## 2026-05-30 Spawn And Launcher EXEC Compatibility
 
 ### Symptoms

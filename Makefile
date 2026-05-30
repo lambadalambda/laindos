@@ -51,7 +51,7 @@ DISK_IMG := $(BUILDDIR)/disk.img
 MONKEY_DEMO_FILES := vendor/midemo.exe vendor/disk01.lec vendor/000.lfl vendor/901.lfl vendor/902.lfl vendor/904.lfl vendor/monkey.txt vendor/readme
 NIGHTLY_PACKAGE := $(BUILDDIR)/laindos-monkey-demo-nightly.zip
 
-.PHONY: all clean run test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-game-smokes
+.PHONY: all clean run test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell extras-hd run-extras-hd test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-game-smokes
 
 all: $(DISK_IMG)
 
@@ -221,6 +221,12 @@ test-monkey-demo: $(MONKEY_DEMO_FILES)
 
 test-attached-hd-shell: $(MONKEY_DEMO_FILES)
 	$(RUN_TEST) $(PYTHON) scripts/test_attached_hd_shell.py
+
+extras-hd: $(MONKEY_DEMO_FILES) vendor/monkey_full.zip vendor/mi2demo.zip vendor/Monkey_Island_2_-_LeChucks_Revenge_1991.zip vendor/simon1demo.zip vendor/Ascendancy_1995.zip vendor/wolf3dsw.zip vendor/003064_norton_commander.7z vendor/sid-meiers-civilization-au.zip vendor/002514_stunt_island.7z
+	$(PYTHON) scripts/build_extras_hd.py
+
+run-extras-hd: extras-hd
+	$(QEMU) -drive file=$(BUILDDIR)/extras_hd.img,format=raw -boot order=c -serial stdio -monitor none -vga $(QEMU_VGA) -device sb16
 
 test-monkey-full: vendor/monkey_full.zip
 	$(RUN_TEST) $(PYTHON) scripts/test_monkey_full.py

@@ -46,6 +46,10 @@ run = "python3 scripts/run_monkey_full_bochs.py"
 description = "Build all-games hard disk image"
 run = "python3 scripts/build_games_hd_all.py"
 
+[tasks.build-extras-hd]
+description = "Build local extras hard disk image"
+run = "make extras-hd"
+
 [tasks.build-wolf3d]
 description = "Build Wolfenstein 3D shareware image"
 run = "python3 scripts/build_wolf3d.py"
@@ -65,6 +69,10 @@ run = "python3 scripts/test_ascendancy_smoke.py"
 [tasks.run-games-hd-all]
 description = "Boot all-games hard disk image in QEMU"
 run = 'python3 scripts/build_games_hd_all.py && "$LAINDOS_QEMU" -drive file=build/games_hd_all.img,format=raw -boot order=c -serial stdio -monitor none -vga "$LAINDOS_QEMU_VGA" -device sb16'
+
+[tasks.run-extras-hd]
+description = "Boot local extras hard disk image in QEMU"
+run = "make run-extras-hd"
 
 [tasks.run-stunt-island]
 description = "Boot local Stunt Island image and launch STUNT"
