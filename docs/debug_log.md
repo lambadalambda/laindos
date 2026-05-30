@@ -2,6 +2,35 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-30 Boom And SMMU FreeDoom VHD Triage
+
+### Symptoms
+
+- Running `C:`, `CD \GAMES\BOOM`, `BOOM` from `vendor/FreeDOS.VHD` reached Doom startup and then appeared to stall around late status-bar initialization.
+- Running `C:`, `CD \GAMES\FREEDOOM\PHASE1`, `SMMU` initially reported `IWAD not found` even with `doom.wad` in the current directory; `SMMU -iwad doom.wad` behaved the same.
+
+### Confirmed Facts
+
+- The VHD contains `C:\GAMES\BOOM\BOOM.EXE` with `DOOM.WAD`, and SMMU FreeDoom under `C:\GAMES\FREEDOOM\PHASE1` and `PHASE2` with `SMMU.EXE`, `SMMU.WAD`, and the expected IWADs.
+- SMMU was probing DOS 7 Windows LFN functions (`AH=71h`). Returning a generic function-number error made it continue down the wrong path and miss the IWAD; returning carry set with `AX=7100h` lets it fall back to 8.3 FindFirst/FindNext and find the WADs.
+- Added narrow `AH=60h` truename canonicalization for 8.3 paths, `AH=50h/51h` set/get PSP, and `AX=5D06h` DOS swappable-data-area pointer. `COMPATAPI` covers these plus the unsupported-LFN fallback signal.
+- SMMU Phase 1 now finds `c:/games/freedoom/phase1/doom.wad`, adds `doom.wad` and `smmu.wad`, reaches `V_InitGraphics: Trying driver: 'dos allegro'`, enters protected mode, and shows an active framebuffer with no unhandled `INT 21h AH=` trace and no `EXC ` marker.
+- SMMU Phase 2 now finds `c:/games/freedoom/phase2/doom2.wad`, adds `doom2.wad` and `smmu.wad`, reaches the same protected-mode graphics startup point, and shows an active framebuffer with no unhandled `INT 21h AH=` trace and no `EXC ` marker.
+- Boom now reaches `I_InitSound`, `S_Init`, `HU_Init`, and `ST_Init: Init status bar.` with an active framebuffer and no unhandled `INT 21h AH=` trace or `EXC ` marker. A longer QEMU smoke still timed out after `ST_Init`, so the visible blocker has moved past the DOS compatibility calls handled in this slice.
+- A short protected-mode sample during the Boom stall showed the BIOS timer at `0x46c` advancing while the game was in CPL=3 code, which argues against a simple real-mode DOS API wait at the sampled point.
+
+### Tests And Smokes Run
+
+- `python3 scripts/test_compatapi.py` covers `AH=50h`, `AH=51h`, `AH=60h`, `AX=5D06h`, and unsupported `AH=71h`; it passes.
+- QEMU SMMU Phase 1 smoke with `build/shell_monkey.img` plus `vendor/FreeDOS.VHD` attached with `-snapshot`: no `IWAD not found`, no `EXC `, no unhandled `INT 21h AH=`, framebuffer active with 41 colors and 255600 nonblack pixels.
+- QEMU SMMU Phase 2 smoke: no `IWAD not found`, no `EXC `, no unhandled `INT 21h AH=`, framebuffer active with 178 colors and 253824 nonblack pixels.
+- QEMU Boom smoke: no `IWAD not found`, no `EXC `, no unhandled `INT 21h AH=`, framebuffer active with 138 colors and 256000 nonblack pixels; serial progress remains at `ST_Init: Init status bar.` during the longer probe.
+
+### Follow-Ups
+
+- Compare Boom and SMMU under real DOS in QEMU and/or 86Box before changing more LainDOS DOS API behavior for the remaining protected-mode stalls.
+- If a real DOS comparison also stalls under QEMU but not 86Box, treat the next step as emulator/VGA/timer/audio discrimination rather than filesystem or `INT 21h` work.
+
 ## 2026-05-30 Duke Nukem 3D SETUP Spawn Error
 
 ### Symptoms
@@ -52,7 +81,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - DOS4GW/CWSDPMI expects `INT 21h AH=4Dh` to report termination type `AH=03h` after a TSR exit, not just return code `AL`.
 - A traced Quake run after the TSR fix opened `c:/games/quake/id1/pak0.pak` successfully as a DOS handle and saw size `011D2CD3`, then the protected-mode runtime used the next handle number during stat cleanup. The missing PSP Job File Table metadata was the discriminator.
 - `build_psp` now initializes PSP JFT fields at `18h`, `32h`, and `34h`; open/create/dup/force-dup/close paths keep the fixed 20-entry PSP JFT in sync; `AH=67h` refreshes that fixed metadata while still not expanding beyond `MAX_HANDLES=20`.
-- Current Quake smoke reaches visible in-game first-level gameplay after acknowledging sound/CD prompts. The remaining observed unhandled calls after startup are non-fatal `AH=60h` truename and `AX=5D06h` probes.
+- Current Quake smoke reaches visible in-game first-level gameplay after acknowledging sound/CD prompts. Later Boom/SMMU compatibility work added narrow `AH=60h` truename and `AX=5D06h` SDA support, so those probes are no longer expected to log as unhandled calls.
 
 ### Tests And Smokes Run
 

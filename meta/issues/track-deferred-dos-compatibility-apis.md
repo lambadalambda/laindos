@@ -20,8 +20,8 @@ Track DOS APIs that remain intentionally deferred after Phase 19 because no curr
 
 - `AH=03h/04h/05h` AUX/PRN I/O policy.
 - FCB calls beyond `AH=29h` filename parsing.
-- `AH=60h` truename/path canonicalization.
-- `AX=5D06h` DOS swappable data area pointer.
+- Full DOS swappable data area layout and `AH=5Dh` internal subfunctions beyond the minimal `AX=5D06h` compatibility header.
+- Full Windows long-filename semantics beyond the `AH=71h` unsupported fallback signal.
 - `AH=5Ch` sharing/locking semantics.
 - `AH=5Eh/5Fh` network and redirector calls.
 - `AH=65h/66h` NLS/code-page APIs and full country/DBCS tables.

@@ -82,7 +82,7 @@ function Sidebar({ route, go }) {
       </nav>
 
       <div style={{ padding: "20px 22px 0", color: T.faint, fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace", lineHeight: 1.7 }}>
-        single-tasking · real mode<br />NASM · CC0 · 70/70 tests
+        single-tasking · real mode<br />NASM · CC0 · 71/71 tests
       </div>
     </aside>
   );

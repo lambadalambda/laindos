@@ -26,4 +26,4 @@ Quake reportedly fails to launch with `Bad command or filename`.
 - The original shell failure was caused by `QUAKE.EXE` being a zero-relocation MZ executable with a nonstandard relocation-table offset; the loader now accepts zero-reloc EXEs without validating an unused relocation table.
 - CWSDPMI then required `INT 21h AH=31h` TSR termination and `AH=4Dh` return type `03h`.
 - Quake's protected-mode file startup then exposed missing PSP Job File Table metadata; JFT initialization/maintenance now lets Quake `stat` and load `PAK0.PAK`/`PAK1.PAK`.
-- Current smoke reaches visible in-game Quake gameplay after acknowledging sound/CD prompts. Remaining non-fatal traces observed after startup: `AH=60h` truename and `AX=5D06h`.
+- Current smoke reaches visible in-game Quake gameplay after acknowledging sound/CD prompts. Subsequent Boom/SMMU compatibility work added narrow `AH=60h` truename and `AX=5D06h` SDA support, so those probes are no longer expected to log as unhandled calls.

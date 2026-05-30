@@ -47,8 +47,8 @@ const DOSAPI_GROUPS = [
       [143, "    je .read_file"],
       [144, "    cmp ah, 0x40"],
       [145, "    je .write_file"],
-      [214, "    cmp ah, 0x56"],
-      [215, "    je .rename_file"],
+      [218, "    cmp ah, 0x56"],
+      [219, "    je .rename_file"],
     ],
     regs: [
       ["DS:DX", "path/buffer", "pathnames for open/create/delete; buffer for read/write"],
@@ -60,30 +60,31 @@ const DOSAPI_GROUPS = [
   {
     id: "programs",
     title: "Launching programs",
-    verdict: "Shell-launched COM/EXE programs, overlays, and TSR exits are supported.",
-    calls: "AH=31h,4Bh,4Ch,4Dh,62h",
+    verdict: "Shell-launched COM/EXE programs, overlays, TSR exits, and PSP probes are supported.",
+    calls: "AH=31h,4Bh,4Ch,4Dh,50h,51h,62h",
     prose: [
       "When SHELL.COM starts another program, it uses EXEC. LainDOS loads the child image, builds a PSP, supplies the command tail and child-owned environment, applies EXE relocations, and restores the parent after the child exits.",
       "The default environment includes COMSPEC, PATH, PROMPT, and a conventional SB16 BLASTER string so games launched under QEMU's `-device sb16` can detect the emulator-provided sound card.",
-      "For users this is why typing `midemo` at A:\\> works instead of needing a direct-boot image. The same path also supports overlay loads and TSR-style keep-process exits used by runtime helpers such as DPMI hosts."
+      "For users this is why typing `midemo` at A:\\> works instead of needing a direct-boot image. The same path also supports overlay loads, TSR-style keep-process exits used by runtime helpers such as DPMI hosts, and set/get PSP probes used by older runtimes."
     ],
     codeFile: "src/kernel/int21.inc",
     code: [
-      [1683, ".exec:"],
-      [1684, "    cmp al, 0"],
-      [1685, "    je .exec_program"],
-      [1686, "    cmp al, 3"],
-      [1687, "    je .exec_overlay"],
-      [1713, "    call load_exec_program"],
-      [1717, "    call exec_com_dyn"],
-      [1720, "    call setup_exe_dyn"],
+      [210, "    cmp ah, 0x50"],
+      [211, "    je .set_psp"],
+      [212, "    cmp ah, 0x51"],
+      [213, "    je .get_psp"],
+      [1724, ".exec:"],
+      [1725, "    cmp al, 0"],
+      [1754, "    call load_exec_program"],
+      [1758, "    call exec_com_dyn"],
+      [1761, "    call setup_exe_dyn"],
     ],
     regs: [
       ["AH", "4Bh", "EXEC"],
       ["AL", "00h/03h", "load-and-run program or load overlay"],
       ["ES:BX", "params", "EXEC parameter block supplied by the parent"],
     ],
-    tests: ["scripts/test_shell.py", "scripts/test_execparam.py", "scripts/test_execenv.py", "scripts/test_overlay.py", "scripts/test_tsr.py"],
+    tests: ["scripts/test_shell.py", "scripts/test_execparam.py", "scripts/test_execenv.py", "scripts/test_overlay.py", "scripts/test_tsr.py", "scripts/test_compatapi.py"],
   },
   {
     id: "find",
@@ -102,8 +103,8 @@ const DOSAPI_GROUPS = [
       [207, "    je .find_first"],
       [208, "    cmp ah, 0x4F"],
       [209, "    je .find_next"],
-      [3876, "    mov ax, [cs:dta_seg]"],
-      [3905, "    call store_find_dta"],
+      [4077, "    mov ax, [cs:dta_seg]"],
+      [4108, "    call store_find_dta"],
     ],
     regs: [
       ["DS:DX", "DTA/path", "DTA pointer for AH=1Ah; search path for AH=4Eh"],
@@ -129,8 +130,9 @@ const DOSAPI_GROUPS = [
       [163, "    je .free_mem"],
       [164, "    cmp ah, 0x4A"],
       [165, "    je .resize_mem"],
-      [969, "    cmp al, 0"],
-      [981, "    mov [cs:alloc_strat], bl"],
+      [987, ".alloc_strategy:"],
+      [1010, "    cmp al, 0"],
+      [1022, "    mov [cs:alloc_strat], bl"],
     ],
     regs: [
       ["BX", "paras", "paragraph count for allocate/resize"],
@@ -150,14 +152,14 @@ const DOSAPI_GROUPS = [
     ],
     codeFile: "src/kernel/int21.inc",
     code: [
-      [3236, ".ioctl:"],
-      [3261, "    cmp al, 0"],
-      [3262, "    je .ioctl_get"],
-      [3265, "    cmp al, 6"],
-      [3266, "    je .ioctl_input_status"],
-      [3269, "    cmp al, 8"],
-      [3270, "    je .ioctl_removable_drive"],
-      [3316, "    mov dx, 0x80D3"],
+      [3479, ".ioctl:"],
+      [3504, "    cmp al, 0"],
+      [3505, "    je .ioctl_get"],
+      [3508, "    cmp al, 6"],
+      [3509, "    je .ioctl_input_status"],
+      [3512, "    cmp al, 8"],
+      [3513, "    je .ioctl_removable_drive"],
+      [3559, "    mov dx, 0x80D3"],
     ],
     regs: [
       ["AL", "subfunc", "IOCTL subfunction"],
@@ -168,12 +170,13 @@ const DOSAPI_GROUPS = [
   },
   {
     id: "version",
-    title: "Version, drive data, date/time, and vectors",
-    verdict: "Compatibility probes return stable DOS-like answers.",
-    calls: "AH=19h,1Bh,1Ch,25h,29h,2Ah-30h,33h,35h,36h,38h,52h,54h,63h",
+    title: "Version, drive data, date/time, and probes",
+    verdict: "Compatibility probes return stable DOS-like answers or explicit unsupported-LFN status.",
+    calls: "AH=19h,1Bh,1Ch,25h,29h,2Ah-30h,33h,35h,36h,38h,52h,54h,5Dh,60h,63h,71h",
     prose: [
       "Many programs do not immediately open files. They first ask DOS what version it is, what drive is current, how much disk space is free, what the date/time is, or where an interrupt vector points.",
-      "LainDOS answers these probes with DOS 3.30-style behavior where that helps old games, returns real disk-free counts from the FAT, keeps enough vector/date/verify state for installers and utilities to continue, and includes the narrow FCB filename parser used by compatibility probes."
+      "LainDOS answers these probes with DOS 3.30-style behavior where that helps old games, returns real disk-free counts from the FAT, keeps enough vector/date/verify state for installers and utilities to continue, and includes the narrow FCB filename parser used by compatibility probes.",
+      "Newer DOS-extender runtimes also hit internal and Windows-era compatibility probes. LainDOS now canonicalizes truename paths, returns a minimal DOS swappable-data-area pointer for `AX=5D06h`, and reports unsupported long-filename APIs with `AX=7100h` so DJGPP-style callers can fall back to 8.3 searches."
     ],
     codeFile: "src/kernel/int21.inc",
     code: [
@@ -183,15 +186,19 @@ const DOSAPI_GROUPS = [
       [201, "    je .get_vector"],
       [202, "    cmp ah, 0x36"],
       [203, "    je .get_disk_free"],
-      [575, ".get_version:"],
-      [576, "    mov ax, 0x1E03"],
+      [230, "    cmp ah, 0x5D"],
+      [231, "    je .dos_internal"],
+      [240, "    cmp ah, 0x71"],
+      [241, "    je .lfn_unsupported"],
+      [588, ".get_version:"],
+      [589, "    mov ax, 0x1E03"],
     ],
     regs: [
       ["AX", "1E03h", "AL=03h, AH=1Eh reports DOS version 3.30"],
       ["DL", "drive", "0=current, 1=A:, 2=B:, etc. for drive queries"],
       ["ES:BX", "vector", "AH=35h returns interrupt vector pointer"],
     ],
-    tests: ["scripts/test_versionapi.py", "scripts/test_diskfree.py", "scripts/test_datetime.py", "scripts/test_drivedata.py", "scripts/test_multidrive.py", "scripts/test_dbcs.py"],
+    tests: ["scripts/test_versionapi.py", "scripts/test_diskfree.py", "scripts/test_datetime.py", "scripts/test_drivedata.py", "scripts/test_multidrive.py", "scripts/test_dbcs.py", "scripts/test_compatapi.py"],
   },
 ];
 
@@ -219,7 +226,7 @@ const DOSAPI_CALLS = [
     ],
   },
   {
-    title: "Drive, DTA, country, date, and version probes",
+    title: "Drive, DTA, country, version, and probes",
     rows: [
       ["19h", "Get current drive", "supported", "Returns AL=0 for A:, 1 for B:, etc."],
       ["1Ah", "Set DTA", "supported", "Stores DS:DX as the Disk Transfer Area for find calls."],
@@ -239,9 +246,14 @@ const DOSAPI_CALLS = [
       ["35h", "Get interrupt vector", "supported", "Reads an IVT entry into ES:BX."],
       ["36h", "Get disk free space", "supported", "Counts free clusters from the real FAT."],
       ["38h", "Country information", "partial", "Returns a small default country table and accepts country 1."],
+      ["50h", "Set PSP", "compat", "Updates the current PSP segment for runtimes that temporarily switch DOS process context."],
+      ["51h", "Get PSP", "supported", "Alias for AH=62h; returns the current PSP segment in BX."],
       ["52h", "List of lists", "compat", "Returns a minimal internal DOS data pointer."],
       ["54h", "Get verify flag", "compat", "Returns the stored verify flag."],
+      ["5Dh", "DOS internal", "stub", "Supports AX=5D06h with a minimal swappable-data-area pointer; other subfunctions fail."],
+      ["60h", "Truename", "compat", "Canonicalizes 8.3 paths with drive, current directory, dot, and dot-dot handling."],
       ["63h", "Get DBCS table", "compat", "Returns an empty DBCS lead-byte table for single-byte code page setups."],
+      ["71h", "Windows LFN family", "compat", "Always fails with AX=7100h so callers can detect unsupported long filename services and fall back."],
     ],
   },
   {
@@ -296,6 +308,8 @@ const DOSAPI_SUBFUNCTIONS = [
   ["AH=33h", "Ctrl-Break", "AL=00h gets the stored break flag, AL=01h sets it, AL=05h returns the boot drive, and AL=06h returns the true DOS version. Other subfunctions fail with function-number error."],
   ["AH=38h", "Country", "AL=00h/01h read the small default table; AL=FFh accepts country BX=1. Full international formatting tables are intentionally deferred."],
   ["AH=63h", "DBCS", "AL=00h returns DS:SI pointing at an empty lead-byte table; other subfunctions fail with function-number error."],
+  ["AH=5Dh", "DOS internal", "AX=5D06h returns DS:SI for a minimal swappable-data-area header with current DTA, PSP, return code/type, and drive fields; other subfunctions fail."],
+  ["AH=71h", "LFN unsupported", "All Windows long-filename subfunctions fail with CF set and AX=7100h, matching the fallback signal expected by DJGPP-era callers."],
   ["AH=44h", "IOCTL", "AL=00h reads device information, AL=01h is accepted as the same compatibility answer, AL=06h/07h report input/output status, and AL=08h/09h/0Ah report local drive or handle state."],
   ["AH=4Bh", "EXEC", "AL=00h loads and runs a child program; AL=03h loads an overlay. Load-but-do-not-execute and other EXEC variants are not implemented yet."],
   ["AH=58h", "Allocator", "AL=00h gets the strategy and AL=01h sets strategy BL=0/1/2 for first/best/last fit. Other values fail with function-number error."],
@@ -337,7 +351,7 @@ function DosApiPage({ go }) {
               <div className="dosapi-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginTop: 14 }}>
                 <MiniStat k="Target" v="games + utilities" />
                 <MiniStat k="Version" v="DOS 3.30 identity" />
-                <MiniStat k="Calls" v="61 AH branches" />
+                <MiniStat k="Calls" v="68 AH branches" />
               </div>
             </section>
 

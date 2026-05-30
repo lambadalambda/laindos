@@ -207,6 +207,10 @@ int21_handler:
     je .find_first
     cmp ah, 0x4F
     je .find_next
+    cmp ah, 0x50
+    je .set_psp
+    cmp ah, 0x51
+    je .get_psp
     cmp ah, 0x52
     je .get_list_of_lists
     cmp ah, 0x54
@@ -217,10 +221,14 @@ int21_handler:
     je .file_time
     cmp ah, 0x58
     je .alloc_strategy
+    cmp ah, 0x60
+    je .truename
     cmp ah, 0x5A
     je .create_temp_file
     cmp ah, 0x5B
     je .create_new_file
+    cmp ah, 0x5D
+    je .dos_internal
     cmp ah, 0x62
     je .get_psp
     cmp ah, 0x63
@@ -229,6 +237,8 @@ int21_handler:
     je .set_handle_count
     cmp ah, 0x68
     je .commit_file
+    cmp ah, 0x71
+    je .lfn_unsupported
     mov [cs:log_ax], ax
     mov [cs:log_bx], bx
     mov [cs:log_cx], cx
@@ -262,6 +272,9 @@ int21_handler:
     pop ds
     popa
     mov ax, 1
+    jmp iret_cy
+.lfn_unsupported:
+    mov ax, 0x7100
     jmp iret_cy
 .terminate:
     mov [cs:ret_code], al
@@ -694,6 +707,34 @@ int21_handler:
     jmp iret_nc
 .get_psp:
     mov bx, [cs:cur_psp]
+    jmp iret_nc
+.set_psp:
+    mov [cs:cur_psp], bx
+    jmp iret_nc
+.dos_internal:
+    cmp al, 0x06
+    je .get_sda
+    mov ax, 1
+    jmp iret_cy
+.get_sda:
+    push cs
+    pop ds
+    mov si, dos_sda
+    mov ax, [cs:dta_off]
+    mov [dos_sda+0x0C], ax
+    mov ax, [cs:dta_seg]
+    mov [dos_sda+0x0E], ax
+    mov ax, [cs:cur_psp]
+    mov [dos_sda+0x10], ax
+    mov al, [cs:ret_code]
+    mov ah, [cs:ret_type]
+    mov [dos_sda+0x14], ax
+    mov al, [cs:active_drive_num]
+    mov [dos_sda+0x16], al
+    mov byte [dos_sda+0x17], 0
+    mov cx, 0x0018
+    mov dx, 0x0018
+    xor ax, ax
     jmp iret_nc
 .get_dbcs_table:
     cmp al, 0
@@ -3168,6 +3209,208 @@ int21_handler:
 .sf_bad_handle:
     mov ax, 6
     jmp iret_cy
+
+.truename:
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    push bp
+    mov [cs:tn_src_seg], ds
+    mov [cs:tn_src_off], si
+    mov [cs:tn_dst_seg], es
+    mov [cs:tn_dst_off], di
+    mov word [cs:tn_status], 3
+    mov ax, di
+    add ax, 127
+    jc .tn_error
+    mov [cs:tn_limit_off], ax
+    mov bx, si
+    mov al, [ds:bx]
+    test al, al
+    jz .tn_error
+    call ascii_upper
+    mov dl, [cs:dos_drive_letter]
+    cmp al, 'A'
+    jb .tn_have_drive
+    cmp al, 'Z'
+    ja .tn_have_drive
+    cmp byte [ds:bx+1], ':'
+    jne .tn_have_drive
+    mov dl, al
+    add bx, 2
+    cmp byte [ds:bx], 0
+    jne .tn_have_drive
+    mov word [cs:tn_status], 2
+    jmp .tn_error
+.tn_have_drive:
+    mov es, [cs:tn_dst_seg]
+    mov di, [cs:tn_dst_off]
+    mov al, dl
+    call .tn_store_char
+    jc .tn_error
+    mov al, ':'
+    call .tn_store_char
+    jc .tn_error
+    mov al, '\'
+    call .tn_store_char
+    jc .tn_error
+    mov bp, di
+    mov [cs:tn_root_off], bp
+    mov ds, [cs:tn_src_seg]
+    mov si, bx
+    cmp byte [ds:si], '\'
+    je .tn_process
+    cmp byte [ds:si], '/'
+    je .tn_process
+    push ds
+    push si
+    push cs
+    pop ds
+    mov si, cur_dir_path
+.tn_cwd_loop:
+    lodsb
+    test al, al
+    jz .tn_cwd_done
+    cmp al, '/'
+    je .tn_cwd_slash
+    cmp al, '\'
+    je .tn_cwd_slash
+    call ascii_upper
+    jmp .tn_cwd_store
+.tn_cwd_slash:
+    mov al, '\'
+.tn_cwd_store:
+    call .tn_store_char
+    jc .tn_cwd_store_err
+    jmp .tn_cwd_loop
+.tn_cwd_store_err:
+    pop si
+    pop ds
+    jmp .tn_error
+.tn_cwd_done:
+    pop si
+    pop ds
+.tn_process:
+    mov ds, [cs:tn_src_seg]
+.tn_skip_sep:
+    cmp byte [ds:si], '\'
+    je .tn_skip_one
+    cmp byte [ds:si], '/'
+    jne .tn_have_component
+.tn_skip_one:
+    inc si
+    jmp .tn_skip_sep
+.tn_have_component:
+    cmp byte [ds:si], 0
+    je .tn_success
+    cmp byte [ds:si], '.'
+    jne .tn_normal_component
+    mov al, [ds:si+1]
+    test al, al
+    jz .tn_dot_end
+    cmp al, '\'
+    je .tn_dot_one
+    cmp al, '/'
+    je .tn_dot_one
+    cmp al, '.'
+    jne .tn_normal_component
+    mov al, [ds:si+2]
+    test al, al
+    jz .tn_dotdot_end
+    cmp al, '\'
+    je .tn_dotdot_one
+    cmp al, '/'
+    jne .tn_normal_component
+.tn_dotdot_one:
+    add si, 2
+    call .tn_parent
+    jmp .tn_process
+.tn_dotdot_end:
+    add si, 2
+    call .tn_parent
+    jmp .tn_success
+.tn_dot_one:
+    inc si
+    jmp .tn_process
+.tn_dot_end:
+    inc si
+    jmp .tn_success
+.tn_normal_component:
+    cmp di, bp
+    jbe .tn_copy_component
+    mov al, '\'
+    call .tn_store_char
+    jc .tn_error
+.tn_copy_component:
+    mov al, [ds:si]
+    test al, al
+    jz .tn_process
+    cmp al, '\'
+    je .tn_process
+    cmp al, '/'
+    je .tn_process
+    inc si
+    call ascii_upper
+    cmp al, '*'
+    jne .tn_copy_store
+    mov al, '?'
+.tn_copy_store:
+    call .tn_store_char
+    jc .tn_error
+    jmp .tn_copy_component
+.tn_success:
+    cmp di, [cs:tn_limit_off]
+    jae .tn_error
+    mov byte [es:di], 0
+    pop bp
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    xor ax, ax
+    jmp iret_nc
+.tn_error:
+    pop bp
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    mov ax, [cs:tn_status]
+    jmp iret_cy
+.tn_store_char:
+    cmp di, [cs:tn_limit_off]
+    jae .tn_store_err
+    stosb
+    clc
+    ret
+.tn_store_err:
+    stc
+    ret
+.tn_parent:
+    cmp di, bp
+    jbe .tn_parent_root
+.tn_parent_loop:
+    dec di
+    cmp di, bp
+    jb .tn_parent_root
+    cmp byte [es:di], '\'
+    jne .tn_parent_loop
+    cmp di, bp
+    jb .tn_parent_root
+    ret
+.tn_parent_root:
+    mov di, bp
+    ret
 
 .file_attrs:
     cmp al, 0
