@@ -66,6 +66,10 @@ run = "python3 scripts/test_ascendancy_smoke.py"
 description = "Boot all-games hard disk image in QEMU"
 run = 'python3 scripts/build_games_hd_all.py && "$LAINDOS_QEMU" -drive file=build/games_hd_all.img,format=raw -boot order=c -serial stdio -monitor none -vga "$LAINDOS_QEMU_VGA" -device sb16'
 
+[tasks.run-stunt-island]
+description = "Boot local Stunt Island image and launch STUNT"
+run = "python3 scripts/run_stunt_island.py"
+
 [tasks.clean]
 description = "Remove build artifacts"
 run = "make clean"

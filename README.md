@@ -182,6 +182,14 @@ mise run run-freedos-vhd
 
 Set `LAINDOS_FREEDOS_VHD=/path/to/FreeDOS.VHD` to use a different local VHD. The task runs QEMU with `-snapshot` so the VHD is not written back.
 
+If the local generated Stunt Island image exists at `build/stunt_xmsfix_hd.img`, boot it in a normal visible QEMU window and launch `STUNT` using:
+
+```sh
+mise run run-stunt-island
+```
+
+Set `LAINDOS_STUNT_IMAGE=/path/to/image.img` to use a different local Stunt image. The task uses QEMU `-snapshot` by default; set `LAINDOS_STUNT_SNAPSHOT=0` if you intentionally want writes to persist. Set `LAINDOS_STUNT_VNC=127.0.0.1:58` only if you also want a VNC endpoint.
+
 Smoke-test a local external hard-disk image without writing to it:
 
 ```sh
