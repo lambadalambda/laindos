@@ -12,13 +12,14 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 ## Commands
 
 - `make test`: build the default image and run the full automated regression ladder from `scripts/run_tests.py`.
+- `make check-docs-sync`: verify docs/site source excerpts, documented Makefile targets, local file references, and hardcoded test counts.
 - `TEST_JOBS=1 make test` or `make test-serial`: run the default ladder serially when debugging timing or interleaved logs.
 - `python3 scripts/test_irqmask.py`: run one focused test directly.
 - `make test-monkey-demo`: smoke-test the shell-launched Monkey Island demo image.
 - `make test-game-smokes`: run the standard game smoke ladder for Monkey Island, Wolfenstein 3D, and Ascendancy when local media is present.
 - `make test-shortline-smoke`: run the Shortline-specific smoke with QEMU `-icount shift=6` for its timer calibration.
 - `make test-norton-commander-smoke`: smoke-test Norton Commander from the local archive.
-- Site docs edits: run JSX parsing checks and a local browser or Playwright smoke when one is available; there is not currently a committed Makefile target for that.
+- Site docs edits: run `make check-docs-sync`, JSX parsing checks, and a local browser or Playwright smoke when one is available.
 
 ## Adding A Focused DOS API Test
 
@@ -102,6 +103,7 @@ if __name__ == "__main__":
 - Keep issue details in `meta/issues/` current while triaging a target.
 - Update README or site docs when adding commands, workflows, or test categories.
 - When editing `docs/site/`, run `deno check docs/site/*.jsx` plus a browser or Playwright smoke if the local environment has one.
+- When editing quoted source excerpts, run `make check-docs-sync` so stale line numbers fail before review.
 - Run `git diff --check` before review or commit.
 - Before committing non-trivial changes, request the required `code-reviewer-zai` review.
 

@@ -89,6 +89,14 @@ make test
 
 For the test-writing workflow, see `docs/test_ladder.md` or the `Tests` track in `docs/site/`.
 
+Check that docs/site source excerpts, documented Makefile targets, file references, and hardcoded test counts still match the tree:
+
+```sh
+make check-docs-sync
+```
+
+`make test` runs this documentation sync check before the QEMU regression ladder, so CI catches stale excerpts and command references on pushes.
+
 Build the shell-boot Monkey Island demo floppy image:
 
 ```sh

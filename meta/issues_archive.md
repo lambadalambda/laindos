@@ -93,3 +93,4 @@
 - [x] [Triage Micro Machines 2 Hang](issues/triage-micro-machines-2-hang.md)
 - [x] [Triage Shortlines Hang](issues/triage-shortlines-hang.md)
 - [x] [Document The Test Ladder And Regression Workflow](issues/document-test-ladder-and-regression-workflow.md)
+- [x] [Add Documentation Source Sync Checks](issues/add-doc-source-sync-checks.md)

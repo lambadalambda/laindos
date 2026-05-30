@@ -6,5 +6,4 @@
 - [ ] [Document Shell Batch And Environment Behavior](issues/document-shell-batch-and-environment.md)
 - [ ] [Document Mouse Input And INT 33h Behavior](issues/document-mouse-input-and-int33h.md)
 - [ ] [Document Emulator Workflows In The Site](issues/document-emulator-workflows-in-site.md)
-- [ ] [Add Documentation Source Sync Checks](issues/add-doc-source-sync-checks.md)
 - [ ] [Harden Interactive Documentation Delivery](issues/harden-interactive-docs-delivery.md)

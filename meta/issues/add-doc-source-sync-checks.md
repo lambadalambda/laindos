@@ -21,3 +21,4 @@ Add lightweight checks that catch stale documentation when source excerpts, line
 ## Notes
 
 - Start small. A partial checker for source excerpts is better than no drift detection.
+- Resolved with `scripts/check_docs_sync.py` and `make check-docs-sync`, wired into `make test` so CI runs it through the existing regression step.

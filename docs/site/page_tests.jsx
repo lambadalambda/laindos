@@ -29,6 +29,7 @@ const TEST_LAYERS = [
 
 const TEST_COMMANDS = [
   ["make test", "Build the default disk and run the full automated ladder from scripts/run_tests.py."],
+  ["make check-docs-sync", "Verify docs/site source excerpts, documented targets, file refs, and test counts."],
   ["TEST_JOBS=1 make test", "Run the same ladder serially when logs or timing need isolation."],
   ["python3 scripts/test_irqmask.py", "Run one focused regression directly."],
   ["make test-monkey-demo", "Smoke-test the shell-launched Monkey Island demo."],
@@ -43,6 +44,7 @@ const TEST_CHECKLIST = [
   "Use unique PASS:/FAIL: markers so failures identify the exact branch.",
   "Build a fresh image in the runner instead of reusing a checked-in image.",
   "Add fast deterministic tests to DEFAULT_TESTS in scripts/run_tests.py.",
+  "Run make check-docs-sync when docs quote source files or commands.",
   "Keep proprietary game media ignored and generated artifacts under build/.",
   "Update README, docs, debug logs, or issue notes when workflows change.",
   "Run JSX checks and a local browser or Playwright smoke when docs/site changes.",

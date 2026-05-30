@@ -51,7 +51,7 @@ DISK_IMG := $(BUILDDIR)/disk.img
 MONKEY_DEMO_FILES := vendor/midemo.exe vendor/disk01.lec vendor/000.lfl vendor/901.lfl vendor/902.lfl vendor/904.lfl vendor/monkey.txt vendor/readme
 NIGHTLY_PACKAGE := $(BUILDDIR)/laindos-monkey-demo-nightly.zip
 
-.PHONY: all clean run test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell extras-hd run-extras-hd test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-shortline-smoke test-game-smokes
+.PHONY: all clean run check-docs-sync test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell extras-hd run-extras-hd test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-shortline-smoke test-game-smokes
 
 all: $(DISK_IMG)
 
@@ -201,7 +201,10 @@ $(DISK_IMG): $(BOOT_BIN) $(KERNEL_BIN) $(HELLO_COM) $(HELLO_EXE) $(FILETEST) $(M
 run: $(DISK_IMG)
 	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -vga $(QEMU_VGA) -nographic
 
-test: $(DISK_IMG)
+check-docs-sync:
+	$(PYTHON) scripts/check_docs_sync.py
+
+test: $(DISK_IMG) check-docs-sync
 	$(PYTHON) scripts/run_tests.py -j $(TEST_JOBS)
 
 test-serial: TEST_JOBS := 1
