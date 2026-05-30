@@ -2148,6 +2148,7 @@ do_terminate:
     jc .dt_mcb_done
     jmp .dt_mcb_walk
 .dt_mcb_done:
+    call mcb_coalesce_all_free
     mov ax, [cs:cur_psp]
     test ax, ax
     jz .dt_parent_done
@@ -2215,7 +2216,7 @@ do_terminate_tsr:
     mov [ds:3], bx
     mov si, di
     mov ds, di
-    call tsr_merge_free_forward
+    call mcb_merge_free_forward
     mov ax, [cs:cur_psp]
     mov es, ax
     add ax, bx
@@ -2254,39 +2255,13 @@ tsr_free_owned_extra:
 .merge_if_free:
     cmp word [ds:1], 0
     jne .next
-    call tsr_merge_free_forward
+    call mcb_merge_free_forward
 .next:
     cmp byte [ds:0], MCB_SIG_Z
     je .done
     call mcb_walk_next
     jc .done
     jmp .walk
-.done:
-    ret
-
-tsr_merge_free_forward:
-.loop:
-    mov ax, si
-    inc ax
-    add ax, [ds:3]
-    jb .done
-    cmp ax, MEM_TOP
-    jae .done
-    mov di, ax
-    mov es, ax
-    cmp byte [es:0], MCB_SIG_M
-    je .next_valid
-    cmp byte [es:0], MCB_SIG_Z
-    jne .done
-.next_valid:
-    cmp word [es:1], 0
-    jne .done
-    mov cx, [es:3]
-    inc cx
-    add [ds:3], cx
-    mov al, [es:0]
-    mov [ds:0], al
-    jmp .loop
 .done:
     ret
 

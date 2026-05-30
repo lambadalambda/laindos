@@ -41,6 +41,10 @@ def qemu_vga():
     return os.environ.get("LAINDOS_QEMU_VGA", DEFAULT_QEMU_VGA)
 
 
+def qemu_sb16_silent_args():
+    return ["-audiodev", "none,id=laindos_noaudio", "-device", "sb16,audiodev=laindos_noaudio"]
+
+
 def qemu_args(args):
     args = list(args)
     if args and args[0] == "qemu-system-i386":

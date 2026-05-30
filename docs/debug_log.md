@@ -2,6 +2,31 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-30 Process Memory Release After Exit
+
+### Symptoms
+
+- External compatibility feedback reported that after finishing some games the system usually needed a reboot because later software complained about insufficient memory.
+
+### Confirmed Facts
+
+- Normal termination (`INT 20h`, `INT 21h AH=00h`, and `AH=4Ch`) already marked MCBs owned by the terminating PSP as free and restored the parent PSP before returning to the EXEC frame.
+- The missing piece was coalescing: child environment, program, and child-owned allocation MCBs could become adjacent free blocks after exit, but the largest-free-block query and later allocations still saw them as fragmented pieces.
+- `INT 21h AH=49h` and TSR cleanup already had forward-merge behavior; normal process termination did not.
+- Added a generic MCB free-block coalescing pass and call it after normal termination releases all blocks owned by the terminating PSP.
+
+### Tests And Probes Run
+
+- Added `tests/programs/memrel.asm`, `tests/programs/memrchld.asm`, and `scripts/test_memrelease.py`. The parent records the largest free block, EXECs a child twice, and verifies the largest block is restored after each child exit.
+- The focused regression failed before the fix with `FAIL: MEMREL LEAK` and passes after the coalescing pass.
+- Focused related tests pass: `python3 scripts/test_envmcb.py` and `python3 scripts/test_tsr.py`.
+- Full verification passes: `make test` reports `74/74`, and `make test-game-smokes` passes the shell Monkey demo, full Monkey, Wolf3D, and Ascendancy smoke tests. The SB16-backed smoke tests now attach the sound card to QEMU's `none` audio backend so automated runs stay silent.
+
+### Closed State
+
+- Normal process termination now restores the large reusable free block after a child exits, including child environment, program, and child-owned allocation MCBs.
+- `Repair Spawn And Launcher EXEC Compatibility` remains a separate follow-up for launcher-specific EXEC behavior.
+
 ## 2026-05-30 Stunt Island Post-Intro Black Screen
 
 ### Symptoms

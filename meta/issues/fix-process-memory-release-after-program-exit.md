@@ -23,3 +23,6 @@ External compatibility feedback reports that after finishing some games the syst
 
 - Reported symptom: "you need to restart the system after you're done with the game - memory ain't freed properly so software will complain about lack of memory."
 - Related archived work: environment blocks are MCB-backed, but this report suggests there are still termination or ownership cases not covered by existing regressions.
+- Root cause found: normal process termination released MCB ownership for the terminating PSP but did not coalesce the newly-adjacent free MCBs, so child environment, program, and child-owned allocations fragmented the largest reusable free block.
+- Added `tests/programs/memrel.asm`, `tests/programs/memrchld.asm`, and `scripts/test_memrelease.py`; the regression failed before the fix with `FAIL: MEMREL LEAK` and passes after adding a termination-time free-MCB coalescing pass.
+- Verification passed with `python3 scripts/test_memrelease.py`, `python3 scripts/test_envmcb.py`, `python3 scripts/test_tsr.py`, `make test` (`74/74`), and `make test-game-smokes`.

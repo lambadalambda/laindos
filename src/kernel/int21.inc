@@ -1474,28 +1474,7 @@ int21_handler:
     jmp .fm_err
 .fm_ok:
     mov word [ds:1], 0
-.fm_fwd_merge:
-    mov ax, si
-    inc ax
-    add ax, [ds:3]
-    jb .fm_done
-    cmp ax, MEM_TOP
-    jae .fm_done
-    mov di, ax
-    mov es, ax
-    cmp byte [es:0], MCB_SIG_M
-    je .fm_next_valid
-    cmp byte [es:0], MCB_SIG_Z
-    jne .fm_done
-.fm_next_valid:
-    cmp word [es:1], 0
-    jne .fm_done
-    mov cx, [es:3]
-    inc cx
-    add word [ds:3], cx
-    mov al, [es:0]
-    mov byte [ds:0], al
-    jmp .fm_fwd_merge
+    call mcb_merge_free_forward
 .fm_done:
     INT21_POP_FRAME_DS_SI_ES_DI_CX
     jmp iret_nc

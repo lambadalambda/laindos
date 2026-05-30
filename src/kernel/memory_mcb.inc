@@ -111,6 +111,68 @@ find_largest_free_block:
     pop ax
     ret
 
+mcb_merge_free_forward:
+    push ax
+    push cx
+    push di
+    push es
+.loop:
+    mov ax, si
+    inc ax
+    add ax, [ds:3]
+    jb .done
+    cmp ax, MEM_TOP
+    jae .done
+    mov di, ax
+    mov es, ax
+    cmp byte [es:0], MCB_SIG_M
+    je .next_valid
+    cmp byte [es:0], MCB_SIG_Z
+    jne .done
+.next_valid:
+    cmp word [es:1], 0
+    jne .done
+    mov cx, [es:3]
+    inc cx
+    add [ds:3], cx
+    mov al, [es:0]
+    mov [ds:0], al
+    jmp .loop
+.done:
+    pop es
+    pop di
+    pop cx
+    pop ax
+    ret
+
+mcb_coalesce_all_free:
+    push ax
+    push ds
+    push si
+    mov si, [cs:mcb_first]
+.walk:
+    mov ds, si
+    cmp byte [ds:0], MCB_SIG_M
+    je .check
+    cmp byte [ds:0], MCB_SIG_Z
+    je .check
+    jmp .done
+.check:
+    cmp word [ds:1], 0
+    jne .next
+    call mcb_merge_free_forward
+.next:
+    cmp byte [ds:0], MCB_SIG_Z
+    je .done
+    call mcb_walk_next
+    jc .done
+    jmp .walk
+.done:
+    pop si
+    pop ds
+    pop ax
+    ret
+
 alloc_mem_direct_high:
     push ds
     push si
