@@ -2,6 +2,35 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-30 Micro Machines 2 Copy-Protection Triage
+
+### Symptoms
+
+- Reported issue: Micro Machines 2 hangs under LainDOS.
+- Local media is now present as ignored proprietary archive `vendor/003513_micro_machines_2.7z`.
+
+### Confirmed Facts
+
+- The archive contains four FAT12 floppy images: `disk1.img` through `disk4.img`.
+- Disk 1 carries `INSTALL.BAT`, `CFG\INSTALL.EXE`, installer config files, and initial `MM2` data. Disks 2-4 carry additional `MM2` data trees.
+- A direct `C:` source-tree install is not representative because the installer returns in `C:\CFG` and the batch then falls through from there. Running `C:\CFG\INSTALL E_INST.CFG` directly and installing to `C:\GAMES` produces a valid installed tree at `C:\GAMES\MM2` with `MM2.EXE`, `DOS4GW.EXE`, `MM2.BAT`, and data directories.
+- Launch command from the installed tree is `C:`, `CD \GAMES\MM2`, `MM2`.
+- The game starts DOS/4GW 1.97 and reaches a visible manual/code-wheel protection prompt: `USE CURSOR KEYS TO HIGHLIGHT SYMBOL ON REVERSE OF MANUAL AT LOCATION : COLUMN D ROW 12`.
+- At the prompt there are no unhandled DOS calls and no CPU exception markers. The captured framebuffer is active and the program is waiting for user input, not hanging in a DOS/filesystem path.
+- QEMU monitor sampling at the prompt shows protected mode (`CS=0160`, `EIP=001abc05`) and BIOS tick `0x46c` advancing from `1025136` to `1025171` across a short wait, so timer interrupts are still alive.
+
+### Tests And Probes Run
+
+- Extracted the source disks into generated `build/mm2_vvfat/` using the existing FAT image extractor logic from `scripts/build_extras_hd.py`; proprietary files remain under ignored `build/` and `vendor/` artifacts only.
+- Booted `build/shell_monkey.img` with QEMU `file=fat:rw:<repo>/build/mm2_vvfat` attached as `C:` and confirmed `INSTALL.BAT`, `CFG`, and `MM2` are visible from LainDOS.
+- Ran `C:\CFG>INSTALL E_INST.CFG`, accepted the first screen, typed `GAMES` at the default `C:\` destination prompt, and pressed Enter at the disk prompts. The generated install created `build/mm2_vvfat/GAMES/mm2/` including `mm2.exe` and `dos4gw.exe`.
+- Launched `C:\GAMES\MM2>MM2` and captured `build/mm2_probe/run_mm2_60s.ppm`, showing the copy-protection prompt rather than a dead screen.
+- Sampled QEMU monitor state with `info registers`, `x /12i $eip`, and `xp /1dw 0x46c` at the prompt.
+
+### Closed State
+
+- The reported hang is explained as the game's manual/copy-protection challenge. No LainDOS implementation change or regression test is indicated unless a valid manual response still fails to reach gameplay.
+
 ## 2026-05-30 Local Extras Hard-Disk Image
 
 ### Confirmed Facts
