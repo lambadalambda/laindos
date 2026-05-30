@@ -81,3 +81,4 @@
 - [x] [Support Drive-Qualified Relative Paths](issues/support-drive-qualified-relative-paths.md)
 - [x] [Phase 19: DOS Compatibility Matrix](issues/phase19-dos-compatibility-matrix.md)
 - [x] [Fill INT 21h Documentation Track](issues/fill-int21-docs-track.md)
+- [x] [Triage Duke Nukem 3D SETUP DOS/16M Spawn Error](issues/triage-duke3d-setup-dos16m-spawn-error.md)

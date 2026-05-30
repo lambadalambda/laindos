@@ -18,4 +18,3 @@
 - [ ] [Triage Quake Bad Command Or Filename Launch Failure](issues/triage-quake-bad-command-or-filename-launch-failure.md)
 - [ ] [Triage Micro Machines 2 Hang](issues/triage-micro-machines-2-hang.md)
 - [ ] [Triage Shortlines Hang](issues/triage-shortlines-hang.md)
-- [ ] [Triage Duke Nukem 3D SETUP DOS/16M Spawn Error](issues/triage-duke3d-setup-dos16m-spawn-error.md)

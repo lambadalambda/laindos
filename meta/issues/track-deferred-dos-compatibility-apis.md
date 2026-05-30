@@ -24,6 +24,6 @@ Track DOS APIs that remain intentionally deferred after Phase 19 because no curr
 - `AX=5D06h` DOS swappable data area pointer.
 - `AH=5Ch` sharing/locking semantics.
 - `AH=5Eh/5Fh` network and redirector calls.
-- `AH=38h/65h/66h` NLS and code page APIs.
+- `AH=65h/66h` NLS/code-page APIs and full country/DBCS tables.
 - `CONFIG.SYS` and installable DOS device driver loading.
 - Full TSR environment-block retention and XMS/EMS cleanup semantics beyond CWSDPMI-style startup.

@@ -223,6 +223,8 @@ int21_handler:
     je .create_new_file
     cmp ah, 0x62
     je .get_psp
+    cmp ah, 0x63
+    je .get_dbcs_table
     cmp ah, 0x67
     je .set_handle_count
     cmp ah, 0x68
@@ -692,6 +694,17 @@ int21_handler:
     jmp iret_nc
 .get_psp:
     mov bx, [cs:cur_psp]
+    jmp iret_nc
+.get_dbcs_table:
+    cmp al, 0
+    je .get_dbcs_table_ok
+    mov ax, 1
+    jmp iret_cy
+.get_dbcs_table_ok:
+    push cs
+    pop ds
+    mov si, dbcs_empty_table
+    xor al, al
     jmp iret_nc
 .get_list_of_lists:
     push cs

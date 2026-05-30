@@ -22,3 +22,7 @@ Duke Nukem 3D's `SETUP.EXE` reportedly fails with a DOS/16M spawn-related error 
 
 - Reported symptom: `Duke Nukem 3D's SETUP.EXE ("DOS/16M Error: [8] cannot open file '{random characters}' Spawn Error: Error 0")`.
 - This may overlap with the spawn/launcher compatibility issue, but the random-character filename suggests there may also be a path or memory-corruption angle.
+- Reproduced from `vendor/FreeDOS.VHD` with `C:`, `CD \GAMES\DUKE3D`, `SETUP`; the local failure text was `DOS/16M error: [8] cannot open file ''` followed by `Spawn Error: Error 0`.
+- Temporary EXEC tracing showed `SETUP.EXE` spawned `.\setmain.exe` with a caller-provided environment segment. Copying caller-provided environment variables into a child-owned block and appending the child executable path tail lets DOS/4GW find `SETMAIN.EXE` correctly.
+- Added `AX=6300h` empty DBCS lead-byte table support because Duke setup also probes `INT 21h AH=63` during startup.
+- Current smoke reaches the Duke Nukem 3D setup UI with no DOS/16M error and no unhandled `INT 21h AH=` trace.

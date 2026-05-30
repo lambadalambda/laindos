@@ -2,6 +2,28 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-30 Duke Nukem 3D SETUP Spawn Error
+
+### Symptoms
+
+- Running `C:`, `CD \GAMES\DUKE3D`, `SETUP` from `vendor/FreeDOS.VHD` failed with `DOS/16M error: [8] cannot open file ''` and `Spawn Error: Error 0`.
+- Running `SETMAIN` directly reached the Duke Nukem 3D setup UI, so the blocker was in the launcher/spawn path rather than the setup payload itself.
+
+### Confirmed Facts
+
+- A temporary `TRACE_DOS` EXEC probe showed `SETUP.EXE` calls `EXEC .\setmain.exe` with a caller-provided environment segment.
+- The spawned DOS/4GW child needs an environment executable-path tail for the child executable. Reusing the caller-provided environment block unchanged left the child with no useful path tail and caused the empty-file DOS/16M error.
+- `EXEC` now copies caller-provided environment variables into a child-owned environment block and appends the launched executable path tail, while leaving the caller's original environment MCB owned by the caller.
+- `AX=6300h` now returns an empty DBCS lead-byte table so DOS/4GW/Duke setup does not log an unhandled `INT 21h AH=63` probe on single-byte code page setups.
+- Residual risk: environment blocks are still fixed at 16 paragraphs; a future caller with a large custom environment may need variable-sized environment allocation or an overflow guard.
+
+### Tests And Smokes Run
+
+- `python3 scripts/test_execenv.py` now covers a caller-provided environment with a dot-relative child path and verifies the child sees `A:\ENVCHILD.COM` in the environment path tail.
+- `python3 scripts/test_dbcs.py` covers `AX=6300h` empty DBCS table behavior and unsupported `AX=6301h` failure.
+- `python3 scripts/test_envpath.py` still passes.
+- QEMU smoke with `build/shell_monkey.img` and `vendor/FreeDOS.VHD`: `C:`, `CD \GAMES\DUKE3D`, `SETUP` reaches the Duke Nukem 3D setup UI with no `DOS/16M error` and no unhandled `INT 21h AH=` trace.
+
 ## 2026-05-30 BLASTER Environment Variable
 
 ### Confirmed Facts

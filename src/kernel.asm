@@ -2653,6 +2653,7 @@ env_shell_name: db "SHELL.COM", 0
 env_bin_dir: db "BIN", 0
 env_blaster: db "BLASTER=A220 I5 D1 H5 P330 T6", 0
 env_prompt: db "PROMPT=$P$G", 0
+dbcs_empty_table: db 0, 0
 msg_unhandled: db "INT 21h AH=", 0
 msg_int33:     db "INT 33h AX=", 0
 msg_mouse_ps2_on: db "PS2 mouse enabled", 13, 10, 0
@@ -2745,6 +2746,7 @@ saved_sp:  dw 0
 com_stack_top: dw 0
 exec_env_seg: dw 0
 exec_env_owned: db 0
+exec_env_src_seg: dw 0
 vga_row:   dw 0
 vga_col:   dw 0
 console_ext_pending: db 0

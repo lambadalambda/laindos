@@ -30,9 +30,9 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
 | PSP creation and command tails | implemented/partial | high | Covered by `PSPTEST`, `ARGTEST`, `ARGEXE`, and game smokes. |
-| `AH=4B00h` EXEC | implemented/partial | high | Supports COM/EXE, MZ relocation, command tails, MaxAlloc, caller-provided environment segments, default/null parameter blocks, and default FCB copying. Covered by `EXECPARAM`, `EXECENV`, `RETCODE`, shell, and game smokes. |
+| `AH=4B00h` EXEC | implemented/partial | high | Supports COM/EXE, MZ relocation, command tails, MaxAlloc, caller-provided environment variable copies with child executable-path tails, default/null parameter blocks, and default FCB copying. Covered by `EXECPARAM`, `EXECENV`, `RETCODE`, shell, and game smokes. |
 | `AH=4B03h` overlay load | implemented/partial | high | Covered by overlay regression; preserve for MI2-style overlays. |
-| Environment block, `COMSPEC`, `PATH`, executable path tail | implemented/partial | high | Default child environments are MCB-allocated per process; `EXECENV` covers caller-provided environment segment inheritance and ownership preservation. |
+| Environment block, `COMSPEC`, `PATH`, executable path tail | implemented/partial | high | Default child environments are MCB-allocated per process; `EXECENV` covers caller-provided environment variable copying, launched path tails, and original environment ownership preservation. |
 | `AH=4Dh` child return code | implemented/partial | medium | `RETCODE` covers initial zero state, destructive reads, nonzero child codes, and failed-`EXEC` preservation; `TSR` covers AH=03h return type after `AH=31h`. |
 | `AH=62h` get PSP | implemented | medium | Trivial but common runtime call; returns the current PSP segment. |
 | `AH=31h` TSR/keep process | implemented/partial | medium | Keeps the requested PSP MCB resident, frees non-resident child-owned MCBs, closes owned handles, preserves installed vectors, and returns AH=03h through `AH=4Dh`; covered by `TSR` for CWSDPMI-style startup. Full TSR environment retention and XMS/EMS cleanup semantics remain deferred. |
@@ -81,6 +81,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | `AH=44h` IOCTL | implemented/partial | high | `IOCTLEXT` and `IOCTLST` cover get/set info, input/output status, removable drive query, local drive/handle queries, unsupported subfunctions, and bad handle/drive errors for local files/devices. |
 | `AH=1Bh/1Ch` drive data | implemented/partial | low/medium | `DRIVEDATA` covers default and explicit supported drives, FAT12/FAT16 BPB allocation values, media ID pointers, and boundary/high invalid-drive `AL=FFh` returns. |
 | `AH=33h/54h/2Eh` Ctrl-C and verify state | implemented/partial | low/medium | `STATEAPI` covers break get/set normalization, unsupported break subfunction failure, boot-drive, true-version, verify get/set normalization, and `AH=2Eh` `DL` independence. |
+| `AH=63h` DBCS lead-byte table | implemented/partial | low | `DBCS` covers `AX=6300h` returning an empty lead-byte table for single-byte setups and unsupported subfunction failure. |
 
 ### Deferred or Out of Scope Until Needed
 
@@ -89,7 +90,7 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | FCB calls | missing/deferred | low | Tracked by the deferred compatibility issue; implement only if a target program uses them. |
 | Sharing/locking `AH=5Ch` | missing/deferred | low | Tracked by the deferred compatibility issue; single-tasking local DOS can return sensible unsupported/no-op behavior if needed. |
 | Network calls `AH=5Eh/5Fh` | missing/deferred | low | Tracked by the deferred compatibility issue; return local/not-remote semantics only if callers require it. |
-| NLS/code pages `AH=38h/65h/66h` | missing/deferred | low | Tracked by the deferred compatibility issue; defer unless installer/runtime requires country/code-page data. |
+| NLS/code pages `AH=65h/66h` and full country/DBCS tables | missing/deferred | low | Tracked by the deferred compatibility issue; defer unless installer/runtime requires richer country/code-page data. |
 | Installable DOS device drivers | missing/deferred | low | Tracked by the deferred compatibility issue; prefer built-in device-name compatibility before CONFIG.SYS/device-driver work. |
 
 ## Acceptance Criteria

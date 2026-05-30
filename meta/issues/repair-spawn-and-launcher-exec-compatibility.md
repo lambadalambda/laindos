@@ -23,3 +23,4 @@ External compatibility feedback reports that forking/spawning is missing or brok
 
 - Reported symptoms: "forking/spawning is not implemented or not working", "can't launch stuff from norton", and some games show `Bad command or filename`.
 - Quake and Duke Nukem 3D setup have separate game-specific issues because their symptoms may expose distinct loader/runtime behavior.
+- Duke Nukem 3D setup exposed one concrete spawn gap: child EXEC with a caller-provided environment segment still needs a child executable-path tail. `EXECENV` now covers copying caller-provided variables into a child-owned environment with the launched path tail.

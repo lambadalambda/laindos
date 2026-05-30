@@ -89,7 +89,7 @@ fail:
 
 psp_seg: dw 0
 env_seg: dw 0
-child_path: db "ENVCHILD.COM", 0
+child_path: db ".\ENVCHILD.COM", 0
 cmd_tail: db 0, 13
 exec_params:
     dw 0

@@ -261,6 +261,7 @@ update_exec_environment_path:
     push es
     push si
     push di
+    mov word [cs:exec_env_src_seg], 0
     mov ax, [cs:exec_param_seg]
     test ax, ax
     jz .default_env
@@ -269,17 +270,31 @@ update_exec_environment_path:
     mov ax, [bx]
     test ax, ax
     jz .default_env
-    mov [cs:exec_env_seg], ax
-    mov byte [cs:exec_env_owned], 0
-    clc
-    jmp .done
+    mov [cs:exec_env_src_seg], ax
 .default_env:
     call alloc_exec_environment
     jc .fail
     mov ax, [cs:exec_env_seg]
     mov es, ax
     xor di, di
+    mov ax, [cs:exec_env_src_seg]
+    test ax, ax
+    jz .write_default_vars
+    mov ds, ax
+    xor si, si
+.copy_env:
+    lodsb
+    stosb
+    test al, al
+    jnz .copy_env
+    cmp byte [ds:si], 0
+    jne .copy_env
+    lodsb
+    stosb
+    jmp .vars_done
+.write_default_vars:
     call write_environment_vars
+.vars_done:
     mov ax, 1
     stosw
     mov al, [cs:dos_drive_letter]
@@ -325,7 +340,16 @@ update_exec_environment_path:
     cmp byte [ds:si], '\'
     je .skip_one_sep
     cmp byte [ds:si], '/'
+    je .skip_one_sep
+    cmp byte [ds:si], '.'
     jne .copy
+    cmp byte [ds:si+1], '\'
+    je .skip_dot_sep
+    cmp byte [ds:si+1], '/'
+    jne .copy
+.skip_dot_sep:
+    inc si
+    jmp .skip_sep
 .skip_one_sep:
     inc si
     jmp .skip_sep
