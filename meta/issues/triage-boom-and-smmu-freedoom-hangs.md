@@ -2,7 +2,7 @@
 
 ## Summary
 
-FreeDoom with Boom and SMMU reportedly hangs under LainDOS.
+FreeDoom with Boom and SMMU reportedly hung under LainDOS. The observed DOS API blockers are fixed, and a later interactive reproduction reports both Boom and FreeDoom running normally.
 
 ## Requirements
 
@@ -18,6 +18,10 @@ FreeDoom with Boom and SMMU reportedly hangs under LainDOS.
 - Both launch far enough to run FreeDoom content, or each remaining blocker is isolated into a documented follow-up.
 - `make test` passes after any implementation change.
 
+## Resolution
+
+- Acceptance criteria are satisfied: the original SMMU IWAD lookup blocker was fixed and covered by `COMPATAPI`, Boom/SMMU smoke signatures are recorded below, and interactive reproduction shows both Boom and FreeDoom run normally.
+
 ## Notes
 
 - Reported symptom: "FreeDoom (Boom and SMMU, hangs)".
@@ -26,4 +30,4 @@ FreeDoom with Boom and SMMU reportedly hangs under LainDOS.
 - Added focused `COMPATAPI` coverage for `AH=50h/51h`, `AH=60h`, `AX=5D06h`, and unsupported `AH=71h` behavior.
 - Current SMMU Phase 1 and Phase 2 smokes find their IWADs, add the IWAD/SMMU WAD, enter protected-mode graphics initialization, and show active framebuffers with no `EXC ` and no unhandled `INT 21h AH=` trace.
 - Current Boom smoke finds `./doom.wad`, reaches `I_InitSound`, `S_Init`, `HU_Init`, and `ST_Init`, and shows an active framebuffer with no `EXC ` and no unhandled `INT 21h AH=` trace.
-- Remaining blocker: Boom still appears to stall after `ST_Init`, and SMMU still appears to sit in protected-mode graphics startup. The next probe should compare the same Boom/SMMU binaries under real DOS in QEMU and/or 86Box before treating the remaining behavior as another LainDOS DOS API issue.
+- User interactive reproduction after the compatibility slice reports both Boom and FreeDoom running normally. The earlier scripted-smoke timeout was not a confirmed hang.

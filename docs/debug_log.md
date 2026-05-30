@@ -6,7 +6,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Symptoms
 
-- Running `C:`, `CD \GAMES\BOOM`, `BOOM` from `vendor/FreeDOS.VHD` reached Doom startup and then appeared to stall around late status-bar initialization.
+- Running `C:`, `CD \GAMES\BOOM`, `BOOM` from `vendor/FreeDOS.VHD` reached Doom startup in the scripted smoke and then appeared to stall around late status-bar initialization.
 - Running `C:`, `CD \GAMES\FREEDOOM\PHASE1`, `SMMU` initially reported `IWAD not found` even with `doom.wad` in the current directory; `SMMU -iwad doom.wad` behaved the same.
 
 ### Confirmed Facts
@@ -16,8 +16,8 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Added narrow `AH=60h` truename canonicalization for 8.3 paths, `AH=50h/51h` set/get PSP, and `AX=5D06h` DOS swappable-data-area pointer. `COMPATAPI` covers these plus the unsupported-LFN fallback signal.
 - SMMU Phase 1 now finds `c:/games/freedoom/phase1/doom.wad`, adds `doom.wad` and `smmu.wad`, reaches `V_InitGraphics: Trying driver: 'dos allegro'`, enters protected mode, and shows an active framebuffer with no unhandled `INT 21h AH=` trace and no `EXC ` marker.
 - SMMU Phase 2 now finds `c:/games/freedoom/phase2/doom2.wad`, adds `doom2.wad` and `smmu.wad`, reaches the same protected-mode graphics startup point, and shows an active framebuffer with no unhandled `INT 21h AH=` trace and no `EXC ` marker.
-- Boom now reaches `I_InitSound`, `S_Init`, `HU_Init`, and `ST_Init: Init status bar.` with an active framebuffer and no unhandled `INT 21h AH=` trace or `EXC ` marker. A longer QEMU smoke still timed out after `ST_Init`, so the visible blocker has moved past the DOS compatibility calls handled in this slice.
-- A short protected-mode sample during the Boom stall showed the BIOS timer at `0x46c` advancing while the game was in CPL=3 code, which argues against a simple real-mode DOS API wait at the sampled point.
+- Boom now reaches `I_InitSound`, `S_Init`, `HU_Init`, and `ST_Init: Init status bar.` with an active framebuffer and no unhandled `INT 21h AH=` trace or `EXC ` marker.
+- User interactive reproduction after the compatibility slice reports both Boom and FreeDoom run fine. The earlier Boom/SMMU "stall" interpretation was a scripted-smoke false positive: the smoke timed out after serial output stopped while the program was still alive in graphics/runtime code.
 
 ### Tests And Smokes Run
 
@@ -28,8 +28,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Follow-Ups
 
-- Compare Boom and SMMU under real DOS in QEMU and/or 86Box before changing more LainDOS DOS API behavior for the remaining protected-mode stalls.
-- If a real DOS comparison also stalls under QEMU but not 86Box, treat the next step as emulator/VGA/timer/audio discrimination rather than filesystem or `INT 21h` work.
+- If Boom or SMMU regress again, capture the exact command line, input sequence, framebuffer, and serial output before treating it as a new DOS API blocker.
 
 ## 2026-05-30 Duke Nukem 3D SETUP Spawn Error
 

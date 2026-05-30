@@ -13,7 +13,6 @@
 - [ ] [Repair Spawn And Launcher EXEC Compatibility](issues/repair-spawn-and-launcher-exec-compatibility.md)
 - [ ] [Triage Civilization 1 Configuration And Startup Hang](issues/triage-civilization-1-configuration-and-startup-hang.md)
 - [ ] [Triage Stunt Island Fresh-Boot Memory Failure](issues/triage-stunt-island-fresh-boot-memory-failure.md)
-- [ ] [Triage Boom And SMMU FreeDoom Hangs](issues/triage-boom-and-smmu-freedoom-hangs.md)
 - [ ] [Triage Sokoban Hang](issues/triage-sokoban-hang.md)
 - [ ] [Triage Quake Bad Command Or Filename Launch Failure](issues/triage-quake-bad-command-or-filename-launch-failure.md)
 - [ ] [Triage Micro Machines 2 Hang](issues/triage-micro-machines-2-hang.md)
