@@ -188,7 +188,7 @@ If the local generated Stunt Island image exists at `build/stunt_xmsfix_hd.img`,
 mise run run-stunt-island
 ```
 
-Set `LAINDOS_STUNT_IMAGE=/path/to/image.img` to use a different local Stunt image. The task uses QEMU `-snapshot` by default; set `LAINDOS_STUNT_SNAPSHOT=0` if you intentionally want writes to persist. Set `LAINDOS_STUNT_VNC=127.0.0.1:58` only if you also want a VNC endpoint.
+Set `LAINDOS_STUNT_IMAGE=/path/to/image.img` to use a different local Stunt image. The task rebuilds a shell-boot `KERNEL.SYS` from current source and patches it into `build/run_stunt_island_current.img`, leaving the source image unchanged; set `LAINDOS_STUNT_CURRENT_KERNEL=0` to boot the image as-is. The task uses QEMU `-snapshot` by default; set `LAINDOS_STUNT_SNAPSHOT=0` if you intentionally want writes to persist to the disposable runtime image. Set `LAINDOS_STUNT_VNC=127.0.0.1:58` only if you also want a VNC endpoint.
 
 Smoke-test a local external hard-disk image without writing to it:
 

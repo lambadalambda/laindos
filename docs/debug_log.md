@@ -2,6 +2,36 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-30 Stunt Island Post-Intro Black Screen
+
+### Symptoms
+
+- After the XMS fix, QEMU reaches `Caching data 15360K in extended memory`, then `DISNEY INTRO REEL 15`, then a black screen.
+- User manual comparison with the same image in 86Box progresses further to an image asking `do you want to enter the competition`; mouse movement works there, but clicking the Yes/No buttons does not activate them.
+
+### Confirmed Facts
+
+- The fresh-boot memory complaint and XMS cache-path startup failure are separate and resolved by the large XMS move fix.
+- QEMU's remaining black screen diverged from 86Box, so initial QEMU probes prioritized video/timing and CPU-state differences before changing DOS APIs.
+- The 86Box prompt shows that LainDOS and the installed Stunt files can get past the intro on at least one emulator, but input handling at that prompt still needs a mouse-button/callback/coordinate probe.
+- QEMU black-screen sampling stopped at `CS:IP=1033:6291`, `EFLAGS=0046` (`IF=0`), `ES=0040`, with BIOS tick `40:6C` frozen. The loop is Stunt code at linear `0x165c1`: `cmpw %es:0x6c,%bx; je 0x165c1`.
+- Forcing IF on at the stuck loop with gdb immediately advances QEMU to the same nonblack competition prompt class as 86Box (`stats=(208, 217732)`), proving the black screen is a timer/IF deadlock rather than a rendering failure.
+- Breakpoints around the preceding `INT 21h AH=4Eh` showed IF was already clear before the DOS call (`eflags=0x2` at `1033:6227`), but making DOS-style `INT 21h` returns set IF lets the subsequent Stunt timer wait advance.
+- Added `FINDEDGE` coverage for successful `FindFirst` returning with IF set even when the caller entered with interrupts disabled; this failed before the compatibility fix with `FAIL: FINDEDGE FIND IF`.
+
+### Tests And Probes Run
+
+- QEMU `std,retrace=precise` and `cirrus` both reproduced the same `1033:6291` loop with IF clear and pending timer IRQ.
+- Real-DOS comparison with MS-DOS 4 plus QEMU `file=fat:rw:` was inconclusive because `STUNT` reported `Error in EXE file`.
+- `python3 scripts/test_findedge.py` failed before the IF-return fix and passes after it.
+- `python3 scripts/test_xms.py` still passes, including the separate XMS far-call IF-preservation sanity check.
+- Disposable patched Stunt image `build/stunt_if_hd.img` with a current `SHELL.COM` kernel reaches a nonblack prompt-like screen by 5s and 15s under QEMU (`stats=(208, 217732)`), instead of the prior black screen (`stats=(1, 0)`).
+
+### Next Probes
+
+- In 86Box, test whether keyboard shortcuts activate the competition prompt, then probe whether LainDOS receives mouse button transitions or only cursor movement.
+- If needed, add a scripted Stunt smoke around the post-intro prompt once proprietary-media handling and generated-image setup are formalized.
+
 ## 2026-05-30 Stunt Island Fresh-Boot Memory Triage
 
 ### Symptoms

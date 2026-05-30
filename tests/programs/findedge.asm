@@ -47,8 +47,17 @@ start:
     mov dx, drive_root_pattern
     xor cx, cx
     mov ah, 0x4E
+    cli
     int 0x21
-    jc fail_drive_root
+    pushf
+    pop bx
+    test bx, 0x0200
+    jnz .find_first_if_ok
+    sti
+    jmp fail_find_if
+.find_first_if_ok:
+    test bx, 0x0001
+    jnz fail_drive_root
     mov si, expected_com
     mov di, dta_root + 30
     call check_name
@@ -94,6 +103,9 @@ fail_bad_drive:
 fail_drive_root:
     mov dx, fail_drive_root_msg
     jmp fail
+fail_find_if:
+    mov dx, fail_find_if_msg
+    jmp fail
 fail_next_exhaust:
     mov dx, fail_next_exhaust_msg
 
@@ -114,6 +126,7 @@ fail_no_match_msg: db "FAIL: FINDEDGE NO MATCH", 13, 10, "$"
 fail_bad_path_msg: db "FAIL: FINDEDGE BAD PATH", 13, 10, "$"
 fail_bad_drive_msg: db "FAIL: FINDEDGE BAD DRIVE", 13, 10, "$"
 fail_drive_root_msg: db "FAIL: FINDEDGE DRIVE ROOT", 13, 10, "$"
+fail_find_if_msg: db "FAIL: FINDEDGE FIND IF", 13, 10, "$"
 fail_next_exhaust_msg: db "FAIL: FINDEDGE NEXT EXHAUST", 13, 10, "$"
 dta_empty: times 64 db 0
 dta_root: times 64 db 0

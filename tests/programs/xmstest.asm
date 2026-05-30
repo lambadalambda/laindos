@@ -64,7 +64,15 @@ start:
     mov [move_dst_handle], dx
     mov ah, 0x0B
     mov si, move_to_xms
+    sti
     call far [xms_entry]
+    pushf
+    pop bx
+    test bx, 0x0200
+    jnz .move_to_if_ok
+    sti
+    jmp fail_move_if
+.move_to_if_ok:
     cmp ax, 1
     jne fail_move_to
 
@@ -219,6 +227,9 @@ fail_move_to:
     jmp fail
 fail_move_from:
     mov dx, fail_move_from_msg
+    jmp fail
+fail_move_if:
+    mov dx, fail_move_if_msg
     jmp fail
 fail_move_cmp:
     mov dx, fail_move_cmp_msg
@@ -451,6 +462,7 @@ fail_info_msg: db "FAIL: XMS INFO", 13, 10, "$"
 fail_move_msg: db "FAIL: XMS MOVE", 13, 10, "$"
 fail_move_to_msg: db "FAIL: XMS MOVE TO", 13, 10, "$"
 fail_move_from_msg: db "FAIL: XMS MOVE FROM", 13, 10, "$"
+fail_move_if_msg: db "FAIL: XMS MOVE IF", 13, 10, "$"
 fail_move_cmp_msg: db "FAIL: XMS MOVE CMP", 13, 10, "$"
 fail_move_64k_to_msg: db "FAIL: XMS MOVE 64K TO", 13, 10, "$"
 fail_move_64k_bios_msg: db "FAIL: XMS MOVE 64K BIOS", 13, 10, "$"

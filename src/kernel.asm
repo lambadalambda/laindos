@@ -65,6 +65,7 @@ ROOT_BUF_PARAS equ ((ROOT_MAX_ENTRIES * 32) + 15) / 16
 
 CF equ 0x0001
 ZF equ 0x0040
+IFLAG equ 0x0200
 
 ROOT_CLUSTER equ 0
 FAT_TIME equ 0x6000
@@ -383,13 +384,14 @@ iret_nc:
     push bp
     mov bp, sp
     and word [bp+6], ~CF
+    or word [bp+6], IFLAG
     pop bp
     iret
 
 iret_cy:
     push bp
     mov bp, sp
-    or word [bp+6], CF
+    or word [bp+6], CF | IFLAG
     pop bp
     iret
 
@@ -397,7 +399,7 @@ iret_nc_zf:
     push bp
     mov bp, sp
     and word [bp+6], ~CF
-    or word [bp+6], ZF
+    or word [bp+6], ZF | IFLAG
     pop bp
     iret
 
@@ -405,6 +407,7 @@ iret_nc_nz:
     push bp
     mov bp, sp
     and word [bp+6], ~(CF | ZF)
+    or word [bp+6], IFLAG
     pop bp
     iret
 
