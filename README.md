@@ -16,7 +16,7 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 - Runs the full VGA Monkey Island image when `vendor/monkey_full.zip` is present.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
-- `make test` currently runs the automated QEMU regression ladder and passes `75/75` tests.
+- `make test` currently runs the automated QEMU regression ladder and passes `76/76` tests.
 
 ## Scope
 
@@ -86,6 +86,8 @@ Default build and regression test:
 ```sh
 make test
 ```
+
+For the test-writing workflow, see `docs/test_ladder.md` or the `Tests` track in `docs/site/`.
 
 Build the shell-boot Monkey Island demo floppy image:
 

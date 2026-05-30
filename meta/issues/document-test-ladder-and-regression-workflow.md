@@ -21,3 +21,4 @@ Add documentation that teaches contributors how to add and run LainDOS regressio
 ## Notes
 
 - This issue is about making the process teachable, not changing the test harness itself unless docs expose a small missing helper.
+- Resolved with `docs/test_ladder.md` and the interactive `Tests · Regression Ladder` site track.

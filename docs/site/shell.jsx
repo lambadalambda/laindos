@@ -82,7 +82,7 @@ function Sidebar({ route, go }) {
       </nav>
 
       <div style={{ padding: "20px 22px 0", color: T.faint, fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace", lineHeight: 1.7 }}>
-        single-tasking · real mode<br />NASM · CC0 · 75/75 tests
+        single-tasking · real mode<br />NASM · CC0 · 76/76 tests
       </div>
     </aside>
   );
@@ -127,7 +127,7 @@ function MemoryMap({ touches = [], compact = false }) {
   );
 }
 
-function CodeBlock({ file, code, hi = [] }) {
+function CodeBlock({ file, code, hi = [], kind = "NASM · 16-bit" }) {
   const hiSet = new Set(hi);
   return (
     <div style={{ background: CODE_BG, border: `1px solid ${CODE_LINE}`, borderRadius: 9, overflow: "hidden",
@@ -136,7 +136,7 @@ function CodeBlock({ file, code, hi = [] }) {
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 13px", borderBottom: `1px solid ${CODE_LINE}`,
           fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: CODE_DIM, background: CODE_HEAD }}>
           <span style={{ color: CODE.label }}>›</span>{file}
-          <span style={{ marginLeft: "auto", color: CODE_NUM }}>NASM · 16-bit</span>
+          <span style={{ marginLeft: "auto", color: CODE_NUM }}>{kind}</span>
         </div>
       )}
       <div style={{ display: "flex", fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, lineHeight: "22px", padding: "10px 0" }}>
