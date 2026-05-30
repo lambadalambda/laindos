@@ -2126,6 +2126,7 @@ do_terminate:
     call ems_clear_map
 %endif
     mov word [cs:xms_alloc_kb], 0
+    call release_inherited_handles
     call close_owned_handles
     mov byte [cs:console_ext_pending], 0
     mov si, [cs:mcb_first]
@@ -2171,6 +2172,7 @@ do_terminate:
     jmp exec_com.back
 
 do_terminate_tsr:
+    call release_inherited_handles
     call close_owned_handles
     mov byte [cs:console_ext_pending], 0
     mov word [cs:tsr_parent], 0
@@ -2294,6 +2296,65 @@ close_owned_handles:
     call close_table_handle
 .next:
     inc word [cs:coh_index]
+    jmp .loop
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+release_inherited_handles:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, [cs:cur_psp]
+    test ax, ax
+    jz .done
+    mov es, ax
+    xor bx, bx
+.loop:
+    cmp bx, MAX_HANDLES
+    jae .done
+    mov al, [es:bx+0x18]
+    cmp al, 0xFF
+    je .next
+    cmp al, MAX_HANDLES
+    jae .next
+    xor ah, ah
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 1
+    jne .next
+    mov ax, [cs:cur_psp]
+    cmp [cs:si+handles+H_OWNER], ax
+    je .next
+    mov ax, [cs:si+handles+H_ALIAS]
+    cmp ax, H_ALIAS_NONE
+    je .dec
+    cmp ax, MAX_HANDLES
+    jae .next
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    je .next
+.dec:
+    cmp word [cs:si+handles+H_REFCOUNT], 0
+    je .next
+    dec word [cs:si+handles+H_REFCOUNT]
+.next:
+    inc bx
     jmp .loop
 .done:
     pop di

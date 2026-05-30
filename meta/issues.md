@@ -9,7 +9,6 @@
 - [ ] [Document The Test Ladder And Regression Workflow](issues/document-test-ladder-and-regression-workflow.md)
 - [ ] [Add Documentation Source Sync Checks](issues/add-doc-source-sync-checks.md)
 - [ ] [Harden Interactive Documentation Delivery](issues/harden-interactive-docs-delivery.md)
-- [ ] [Repair Spawn And Launcher EXEC Compatibility](issues/repair-spawn-and-launcher-exec-compatibility.md)
 - [ ] [Triage Sokoban Hang](issues/triage-sokoban-hang.md)
 - [ ] [Triage Micro Machines 2 Hang](issues/triage-micro-machines-2-hang.md)
 - [ ] [Triage Shortlines Hang](issues/triage-shortlines-hang.md)

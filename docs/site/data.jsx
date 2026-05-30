@@ -308,7 +308,7 @@ const STAGES = [
     id: "s7", num: "07", file: "src/kernel.asm", kicker: "Showtime",
     title: "Handoff — the game runs",
     prose: [
-      "The kernel allocates a block from the MCB arena, stamps it with the new owner, loads the image cluster-by-cluster just above its Program Segment Prefix, and builds that 256-byte PSP (command tail, environment pointer, default file handles).",
+      "The kernel allocates a block from the MCB arena, stamps it with the new owner, loads the image cluster-by-cluster just above its Program Segment Prefix, and builds that 256-byte PSP (command tail, environment pointer, default or inherited file handles).",
       "For an .EXE, setup_exe_dyn walks the relocation table — adding the load segment to each flagged word so far pointers resolve correctly — then sets the entry CS:IP and SS:SP from the header and transfers control. For a .COM it simply jumps to offset 0x100. Control won't return until the program calls INT 20h or INT 21h/AH=4Ch.",
     ],
     code: [
@@ -323,7 +323,7 @@ const STAGES = [
     ],
     hi: [363],
     annotations: [
-      [347, "build_psp constructs the Program Segment Prefix at offset 0 of the program's segment: the INT 20h terminate instruction, the top-of-memory word, the environment segment, the command-line tail and the default handle table. DOS programs expect DS/ES to point here on entry."],
+      [347, "build_psp constructs the Program Segment Prefix at offset 0 of the program's segment: the INT 20h terminate instruction, the top-of-memory word, the environment segment, the command-line tail and the inherited/default handle table. DOS programs expect DS/ES to point here on entry."],
       [363, "setup_exe_dyn applies the .EXE relocations (each is a far-pointer word that needs the actual load segment added), then loads CS:IP and SS:SP from the header and jumps. The very next thing on screen is the program's own output — for the demo image, the SHELL.COM prompt. Run `midemo` from there to start Monkey Island."],
     ],
     regs: [

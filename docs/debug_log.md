@@ -2,6 +2,30 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-30 Spawn And Launcher EXEC Compatibility
+
+### Symptoms
+
+- The open launcher issue still needed a Norton-style or equivalent parent-program repro after the Duke SETUP spawn fix and Quake launch fixes.
+- The Norton Commander archive was initially misplaced under `build/`; after moving `003064_norton_commander.7z` into `vendor/`, it became available for a local smoke test.
+
+### Confirmed Facts
+
+- A parent program that opened `SPAWNDAT.TXT` and then `EXEC`ed a child left the child's PSP Job File Table slot 5 marked `FFh` even though the inherited handle was usable through LainDOS's global handle table.
+- Before the fix, the focused regression failed with `FAIL: SPAWNCH JFT` followed by `FAIL: SPAWN CHILD`.
+- `build_psp` now copies the parent PSP's fixed 20-entry JFT into the child PSP when a parent PSP exists, and keeps the boot/default `0,1,2,3,4,FF...` table for the first loaded program.
+- Inherited handles now increment the underlying root handle refcount, and `INT 21h AH=3Eh` treats a close of a parent-owned inherited handle as local to the child PSP so the parent handle stays usable.
+- Norton Commander 5.5 startup probes `INT 21h AX=6601h`; LainDOS now reports active/system code page 437 and accepts `AX=6602h` when requested active code page `BX` is 437.
+
+### Tests And Probes Run
+
+- Added `tests/programs/spawn.asm`, `tests/programs/spawnch.asm`, and `scripts/test_spawn.py`.
+- `python3 scripts/test_spawn.py` now passes: the child sees inherited `PSP:JFT[5]`, reads `SPAWN` from the inherited file handle, closes it locally, returns success, and the parent observes the shared file position by reading the following `!` byte.
+- Added `scripts/test_norton_commander_smoke.py` and `make test-norton-commander-smoke`; the smoke extracts `vendor/003064_norton_commander.7z`, direct-boots `NC.EXE` from a disposable image, and verifies the NC framebuffer is active with no unhandled `INT 21h AH=` trace.
+- `python3 scripts/test_compatapi.py` covers `AX=6601h` code-page get behavior, unsupported `AX=6600h`, and accepting `AX=6602h` for `BX=437` without treating `DX` as input.
+- Focused verification passes: `python3 scripts/run_tests.py scripts/test_spawn.py scripts/test_execparam.py scripts/test_execenv.py scripts/test_jft.py scripts/test_shell.py -j 4`.
+- Full verification passes: `python3 -m py_compile scripts/test_spawn.py scripts/run_tests.py`, `make test` reports `75/75`, `make test-norton-commander-smoke` passes, and `make test-game-smokes` passes the shell Monkey demo, full Monkey, Wolf3D, and Ascendancy smoke tests.
+
 ## 2026-05-30 Process Memory Release After Exit
 
 ### Symptoms

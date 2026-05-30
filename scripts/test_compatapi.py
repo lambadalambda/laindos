@@ -20,7 +20,7 @@ def build_image():
 def main():
     build_image()
     output = run_serial_image(IMG, TIMEOUT)
-    if not check_markers(output, required=("PASS: COMPATAPI", "Program exited, code=00", "HALT"), forbidden=("FAIL:", "EXC ", "INT 21h AH=50", "INT 21h AH=5D", "INT 21h AH=60", "INT 21h AH=71")):
+    if not check_markers(output, required=("PASS: COMPATAPI", "Program exited, code=00", "HALT"), forbidden=("FAIL:", "EXC ", "INT 21h AH=50", "INT 21h AH=5D", "INT 21h AH=60", "INT 21h AH=66", "INT 21h AH=71")):
         sys.exit(1)
     print("\nCompatibility API test passed.")
 

@@ -882,6 +882,53 @@ build_psp:
     mov word [es:0x32], MAX_HANDLES
     mov word [es:0x34], 0x0018
     mov [es:0x36], ax
+    mov bx, [cs:cur_psp]
+    test bx, bx
+    jz .default_jft
+    push ds
+    mov ds, bx
+    mov si, 0x0018
+    mov di, 0x0018
+    mov cx, MAX_HANDLES
+    cld
+    rep movsb
+    mov di, 0x0018
+    mov cx, MAX_HANDLES
+.inherit_jft_refs:
+    mov al, [es:di]
+    cmp al, 0xFF
+    je .inherit_jft_next
+    cmp al, MAX_HANDLES
+    jae .inherit_jft_next
+    push cx
+    push di
+    xor ah, ah
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov di, ax
+    cmp byte [cs:di+handles+H_USED], 1
+    jne .inherit_jft_pop
+    mov ax, [cs:di+handles+H_ALIAS]
+    cmp ax, H_ALIAS_NONE
+    je .inherit_jft_ref
+    cmp ax, MAX_HANDLES
+    jae .inherit_jft_pop
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov di, ax
+    cmp byte [cs:di+handles+H_USED], 0
+    je .inherit_jft_pop
+.inherit_jft_ref:
+    inc word [cs:di+handles+H_REFCOUNT]
+.inherit_jft_pop:
+    pop di
+    pop cx
+.inherit_jft_next:
+    inc di
+    loop .inherit_jft_refs
+    pop ds
+    jmp .jft_ready
+.default_jft:
     mov byte [es:0x18], 0
     mov byte [es:0x19], 1
     mov byte [es:0x1A], 2
@@ -891,6 +938,7 @@ build_psp:
     mov cx, MAX_HANDLES - 5
     mov al, 0xFF
     rep stosb
+.jft_ready:
     pop ax
     mov bx, [cs:cur_psp]
     mov [es:0x16], bx

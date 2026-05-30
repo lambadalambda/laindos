@@ -88,3 +88,4 @@
 - [x] [Triage Stunt Island Fresh-Boot Memory Failure](issues/triage-stunt-island-fresh-boot-memory-failure.md)
 - [x] [Triage Stunt Island Post-Intro Black Screen](issues/triage-stunt-island-post-intro-black-screen.md)
 - [x] [Fix Process Memory Release After Program Exit](issues/fix-process-memory-release-after-program-exit.md)
+- [x] [Repair Spawn And Launcher EXEC Compatibility](issues/repair-spawn-and-launcher-exec-compatibility.md)

@@ -53,6 +53,28 @@ start:
     cmp ax, 1
     jne fail_sda
 
+    mov ax, 0x6601
+    xor bx, bx
+    xor dx, dx
+    int 0x21
+    jc fail_codepage
+    cmp bx, 437
+    jne fail_codepage
+    cmp dx, 437
+    jne fail_codepage
+
+    mov ax, 0x6600
+    int 0x21
+    jnc fail_codepage
+    cmp ax, 1
+    jne fail_codepage
+
+    mov ax, 0x6602
+    mov bx, 437
+    mov dx, 0x2468
+    int 0x21
+    jc fail_codepage
+
     push cs
     pop ds
     push cs
@@ -239,6 +261,11 @@ fail_lfn:
     push cs
     pop ds
     mov dx, fail_lfn_msg
+    jmp fail
+fail_codepage:
+    push cs
+    pop ds
+    mov dx, fail_codepage_msg
 fail:
     mov ah, 0x09
     int 0x21
@@ -271,3 +298,4 @@ fail_psp_msg: db "FAIL: COMPATAPI PSP", 13, 10, "$"
 fail_sda_msg: db "FAIL: COMPATAPI SDA", 13, 10, "$"
 fail_true_msg: db "FAIL: COMPATAPI TRUE", 13, 10, "$"
 fail_lfn_msg: db "FAIL: COMPATAPI LFN", 13, 10, "$"
+fail_codepage_msg: db "FAIL: COMPATAPI CODEPAGE", 13, 10, "$"

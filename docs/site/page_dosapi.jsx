@@ -63,7 +63,7 @@ const DOSAPI_GROUPS = [
     verdict: "Shell-launched COM/EXE programs, overlays, TSR exits, and PSP probes are supported.",
     calls: "AH=31h,4Bh,4Ch,4Dh,50h,51h,62h",
     prose: [
-      "When SHELL.COM starts another program, it uses EXEC. LainDOS loads the child image, builds a PSP, supplies the command tail and child-owned environment, applies EXE relocations, and restores the parent after the child exits.",
+      "When SHELL.COM starts another program, it uses EXEC. LainDOS loads the child image, builds a PSP, supplies the command tail and child-owned environment, inherits the parent's fixed PSP handle table, applies EXE relocations, and restores the parent after the child exits.",
       "The default environment includes COMSPEC, PATH, PROMPT, and a conventional SB16 BLASTER string so games launched under QEMU's `-device sb16` can detect the emulator-provided sound card.",
       "For users this is why typing `midemo` at A:\\> works instead of needing a direct-boot image. The same path also supports overlay loads, TSR-style keep-process exits used by runtime helpers such as DPMI hosts, and set/get PSP probes used by older runtimes."
     ],
@@ -84,7 +84,7 @@ const DOSAPI_GROUPS = [
       ["AL", "00h/03h", "load-and-run program or load overlay"],
       ["ES:BX", "params", "EXEC parameter block supplied by the parent"],
     ],
-    tests: ["scripts/test_shell.py", "scripts/test_execparam.py", "scripts/test_execenv.py", "scripts/test_overlay.py", "scripts/test_tsr.py", "scripts/test_compatapi.py"],
+    tests: ["scripts/test_shell.py", "scripts/test_execparam.py", "scripts/test_spawn.py", "scripts/test_execenv.py", "scripts/test_overlay.py", "scripts/test_tsr.py", "scripts/test_compatapi.py"],
   },
   {
     id: "find",
@@ -260,6 +260,7 @@ const DOSAPI_CALLS = [
       ["5Dh", "DOS internal", "stub", "Supports AX=5D06h with a minimal swappable-data-area pointer; other subfunctions fail."],
       ["60h", "Truename", "compat", "Canonicalizes 8.3 paths with drive, current directory, dot, and dot-dot handling."],
       ["63h", "Get DBCS table", "compat", "Returns an empty DBCS lead-byte table for single-byte code page setups."],
+      ["66h", "Global code page", "compat", "Reports and accepts the default 437 code page used by Norton Commander-style startup probes."],
       ["71h", "Windows LFN family", "compat", "Always fails with AX=7100h so callers can detect unsupported long filename services and fall back."],
     ],
   },
@@ -293,7 +294,7 @@ const DOSAPI_CALLS = [
       ["48h", "Allocate memory", "supported", "Allocates paragraphs from the MCB arena."],
       ["49h", "Free memory", "supported", "Releases an MCB-owned block."],
       ["4Ah", "Resize memory", "supported", "Shrinks or grows blocks when adjacent free space permits."],
-      ["4Bh", "EXEC", "partial", "Supports AL=00h load-and-run, AL=03h overlay load, and child-owned environment copies with executable path tails."],
+      ["4Bh", "EXEC", "partial", "Supports AL=00h load-and-run, AL=03h overlay load, child-owned environment copies with executable path tails, and inherited child PSP JFT entries."],
       ["4Ch", "Terminate with return code", "supported", "Stores AL and returns control to the parent or shell."],
       ["4Dh", "Get return code", "supported", "Returns and clears the last child return code and termination type."],
       ["58h", "Allocation strategy", "supported", "Supports get/set for first, best, and last fit."],
@@ -317,6 +318,7 @@ const DOSAPI_SUBFUNCTIONS = [
   ["AH=33h", "Ctrl-Break", "AL=00h gets the stored break flag, AL=01h sets it, AL=05h returns the boot drive, and AL=06h returns the true DOS version. Other subfunctions fail with function-number error."],
   ["AH=38h", "Country", "AL=00h/01h read the small default table; AL=FFh accepts country BX=1. Full international formatting tables are intentionally deferred."],
   ["AH=63h", "DBCS", "AL=00h returns DS:SI pointing at an empty lead-byte table; other subfunctions fail with function-number error."],
+  ["AH=66h", "Code page", "AL=01h returns active/system code page 437; AL=02h accepts setting active code page BX=437. Other subfunctions fail with function-number error."],
   ["AH=5Dh", "DOS internal", "AX=5D06h returns DS:SI for a minimal swappable-data-area header with current DTA, PSP, return code/type, and drive fields; other subfunctions fail."],
   ["AH=71h", "LFN unsupported", "All Windows long-filename subfunctions fail with CF set and AX=7100h, matching the fallback signal expected by DJGPP-era callers."],
   ["AH=44h", "IOCTL", "AL=00h reads device information, AL=01h is accepted as the same compatibility answer, AL=06h/07h report input/output status, and AL=08h/09h/0Ah report local drive or handle state."],

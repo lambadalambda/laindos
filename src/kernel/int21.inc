@@ -237,6 +237,8 @@ int21_handler:
     je .get_psp
     cmp ah, 0x63
     je .get_dbcs_table
+    cmp ah, 0x66
+    je .code_page
     cmp ah, 0x67
     je .set_handle_count
     cmp ah, 0x68
@@ -909,6 +911,24 @@ int21_handler:
     mov si, dbcs_empty_table
     xor al, al
     jmp iret_nc
+.code_page:
+    cmp al, 1
+    je .code_page_get
+    cmp al, 2
+    je .code_page_set
+    mov ax, 1
+    jmp iret_cy
+.code_page_get:
+    mov bx, 437
+    mov dx, 437
+    jmp iret_nc
+.code_page_set:
+    cmp bx, 437
+    jne .code_page_bad
+    jmp iret_nc
+.code_page_bad:
+    mov ax, 2
+    jmp iret_cy
 .get_list_of_lists:
     push cs
     pop es
@@ -2634,8 +2654,11 @@ int21_handler:
     pop ax
     je .cf_std_handle
 .cf_table_handle:
+    call .close_inherited_handle
+    jnc .cf_inherited_handle
     call close_table_handle
     jc .cf_status_err
+.cf_inherited_handle:
     call psp_mark_handle_closed
     jmp iret_nc
 .cf_status_err:
@@ -2646,6 +2669,67 @@ int21_handler:
 .cf_err:
     mov ax, 6
     jmp iret_cy
+.close_inherited_handle:
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+    push si
+    push di
+    mov ax, [cs:cur_psp]
+    test ax, ax
+    jz .cih_no
+    mov es, ax
+    mov di, bx
+    cmp di, MAX_HANDLES
+    jae .cih_no
+    mov al, [es:di+0x18]
+    cmp al, bl
+    jne .cih_no
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 1
+    jne .cih_no
+    mov ax, [cs:cur_psp]
+    cmp [cs:si+handles+H_OWNER], ax
+    je .cih_no
+    mov ax, [cs:si+handles+H_ALIAS]
+    cmp ax, H_ALIAS_NONE
+    je .cih_dec
+    cmp ax, MAX_HANDLES
+    jae .cih_yes
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    je .cih_yes
+.cih_dec:
+    cmp word [cs:si+handles+H_REFCOUNT], 0
+    je .cih_yes
+    dec word [cs:si+handles+H_REFCOUNT]
+.cih_yes:
+    pop di
+    pop si
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.cih_no:
+    pop di
+    pop si
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
 .read_file:
     cmp bx, MAX_HANDLES
     jae .rf_err
