@@ -731,6 +731,29 @@ int21_handler:
     pop ds
     popa
 .sv_no_trace:
+    cmp al, 0x09
+    jne .sv_store
+    push ax
+    push dx
+    mov ax, ds
+    or ax, dx
+    jnz .sv_unmask_irq1
+    cmp byte [cs:irq1_null_mask_active], 0
+    jne .sv_mask_irq1
+    in al, 0x21
+    mov [cs:irq1_null_saved_mask], al
+    mov byte [cs:irq1_null_mask_active], 1
+.sv_mask_irq1:
+    in al, 0x21
+    or al, 0x02
+    out 0x21, al
+    jmp .sv_irq1_done
+.sv_unmask_irq1:
+    call restore_irq1_null_mask
+.sv_irq1_done:
+    pop dx
+    pop ax
+.sv_store:
     push ds
     push bx
     push ax

@@ -1454,6 +1454,22 @@ init_interrupts:
     popa
     ret
 
+restore_irq1_null_mask:
+    cmp byte [cs:irq1_null_mask_active], 0
+    je .done
+    push ax
+    in al, 0x21
+    and al, 0xFD
+    test byte [cs:irq1_null_saved_mask], 0x02
+    jz .write
+    or al, 0x02
+.write:
+    out 0x21, al
+    mov byte [cs:irq1_null_mask_active], 0
+    pop ax
+.done:
+    ret
+
 int20_handler:
     mov byte [cs:ret_code], 0
     mov byte [cs:ret_type], 0
@@ -2117,6 +2133,7 @@ do_terminate:
     push ds
     push si
     push ax
+    call restore_irq1_null_mask
     mov word [cs:mouse_callback_mask], 0
     mov word [cs:mouse_callback_off], 0
     mov word [cs:mouse_callback_seg], 0
@@ -2172,6 +2189,7 @@ do_terminate:
     jmp exec_com.back
 
 do_terminate_tsr:
+    call restore_irq1_null_mask
     call release_inherited_handles
     call close_owned_handles
     mov byte [cs:console_ext_pending], 0
@@ -2917,6 +2935,8 @@ drive_cur_clusters: times 3 dw 0
 drive_cur_paths: times 3 * 64 db 0
 break_flag: db 0
 verify_flag: db 0
+irq1_null_mask_active: db 0
+irq1_null_saved_mask: db 0
 kret:  db 3
 dos_first_mcb: dw MCB_START
 dos_list_of_lists:

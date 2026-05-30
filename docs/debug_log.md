@@ -2,6 +2,35 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-30 Shortline Timer And IRQ1 Triage
+
+### Symptoms
+
+- Local media is present as ignored proprietary archive `vendor/SHRTLINE.zip`.
+- The archive contains `SHRTLINE/SL.EXE` and data files. The executable is an MZ program, 148661 bytes, SHA1 `bed66d3f194bc17d7ab15d033b401bc33fd695fd`, with 1651 relocations and a 120688-byte MZ load image.
+- A direct-boot `hd10m` repro with the game files at image root initially failed before any visible game screen with `EXC 06 at 0000:000B`.
+
+### Confirmed Facts
+
+- DOS tracing showed Shortline installs a private `INT 08h` handler, then temporarily restores `INT 09h` from an uninitialized zero variable before its own keyboard-vector setup completes.
+- QEMU interrupt logging showed the original hard crash path as hardware `INT 09h` delivery while the IVT keyboard vector was `0000:0000`, causing the CPU to execute bytes in the interrupt-vector table and trap on invalid opcode.
+- LainDOS now masks PIC IRQ1 while a program sets `INT 09h` to `0000:0000`, saves the previous PIC mask, and restores it when a non-null `INT 09h` vector is installed or the program terminates. `IRQMASK.COM` covers the mask/restore behavior.
+- After masking the null keyboard vector, the next failure was Shortline's own `Divide by 0 exit`: its PIT/`INT 08h` calibration reads a private timer counter before and after a short loop, observes zero elapsed ticks under normal unthrottled QEMU, and divides by that zero.
+- Running the Shortline repro with QEMU `-icount shift=6,align=off,sleep=off` gives the calibration enough virtual timer progress. With that pacing, Shortline reaches active gameplay; `build/shortline_keys2_screen.png` shows the playfield with trains, money/year/level status, and the in-game status text.
+
+### Tests And Probes Run
+
+- Extracted `vendor/SHRTLINE.zip` into generated `build/shortline_files/`; no proprietary files are tracked.
+- Built direct repro images with `nasm '-DBOOT_FILE="SL      EXE"' -f bin src/kernel.asm ...` and `python3 scripts/mkimage.py --format=hd10m ... build/shortline.img build/shortline_files/SHRTLINE/*`.
+- Used `TRACE_DOS=500` and QEMU `-d int,cpu` logs to identify the `INT 09h` null-vector crash and the divide-by-zero site in the game's 32-bit division helper after zero elapsed private timer ticks.
+- Added `tests/programs/irqmask.asm`, `scripts/test_irqmask.py`, and default `make test` coverage for the IRQ1 null-vector guard.
+- Added `scripts/test_shortline_smoke.py` and `make test-shortline-smoke`; the smoke builds a disposable image from `vendor/SHRTLINE.zip`, runs QEMU with `-icount shift=6`, sends repeated title-screen keys, and verifies an active gameplay framebuffer with no `EXC`, unhandled DOS call, or `Divide by 0` marker.
+- Focused verification currently passes: `python3 scripts/test_irqmask.py` and `python3 scripts/test_shortline_smoke.py`.
+
+### Closed State
+
+- The LainDOS-specific crash is fixed by masking IRQ1 while `INT 09h` is null. The remaining normal-QEMU `Divide by 0 exit` is an emulator pacing issue in Shortline's private PIT calibration and is handled by the documented Shortline smoke command's `-icount shift=6` QEMU run.
+
 ## 2026-05-30 Sokoban Device-Chain Triage
 
 ### Symptoms

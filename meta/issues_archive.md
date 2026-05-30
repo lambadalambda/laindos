@@ -91,3 +91,4 @@
 - [x] [Fix Process Memory Release After Program Exit](issues/fix-process-memory-release-after-program-exit.md)
 - [x] [Repair Spawn And Launcher EXEC Compatibility](issues/repair-spawn-and-launcher-exec-compatibility.md)
 - [x] [Triage Micro Machines 2 Hang](issues/triage-micro-machines-2-hang.md)
+- [x] [Triage Shortlines Hang](issues/triage-shortlines-hang.md)

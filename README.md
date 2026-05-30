@@ -128,6 +128,14 @@ Headless smoke-test Norton Commander 5.5 from the local archive:
 make test-norton-commander-smoke
 ```
 
+Headless smoke-test Shortline from `vendor/SHRTLINE.zip`:
+
+```sh
+make test-shortline-smoke
+```
+
+The Shortline smoke uses QEMU `-icount shift=6` because the game calibrates a private PIT/`INT 08h` timer loop too quickly under normal unthrottled QEMU and exits through its divide-by-zero handler before gameplay.
+
 Serial fallback:
 
 ```sh
