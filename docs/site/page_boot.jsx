@@ -82,8 +82,8 @@ function BootPage({ scrollReq, onActive, go, hrefFor = (target) => `#${target}` 
             <section key={s.id} id={s.id} data-stage={s.id} data-screen-label={`Boot ${s.num}`}
               style={{ padding: "28px 0 40px", borderTop: `1px solid ${T.line}` }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 16 }}>
-                <span style={{ fontFamily: "'Newsreader', serif", fontSize: 50, lineHeight: 1, width: 56,
-                  flex: "0 0 auto", marginTop: 2, color: s.payoff ? T.pink : T.amber }}>{s.num}</span>
+                <span style={{ fontFamily: "'Newsreader', serif", fontSize: 50, lineHeight: 1, minWidth: 56,
+                  flex: "0 0 auto", marginTop: 2, color: s.payoff ? T.pink : T.amber, whiteSpace: "nowrap" }}>{s.num}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: 2,
                     textTransform: "uppercase", color: T.faint }}>{s.kicker}</div>
