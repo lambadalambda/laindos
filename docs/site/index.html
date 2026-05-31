@@ -77,6 +77,7 @@
 <script type="text/babel" src="page_dosapi.jsx"></script>
 <script type="text/babel" src="page_tests.jsx"></script>
 <script type="text/babel" src="page_filesystem.jsx"></script>
+<script type="text/babel" src="page_memory.jsx"></script>
 <script type="text/babel" src="page_programs.jsx"></script>
 
 <script type="text/babel">
@@ -105,6 +106,7 @@
     else if (route === "dosapi") page = <window.DosApiPage go={go} />;
     else if (route === "tests") page = <window.TestsPage go={go} />;
     else if (route === "fs") page = <window.FilesystemPage go={go} />;
+    else if (route === "mem") page = <window.MemoryPage go={go} />;
     else if (route === "prog") page = <window.ProgramsPage go={go} />;
     else if (route === "run") page = <window.RunPage go={go} />;
     else {

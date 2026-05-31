@@ -1,6 +1,5 @@
 
 - [ ] [Track Deferred DOS Compatibility APIs](issues/track-deferred-dos-compatibility-apis.md)
-- [ ] [Fill Memory Documentation Track](issues/fill-memory-docs-track.md)
 - [ ] [Document Shell Batch And Environment Behavior](issues/document-shell-batch-and-environment.md)
 - [ ] [Document Mouse Input And INT 33h Behavior](issues/document-mouse-input-and-int33h.md)
 - [ ] [Document Emulator Workflows In The Site](issues/document-emulator-workflows-in-site.md)

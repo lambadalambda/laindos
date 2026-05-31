@@ -22,3 +22,4 @@ Expand the interactive documentation with a memory-management track that explain
 ## Notes
 
 - This track should be the first stop before changing `src/memory.inc` or low-memory buffers.
+- Resolved with `docs/site/page_memory.jsx`, wired into the `mem` route and covered by `make check-docs-sync` source excerpt validation.
