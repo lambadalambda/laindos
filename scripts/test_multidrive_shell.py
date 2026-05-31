@@ -133,7 +133,7 @@ def main():
     build_images()
     output = run_qemu()
     failed = False
-    for marker in ["A:\\>", "C:\\>", "HDONLY.TXT", "Hello from C drive!", "PASS: HELLO.COM", "Program exited, code=00"]:
+    for marker in ["A:\\>", "C:\\>", "HDONLY   TXT", "Hello from C drive!", "PASS: HELLO.COM", "Program exited, code=00"]:
         if marker in output:
             print(f"  PASS: found '{marker}'")
         else:

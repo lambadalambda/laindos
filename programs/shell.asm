@@ -76,6 +76,16 @@ do_ver:
     ret
 
 do_dir:
+    call parse_dir_args
+    xor ax, ax
+    mov [dir_file_count], ax
+    mov [dir_dir_count], ax
+    mov [dir_bytes_lo], ax
+    mov [dir_bytes_hi], ax
+    mov [dir_free_lo], ax
+    mov [dir_free_hi], ax
+    mov [dir_lines], al
+    call print_dir_header
     mov dx, dir_dta
     mov ah, 0x1A
     int 0x21
@@ -83,17 +93,441 @@ do_dir:
     mov cx, ATTR_DIR
     mov ah, 0x4E
     int 0x21
-    jc .done
+    jc .summary
 .entry:
-    mov si, dir_dta + 30
-    call print_asciiz
-    mov dx, crlf
-    mov ah, 0x09
-    int 0x21
+    call print_dir_entry
     mov ah, 0x4F
     int 0x21
     jnc .entry
+.summary:
+    call print_dir_summary
+    ret
+
+parse_dir_args:
+    mov byte [dir_pause], 0
+.loop:
+    call skip_spaces
+    cmp byte [si], 0
+    je .done
+    cmp byte [si], '/'
+    je .switch
+    cmp byte [si], '-'
+    je .switch
+    jmp .skip_token
+.switch:
+    inc si
+    cmp byte [si], 'P'
+    jne .skip_token
+    mov byte [dir_pause], 1
+    inc si
+.skip_token:
+    cmp byte [si], 0
+    je .loop
+    cmp byte [si], ' '
+    je .loop
+    inc si
+    jmp .skip_token
 .done:
+    ret
+
+print_dir_header:
+    mov dx, dir_volume_msg
+    call print_dollar
+    call print_current_drive_letter
+    mov dx, dir_no_label_msg
+    call print_dollar
+    call dir_line_end
+    mov dx, dir_of_msg
+    call print_dollar
+    call print_drive_root
+    mov si, cwd_buf
+    xor dl, dl
+    mov ah, 0x47
+    int 0x21
+    jc .path_done
+    cmp byte [cwd_buf], 0
+    je .path_done
+    mov si, cwd_buf
+    call print_asciiz
+.path_done:
+    call dir_line_end
+    call dir_line_end
+    ret
+
+print_dir_entry:
+    call format_dir_name
+    mov si, dir_name_buf
+    mov cx, 8
+    call print_fixed_chars
+    mov al, ' '
+    call print_char_al
+    mov si, dir_name_buf + 8
+    mov cx, 3
+    call print_fixed_chars
+    mov al, ' '
+    call print_char_al
+    mov al, ' '
+    call print_char_al
+    test byte [dir_dta + 21], ATTR_DIR
+    jnz .directory
+    call add_dir_file_total
+    mov ax, [dir_dta + 26]
+    mov dx, [dir_dta + 28]
+    call print_dword_dec_width10
+    jmp .date
+.directory:
+    inc word [dir_dir_count]
+    mov dx, dir_dir_field
+    call print_dollar
+.date:
+    mov al, ' '
+    call print_char_al
+    call print_dir_date
+    mov al, ' '
+    call print_char_al
+    call print_dir_time
+    call dir_line_end
+    ret
+
+format_dir_name:
+    push ax
+    push cx
+    push si
+    push di
+    push es
+    push cs
+    pop es
+    mov di, dir_name_buf
+    mov al, ' '
+    mov cx, 11
+    rep stosb
+    mov si, dir_dta + 30
+    mov di, dir_name_buf
+    cmp byte [si], '.'
+    jne .regular
+    lodsb
+    stosb
+    cmp byte [si], '.'
+    jne .done
+    lodsb
+    stosb
+    jmp .done
+.regular:
+    mov cx, 8
+.name:
+    lodsb
+    test al, al
+    jz .done
+    cmp al, '.'
+    je .ext_start
+    stosb
+    loop .name
+.seek_ext:
+    lodsb
+    test al, al
+    jz .done
+    cmp al, '.'
+    jne .seek_ext
+.ext_start:
+    mov di, dir_name_buf + 8
+    mov cx, 3
+.ext:
+    lodsb
+    test al, al
+    jz .done
+    stosb
+    loop .ext
+.done:
+    pop es
+    pop di
+    pop si
+    pop cx
+    pop ax
+    ret
+
+add_dir_file_total:
+    inc word [dir_file_count]
+    mov ax, [dir_dta + 26]
+    add [dir_bytes_lo], ax
+    mov ax, [dir_dta + 28]
+    adc [dir_bytes_hi], ax
+    ret
+
+print_dir_summary:
+    mov ax, [dir_file_count]
+    xor dx, dx
+    call print_dword_dec_width10
+    mov dx, dir_file_count_msg
+    call print_dollar
+    mov ax, [dir_bytes_lo]
+    mov dx, [dir_bytes_hi]
+    call print_dword_dec_width10
+    mov dx, dir_bytes_msg
+    call print_dollar
+    call dir_line_end
+    call get_dir_free_bytes
+    mov ax, [dir_free_lo]
+    mov dx, [dir_free_hi]
+    call print_dword_dec_width10
+    mov dx, dir_free_msg
+    call print_dollar
+    call dir_line_end
+    ret
+
+get_dir_free_bytes:
+    push ax
+    push bx
+    push cx
+    push dx
+    xor dl, dl
+    mov ah, 0x36
+    int 0x21
+    cmp ax, 0xFFFF
+    jne .ok
+    xor ax, ax
+    mov [dir_free_lo], ax
+    mov [dir_free_hi], ax
+    jmp .done
+.ok:
+    mul cx
+    mov [dir_mul_lo], ax
+    mov [dir_mul_hi], dx
+    mov ax, [dir_mul_lo]
+    mul bx
+    mov [dir_free_lo], ax
+    mov [dir_free_hi], dx
+    mov ax, [dir_mul_hi]
+    mul bx
+    add [dir_free_hi], ax
+.done:
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+print_dir_date:
+    push ax
+    push bx
+    push cx
+    mov bx, [dir_dta + 24]
+    mov ax, bx
+    mov cl, 5
+    shr ax, cl
+    and ax, 0x000F
+    call print_two_digits
+    mov al, '-'
+    call print_char_al
+    mov ax, bx
+    and ax, 0x001F
+    call print_two_digits
+    mov al, '-'
+    call print_char_al
+    mov ax, bx
+    mov cl, 9
+    shr ax, cl
+    add ax, 80
+.year_mod:
+    cmp ax, 100
+    jb .year_done
+    sub ax, 100
+    jmp .year_mod
+.year_done:
+    call print_two_digits
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+print_dir_time:
+    push ax
+    push bx
+    push cx
+    mov bx, [dir_dta + 22]
+    mov byte [dir_ampm], 'a'
+    mov ax, bx
+    mov cl, 11
+    shr ax, cl
+    and ax, 0x001F
+    cmp ax, 12
+    jb .hour_mod_done
+    mov byte [dir_ampm], 'p'
+    sub ax, 12
+.hour_mod_done:
+    test ax, ax
+    jnz .hour_done
+    mov ax, 12
+.hour_done:
+    call print_hour_field
+    mov al, ':'
+    call print_char_al
+    mov ax, bx
+    mov cl, 5
+    shr ax, cl
+    and ax, 0x003F
+    call print_two_digits
+    mov al, [dir_ampm]
+    call print_char_al
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+print_hour_field:
+    push ax
+    cmp ax, 10
+    jae .two
+    push ax
+    mov al, ' '
+    call print_char_al
+    pop ax
+    add al, '0'
+    call print_char_al
+    jmp .done
+.two:
+    call print_two_digits
+.done:
+    pop ax
+    ret
+
+print_two_digits:
+    push ax
+    push bx
+    push dx
+    xor dx, dx
+    mov bx, 10
+    div bx
+    add al, '0'
+    call print_char_al
+    mov ax, dx
+    add al, '0'
+    call print_char_al
+    pop dx
+    pop bx
+    pop ax
+    ret
+
+print_dword_dec_width10:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    mov [dir_dec_lo], ax
+    mov [dir_dec_hi], dx
+    mov byte [dir_dec_started], 0
+    mov si, dir_pow10_table
+    mov cx, dir_pow10_count
+.power:
+    xor bl, bl
+.subtract:
+    mov ax, [dir_dec_hi]
+    cmp ax, [si + 2]
+    jb .emit
+    ja .can_subtract
+    mov ax, [dir_dec_lo]
+    cmp ax, [si]
+    jb .emit
+.can_subtract:
+    mov ax, [si]
+    sub [dir_dec_lo], ax
+    mov ax, [si + 2]
+    sbb [dir_dec_hi], ax
+    inc bl
+    jmp .subtract
+.emit:
+    cmp byte [dir_dec_started], 0
+    jne .digit
+    test bl, bl
+    jnz .start
+    cmp cx, 1
+    je .start
+    mov al, ' '
+    call print_char_al
+    jmp .next
+.start:
+    mov byte [dir_dec_started], 1
+.digit:
+    mov al, bl
+    add al, '0'
+    call print_char_al
+.next:
+    add si, 4
+    loop .power
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+print_fixed_chars:
+    push ax
+    push cx
+    push dx
+    push si
+.loop:
+    lodsb
+    mov dl, al
+    mov ah, 0x02
+    int 0x21
+    loop .loop
+    pop si
+    pop dx
+    pop cx
+    pop ax
+    ret
+
+print_current_drive_letter:
+    push ax
+    push dx
+    mov ah, 0x19
+    int 0x21
+    add al, 'A'
+    mov dl, al
+    mov ah, 0x02
+    int 0x21
+    pop dx
+    pop ax
+    ret
+
+dir_line_end:
+    mov dx, crlf
+    call print_dollar
+    call dir_count_line
+    ret
+
+dir_count_line:
+    cmp byte [dir_pause], 0
+    je .done
+    inc byte [dir_lines]
+    cmp byte [dir_lines], dir_page_lines
+    jb .done
+    mov dx, dir_pause_msg
+    call print_dollar
+    mov ah, 0x08
+    int 0x21
+    mov byte [dir_lines], 0
+    mov dx, crlf
+    call print_dollar
+.done:
+    ret
+
+print_dollar:
+    push ax
+    mov ah, 0x09
+    int 0x21
+    pop ax
+    ret
+
+print_char_al:
+    push ax
+    push dx
+    mov dl, al
+    mov ah, 0x02
+    int 0x21
+    pop dx
+    pop ax
     ret
 
 do_cd:
@@ -881,6 +1315,9 @@ cmd_match:
     test al, al
     jz .yes
     cmp al, ' '
+    je .arg_spaces
+    cmp al, '/'
+    je .yes
     jne .no
 .arg_spaces:
     inc si
@@ -932,6 +1369,27 @@ echo_off_arg: db "OFF", 0
 echo_on_arg: db "ON", 0
 autoexec_name: db "AUTOEXEC.BAT", 0
 dir_pattern: db "*.*", 0
+dir_volume_msg: db " Volume in drive ", "$"
+dir_no_label_msg: db " has no label", "$"
+dir_of_msg: db " Directory of ", "$"
+dir_dir_field: db "     <DIR>", "$"
+dir_file_count_msg: db " File(s) ", "$"
+dir_bytes_msg: db " bytes", "$"
+dir_free_msg: db " bytes free", "$"
+dir_pause_msg: db "Press any key to continue . . .", "$"
+dir_page_lines equ 22
+dir_pow10_table:
+    dd 1000000000
+    dd 100000000
+    dd 10000000
+    dd 1000000
+    dd 100000
+    dd 10000
+    dd 1000
+    dd 100
+    dd 10
+    dd 1
+dir_pow10_count equ 10
 type_buf_size equ 128
 batch_buf_size equ 512
 
@@ -954,6 +1412,21 @@ path_more: db 0
 path_last_char: db 0
 path_run_mode: db 0
 path_command_name: times 128 db 0
+dir_pause: db 0
+dir_lines: db 0
+dir_file_count: dw 0
+dir_dir_count: dw 0
+dir_bytes_lo: dw 0
+dir_bytes_hi: dw 0
+dir_free_lo: dw 0
+dir_free_hi: dw 0
+dir_mul_lo: dw 0
+dir_mul_hi: dw 0
+dir_dec_lo: dw 0
+dir_dec_hi: dw 0
+dir_dec_started: db 0
+dir_ampm: db 0
+dir_name_buf: times 11 db 0
 dir_dta: times 64 db 0
 type_handle: dw 0
 type_buf: times type_buf_size db 0

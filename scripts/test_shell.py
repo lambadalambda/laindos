@@ -125,6 +125,28 @@ def send_command(sock, output_chunks, command, timeout=8):
     wait_for_prompt_count(output_chunks, target_prompt, timeout=timeout, context=f"prompt after {command!r}")
 
 
+def wait_for_output_since(output_chunks, marker, start_len, timeout=8):
+    marker = marker.encode()
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        output = b"".join(output_chunks)
+        if marker in output[start_len:]:
+            return True
+        time.sleep(0.02)
+    return False
+
+
+def send_paged_dir(sock, output_chunks, command):
+    target_prompt = prompt_count(output_chunks) + 1
+    start_len = len(b"".join(output_chunks))
+    send_text(sock, command)
+    send_monitor_key(sock, "ret")
+    if not wait_for_output_since(output_chunks, "Press any key to continue . . .", start_len, timeout=8):
+        raise TimeoutError(f"timed out waiting for {command.upper()} prompt")
+    send_monitor_key(sock, "spc")
+    wait_for_prompt_count(output_chunks, target_prompt, timeout=8, context=f"prompt after {command.upper()}")
+
+
 def send_keys(output_chunks):
     deadline = time.time() + 8
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -139,6 +161,8 @@ def send_keys(output_chunks):
     sock.recv(4096)
     for command in ["ver", "cls", "dir", "type testfile.dat", "echo interactive echo", "rem interactive comment", "hello", "keytest"]:
         send_command(sock, output_chunks, command)
+    send_paged_dir(sock, output_chunks, "dir /p")
+    send_paged_dir(sock, output_chunks, "dir/p")
 
     target_prompt = prompt_count(output_chunks) + 1
     send_text(sock, "extkey")
@@ -215,14 +239,21 @@ def main():
     for marker in [
         "LainDOS Shell",
         "A:\\>",
-        "SHELL.COM",
+        "SHELL    COM",
         "HELLO.COM",
-        "HELLOEXE.EXE",
+        "HELLOEXE EXE",
+        "Volume in drive A has no label",
+        "Directory of A:\\",
+        "HELLO    COM",
+        "<DIR>",
+        "File(s)",
+        "bytes free",
+        "Press any key to continue . . .",
         "DIRONLY",
         "Hello from TESTFILE.DAT! This is test data for LainDOS file I/O.",
         "INTERACTIVE ECHO",
         "PASS: HELLO.EXE",
-        "EXECTEST.COM",
+        "EXECTEST COM",
         "PASS: EXECTEST",
         "PASS: PSP",
         "PASS: KEY",
@@ -241,7 +272,7 @@ def main():
         "A:\\SHDIR>",
         "Path not found",
         "A:\\MIDEMO>",
-        "SUBTEST.DAT",
+        "SUBTEST  DAT",
         "Hello from MIDEMO subdirectory!",
         "Bad command or file name",
         "Program exited, code=00",
