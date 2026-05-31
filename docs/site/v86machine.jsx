@@ -1,6 +1,8 @@
 // v86machine.jsx — real x86 emulation via v86, booting the LainDOS floppy.
 // The image is served same-origin from GitHub Pages so cross-origin reads work.
-const LAIN_IMG_URL = "shell_monkey.img";
+const LAIN_IMG_URL = window.LAIN_IMG_URL || "shell_monkey.img";
+const V86_BASE_URL = "https://cdn.jsdelivr.net/npm/v86@0.5.359%2Bge37189a";
+const V86_BIOS_BASE_URL = "https://raw.githubusercontent.com/copy/v86/e37189a/bios";
 
 function fitV86Output(screen) {
   const text = screen.querySelector(":scope > div");
@@ -43,10 +45,10 @@ function V86Machine({ bootKey, onStatus }) {
     let started = false, emu;
     try {
       emu = new window.V86({
-        wasm_path: "https://cdn.jsdelivr.net/npm/v86/build/v86.wasm",
+        wasm_path: `${V86_BASE_URL}/build/v86.wasm`,
         screen_container: screen,
-        bios: { url: "https://cdn.jsdelivr.net/npm/v86/bios/seabios.bin" },
-        vga_bios: { url: "https://cdn.jsdelivr.net/npm/v86/bios/bochs-vgabios.bin" },
+        bios: { url: `${V86_BIOS_BASE_URL}/seabios.bin` },
+        vga_bios: { url: `${V86_BIOS_BASE_URL}/bochs-vgabios.bin` },
         fda: { url: LAIN_IMG_URL },
         memory_size: 32 * 1024 * 1024,
         vga_memory_size: 8 * 1024 * 1024,

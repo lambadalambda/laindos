@@ -23,16 +23,25 @@ jobs:
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y nasm
 
+      - name: Set up Deno
+        uses: denoland/setup-deno@v3
+        with:
+          deno-version: v2.8.0
+
       - name: Build shell_monkey.img
         run: make monkey-demo
 
+      - name: Build static site
+        run: make site SITE_IMAGE=build/shell_monkey.img
+
       - name: Stage site
         run: |
-          mkdir -p _site
-          cp -R docs/site/. _site/
-          cp build/shell_monkey.img _site/shell_monkey.img
-          # GitHub Pages would otherwise try to run Jekyll on us.
-          touch _site/.nojekyll
+          test -f build/site/index.html
+          test -f build/site/boot.html
+          test -f build/site/app.js
+          test -f build/site/shell_monkey.img
+          rm -rf _site
+          cp -R build/site _site
 
       - name: Configure Pages
         uses: actions/configure-pages@v6

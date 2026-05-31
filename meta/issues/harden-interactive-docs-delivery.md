@@ -22,3 +22,4 @@ Improve the production-readiness of the GitHub Pages site by reducing runtime de
 ## Notes
 
 - This is not required for the initial site to function, but it reduces long-term maintenance and supply-chain risk.
+- Resolved with `scripts/build_site.jsx`, the `make site` target, generated real HTML pages under `build/site/`, precompiled `app.js`, image URL cache-busting, pinned external asset documentation in `docs/site/README.md`, and GitHub Pages post-build file checks.

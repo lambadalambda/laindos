@@ -1,5 +1,5 @@
 // page_boot.jsx — the Boot Path walkthrough (the narrative spine).
-function BootPage({ scrollReq, onActive, go }) {
+function BootPage({ scrollReq, onActive, go, hrefFor = (target) => `#${target}` }) {
   const T = window.T;
   const stages = window.STAGES;
   const [active, setActive] = React.useState("s0");
@@ -61,15 +61,16 @@ function BootPage({ scrollReq, onActive, go }) {
           {stages.map((s) => {
             const on = s.id === active;
             return (
-              <button key={s.id} onClick={() => go(`boot/${s.id}`)} title={s.title} style={{
+              <a key={s.id} href={hrefFor(`boot/${s.id}`)} onClick={(event) => { event.preventDefault(); go(`boot/${s.id}`); }} title={s.title} style={{
                 display: "flex", alignItems: "center", gap: 7, padding: "6px 11px", cursor: "pointer",
+                textDecoration: "none",
                 borderRadius: 20, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5,
                 border: `1px solid ${on ? (s.payoff ? T.pink : T.amber) : T.line}`,
                 color: on ? (s.payoff ? T.pink : T.amber) : T.dim, background: on ? "rgba(194,90,126,0.10)" : T.panel }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%",
                   background: s.payoff ? T.pink : (on ? T.amber : T.faint) }} />
                 {s.num}
-              </button>
+              </a>
             );
           })}
         </div>
@@ -78,7 +79,7 @@ function BootPage({ scrollReq, onActive, go }) {
       <div className="site-boot-layout" style={{ display: "flex", gap: 40, alignItems: "flex-start", maxWidth: 1180, margin: "0 auto", padding: "0 56px 40px" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           {stages.map((s) => (
-            <section key={s.id} data-stage={s.id} data-screen-label={`Boot ${s.num}`}
+            <section key={s.id} id={s.id} data-stage={s.id} data-screen-label={`Boot ${s.num}`}
               style={{ padding: "28px 0 40px", borderTop: `1px solid ${T.line}` }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 16 }}>
                 <span style={{ fontFamily: "'Newsreader', serif", fontSize: 50, lineHeight: 1, width: 56,

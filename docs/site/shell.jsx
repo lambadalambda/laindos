@@ -21,19 +21,31 @@ function StatusDot({ status }) {
   );
 }
 
-function Sidebar({ route, go }) {
+function sidebarHrefFor(target) {
+  const [route, ...rest] = String(target || "overview").split("/");
+  const aliases = { index: "overview", filesystem: "fs", memory: "mem", programs: "prog" };
+  const pageRoute = aliases[route] || route;
+  const files = { overview: "index.html", boot: "boot.html", dosapi: "dosapi.html", tests: "tests.html", fs: "filesystem.html", mem: "memory.html", prog: "programs.html", shell: "shell.html", mouse: "mouse.html", run: "run.html" };
+  return `${files[pageRoute] || "index.html"}${rest.length ? `#${encodeURIComponent(rest.join("/"))}` : ""}`;
+}
+
+function Sidebar({ route, go, hrefFor = sidebarHrefFor }) {
   const [stage] = route.split("/");
+  const navClick = (target) => (event) => {
+    event.preventDefault();
+    go(target);
+  };
   return (
     <aside className="site-sidebar" style={{ width: 282, borderRight: `1px solid ${T.line}`, background: "#f1e7d6",
       height: "100vh", position: "fixed", left: 0, top: 0, overflowY: "auto", padding: "22px 0", zIndex: 50 }}>
-      <div onClick={() => go("overview")} style={{ display: "flex", alignItems: "center", gap: 11, padding: "0 22px 20px", cursor: "pointer" }}>
+      <a href={hrefFor("overview")} onClick={navClick("overview")} style={{ display: "flex", alignItems: "center", gap: 11, padding: "0 22px 20px", cursor: "pointer", textDecoration: "none" }}>
         <div style={{ width: 32, height: 32, borderRadius: 7, background: T.ink, color: "#f7f1e6", display: "grid",
           placeItems: "center", fontFamily: "'Newsreader', serif", fontSize: 22, lineHeight: "32px" }}>л</div>
         <div>
           <div style={{ fontFamily: "'Newsreader', serif", fontSize: 23, lineHeight: "26px", color: T.ink, letterSpacing: 0.3, fontWeight: 600 }}>LainDOS</div>
           <div style={{ fontSize: 10.5, color: T.dim, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: 1 }}>source, annotated</div>
         </div>
-      </div>
+      </a>
 
       <nav style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
         {window.NAV.map((item) => {
@@ -41,25 +53,25 @@ function Sidebar({ route, go }) {
           if (item.kind === "run") {
             return (
               <div key={item.id} style={{ margin: "14px 16px 0", paddingTop: 14, borderTop: `1px solid ${T.line}` }}>
-                <button onClick={() => go("run")} style={{
+                <a href={hrefFor("run")} onClick={navClick("run")} style={{
                   width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "11px 12px", cursor: "pointer",
                   background: active ? T.pink : "transparent", color: active ? "#fff" : T.pink,
-                  border: `1px solid ${T.pink}`, borderRadius: 8, fontSize: 13.5, fontWeight: 600, fontFamily: "inherit" }}>
+                  border: `1px solid ${T.pink}`, borderRadius: 8, fontSize: 13.5, fontWeight: 600, fontFamily: "inherit", textDecoration: "none" }}>
                   <span style={{ fontSize: 13 }}>▶</span> Run it — the emulator
-                </button>
+                </a>
               </div>
             );
           }
           if (item.kind === "page") {
             return (
-              <a key={item.id} onClick={() => go(item.id)} style={navItem(active)}>
+              <a key={item.id} href={hrefFor(item.id)} onClick={navClick(item.id)} style={navItem(active)}>
                 <span style={{ width: 8 }} />{item.label}
               </a>
             );
           }
           return (
             <div key={item.id} style={{ marginTop: 4 }}>
-              <a onClick={() => go(item.id)} style={{ ...navItem(active), justifyContent: "space-between" }}>
+              <a href={hrefFor(item.id)} onClick={navClick(item.id)} style={{ ...navItem(active), justifyContent: "space-between" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
                   <StatusDot status={item.status} /> {item.label}
                 </span>
@@ -67,8 +79,9 @@ function Sidebar({ route, go }) {
               {active && item.children && (
                 <div style={{ margin: "2px 0 8px" }}>
                   {item.children.map(([cid, clabel], i) => (
-                    <a key={cid} onClick={() => go(`${item.id}/${cid}`)} style={{
+                    <a key={cid} href={hrefFor(`${item.id}/${cid}`)} onClick={navClick(`${item.id}/${cid}`)} style={{
                       display: "block", padding: "5px 22px 5px 50px", fontSize: 12, cursor: "pointer",
+                      textDecoration: "none",
                       color: route === `${item.id}/${cid}` ? T.amber : T.dim, lineHeight: 1.4,
                       borderLeft: route === `${item.id}/${cid}` ? `2px solid ${T.amber}` : "2px solid transparent" }}>
                       <span style={{ color: T.faint }}>{String(i).padStart(2, "0")}</span>  {clabel}

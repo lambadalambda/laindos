@@ -14,6 +14,7 @@ SOURCE_EXCERPT_DOCS = [
 PATH_REF_DOCS = [
     ROOT / "README.md",
     ROOT / "docs/test_ladder.md",
+    ROOT / "docs/site/README.md",
     *sorted((ROOT / "docs/site").glob("*.jsx")),
 ]
 TEST_COUNT_DOCS = [
@@ -198,12 +199,13 @@ def check_path_refs(errors):
 
 
 def check_site_scripts(errors):
-    index = ROOT / "docs/site/index.html"
-    for src in re.findall(r"<script[^>]+src=\"([^\"]+)\"", read(index)):
-        if "://" in src:
-            continue
-        if not (index.parent / src).exists():
-            errors.append(f"{rel(index)}: local script missing: {src}")
+    app = ROOT / "docs/site/app.jsx"
+    text = read(app)
+    for src in re.findall(r"import\s+\"\./([^\"]+)\"", text):
+        if not (app.parent / src).exists():
+            errors.append(f"{rel(app)}: local import missing: {src}")
+    if "text/babel" in text or "@babel/standalone" in text:
+        errors.append(f"{rel(app)}: production site should not use browser-side Babel")
 
 
 def main():
