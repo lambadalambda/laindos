@@ -30,6 +30,8 @@ const NAV = [
     blurb: "The MCB arena and extended-memory shims" },
   { id: "prog", label: "Programs · PSP / EXE / COM", kind: "track", status: "done",
     blurb: "Loading, relocating and EXEC-ing real programs" },
+  { id: "shell", label: "Shell / Batch / PATH", kind: "track", status: "done",
+    blurb: "Prompts, AUTOEXEC, commands and environment lookup" },
   { id: "run", label: "Run it", kind: "run" },
 ];
 

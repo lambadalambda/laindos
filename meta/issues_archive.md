@@ -97,3 +97,4 @@
 - [x] [Fill Program Loading Documentation Track](issues/fill-program-loading-docs-track.md)
 - [x] [Fill Filesystem Documentation Track](issues/fill-filesystem-docs-track.md)
 - [x] [Fill Memory Documentation Track](issues/fill-memory-docs-track.md)
+- [x] [Document Shell Batch And Environment Behavior](issues/document-shell-batch-and-environment.md)
