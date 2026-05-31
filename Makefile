@@ -3,6 +3,7 @@ PATCHED_QEMU := $(abspath ../qemu-ascendancy/build-asc/qemu-system-i386-unsigned
 DEFAULT_QEMU_VGA := std,retrace=precise
 QEMU ?= $(if $(LAINDOS_QEMU),$(LAINDOS_QEMU),$(if $(wildcard $(PATCHED_QEMU)),$(PATCHED_QEMU),qemu-system-i386))
 QEMU_VGA ?= $(if $(LAINDOS_QEMU_VGA),$(LAINDOS_QEMU_VGA),$(DEFAULT_QEMU_VGA))
+QEMU_SOUND ?= -device sb16
 PYTHON := python3
 RUN_TEST := $(PYTHON) scripts/run_test.py
 TEST_JOBS ?= 4
@@ -220,7 +221,7 @@ nightly-package: monkey-demo
 	$(PYTHON) scripts/package_nightly.py
 
 run-monkey-demo: monkey-demo
-	$(QEMU) -drive file=$(BUILDDIR)/shell_monkey.img,format=raw,if=floppy -boot order=a -serial stdio -monitor none -vga $(QEMU_VGA) -device sb16
+	$(QEMU) -drive file=$(BUILDDIR)/shell_monkey.img,format=raw,if=floppy -boot order=a -serial stdio -monitor none -vga $(QEMU_VGA) $(QEMU_SOUND)
 
 test-monkey-demo: $(MONKEY_DEMO_FILES)
 	$(RUN_TEST) $(PYTHON) scripts/test_shell_monkey.py
@@ -232,7 +233,7 @@ extras-hd: $(MONKEY_DEMO_FILES) vendor/monkey_full.zip vendor/mi2demo.zip vendor
 	$(PYTHON) scripts/build_extras_hd.py
 
 run-extras-hd: extras-hd
-	$(QEMU) -drive file=$(BUILDDIR)/extras_hd.img,format=raw -boot order=c -serial stdio -monitor none -vga $(QEMU_VGA) -device sb16
+	$(QEMU) -drive file=$(BUILDDIR)/extras_hd.img,format=raw -boot order=c -serial stdio -monitor none -vga $(QEMU_VGA) $(QEMU_SOUND)
 
 test-monkey-full: vendor/monkey_full.zip
 	$(RUN_TEST) $(PYTHON) scripts/test_monkey_full.py

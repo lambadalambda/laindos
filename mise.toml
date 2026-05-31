@@ -56,7 +56,7 @@ run = "python3 scripts/build_wolf3d.py"
 
 [tasks.run-wolf3d]
 description = "Boot Wolfenstein 3D shareware in QEMU"
-run = 'python3 scripts/build_wolf3d.py && "$LAINDOS_QEMU" -drive file=build/wolf3d.img,format=raw -boot order=c -serial stdio -monitor none -vga "$LAINDOS_QEMU_VGA" -device sb16'
+run = 'python3 scripts/build_wolf3d.py && "$LAINDOS_QEMU" -drive file=build/wolf3d.img,format=raw -boot order=c -serial stdio -monitor none -vga "$LAINDOS_QEMU_VGA" -device sb16 -device adlib'
 
 [tasks.test-wolf3d-smoke]
 description = "Run headless Wolfenstein 3D QEMU smoke"

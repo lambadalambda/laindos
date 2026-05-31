@@ -2,6 +2,29 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-05-31 Wolf3D QEMU Sound Probe
+
+### Symptoms
+
+- Wolfenstein 3D startup showed Sound Blaster detected under 86Box but not under QEMU when launched with only `-device sb16`.
+- The existing LainDOS default environment already exported `BLASTER=A220 I5 D1 H5 P330 T6`, matching QEMU SB16 defaults, so the first suspect was emulator hardware shape rather than DOS environment setup.
+
+### Confirmed Facts
+
+- `qemu-system-i386 -device sb16,help` reports the expected defaults: base `0x220`, IRQ `5`, low DMA `1`, high DMA `5`, and DSP version `1029`.
+- Captured Wolf3D startup screenshots show bare `-device sb16` leaves the Sound Blaster line unchecked, while `-device sb16 -device adlib` makes the Sound Blaster line checked.
+- QEMU accepts `-device adlib,audiodev=audio0` and `-device sb16,audiodev=audio0 -device adlib,audiodev=audio0`. Passing an explicit `iobase=0x388` to `adlib` hit a QEMU `portio_list_add` assertion in this local build, so the default AdLib I/O base should be used.
+- Current fix direction is targeted QEMU configuration parity: keep the BLASTER string as-is for the SB16 DSP path, keep generic game runs on bare `sb16`, and attach QEMU's separate `adlib` device for Wolf3D where the startup probe requires it.
+
+### Tests And Probes Run
+
+- `python3 scripts/build_wolf3d.py` built `build/wolf3d.img` from ignored local media.
+- Manual QEMU screenshot probes compared no sound, bare `sb16`, bare `adlib`, and `sb16+adlib` runs under `build/wolf3d_sound_probe/`; those generated screenshots remain ignored investigation artifacts.
+- `python3 scripts/test_wolf3d_smoke.py` passes with Wolf3D using `qemu_sb16_adlib_silent_args()` to attach both `sb16` and `adlib` to QEMU's `none` audio backend.
+- `python3 scripts/test_shell_monkey.py` fails with `run-time error R6003 - integer divide by 0` when `adlib` is added to the shared helper, while the same smoke passes with bare `sb16`; this prevents making AdLib part of the generic game sound recipe.
+- After scoping AdLib to Wolf3D, `python3 scripts/test_shell_monkey.py`, `python3 scripts/test_wolf3d_smoke.py`, and `python3 scripts/test_ascendancy_smoke.py` pass.
+- Final checks pass: `python3 -m py_compile scripts/testlib.py scripts/run_stunt_island.py scripts/package_nightly.py scripts/test_wolf3d_smoke.py scripts/test_shell_monkey.py scripts/test_ascendancy_smoke.py`, `python3 scripts/check_docs_sync.py`, `deno check docs/site/*.jsx scripts/build_site.jsx`, `make site`, `git diff --check`, and `make test`.
+
 ## 2026-05-30 Shortline Timer And IRQ1 Triage
 
 ### Symptoms
@@ -305,7 +328,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - Some games, including Quake during startup, check the DOS `BLASTER` environment variable before probing Sound Blaster hardware.
 - LainDOS now adds `BLASTER=A220 I5 D1 H5 P330 T6` to the default MCB-backed environment alongside `COMSPEC`, `PATH`, and `PROMPT`.
-- The values match the common QEMU SB16 configuration used by LainDOS game tasks with `-device sb16`: base `220h`, IRQ `5`, low DMA `1`, high DMA `5`, MPU `330h`, and SB16 type `T6`.
+- The values match the SB16 portion of the common QEMU game-sound configuration: base `220h`, IRQ `5`, low DMA `1`, high DMA `5`, MPU `330h`, and SB16 type `T6`.
 
 ### Tests Run
 

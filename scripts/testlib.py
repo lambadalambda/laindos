@@ -45,6 +45,10 @@ def qemu_sb16_silent_args():
     return ["-audiodev", "none,id=laindos_noaudio", "-device", "sb16,audiodev=laindos_noaudio"]
 
 
+def qemu_sb16_adlib_silent_args():
+    return [*qemu_sb16_silent_args(), "-device", "adlib,audiodev=laindos_noaudio"]
+
+
 def qemu_args(args):
     args = list(args)
     if args and args[0] == "qemu-system-i386":

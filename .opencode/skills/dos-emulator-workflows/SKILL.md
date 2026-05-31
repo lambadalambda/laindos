@@ -1,6 +1,6 @@
 ---
 name: dos-emulator-workflows
-description: QEMU 86Box real DOS floppy file=fat:rw S3 Trio SB16 VNC monitor screendump. Use when debugging emulator-specific DOS behavior, comparing QEMU vs 86Box, booting real DOS in QEMU, or capturing serial/screenshot/CPU state from game runs.
+description: QEMU 86Box real DOS floppy file=fat:rw S3 Trio SB16 AdLib VNC monitor screendump. Use when debugging emulator-specific DOS behavior, comparing QEMU vs 86Box, booting real DOS in QEMU, or capturing serial/screenshot/CPU state from game runs.
 ---
 
 # DOS Emulator Workflows
@@ -31,6 +31,8 @@ qemu-system-i386 \
   -vnc 127.0.0.1:51 \
   -device sb16
 ```
+
+Use bare `-device sb16` for the generic game path. Add `-device adlib` only for games that need the separate AdLib/OPL setup probe; Wolf3D needs it to match 86Box Sound Blaster detection, while the Monkey Island demo currently trips runtime error `R6003` with AdLib attached. The all-games QEMU task intentionally stays SB16-only; use the dedicated Wolf3D task when checking that sound-detection path.
 
 Real DOS comparison run:
 

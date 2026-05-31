@@ -11,7 +11,7 @@ from testlib import (
     monitor_screendump,
     open_monitor,
     qemu_vga,
-    qemu_sb16_silent_args,
+    qemu_sb16_adlib_silent_args,
     remove_if_exists,
     run_cmd,
     start_qemu,
@@ -35,7 +35,7 @@ def run_qemu():
         "-monitor", f"unix:{MONITOR},server,nowait",
         "-vga", qemu_vga(),
         "-vnc", "127.0.0.1:30",
-        *qemu_sb16_silent_args(),
+        *qemu_sb16_adlib_silent_args(),
     ])
     sock = None
     try:

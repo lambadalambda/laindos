@@ -37,7 +37,7 @@ Still out of scope unless a target forces it:
 - Full `COMMAND.COM` compatibility.
 - Native DOS device driver loading or `CONFIG.SYS` processing.
 - Full XMS multi-handle/reallocation/HMA behavior, full multi-handle EMS/named-handle behavior, UMB/HMA, load-high behavior, SHARE, redirectors, printing, or networking.
-- Implementing sound hardware in DOS; games talk to emulator-provided hardware such as `-device sb16` directly. LainDOS supplies a conventional `BLASTER=A220 I5 D1 H5 P330 T6` environment variable so games can find that device.
+- Implementing sound hardware in DOS; games talk to emulator-provided hardware such as `-device sb16` directly, with `-device adlib` added only for games that need a separate OPL/AdLib probe path such as Wolf3D. LainDOS supplies a conventional `BLASTER=A220 I5 D1 H5 P330 T6` environment variable so games can find the Sound Blaster-compatible device.
 - General DPMI/VCPI services. DOS extenders that manage protected mode themselves may work if their real-mode DOS calls and CPU assumptions are satisfied.
 
 ## Architecture
@@ -121,7 +121,7 @@ Headless smoke-test the shell-launched Monkey Island demo:
 make test-monkey-demo
 ```
 
-Game smoke tests keep the emulated SB16 device when a game expects it, but route it to QEMU's `none` audio backend so automated runs stay silent.
+Game smoke tests keep the emulated SB16 device when a game expects it, and Wolf3D also adds QEMU's separate AdLib device. Automated runs route those devices to QEMU's `none` audio backend so tests stay silent.
 
 Build and boot the local extras hard-disk image, which combines local archives that are not part of `vendor/FreeDOS.VHD` into `build/extras_hd.img`:
 

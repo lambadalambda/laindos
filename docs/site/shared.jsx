@@ -20,6 +20,7 @@ function AsmLine({ text, mono }) {
 
 const GLOSSARY_TERMS = [
   { term: "86Box", category: "Emulators", aliases: ["86Box"], definition: "A PC emulator used here as a period-hardware comparison target when QEMU behavior looks suspicious." },
+  { term: "AdLib", category: "Sound", aliases: ["AdLib", "OPL"], definition: "The classic Yamaha OPL FM-synthesis sound path. QEMU exposes it with -device adlib, separately from -device sb16; attach it only for games that need that probe path." },
   { term: "BIOS", category: "Boot", aliases: ["BIOS"], definition: "Firmware services available before DOS exists; it loads the boot sector and provides interrupts such as INT 13h disk I/O." },
   { term: "Bochs", category: "Emulators", aliases: ["Bochs"], definition: "A debugger-friendly x86 emulator useful as a third opinion when QEMU and 86Box disagree." },
   { term: "BPB", category: "Filesystem", aliases: ["BPB", "BIOS Parameter Block"], definition: "The FAT boot-sector table that describes sector size, FAT location, root directory size, and cluster layout." },
@@ -50,7 +51,7 @@ const GLOSSARY_TERMS = [
   { term: "real mode", category: "CPU", aliases: ["real mode", "x86 real mode"], definition: "The original 8086-compatible CPU mode where addresses are segment:offset and there is no memory protection." },
   { term: "retrace", category: "Video", aliases: ["retrace", "VGA retrace"], definition: "The VGA vertical-blank signal that many games poll through port 0x3DA for timing." },
   { term: "SAHF", category: "CPU", aliases: ["SAHF"], definition: "An x86 instruction that loads status flags from AH; Ascendancy exposed a QEMU TCG parity-flag bug here." },
-  { term: "SB16", category: "Sound", aliases: ["SB16", "Sound Blaster 16"], definition: "Sound Blaster 16 audio hardware. QEMU can emulate it with -device sb16 for game setup tools." },
+  { term: "SB16", category: "Sound", aliases: ["SB16", "Sound Blaster 16"], definition: "Sound Blaster 16 audio hardware. QEMU exposes the DSP path with -device sb16; some games also need the separate -device adlib OPL path." },
   { term: "serial log", category: "Debugging", aliases: ["serial log", "serial logging"], definition: "Captured COM1 text output, used by tests to detect PASS, FAIL, exceptions, and unhandled DOS calls." },
   { term: "smoke test", category: "Testing", aliases: ["smoke test", "smoke tests", "game smoke", "game smokes"], definition: "A coarse end-to-end run that proves a game or workflow reaches a visible expected state without fatal markers." },
   { term: "TCG", category: "CPU", aliases: ["TCG"], definition: "QEMU's Tiny Code Generator CPU backend, used when running guests without hardware virtualization." },

@@ -158,7 +158,7 @@ function TestsPage({ go }) {
                 {" "}when the serial log cannot prove that graphics reached gameplay.
               </p>
               <div style={{ display: "grid", gap: 9, marginTop: 12 }}>
-                {["Use qemu_sb16_silent_args when the game expects SB16 but tests must stay quiet.",
+                {["Use qemu_sb16_silent_args when a game expects SB16, or qemu_sb16_adlib_silent_args for Wolf3D-style OPL/AdLib probes.",
                   "Reject EXC, unhandled INT 21h, FAIL:, and known game-level fatal markers.",
                   "Keep special pacing, such as Shortline's -icount run, in a dedicated Makefile target.",
                   "Record non-trivial triage in docs/debug_log.md before changing approach."].map(item => (

@@ -43,6 +43,8 @@ General rules:
 - Do not wait a long time blindly if CPU sampling can show the active loop quickly.
 - Try short discriminator sweeps before deeper debugging: `-cpu ...`, `-vga ...`, sound on/off.
 - Use `-vga std,retrace=precise` for QEMU game runs so VGA status polling loops, including Wolf3D's `0x3DA` startup loop, see retrace transitions.
+- Use bare `-device sb16` for the generic game path. Add `-device adlib` only for games that need the separate OPL/AdLib probe path; Wolf3D's Sound Blaster startup line matches 86Box with `-device sb16 -device adlib`, while the Monkey Island demo currently trips runtime error `R6003` with AdLib attached.
+- `mise run-games-hd-all` therefore stays on bare `sb16`; use `mise run-wolf3d` when specifically checking Wolf3D's QEMU Sound Blaster detection path.
 - Keep QEMU regression runs sequential when they share `build/`.
 - Ascendancy needs the local QEMU `SAHF` fix unless your installed QEMU already includes it; see `docs/qemu-sahf-ccop.patch`.
 
