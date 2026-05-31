@@ -32,6 +32,8 @@ const NAV = [
     blurb: "Loading, relocating and EXEC-ing real programs" },
   { id: "shell", label: "Shell / Batch / PATH", kind: "track", status: "done",
     blurb: "Prompts, AUTOEXEC, commands and environment lookup" },
+  { id: "mouse", label: "Mouse / INT 33h", kind: "track", status: "done",
+    blurb: "PS/2 packets, callbacks, buttons and game input" },
   { id: "run", label: "Run it", kind: "run" },
 ];
 

@@ -80,6 +80,7 @@
 <script type="text/babel" src="page_memory.jsx"></script>
 <script type="text/babel" src="page_programs.jsx"></script>
 <script type="text/babel" src="page_shell.jsx"></script>
+<script type="text/babel" src="page_mouse.jsx"></script>
 
 <script type="text/babel">
   function App() {
@@ -110,6 +111,7 @@
     else if (route === "mem") page = <window.MemoryPage go={go} />;
     else if (route === "prog") page = <window.ProgramsPage go={go} />;
     else if (route === "shell") page = <window.ShellDocsPage go={go} />;
+    else if (route === "mouse") page = <window.MouseDocsPage go={go} />;
     else if (route === "run") page = <window.RunPage go={go} />;
     else {
       const item = window.NAV.find(n => n.id === route);

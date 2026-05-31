@@ -98,3 +98,4 @@
 - [x] [Fill Filesystem Documentation Track](issues/fill-filesystem-docs-track.md)
 - [x] [Fill Memory Documentation Track](issues/fill-memory-docs-track.md)
 - [x] [Document Shell Batch And Environment Behavior](issues/document-shell-batch-and-environment.md)
+- [x] [Document Mouse Input And INT 33h Behavior](issues/document-mouse-input-and-int33h.md)

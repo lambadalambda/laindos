@@ -1,5 +1,4 @@
 
 - [ ] [Track Deferred DOS Compatibility APIs](issues/track-deferred-dos-compatibility-apis.md)
-- [ ] [Document Mouse Input And INT 33h Behavior](issues/document-mouse-input-and-int33h.md)
 - [ ] [Document Emulator Workflows In The Site](issues/document-emulator-workflows-in-site.md)
 - [ ] [Harden Interactive Documentation Delivery](issues/harden-interactive-docs-delivery.md)
