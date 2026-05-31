@@ -93,7 +93,7 @@ function BootPage({ scrollReq, onActive, go, hrefFor = (target) => `#${target}` 
               </div>
               {s.prose.map((p, i) => (
                 <p key={i} style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", color: T.dim, fontSize: 15.5,
-                  lineHeight: 1.7, maxWidth: 600, margin: "0 0 14px" }}>{p}</p>
+                  lineHeight: 1.7, maxWidth: 600, margin: "0 0 14px" }}><window.InlineText text={p} /></p>
               ))}
               {s.code && <div style={{ margin: "18px 0 14px" }}><window.CodeBlock file={s.file} code={s.code} hi={s.hi} /></div>}
               {s.annotations && s.annotations.length > 0 && (
@@ -106,7 +106,7 @@ function BootPage({ scrollReq, onActive, go, hrefFor = (target) => `#${target}` 
                         {a[0]}
                       </code>
                       <p style={{ margin: 0, fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 14.5,
-                        lineHeight: 1.6, color: T.dim, maxWidth: 600 }}>{a[1]}</p>
+                        lineHeight: 1.6, color: T.dim, maxWidth: 600 }}><window.InlineText text={a[1]} /></p>
                     </div>
                   ))}
                 </div>

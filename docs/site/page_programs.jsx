@@ -251,7 +251,7 @@ function ProgramsPage({ go }) {
             </div>
             <div style={{ ...progPanel(T), marginTop: 14 }}>
               <h3 style={progKicker(T)}>User-visible proof</h3>
-              <div style={progFact(T)}><strong>Shell launch</strong><span>Typing `midemo` works because SHELL.COM can EXEC an EXE and regain control.</span></div>
+              <div style={progFact(T)}><strong>Shell launch</strong><span><window.InlineText text={"Typing `midemo` works because SHELL.COM can EXEC an EXE and regain control."} /></span></div>
               <div style={progFact(T)}><strong>Program return</strong><span>AH=4Dh reports the child's return code after AH=4Ch or INT 20h exits.</span></div>
               <div style={progFact(T)}><strong>Overlays</strong><span>Old runtimes can load overlay code without spawning a new process.</span></div>
               <button onClick={() => go("dosapi")} style={{ ...progButton(T.amber), marginTop: 12 }}>See INT 21h calls</button>
@@ -275,7 +275,7 @@ function ProgramFlow({ row, index }) {
       border: `1px solid ${T.line}`, borderRadius: 10, background: "#fffdf6", padding: "10px 12px" }}>
       <code style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: T.faint }}>{String(index + 1).padStart(2, "0")}</code>
       <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: T.amber, textTransform: "uppercase" }}>{row[0]}</div>
-      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 13.5, color: T.dim, lineHeight: 1.5 }}>{row[1]}</div>
+      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 13.5, color: T.dim, lineHeight: 1.5 }}><window.InlineText text={row[1]} /></div>
     </div>
   );
 }
@@ -288,7 +288,7 @@ function ProgramSection({ section }) {
         <h2 style={{ ...progH2(T), margin: 0 }}>{section.title}</h2>
         <code style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: T.amber }}>{section.summary}</code>
       </div>
-      {section.body.map((p, i) => <p key={i} style={progP(T)}>{p}</p>)}
+      {section.body.map((p, i) => <p key={i} style={progP(T)}><window.InlineText text={p} /></p>)}
       <div style={{ display: "grid", gap: 14, marginTop: 16, alignItems: "start" }}>
         <window.CodeBlock file={section.file} code={section.code} hi={section.hi} />
         <div style={{ display: "grid", gap: 12 }}>
@@ -310,7 +310,7 @@ function ProgramTest({ row }) {
     <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, background: "#fffdf6", padding: "10px 11px" }}>
       <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: T.amber, textTransform: "uppercase" }}>{row[0]}</div>
       <code style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: T.blue }}>{row[1]}</code>
-      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 12.5, color: T.dim, lineHeight: 1.45, marginTop: 4 }}>{row[2]}</div>
+      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 12.5, color: T.dim, lineHeight: 1.45, marginTop: 4 }}><window.InlineText text={row[2]} /></div>
     </div>
   );
 }

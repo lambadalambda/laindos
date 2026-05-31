@@ -342,9 +342,7 @@ function DosApiPage({ go }) {
           </h1>
           <p style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", color: "rgba(255,255,255,0.92)", fontSize: 17,
             lineHeight: 1.65, maxWidth: 720, margin: 0 }}>
-            `INT 21h` is what DOS programs call when they need the operating system: files, directories,
-            memory, launching children, device checks, and compatibility probes. This page is the end-user map
-            of what LainDOS can answer today.
+            <window.InlineText text={"`INT 21h` is what DOS programs call when they need the operating system: files, directories, memory, launching children, device checks, and compatibility probes. This page is the end-user map of what LainDOS can answer today."} />
           </p>
         </div>
       </header>
@@ -357,7 +355,7 @@ function DosApiPage({ go }) {
               <p style={dosP(T)}>
                 If a DOS game starts, opens its data files, launches overlays, saves, and exits back to the shell,
                 it is mostly living on this page. BIOS calls still handle hardware like keyboard, video, disk sectors,
-                timers, and sound devices; `INT 21h` is the DOS contract layered above that hardware.
+                <window.InlineText text={" timers, and sound devices; `INT 21h` is the DOS contract layered above that hardware."} />
               </p>
               <div className="dosapi-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginTop: 14 }}>
                 <MiniStat k="Target" v="games + utilities" />
@@ -369,7 +367,7 @@ function DosApiPage({ go }) {
             <section style={{ border: `1px solid ${T.line}`, borderRadius: 12, background: T.panel, padding: "18px 20px", marginBottom: 22 }}>
               <h2 style={dosH2(T)}>All recognized calls</h2>
               <p style={dosP(T)}>
-                This is every `AH` value the current `INT 21h` dispatcher recognizes. `Supported` means the behavior is backed by real state or disk data in LainDOS. `Partial`, `narrow`, `compat`, and `stub` mean the call exists for the compatibility surface games and tests currently need, but it should not be read as full MS-DOS coverage.
+                <window.InlineText text={"This is every `AH` value the current `INT 21h` dispatcher recognizes. `Supported` means the behavior is backed by real state or disk data in LainDOS. `Partial`, `narrow`, `compat`, and `stub` mean the call exists for the compatibility surface games and tests currently need, but it should not be read as full MS-DOS coverage."} />
               </p>
               <div style={{ display: "grid", gap: 16, marginTop: 16 }}>
                 {DOSAPI_CALLS.map(block => <DosApiCallBlock key={block.title} block={block} />)}
@@ -379,7 +377,7 @@ function DosApiPage({ go }) {
             <section style={{ border: `1px solid ${T.line}`, borderRadius: 12, background: T.panel, padding: "18px 20px", marginBottom: 22 }}>
               <h2 style={dosH2(T)}>Subfunction boundaries</h2>
               <p style={dosP(T)}>
-                A recognized `AH` value does not always mean every `AL` subfunction exists. These are the narrow edges users are most likely to notice when a program probes DOS behavior.
+                <window.InlineText text={"A recognized `AH` value does not always mean every `AL` subfunction exists. These are the narrow edges users are most likely to notice when a program probes DOS behavior."} />
               </p>
               <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
                 {DOSAPI_SUBFUNCTIONS.map(row => <DosApiSubfunction key={row[0]} row={row} />)}
@@ -398,7 +396,7 @@ function DosApiPage({ go }) {
                 {DOSAPI_DEFERRED.map((item, i) => (
                   <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", color: T.dim,
                     fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 14.5, lineHeight: 1.55 }}>
-                    <span style={{ color: T.amber, fontFamily: "'IBM Plex Mono', monospace" }}>todo</span>{item}
+                    <span style={{ color: T.amber, fontFamily: "'IBM Plex Mono', monospace" }}>todo</span><window.InlineText text={item} />
                   </div>
                 ))}
               </div>
@@ -447,7 +445,7 @@ function DosApiGroup({ group }) {
       </div>
       <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: T.amber, marginBottom: 10 }}>{group.calls}</div>
       <p style={{ ...dosP(T), color: T.ink, fontWeight: 600 }}>{group.verdict}</p>
-      {group.prose.map((p, i) => <p key={i} style={dosP(T)}>{p}</p>)}
+      {group.prose.map((p, i) => <p key={i} style={dosP(T)}><window.InlineText text={p} /></p>)}
       <div style={{ display: "grid", gap: 14, marginTop: 16, alignItems: "start" }}>
         <window.CodeBlock file={group.codeFile} code={group.code} hi={group.code.filter(l => typeof l[0] === "number").map(l => l[0])} />
         <div style={{ display: "grid", gap: 12 }}>
@@ -484,9 +482,9 @@ function DosApiCallRow({ row, last }) {
     <div className="dosapi-call-row" style={{ display: "grid", gridTemplateColumns: "50px 170px 86px 1fr", gap: 10, alignItems: "baseline",
       padding: "8px 12px", borderBottom: last ? "none" : `1px solid ${T.line}` }}>
       <code style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12.5, color: T.pink }}>{row[0]}</code>
-      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 13.5, color: T.ink, fontWeight: 600 }}>{row[1]}</div>
+      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 13.5, color: T.ink, fontWeight: 600 }}><window.InlineText text={row[1]} /></div>
       <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color, textTransform: "uppercase" }}>{row[2]}</div>
-      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 13, color: T.dim, lineHeight: 1.45 }}>{row[3]}</div>
+      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 13, color: T.dim, lineHeight: 1.45 }}><window.InlineText text={row[3]} /></div>
     </div>
   );
 }
@@ -498,7 +496,7 @@ function DosApiSubfunction({ row }) {
       border: `1px solid ${T.line}`, borderRadius: 9, background: "#fffdf6", padding: "10px 12px" }}>
       <code style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12.5, color: T.pink }}>{row[0]}</code>
       <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: T.amber, textTransform: "uppercase" }}>{row[1]}</div>
-      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 13.5, color: T.dim, lineHeight: 1.5 }}>{row[2]}</div>
+      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 13.5, color: T.dim, lineHeight: 1.5 }}><window.InlineText text={row[2]} /></div>
     </div>
   );
 }

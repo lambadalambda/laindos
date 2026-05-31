@@ -18,4 +18,41 @@ function AsmLine({ text, mono }) {
   return <span>{parts}</span>;
 }
 
-Object.assign(window, { AsmLine });
+function InlineText({ text }) {
+  if (typeof text !== "string") return text;
+  const parts = [];
+  let pos = 0;
+  let key = 0;
+  while (pos < text.length) {
+    const start = text.indexOf("`", pos);
+    if (start < 0) {
+      parts.push(text.slice(pos));
+      break;
+    }
+    const end = text.indexOf("`", start + 1);
+    if (end < 0) {
+      parts.push(text.slice(pos));
+      break;
+    }
+    if (start > pos) parts.push(text.slice(pos, start));
+    parts.push(<code key={key++} style={inlineCodeStyle()}>{text.slice(start + 1, end)}</code>);
+    pos = end + 1;
+  }
+  return <>{parts}</>;
+}
+
+function inlineCodeStyle() {
+  const T = window.T || {};
+  return {
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontSize: "0.88em",
+    color: T.ink || "#403626",
+    background: "rgba(255,250,240,0.72)",
+    border: `1px solid ${T.line || "#e6dac4"}`,
+    borderRadius: 4,
+    padding: "0 3px",
+    whiteSpace: "pre-wrap",
+  };
+}
+
+Object.assign(window, { AsmLine, InlineText });

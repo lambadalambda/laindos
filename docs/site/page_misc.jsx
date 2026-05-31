@@ -189,7 +189,7 @@ function RunPage({ go }) {
                 {window.RUN_TRIES.map(t => (
                   <div key={t.k} style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: "11px 13px", background: T.panel }}>
                     <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12.5, color: T.amber, marginBottom: 4 }}>{t.k}</div>
-                    <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 13, color: T.dim, lineHeight: 1.5 }}>{t.v}</div>
+                    <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 13, color: T.dim, lineHeight: 1.5 }}><window.InlineText text={t.v} /></div>
                   </div>
                 ))}
               </div>

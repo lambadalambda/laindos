@@ -144,7 +144,7 @@ function TestsPage({ go }) {
               <h2 style={testsH2(T)}>Focused test template</h2>
               <p style={testsP(T)}>
                 The important convention is not the exact code shape; it is the serial-visible contract:
-                one unique `PASS:` marker, useful `FAIL:` markers, and a DOS exit code.
+                <window.InlineText text={" one unique `PASS:` marker, useful `FAIL:` markers, and a DOS exit code."} />
               </p>
               <div style={{ display: "grid", gap: 16, alignItems: "start" }}>
                 <window.CodeBlock file="tests/programs/example.asm" code={TEST_PROGRAM_TEMPLATE} hi={[10, 13, 17, 20]} />
@@ -156,15 +156,15 @@ function TestsPage({ go }) {
               <h2 style={testsH2(T)}>Game smoke rules</h2>
               <p style={testsP(T)}>
                 Game smokes are integration tests, not media archival. Keep proprietary input ignored, build disposable
-                images under `build/`, use QEMU monitor input for deterministic startup, and prefer framebuffer checks
-                when the serial log cannot prove that graphics reached gameplay.
+                <window.InlineText text={" images under `build/`, use QEMU monitor input for deterministic startup, and prefer framebuffer checks"} />
+                {" "}when the serial log cannot prove that graphics reached gameplay.
               </p>
               <div style={{ display: "grid", gap: 9, marginTop: 12 }}>
                 {["Use qemu_sb16_silent_args when the game expects SB16 but tests must stay quiet.",
                   "Reject EXC, unhandled INT 21h, FAIL:, and known game-level fatal markers.",
                   "Keep special pacing, such as Shortline's -icount run, in a dedicated Makefile target.",
                   "Record non-trivial triage in docs/debug_log.md before changing approach."].map(item => (
-                  <div key={item} style={testsBullet(T)}><span style={{ color: T.amber }}>check</span>{item}</div>
+                  <div key={item} style={testsBullet(T)}><span style={{ color: T.amber }}>check</span><window.InlineText text={item} /></div>
                 ))}
               </div>
             </section>
@@ -186,7 +186,7 @@ function TestsPage({ go }) {
             <div style={{ ...testsPanel(T), marginTop: 14 }}>
               <h3 style={testsKicker(T)}>Source guide</h3>
               <p style={{ ...testsP(T), fontSize: 13.5, marginBottom: 12 }}>
-                The plain Markdown version lives at `docs/test_ladder.md` for terminal-side contributors.
+                <window.InlineText text={"The plain Markdown version lives at `docs/test_ladder.md` for terminal-side contributors."} />
               </p>
               <button onClick={() => go("dosapi")} style={testsButton(T.amber)}>Read DOS API coverage</button>
             </div>
@@ -203,7 +203,7 @@ function TestLayer({ layer }) {
     <div style={{ border: `1px solid ${T.line}`, borderRadius: 10, background: "#fffdf6", padding: "14px 15px" }}>
       <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 17, color: T.ink, fontWeight: 700 }}>{layer.title}</div>
       <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: T.amber, marginTop: 3 }}>{layer.summary}</div>
-      <p style={{ ...testsP(T), marginTop: 9 }}>{layer.body}</p>
+      <p style={{ ...testsP(T), marginTop: 9 }}><window.InlineText text={layer.body} /></p>
       <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 10 }}>
         {layer.examples.map(example => <code key={example} style={testsPill(T)}>{example}</code>)}
       </div>
@@ -216,7 +216,7 @@ function TestCommand({ row }) {
   return (
     <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, background: "#fffdf6", padding: "10px 11px" }}>
       <code style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12.5, color: T.pink }}>{row[0]}</code>
-      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 12.5, color: T.dim, lineHeight: 1.45, marginTop: 5 }}>{row[1]}</div>
+      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 12.5, color: T.dim, lineHeight: 1.45, marginTop: 5 }}><window.InlineText text={row[1]} /></div>
     </div>
   );
 }

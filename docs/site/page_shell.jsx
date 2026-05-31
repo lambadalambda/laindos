@@ -291,7 +291,7 @@ function ShellDocsPage({ go }) {
               <p style={shellP(T)}>
                 The shell is just another DOS program, but it is the user-facing control loop for the live image.
                 It receives the initial PSP and environment, runs optional startup commands, then keeps handing
-                child programs to EXEC until `EXIT` terminates it.
+                <window.InlineText text={" child programs to EXEC until `EXIT` terminates it."} />
               </p>
               <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
                 {SHELL_FLOW.map((row, i) => <ShellFlow key={row[0]} row={row} index={i} />)}
@@ -353,7 +353,7 @@ function ShellFlow({ row, index }) {
       border: `1px solid ${T.line}`, borderRadius: 10, background: "#fffdf6", padding: "10px 12px" }}>
       <code style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: T.faint }}>{String(index + 1).padStart(2, "0")}</code>
       <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: T.amber, textTransform: "uppercase" }}>{row[0]}</div>
-      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 13.5, color: T.dim, lineHeight: 1.5 }}>{row[1]}</div>
+      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 13.5, color: T.dim, lineHeight: 1.5 }}><window.InlineText text={row[1]} /></div>
     </div>
   );
 }
@@ -366,7 +366,7 @@ function ShellSection({ section }) {
         <h2 style={{ ...shellH2(T), margin: 0 }}>{section.title}</h2>
         <code style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: T.amber }}>{section.summary}</code>
       </div>
-      {section.body.map((p, i) => <p key={i} style={shellP(T)}>{p}</p>)}
+      {section.body.map((p, i) => <p key={i} style={shellP(T)}><window.InlineText text={p} /></p>)}
       <div style={{ display: "grid", gap: 14, marginTop: 16, alignItems: "start" }}>
         <window.CodeBlock file={section.file} code={section.code} hi={section.hi} />
         <div style={shellPanel(T)}>
@@ -385,7 +385,7 @@ function ShellExample({ row }) {
   return (
     <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, background: "#fffdf6", padding: "10px 11px" }}>
       <code style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12.5, color: T.pink }}>{row[0]}</code>
-      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 12.5, color: T.dim, lineHeight: 1.45, marginTop: 4 }}>{row[1]}</div>
+      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 12.5, color: T.dim, lineHeight: 1.45, marginTop: 4 }}><window.InlineText text={row[1]} /></div>
     </div>
   );
 }
@@ -395,7 +395,7 @@ function ShellCommand({ row }) {
   return (
     <div style={{ display: "grid", gap: 3, borderTop: `1px solid ${T.line}`, padding: "9px 0" }}>
       <code style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: T.amber }}>{row[0]}</code>
-      <span style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 12.3, color: T.dim, lineHeight: 1.45 }}>{row[1]}</span>
+      <span style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 12.3, color: T.dim, lineHeight: 1.45 }}><window.InlineText text={row[1]} /></span>
     </div>
   );
 }
@@ -406,7 +406,7 @@ function ShellTest({ row }) {
     <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, background: "#fffdf6", padding: "10px 11px" }}>
       <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: T.amber, textTransform: "uppercase" }}>{row[0]}</div>
       <ShellTestLink path={row[1]} />
-      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 12.5, color: T.dim, lineHeight: 1.45, marginTop: 4 }}>{row[2]}</div>
+      <div style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 12.5, color: T.dim, lineHeight: 1.45, marginTop: 4 }}><window.InlineText text={row[2]} /></div>
     </div>
   );
 }
@@ -426,7 +426,7 @@ function ShellUnsupported({ text }) {
   return (
     <div style={{ border: `1px solid ${T.line}`, borderRadius: 9, background: "#fffdf6", padding: "11px 13px",
       fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 13.5, color: T.dim, lineHeight: 1.55 }}>
-      {text}
+      <window.InlineText text={text} />
     </div>
   );
 }
