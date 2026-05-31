@@ -146,7 +146,7 @@ function TestsPage({ go }) {
                 The important convention is not the exact code shape; it is the serial-visible contract:
                 one unique `PASS:` marker, useful `FAIL:` markers, and a DOS exit code.
               </p>
-              <div className="site-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+              <div style={{ display: "grid", gap: 16, alignItems: "start" }}>
                 <window.CodeBlock file="tests/programs/example.asm" code={TEST_PROGRAM_TEMPLATE} hi={[10, 13, 17, 20]} />
                 <window.CodeBlock file="scripts/test_example.py" code={TEST_RUNNER_TEMPLATE} hi={[11, 12, 13]} kind="Python" />
               </div>

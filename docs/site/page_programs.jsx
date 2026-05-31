@@ -289,7 +289,7 @@ function ProgramSection({ section }) {
         <code style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: T.amber }}>{section.summary}</code>
       </div>
       {section.body.map((p, i) => <p key={i} style={progP(T)}>{p}</p>)}
-      <div className="site-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 290px", gap: 18, marginTop: 16, alignItems: "start" }}>
+      <div style={{ display: "grid", gap: 14, marginTop: 16, alignItems: "start" }}>
         <window.CodeBlock file={section.file} code={section.code} hi={section.hi} />
         <div style={{ display: "grid", gap: 12 }}>
           <div style={progPanel(T)}>

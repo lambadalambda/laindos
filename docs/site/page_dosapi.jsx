@@ -448,7 +448,7 @@ function DosApiGroup({ group }) {
       <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: T.amber, marginBottom: 10 }}>{group.calls}</div>
       <p style={{ ...dosP(T), color: T.ink, fontWeight: 600 }}>{group.verdict}</p>
       {group.prose.map((p, i) => <p key={i} style={dosP(T)}>{p}</p>)}
-      <div className="site-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 290px", gap: 18, marginTop: 16, alignItems: "start" }}>
+      <div style={{ display: "grid", gap: 14, marginTop: 16, alignItems: "start" }}>
         <window.CodeBlock file={group.codeFile} code={group.code} hi={group.code.filter(l => typeof l[0] === "number").map(l => l[0])} />
         <div style={{ display: "grid", gap: 12 }}>
           <window.RegPanel regs={group.regs} />
