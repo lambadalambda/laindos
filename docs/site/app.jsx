@@ -13,6 +13,8 @@ import "./page_memory.jsx";
 import "./page_programs.jsx";
 import "./page_shell.jsx";
 import "./page_mouse.jsx";
+import "./page_emulators.jsx";
+import "./page_glossary.jsx";
 
 const SITE_PAGES = [
   { route: "overview", file: "index.html", title: "LainDOS - source, annotated" },
@@ -24,6 +26,8 @@ const SITE_PAGES = [
   { route: "prog", file: "programs.html", title: "LainDOS - Programs" },
   { route: "shell", file: "shell.html", title: "LainDOS - Shell" },
   { route: "mouse", file: "mouse.html", title: "LainDOS - Mouse" },
+  { route: "emulators", file: "emulators.html", title: "LainDOS - Emulator Workflows" },
+  { route: "glossary", file: "glossary.html", title: "LainDOS - Glossary" },
   { route: "run", file: "run.html", title: "LainDOS - Run It" },
 ];
 
@@ -91,6 +95,8 @@ function App({ initialRoute, initialSub }) {
   else if (route === "prog") page = <window.ProgramsPage go={go} />;
   else if (route === "shell") page = <window.ShellDocsPage go={go} />;
   else if (route === "mouse") page = <window.MouseDocsPage go={go} />;
+  else if (route === "emulators") page = <window.EmulatorsPage go={go} />;
+  else if (route === "glossary") page = <window.GlossaryPage go={go} />;
   else if (route === "run") page = <window.RunPage go={go} />;
   else {
     const item = window.NAV.find(n => n.id === route);

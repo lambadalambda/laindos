@@ -34,6 +34,9 @@ const NAV = [
     blurb: "Prompts, AUTOEXEC, commands and environment lookup" },
   { id: "mouse", label: "Mouse / INT 33h", kind: "track", status: "done",
     blurb: "PS/2 packets, callbacks, buttons and game input" },
+  { id: "emulators", label: "Emulators / Debugging", kind: "track", status: "done",
+    blurb: "QEMU, 86Box, Bochs, v86, and real-DOS comparisons" },
+  { id: "glossary", label: "Glossary", kind: "page" },
   { id: "run", label: "Run it", kind: "run" },
 ];
 

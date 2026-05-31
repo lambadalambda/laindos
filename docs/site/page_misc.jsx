@@ -15,7 +15,8 @@ function OverviewPage({ go }) {
           </h1>
           <p style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", color: "rgba(255,255,255,0.94)", fontSize: 19,
             lineHeight: 1.6, maxWidth: 660, margin: "0 0 26px" }}>
-            A tiny single-tasking DOS for x86 real mode, written from scratch in NASM — small enough to
+            <window.InlineText text={"A tiny single-tasking DOS for x86 real mode, written from scratch in NASM — small enough to"} />
+            {" "}
             read end to end, complete enough to boot <span style={{ color: "#fff", fontWeight: 600 }}>The Secret of Monkey Island</span>.
           </p>
           <div style={{ display: "flex", gap: 12 }}>
@@ -32,8 +33,7 @@ function OverviewPage({ go }) {
 
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "48px 56px 60px" }}>
         <p style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", color: T.dim, fontSize: 16, lineHeight: 1.6, maxWidth: 640, margin: 0 }}>
-          These docs walk the source the way the machine runs it. Start with the boot path — the whole
-          journey from power-on to a running game — then branch into the subsystems.
+          <window.InlineText text={"These docs walk the source the way the machine runs it. Start with the boot path — the whole journey from power-on to a running game — then branch into the subsystems."} />
         </p>
 
         <div className="site-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 30, marginTop: 40, alignItems: "start" }}>
@@ -109,8 +109,8 @@ function RunPage({ go }) {
         </div>
         <h1 style={{ fontFamily: "'Newsreader', serif", fontSize: 76, lineHeight: "76px", fontWeight: 500, margin: "12px 0 14px", color: T.ink }}>Run LainDOS</h1>
         <p style={{ fontFamily: "'Zen Kaku Gothic New', sans-serif", color: T.dim, fontSize: 16.5, lineHeight: 1.6, maxWidth: 620, margin: 0 }}>
-          A real x86 emulator (v86) boots the LainDOS floppy right here in the browser — the same boot
-          you just read about. Click the screen and type to use it. Flip to the <b style={{ color: T.ink, fontWeight: 600 }}>Serial · COM1</b>
+          <window.InlineText text={"A real x86 emulator (v86) boots the LainDOS floppy right here in the browser — the same boot you just read about. Click the screen and type to use it. Flip to the"} />
+          {" "}<b style={{ color: T.ink, fontWeight: 600 }}>Serial · COM1</b>
           {" "}tab to watch LainDOS narrate the very boot the walkthrough describes.
         </p>
 

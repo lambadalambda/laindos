@@ -143,6 +143,62 @@ function siteCss() {
     color: #8ef0a8; background: #000; caret-color: #8ef0a8;
   }
   .v86-term:focus { box-shadow: inset 0 0 0 1px #2a6a3a; }
+  .glossary-term {
+    position: relative;
+    display: inline-block;
+    color: inherit;
+    text-decoration: underline dotted #c25a6e 1px;
+    text-underline-offset: 3px;
+    cursor: help;
+  }
+  .glossary-term:focus { outline: 1px solid #c25a6e; outline-offset: 2px; border-radius: 3px; }
+  .glossary-popover {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 8px);
+    z-index: 80;
+    width: min(280px, 72vw);
+    padding: 10px 12px;
+    border: 1px solid #e6dac4;
+    border-radius: 8px;
+    background: #fffaf0;
+    box-shadow: 0 14px 36px rgba(64,54,38,0.18);
+    color: #8a7d64;
+    font: 12.5px/1.45 'Zen Kaku Gothic New', sans-serif;
+    text-align: left;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity .12s ease, transform .12s ease, visibility .12s ease;
+    pointer-events: none;
+  }
+  .glossary-popover::after {
+    content: "";
+    position: absolute;
+    left: 14px;
+    bottom: -6px;
+    width: 10px;
+    height: 10px;
+    background: #fffaf0;
+    border-right: 1px solid #e6dac4;
+    border-bottom: 1px solid #e6dac4;
+    transform: rotate(45deg);
+  }
+  .glossary-popover-title {
+    display: block;
+    margin-bottom: 4px;
+    color: #c25a6e;
+    font: 600 11px/1.2 'IBM Plex Mono', monospace;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+  .glossary-term:hover .glossary-popover,
+  .glossary-term:focus .glossary-popover,
+  .glossary-term:focus-within .glossary-popover {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+  }
   @media (max-width: 860px) {
     .site-sidebar { position: static !important; width: 100% !important; height: auto !important; border-right: 0 !important; border-bottom: 1px solid #e6dac4 !important; }
     .site-main { margin-left: 0 !important; }
@@ -154,6 +210,8 @@ function siteCss() {
     .dosapi-call-row > div:last-child { grid-column: 1 / -1; }
     .dosapi-sub-row { grid-template-columns: 1fr !important; }
     .dosapi-stat-grid { grid-template-columns: 1fr !important; }
+    .emulator-target-row { grid-template-columns: 1fr !important; }
+    .emulator-probe-grid, .glossary-grid { grid-template-columns: 1fr !important; }
   }`;
 }
 

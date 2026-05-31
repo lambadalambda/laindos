@@ -100,3 +100,4 @@
 - [x] [Document Shell Batch And Environment Behavior](issues/document-shell-batch-and-environment.md)
 - [x] [Document Mouse Input And INT 33h Behavior](issues/document-mouse-input-and-int33h.md)
 - [x] [Harden Interactive Documentation Delivery](issues/harden-interactive-docs-delivery.md)
+- [x] [Document Emulator Workflows In The Site](issues/document-emulator-workflows-in-site.md)

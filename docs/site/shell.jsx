@@ -25,7 +25,7 @@ function sidebarHrefFor(target) {
   const [route, ...rest] = String(target || "overview").split("/");
   const aliases = { index: "overview", filesystem: "fs", memory: "mem", programs: "prog" };
   const pageRoute = aliases[route] || route;
-  const files = { overview: "index.html", boot: "boot.html", dosapi: "dosapi.html", tests: "tests.html", fs: "filesystem.html", mem: "memory.html", prog: "programs.html", shell: "shell.html", mouse: "mouse.html", run: "run.html" };
+  const files = { overview: "index.html", boot: "boot.html", dosapi: "dosapi.html", tests: "tests.html", fs: "filesystem.html", mem: "memory.html", prog: "programs.html", shell: "shell.html", mouse: "mouse.html", emulators: "emulators.html", glossary: "glossary.html", run: "run.html" };
   return `${files[pageRoute] || "index.html"}${rest.length ? `#${encodeURIComponent(rest.join("/"))}` : ""}`;
 }
 

@@ -25,12 +25,14 @@ memory.html
 programs.html
 shell.html
 mouse.html
+emulators.html
+glossary.html
 run.html
 ```
 
 Boot-path subsections are regular anchors such as `boot.html#s4`.
 
-Production pages load one precompiled `app.js`; they do not use browser-side Babel. The static HTML is pre-rendered so links have real content before JavaScript takes over. The emulator still requires JavaScript.
+Production pages load one precompiled `app.js`; they do not use browser-side Babel. The static HTML is pre-rendered so links have real content before JavaScript takes over. Glossary popups are CSS hover/focus affordances in the static HTML. The emulator still requires JavaScript.
 
 External browser assets are intentionally not vendored into the repository:
 

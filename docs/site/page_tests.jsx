@@ -127,9 +127,7 @@ function TestsPage({ go }) {
             <section style={testsCard(T)}>
               <h2 style={testsH2(T)}>How to choose the next test</h2>
               <p style={testsP(T)}>
-                Begin with the narrowest proof that would have failed before the change. If the fix touches a DOS API,
-                write a tiny program. If it touches shell, loader, or FAT state, add a scenario runner. If the bug only
-                appears in a game, keep the media local and add a smoke that proves the visible path.
+                <window.InlineText text={"Begin with the narrowest proof that would have failed before the change. If the fix touches a DOS API, write a tiny program. If it touches shell, loader, or FAT state, add a scenario runner. If the bug only appears in a game, keep the media local and add a smoke that proves the visible path."} />
               </p>
             </section>
 
@@ -180,7 +178,7 @@ function TestsPage({ go }) {
             <div style={{ ...testsPanel(T), marginTop: 14 }}>
               <h3 style={testsKicker(T)}>New-test checklist</h3>
               <div style={{ display: "grid", gap: 8 }}>
-                {TEST_CHECKLIST.map(item => <div key={item} style={testsChecklist(T)}>{item}</div>)}
+                {TEST_CHECKLIST.map(item => <div key={item} style={testsChecklist(T)}><window.InlineText text={item} /></div>)}
               </div>
             </div>
             <div style={{ ...testsPanel(T), marginTop: 14 }}>
