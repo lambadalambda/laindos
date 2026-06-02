@@ -2,6 +2,35 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-01 INT 21h IF-On-Return Semantics
+
+### Question
+
+- The Stunt Island compatibility fix makes the `INT 21h` return helpers OR `IFLAG` into the saved user FLAGS word before `IRET`.
+- This fixed Stunt Island's post-intro QEMU timer wait, but looked suspicious because a normal x86 `INT` frame preserves the caller's original IF bit for `IRET`.
+
+### Confirmed Facts
+
+- MS-DOS 4.00 source `v4.0/src/DOS/DISP.ASM` switches to a DOS-owned stack and executes `STI` at `REDISP` after the stack is safe, then executes `CLI` in `LEAVEDOS` before restoring the user stack and `IRET`ing.
+- That dispatcher does not OR `IF` into the saved user FLAGS word; `IRET` restores the caller's original IF.
+- A temporary probe run under `/Users/lainsoykaf/repos/MS-DOS/build/dos40.img` printed direct serial output after `CLI; INT 21h; PUSHF`:
+  - `AH30 IF=0`
+  - `AH4E IF=0`
+- The `AH=4Eh` probe used a successful `FindFirst` against `IFPROBE.COM` on a QEMU `file=fat:rw:` C: drive.
+- Current LainDOS still passes `python3 scripts/test_findedge.py`, which intentionally asserts that `FindFirst` returns with IF set after caller `CLI`.
+
+### Conclusion
+
+- Forcing `IF=1` on `INT 21h` return is not MS-DOS 4.00 return-flag fidelity.
+- The more faithful DOS behavior is to enable interrupts during safe portions of DOS execution, then preserve the caller's IF on return.
+- LainDOS's current `IF=1` return is a pragmatic compatibility shim that compensates for LainDOS running most DOS calls with interrupts disabled; it fixes Stunt Island by allowing the BIOS timer tick to advance after return instead of during the DOS call.
+
+### Next Probes
+
+- Keep the current behavior unless a target breaks from it.
+- If replacing it later, first test an alternate model that enables interrupts after switching to a kernel stack and preserves caller IF on return, then rerun Stunt Island and `scripts/test_findedge.py` with updated expectations.
+- Document this as a known compatibility deviation, not as real-DOS semantics.
+
 ## 2026-05-31 Wolf3D QEMU Sound Probe
 
 ### Symptoms
