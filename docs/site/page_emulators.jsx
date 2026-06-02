@@ -29,7 +29,7 @@ const EMULATOR_CHOICES = [
 
 const EMULATOR_TARGETS = [
   ["Boot and DOS API regressions", "QEMU headless", "make test", "Serial PASS:/FAIL: markers and HALT."],
-  ["Interactive shell demo", "v86 or QEMU", "make monkey-demo", "Builds shell_monkey.img for the site and local runs."],
+  ["Interactive shell demo", "v86 or QEMU", "make site", "Rebuilds shell_monkey.img, copies it into the site, and keeps the browser image current."],
   ["Monkey Island demo", "QEMU + SB16", "make test-monkey-demo", "Shell launch, game startup, and framebuffer activity."],
   ["Full game ladder", "QEMU", "make test-game-smokes", "Monkey, Wolf3D, and Ascendancy when local media exists."],
   ["Wolfenstein 3D", "QEMU VGA retrace + SB16/AdLib", "make test-wolf3d-smoke", "Uses precise retrace and the separate AdLib device so startup probes match 86Box."],

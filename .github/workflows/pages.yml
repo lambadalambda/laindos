@@ -28,11 +28,8 @@ jobs:
         with:
           deno-version: v2.8.0
 
-      - name: Build shell_monkey.img
-        run: make monkey-demo
-
       - name: Build static site
-        run: make site SITE_IMAGE=build/shell_monkey.img
+        run: make site
 
       - name: Stage site
         run: |
