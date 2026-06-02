@@ -35,6 +35,8 @@ Boot-path subsections are regular anchors such as `boot.html#s4`.
 
 Production pages load one precompiled `app.js`; they do not use browser-side Babel. The static HTML is pre-rendered so links have real content before JavaScript takes over. Glossary popups are CSS hover/focus affordances in the static HTML. The emulator still requires JavaScript.
 
+The shared sidebar includes a prominent `View Actual Source` link to `https://github.com/lambadalambda/laindos` so readers can always find the repository from any generated page.
+
 External browser assets are intentionally not vendored into the repository:
 
 - React and ReactDOM are loaded from exact `18.3.1` UMD URLs on unpkg.

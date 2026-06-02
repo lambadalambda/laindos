@@ -11,6 +11,7 @@ const T = {
 const CODE = { mnem: "#ff9ad4", text: "#e7ddf0", comment: "#897ba0", label: "#7ee0d4" };
 const CODE_BG = "#241b2e", CODE_HEAD = "#2c2238", CODE_LINE = "rgba(255,255,255,0.07)",
   CODE_NUM = "#5b4f73", CODE_DIM = "#9a8cb0";
+const SOURCE_URL = "https://github.com/lambadalambda/laindos";
 
 function StatusDot({ status }) {
   const map = { done: T.green, wip: T.amber, soon: T.faint };
@@ -45,6 +46,15 @@ function Sidebar({ route, go, hrefFor = sidebarHrefFor }) {
           <div style={{ fontFamily: "'Newsreader', serif", fontSize: 23, lineHeight: "26px", color: T.ink, letterSpacing: 0.3, fontWeight: 600 }}>LainDOS</div>
           <div style={{ fontSize: 10.5, color: T.dim, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: 1 }}>source, annotated</div>
         </div>
+      </a>
+
+      <a href={SOURCE_URL} target="_blank" rel="noreferrer" style={{
+        display: "block", margin: "0 16px 18px", padding: "12px 13px", borderRadius: 10,
+        background: T.ink, color: "#fffaf0", textDecoration: "none", boxShadow: "0 10px 24px rgba(64,54,38,0.16)",
+        fontFamily: "'IBM Plex Mono', monospace" }}>
+        <div style={{ fontSize: 10, letterSpacing: 1.6, textTransform: "uppercase", color: "#ffe1c0" }}>Source code</div>
+        <div style={{ marginTop: 4, fontFamily: "'Zen Kaku Gothic New', sans-serif", fontSize: 15, fontWeight: 700 }}>View Actual Source</div>
+        <div style={{ marginTop: 3, fontSize: 10.5, color: "#d8c9ad", wordBreak: "break-word" }}>github.com/lambadalambda/laindos ↗</div>
       </a>
 
       <nav style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
