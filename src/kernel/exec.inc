@@ -456,6 +456,8 @@ free_exec_environment:
     jne .clear
 .free:
     mov word [ds:1], 0
+    mov si, ax
+    call mcb_merge_free_forward
 .clear:
     mov word [cs:exec_env_seg], 0
     mov byte [cs:exec_env_owned], 0
@@ -502,6 +504,8 @@ free_prog_mcb:
     jne .done
 .free:
     mov word [ds:1], 0
+    mov si, ax
+    call mcb_merge_free_forward
 .done:
     pop ds
     pop ax

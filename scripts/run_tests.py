@@ -74,6 +74,7 @@ DEFAULT_TESTS = [
     "scripts/test_envmcb.py",
     "scripts/test_execenv.py",
     "scripts/test_envoflow.py",
+    "scripts/test_mcbcoex.py",
     "scripts/test_envpath.py",
     "scripts/test_pathcanon.py",
     "scripts/test_findedge.py",

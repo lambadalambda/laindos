@@ -2,6 +2,32 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-05 Coalesce MCBs After Failed EXEC Rollback
+
+### Symptoms
+
+- Failed `EXEC` paths in `src/kernel/exec.inc` and `src/kernel/int21.inc` (e.g. env overflow, EXE too large, COM too large, alloc failure, I/O error) call `free_exec_environment` and `free_prog_mcb` to clear MCB owners, but do not coalesce adjacent free blocks. Repeated failed `EXEC` calls leave the env block as a separate free piece, fragmenting the arena.
+- The previous fragmentation fix (`docs/debug_log.md:185-208`, `Process Memory Release After Exit`) only coalesces during normal process termination, not during `EXEC` rollback.
+
+### Confirmed Facts
+
+- `free_exec_environment` and `free_prog_mcb` in `src/kernel/exec.inc` previously only zeroed the MCB owner and reset the tracking variables.
+- The coalesce helpers `mcb_merge_free_forward` and `mcb_coalesce_all_free` exist in `src/kernel/memory_mcb.inc:114-174`. `mcb_merge_free_forward` is already called by `INT 21h AH=49h` (`src/kernel/int21.inc:1520`) and the TSR cleanup paths (`src/kernel.asm:2239, 2278`).
+- The env block is always allocated at a lower segment than the program block, so a free-and-merge of the env block walks forward through the program block once it is freed, restoring the chain.
+- `prog_seg` is not reset by `free_prog_mcb`; the next successful `EXEC` overwrites it. Left as a separate concern.
+
+### Tests And Probes Run
+
+- Added `tests/programs/mcbcoex.asm` and `scripts/test_mcbcoex.py`. The parent records `largest` after a test-side 18-para alloc, runs `EXEC` with a custom oversized env (triggering `.env_overflow`), and asserts `largest_after_exec == largest_after_alloc` (merge restores the chain).
+- Without the fix: test fails with `FAIL: MCBCOEX LARGEST` (env block stays as a 16-paras free piece, separating the chain).
+- With the fix in `free_exec_environment` and `free_prog_mcb` (call `mcb_merge_free_forward` after zeroing the owner): test passes.
+- Full verification: `make test` reports `78/78` and `python3 scripts/check_docs_sync.py` passes.
+
+### Closed State
+
+- `free_exec_environment` and `free_prog_mcb` now call `mcb_merge_free_forward` after zeroing the owner, so failed `EXEC` paths leave the arena in the same state as before the allocation.
+- `Makefile` `check-docs-sync` was updated to recognize the 4-line shift in `src/kernel/exec.inc` (2 lines added in `free_exec_environment`, 2 in `free_prog_mcb`).
+
 ## 2026-06-01 INT 21h IF-On-Return Semantics
 
 ### Question
