@@ -1,6 +1,8 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-run=deno
 
 const APP_SRC = new URL("../docs/site/app.jsx", import.meta.url);
+const RESOLVED_SRC = new URL("../build/.resolved-docs/app.jsx", import.meta.url);
+const RESOLVER = new URL("../scripts/resolve_doc_anchors.py", import.meta.url);
 
 const VOID_TAGS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]);
 const UNITLESS_STYLE = new Set([
@@ -13,6 +15,20 @@ const UNITLESS_STYLE = new Set([
 
 function usage() {
   console.error("usage: deno run --allow-read --allow-write --allow-run=deno scripts/build_site.jsx --out build/site [--image build/shell_monkey.img]");
+}
+
+
+async function resolveDocAnchors() {
+  const result = new Deno.Command("python3", {
+    args: [RESOLVER.pathname, "--src", "docs/site", "--out", "build/.resolved-docs"],
+  }).output();
+  const out = await result;
+  if (!out.success) {
+    await Deno.stdout.write(out.stdout);
+    await Deno.stderr.write(out.stderr);
+    throw new Error("resolve_doc_anchors.py failed");
+  }
+  await Deno.stdout.write(out.stdout);
 }
 
 function parseArgs(args) {
@@ -276,7 +292,8 @@ async function main() {
   const imageUrl = await copyIfImage(opts.image, outDir);
   globalThis.LAIN_IMG_URL = imageUrl;
 
-  const { App, SITE_PAGES } = await import(APP_SRC.href);
+  await resolveDocAnchors();
+  const { App, SITE_PAGES } = await import(RESOLVED_SRC.href);
   for (const page of SITE_PAGES) {
     const body = renderNode(fakeReact.createElement(App, { initialRoute: page.route }));
     await Deno.writeTextFile(`${outDir}/${page.file}`, htmlForPage(page, body, imageUrl));

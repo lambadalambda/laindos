@@ -415,8 +415,10 @@ update_exec_environment_path:
     pop ax
     ret
 
+; @anchor: alloc_exec_environment_start
 alloc_exec_environment:
     push bx
+; @anchor: alloc_exec_environment_owner_seed
     push ds
     mov word [cs:exec_env_seg], 0
     mov byte [cs:exec_env_owned], 0
@@ -428,6 +430,7 @@ alloc_exec_environment:
     push ax
     dec ax
     mov ds, ax
+; @anchor: alloc_exec_environment_temp_owner
     mov word [ds:1], ENV_OWNER_TEMP
     pop ax
     clc
@@ -440,8 +443,10 @@ alloc_exec_environment:
     pop bx
     ret
 
+; @anchor: free_exec_environment_start
 free_exec_environment:
     push ax
+; @anchor: free_exec_environment_free_block
     push ds
     mov ax, [cs:exec_env_seg]
     test ax, ax
@@ -455,10 +460,12 @@ free_exec_environment:
     cmp byte [ds:0], MCB_SIG_Z
     jne .clear
 .free:
+; @anchor: free_exec_environment_coalesce
     mov word [ds:1], 0
     mov si, ax
     call mcb_merge_free_forward
 .clear:
+; @anchor: free_exec_environment_clear
     mov word [cs:exec_env_seg], 0
     mov byte [cs:exec_env_owned], 0
 .done:

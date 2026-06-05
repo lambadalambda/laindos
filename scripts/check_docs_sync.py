@@ -80,15 +80,44 @@ def parse_code_entries(block):
     return entries
 
 
+ANCHOR_LINE_RE = re.compile(r"^\s*;\s*@anchor:\s*(\S+)\s*$")
+
+
+def collect_anchors(source_lines):
+    anchors = {}
+    for i, line in enumerate(source_lines, 1):
+        m = ANCHOR_LINE_RE.match(line)
+        if m:
+            name = m.group(1)
+            target = i + 1
+            if target > len(source_lines):
+                raise ValueError(
+                    f"anchor '{name}' at line {i} has no following line to anchor to"
+                )
+            if name in anchors:
+                raise ValueError(
+                    f"duplicate anchor name '{name}' at line {i} (first defined at line {anchors[name] - 1})"
+                )
+            anchors[name] = target
+    return anchors
+
+
 def code_part(line):
     return line.split(";", 1)[0].rstrip()
 
 
 def check_source_excerpts(errors):
     checked = 0
+    anchor_check_pattern = re.compile(
+        r"\[\s*\{\s*a\s*:\s*\"([^\"]+)\"\s*\}\s*,\s*(\"(?:\\.|[^\"\\])*\")\s*\]"
+    )
+    hi_anchor_pattern = re.compile(
+        r"\{\s*a\s*:\s*\"([^\"]+)\"\s*\}"
+    )
     for doc in SOURCE_EXCERPT_DOCS:
         text = read(doc)
         pos = 0
+        anchors_cache = {}
         while True:
             match = re.search(r"\bcode:\s*\[", text[pos:])
             if not match:
@@ -106,7 +135,15 @@ def check_source_excerpts(errors):
                     errors.append(f"{rel(doc)}: source excerpt file missing: {source_rel}")
                 else:
                     source_lines = source.read_text(encoding="utf-8").splitlines()
-                    for line_no, excerpt in parse_code_entries(text[bracket_start:bracket_end + 1]):
+                    if source_rel not in anchors_cache:
+                        try:
+                            anchors_cache[source_rel] = collect_anchors(source_lines)
+                        except ValueError as exc:
+                            errors.append(f"{rel(doc)}: {source_rel}: {exc}")
+                            anchors_cache[source_rel] = {}
+                    anchors = anchors_cache[source_rel]
+                    block = text[bracket_start:bracket_end + 1]
+                    for line_no, excerpt in parse_code_entries(block):
                         checked += 1
                         if line_no < 1 or line_no > len(source_lines):
                             errors.append(f"{rel(doc)}: {source_rel}:{line_no} is outside file")
@@ -118,6 +155,36 @@ def check_source_excerpts(errors):
                                 f"  doc:    {excerpt!r}\n"
                                 f"  source: {actual!r}"
                             )
+                    for m2 in anchor_check_pattern.finditer(block):
+                        anchor_name = m2.group(1)
+                        excerpt = json.loads(m2.group(2))
+                        checked += 1
+                        if anchor_name not in anchors:
+                            errors.append(
+                                f"{rel(doc)}: unknown anchor {anchor_name!r} for {source_rel}"
+                            )
+                            continue
+                        line_no = anchors[anchor_name]
+                        actual = source_lines[line_no - 1]
+                        if code_part(actual) != code_part(excerpt):
+                            errors.append(
+                                f"{rel(doc)}: stale anchor {anchor_name!r} at {source_rel}:{line_no}\n"
+                                f"  doc:    {excerpt!r}\n"
+                                f"  source: {actual!r}"
+                            )
+                    hi_match = re.search(r"\bhi:\s*\[", text[bracket_end + 1:])
+                    if hi_match:
+                        hi_bracket_start = bracket_end + 1 + hi_match.end() - 1
+                        hi_bracket_end = find_matching(text, hi_bracket_start)
+                        if hi_bracket_end is not None:
+                            hi_block = text[hi_bracket_start:hi_bracket_end + 1]
+                            for m3 in hi_anchor_pattern.finditer(hi_block):
+                                anchor_name = m3.group(1)
+                                checked += 1
+                                if anchor_name not in anchors:
+                                    errors.append(
+                                        f"{rel(doc)}: unknown hi anchor {anchor_name!r} for {source_rel}"
+                                    )
             pos = bracket_end + 1
     if checked == 0:
         errors.append("no source excerpts were checked")

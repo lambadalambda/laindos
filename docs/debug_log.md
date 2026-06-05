@@ -2,6 +2,39 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-05 Move Docs Source Excerpts To Stable Anchors
+
+### Symptoms
+
+- `scripts/check_docs_sync.py` validates doc excerpts by hardcoded source line numbers. Every commit that touches `src/kernel/exec.inc`, `src/kernel.asm`, or other source files shifts the line numbers, and the docs must be updated in lockstep. Five recent commits all needed line-shift updates in the docs.
+- The previous fix (archived `Add Documentation Source Sync Checks` issue) caught the drift but did nothing to prevent it.
+
+### Confirmed Facts
+
+- Anchors are declared in source files as `; @anchor: <name>` on their own line, immediately before the line being anchored. The next non-anchor line is the target.
+- Docs reference anchors as `[{a: "anchor_name"}, "content"]` in the `code:` and `hi:` arrays. The checker resolves the anchor to its current line number and validates the content.
+- `scripts/resolve_doc_anchors.py` produces a `build/.resolved-docs/` copy of the docs with every anchor replaced by a numeric line number. The source docs in `docs/site/` keep their anchor form.
+- `scripts/build_site.jsx` calls the resolver and bundles from `build/.resolved-docs/`. The Makefile `site` target grants the `--allow-run=python3` permission the resolver needs.
+- Anchored entries do not shift when nearby code moves. Inserting a comment line into the `alloc_exec_environment` function shifted the non-anchored doc entries, but the four `alloc_exec_environment_start`, `alloc_exec_environment_temp_owner`, `free_exec_environment_start`, and `free_exec_environment_coalesce` entries continued to validate.
+- Four anchors were placed in `src/kernel/exec.inc` (around `alloc_exec_environment` and `free_exec_environment`) and used in one `code:` block in `docs/site/page_memory.jsx`. The `hi:` array for the same block also references anchors.
+
+### Tests And Probes Run
+
+- `python3 scripts/check_docs_sync.py` passes with anchors and current line numbers.
+- `python3 scripts/resolve_doc_anchors.py --src docs/site --out build/.resolved-docs` resolves 13 source file references and writes the staging copy.
+- `make site` runs the resolver and produces `build/site/` with 12 pages.
+- `deno check docs/site/*.jsx scripts/build_site.jsx` passes.
+- Full verification: `make test` reports `78/78` tests pass.
+- Anchor stability test: inserted a comment line into the function, ran the checker. The 4 anchored entries still validated; the non-anchored entries correctly flagged as stale. Reverted the test change.
+
+### Closed State
+
+- `scripts/check_docs_sync.py` accepts `[{a: "..."}, "content"]` entries alongside numeric line numbers.
+- `scripts/resolve_doc_anchors.py` produces a `build/.resolved-docs/` staging copy.
+- `scripts/build_site.jsx` and the Makefile `site` target resolve anchors before bundling.
+- `src/kernel/exec.inc` carries the first four anchors; `docs/site/page_memory.jsx` uses them in the `env_owner_lifecycle` section.
+- Adding more anchors to other source files and converting other doc entries to anchors is a mechanical follow-up that no longer requires core infrastructure changes.
+
 ## 2026-06-05 Remove Stale setup_exe Loader Path
 
 ### Symptoms

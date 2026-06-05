@@ -210,7 +210,7 @@ run: $(DISK_IMG)
 	$(QEMU) -drive file=$(DISK_IMG),format=raw,if=floppy -boot order=a -serial stdio -monitor none -vga $(QEMU_VGA) -nographic
 
 site: $(SITE_IMAGE_DEPS)
-	deno run --allow-read=. --allow-write=$(BUILDDIR) --allow-run=deno scripts/build_site.jsx --out $(BUILDDIR)/site $(SITE_IMAGE_ARG)
+	deno run --allow-read=. --allow-write=$(BUILDDIR) --allow-run=deno,python3 scripts/build_site.jsx --out $(BUILDDIR)/site $(SITE_IMAGE_ARG)
 
 check-docs-sync:
 	$(PYTHON) scripts/check_docs_sync.py
