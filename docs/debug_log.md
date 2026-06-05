@@ -2,6 +2,29 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-05 Remove Stale setup_exe Loader Path
+
+### Symptoms
+
+- `setup_exe` and `exec_exe` in `src/kernel/exec.inc` are static EXE setup / transfer routines that read the EXE image from `TEMP_SEG` (a single sector buffer) and copy it into the load segment, then run it. The current full-file load path writes the image directly into the prog block, so `TEMP_SEG` no longer holds the EXE header at the time these routines expect it.
+
+### Confirmed Facts
+
+- Initial boot path (`src/kernel.asm:363`) and child EXEC path (`src/kernel/int21.inc:1945`) both call `setup_exe_dyn`, not `setup_exe`.
+- `setup_exe` is called only by itself and `exec_exe` (i.e., both functions form an isolated pair with no other callers).
+- `setup_exe_dyn` mirrors the same logic but sources the image from `prog_seg + 0x10` (the actual program block) instead of `TEMP_SEG`, matching the current `load_file_direct` flow that fills the prog block.
+- `docs/site/data.jsx`, `docs/site/page_dosapi.jsx`, and `docs/site/page_programs.jsx` reference only the `_dyn` variants in their source excerpts, so removing `setup_exe` and `exec_exe` does not require prose changes.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_execenv.py`, `scripts/test_envpath.py`, `scripts/test_envoflow.py`, `scripts/test_mcbcoex.py`, `scripts/test_memrelease.py`, `scripts/test_spawn.py`, `scripts/test_execparam.py`, `scripts/test_overlay.py`, and `scripts/test_badreloc.py` all pass.
+- Full verification: `make test` reports `78/78` and `python3 scripts/check_docs_sync.py` passes.
+- `src/kernel/exec.inc` shrank from 1335 to 1245 lines (-90 lines: 64 for `setup_exe` plus 24 for `exec_exe` plus 2 blank lines).
+
+### Closed State
+
+- `setup_exe` and `exec_exe` removed. The dynamic `_dyn` variants remain the sole EXE setup / transfer path.
+
 ## 2026-06-05 Coalesce MCBs After Failed EXEC Rollback
 
 ### Symptoms

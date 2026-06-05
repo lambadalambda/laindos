@@ -1032,71 +1032,6 @@ exec_copy_default_fcbs:
     pop ax
     ret
 
-setup_exe:
-    mov ax, TEMP_SEG
-    mov ds, ax
-
-    mov ax, [0x08]
-    mov [cs:exe_hdr_par], ax
-    mov ax, [0x0E]
-    mov [cs:exe_ss], ax
-    mov ax, [0x10]
-    mov [cs:exe_sp], ax
-    mov ax, [0x14]
-    mov [cs:exe_ip], ax
-    mov ax, [0x16]
-    mov [cs:exe_cs], ax
-    mov ax, [0x06]
-    mov [cs:exe_reloc_count], ax
-    mov ax, [0x18]
-    mov [cs:exe_reloc_off], ax
-
-    mov ax, PSP_SEG
-    add ax, 0x10
-    mov [cs:exe_load_seg], ax
-
-    mov ax, [cs:exe_hdr_par]
-    mov cx, 16
-    mul cx
-    mov si, ax
-
-    mov ax, TEMP_SEG
-    mov ds, ax
-    mov ax, [cs:exe_load_seg]
-    mov es, ax
-    xor di, di
-    mov cx, [cs:kfsize]
-    sub cx, si
-    rep movsb
-
-    mov cx, [cs:exe_reloc_count]
-    test cx, cx
-    jz .no_reloc
-.reloc_loop:
-    push cx
-    mov bx, [cs:exe_reloc_off]
-    mov ax, TEMP_SEG
-    mov ds, ax
-    mov di, [bx]
-    mov ax, [bx+2]
-    pop cx
-
-    push ax
-    add ax, [cs:exe_load_seg]
-    mov es, ax
-    pop ax
-    mov ax, [es:di]
-    add ax, [cs:exe_load_seg]
-    mov [es:di], ax
-
-    add word [cs:exe_reloc_off], 4
-    loop .reloc_loop
-.no_reloc:
-    push cs
-    pop ds
-    call exec_exe
-    ret
-
 setup_exe_dyn:
     mov ax, [cs:prog_seg]
     add ax, 0x10
@@ -1289,31 +1224,6 @@ exec_com_dyn:
     push word 0x0000
     push ax
     push word 0x0100
-    retf
-
-exec_exe:
-    mov byte [cs:ret_code], 0
-    mov word [cs:running], 1
-    push ss
-    pop ax
-    mov [cs:saved_ss], ax
-    mov [cs:saved_sp], sp
-    call reset_keyboard_buffer
-    fninit
-
-    mov ax, PSP_SEG
-    mov ds, ax
-    mov es, ax
-
-    mov ax, [cs:exe_load_seg]
-    add ax, [cs:exe_ss]
-    mov ss, ax
-    mov sp, [cs:exe_sp]
-
-    mov ax, [cs:exe_load_seg]
-    add ax, [cs:exe_cs]
-    push ax
-    push word [cs:exe_ip]
     retf
 
 reset_keyboard_buffer:

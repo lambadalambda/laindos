@@ -5,8 +5,7 @@ const PROGRAM_FLOW = [
   ["Loader", "LainDOS resolves the path, reads the first sector, detects COM vs MZ, allocates an MCB-backed block, and loads clusters."],
   ["PSP", "The child gets a PSP with terminate vectors, parent PSP, environment segment, JFT, command tail, and default FCBs."],
   ["Run", "COM starts at PSP:0100; EXE relocations are applied, then CS:IP and SS:SP come from the MZ header."],
-  ["Return", "INT 20h, AH=4Ch, or AH=31h returns through cleanup, restores the parent frame, and records the return code."],
-];
+  ["Return", "INT 20h, AH=4Ch, or AH=31h returns through cleanup, restores the parent frame, and records the return code."]];
 
 const PROGRAM_SECTIONS = [
   {
@@ -15,8 +14,7 @@ const PROGRAM_SECTIONS = [
     summary: "AH=4Bh is the bridge from a shell command to a child process.",
     body: [
       "The parent supplies the path in DS:DX and an EXEC parameter block in ES:BX. LainDOS saves the parent's registers, PSP, DTA, and stack frame before resolving the child. That saved frame is what makes returning from a child look like a normal DOS call to the parent.",
-      "Only AL=00h load-and-run and AL=03h overlay load are implemented. Other EXEC variants fail explicitly instead of becoming silent compatibility stubs.",
-    ],
+      "Only AL=00h load-and-run and AL=03h overlay load are implemented. Other EXEC variants fail explicitly instead of becoming silent compatibility stubs."],
     file: "src/kernel/int21.inc",
     code: [
       [1908, ".exec:"],
@@ -28,8 +26,7 @@ const PROGRAM_SECTIONS = [
       [1935, "    mov [cs:exec_param_seg], es"],
       [1936, "    mov [cs:exec_path_off], dx"],
       [1937, "    mov [cs:exec_path_seg], ds"],
-      [1938, "    call load_exec_program"],
-    ],
+      [1938, "    call load_exec_program"]],
     hi: [1908, 1934, 1938],
     tests: ["scripts/test_shell.py", "scripts/test_execparam.py", "scripts/test_spawn.py"],
   },
@@ -39,8 +36,7 @@ const PROGRAM_SECTIONS = [
     summary: "The first sector decides whether the child is COM or MZ EXE.",
     body: [
       "`load_exec_program` turns the path into a directory entry, records the first cluster and size, reads sector zero into SEC_BUF, and then checks for the MZ signature. COM programs get a flat allocation plus slack; EXE programs compute a paragraph requirement from the header, minalloc, maxalloc, and file image size.",
-      "After allocation the image is loaded immediately above the PSP at `prog_seg + 10h`. COM images get their PSP and command tail before control transfers; EXE images wait until relocation setup has validated the header.",
-    ],
+      "After allocation the image is loaded immediately above the PSP at `prog_seg + 10h`. COM images get their PSP and command tail before control transfers; EXE images wait until relocation setup has validated the header."],
     file: "src/kernel/exec.inc",
     code: [
       [1, "load_exec_program:"],
@@ -55,8 +51,7 @@ const PROGRAM_SECTIONS = [
       [31, "    mov byte [cs:exec_is_exe], 1"],
       [148, ".alloc:"],
       [159, "    mov [cs:prog_seg], ax"],
-      [170, "    call load_file_direct"],
-    ],
+      [170, "    call load_file_direct"]],
     hi: [6, 29, 148, 170],
     tests: ["scripts/test_badreloc.py", "scripts/test_memrelease.py", "scripts/test_shell.py"],
   },
@@ -66,8 +61,7 @@ const PROGRAM_SECTIONS = [
     summary: "Each child receives an environment block owned by its PSP.",
     body: [
       "If the EXEC parameter block names a custom environment, LainDOS copies it. Otherwise it writes the default variables, including COMSPEC, PATH, PROMPT, and BLASTER. It then appends the DOS convention tail: a word count followed by the fully normalized executable path.",
-      "The environment MCB starts with a temporary owner while loading. Once the PSP is committed, `assign_exec_environment_owner` stamps that MCB with the child PSP so termination cleanup can release it with the rest of the process.",
-    ],
+      "The environment MCB starts with a temporary owner while loading. Once the PSP is committed, `assign_exec_environment_owner` stamps that MCB with the child PSP so termination cleanup can release it with the rest of the process."],
     file: "src/kernel/exec.inc",
     code: [
       [264, "    mov word [cs:exec_env_src_seg], 0"],
@@ -80,8 +74,7 @@ const PROGRAM_SECTIONS = [
       [307, "    mov ax, 1"],
       [308, "    stosw"],
       [321, "    mov ds, [cs:exec_path_seg]"],
-      [396, "    stosb"],
-    ],
+      [396, "    stosb"]],
     hi: [275, 286, 301, 308],
     tests: ["scripts/test_execenv.py", "scripts/test_envmcb.py", "scripts/test_envpath.py", "scripts/test_envoflow.py"],
   },
@@ -91,8 +84,7 @@ const PROGRAM_SECTIONS = [
     summary: "The PSP is the child process contract DOS programs expect at DS=ES.",
     body: [
       "LainDOS clears the 256-byte PSP, writes the `CD 20` terminate instruction, records the top-of-memory word, copies INT 22h/23h/24h vectors, builds the Job File Table, links the parent PSP, and stores the environment pointer at PSP:2Ch.",
-      "The command tail lives at PSP:80h. Default FCBs from the EXEC parameter block are copied to PSP:5Ch and PSP:6Ch so older startup code and C runtimes see the DOS layout they expect.",
-    ],
+      "The command tail lives at PSP:80h. Default FCBs from the EXEC parameter block are copied to PSP:5Ch and PSP:6Ch so older startup code and C runtimes see the DOS layout they expect."],
     file: "src/kernel/exec.inc",
     code: [
       [876, "build_psp:"],
@@ -106,8 +98,7 @@ const PROGRAM_SECTIONS = [
       [977, "    mov bx, [cs:exec_env_seg]"],
       [978, "    mov [es:0x2C], bx"],
       [982, "    call assign_exec_environment_owner"],
-      [983, "    call exec_copy_default_fcbs"],
-    ],
+      [983, "    call exec_copy_default_fcbs"]],
     hi: [876, 884, 914, 976, 978],
     tests: ["scripts/test_shell.py", "scripts/test_execparam.py", "scripts/test_jft.py"],
   },
@@ -117,26 +108,24 @@ const PROGRAM_SECTIONS = [
     summary: "COM is flat; MZ EXE is relocated before CS:IP and SS:SP are loaded.",
     body: [
       "COM handoff is simple: DS, ES, and SS all point at the PSP, SP is placed near the top of the allocated block, and a far return lands at offset 0100h. EXE handoff is stricter: relocation table bounds are validated, relocation entries are applied against `exe_load_seg`, the image is slid down past the MZ header, and then the header's CS:IP and SS:SP are used.",
-      "Both paths reset the keyboard buffer and FPU before entering the child so old startup code sees a predictable machine state.",
-    ],
+      "Both paths reset the keyboard buffer and FPU before entering the child so old startup code sees a predictable machine state."],
     file: "src/kernel/exec.inc",
     code: [
-      [1135, "    mov ax, [cs:exe_reloc_count]"],
-      [1138, "    cmp word [cs:exe_reloc_off], 0x1C"],
-      [1157, "    mov ax, [cs:prog_seg]"],
-      [1158, "    call build_psp"],
-      [1174, "    mov di, [bx]"],
-      [1175, "    mov ax, [bx+2]"],
-      [1184, "    mov ax, [es:di]"],
-      [1185, "    add ax, [cs:exe_load_seg]"],
-      [1186, "    mov [es:di], ax"],
-      [1218, "    call exec_exe_dyn"],
-      [1257, "exec_com_dyn:"],
-      [1287, "    mov ss, ax"],
-      [1291, "    push word 0x0100"],
-      [1292, "    retf"],
-    ],
-    hi: [1138, 1158, 1186, 1218, 1257, 1292],
+      [1070, "    mov ax, [cs:exe_reloc_count]"],
+      [1073, "    cmp word [cs:exe_reloc_off], 0x1C"],
+      [1092, "    mov ax, [cs:prog_seg]"],
+      [1093, "    call build_psp"],
+      [1109, "    mov di, [bx]"],
+      [1110, "    mov ax, [bx+2]"],
+      [1119, "    mov ax, [es:di]"],
+      [1120, "    add ax, [cs:exe_load_seg]"],
+      [1121, "    mov [es:di], ax"],
+      [1153, "    call exec_exe_dyn"],
+      [1192, "exec_com_dyn:"],
+      [1222, "    mov ss, ax"],
+      [1226, "    push word 0x0100"],
+      [1227, "    retf"]],
+    hi: [1073, 1093, 1121, 1153, 1192, 1227],
     tests: ["scripts/test_badreloc.py", "scripts/test_overlay.py", "scripts/test_regpres.py"],
   },
   {
@@ -145,8 +134,7 @@ const PROGRAM_SECTIONS = [
     summary: "EXEC AL=03h copies code into a caller-supplied segment.",
     body: [
       "Overlay loads use the same path resolver but no PSP switch. The caller supplies a load segment and relocation segment in the overlay parameter block. MZ overlays skip the header, copy the image to the requested segment, and apply relocation entries using the supplied relocation base.",
-      "Because no child process starts, success returns directly to the caller with carry clear; failures return DOS-style errors without changing process context.",
-    ],
+      "Because no child process starts, success returns directly to the caller with carry clear; failures return DOS-style errors without changing process context."],
     file: "src/kernel/int21.inc",
     code: [
       [1961, ".exec_overlay:"],
@@ -158,8 +146,7 @@ const PROGRAM_SECTIONS = [
       [1980, "    call resolve_path"],
       [1988, "    call load_overlay_direct"],
       [1991, "    xor ax, ax"],
-      [1992, "    jmp iret_nc"],
-    ],
+      [1992, "    jmp iret_nc"]],
     hi: [1961, 1975, 1977, 1988],
     tests: ["scripts/test_overlay.py", "tests/programs/ovltest.asm", "tests/programs/overlay.asm"],
   },
@@ -169,27 +156,24 @@ const PROGRAM_SECTIONS = [
     summary: "Cleanup releases child-owned state and restores the saved parent stack.",
     body: [
       "Normal termination clears transient hardware state, releases inherited handles, closes child-owned handles, frees child-owned MCBs, coalesces the arena, restores the parent PSP from PSP:16h, and jumps back through the saved EXEC frame.",
-      "TSR termination is different: it keeps the requested part of the PSP block resident, frees the rest of the child's allocations, records return type 3, and then restores the parent just like a normal return.",
-    ],
+      "TSR termination is different: it keeps the requested part of the PSP block resident, frees the rest of the child's allocations, records return type 3, and then restores the parent just like a normal return."],
     file: "src/kernel.asm",
     code: [
-      [2132, "do_terminate:"],
-      [2136, "    call restore_irq1_null_mask"],
-      [2146, "    call release_inherited_handles"],
-      [2147, "    call close_owned_handles"],
-      [2149, "    mov si, [cs:mcb_first]"],
-      [2161, "    mov word [ds:1], 0"],
-      [2169, "    call mcb_coalesce_all_free"],
-      [2174, "    mov ax, [0x16]"],
-      [2175, "    mov [cs:cur_psp], ax"],
-      [2184, "    mov ax, [cs:saved_ss]"],
-      [2187, "    mov sp, [cs:saved_sp]"],
-      [2189, "    jmp exec_com.back"],
-    ],
-    hi: [2132, 2146, 2161, 2175, 2189],
+      [2131, "do_terminate:"],
+      [2135, "    call restore_irq1_null_mask"],
+      [2145, "    call release_inherited_handles"],
+      [2146, "    call close_owned_handles"],
+      [2148, "    mov si, [cs:mcb_first]"],
+      [2160, "    mov word [ds:1], 0"],
+      [2168, "    call mcb_coalesce_all_free"],
+      [2173, "    mov ax, [0x16]"],
+      [2174, "    mov [cs:cur_psp], ax"],
+      [2183, "    mov ax, [cs:saved_ss]"],
+      [2186, "    mov sp, [cs:saved_sp]"],
+      [2188, "    jmp exec_com.back"]],
+    hi: [2131, 2145, 2160, 2174, 2188],
     tests: ["scripts/test_retcode.py", "scripts/test_termflush.py", "scripts/test_tsr.py"],
-  },
-];
+  }];
 
 const PROGRAM_TESTS = [
   ["COM/EXE", "scripts/test_shell.py", "Runs HELLO.COM, HELLOEXE.EXE, EXECTEST.COM, and related shell-launched programs."],
@@ -199,8 +183,7 @@ const PROGRAM_TESTS = [
   ["Overlay", "scripts/test_overlay.py", "Exercises AH=4Bh AL=03h overlay loading and relocation."],
   ["Return code", "scripts/test_retcode.py", "Checks AH=4Dh return-code behavior after child exits."],
   ["Bad reloc", "scripts/test_badreloc.py", "Rejects invalid relocation tables and preserves parent state."],
-  ["Termination", "scripts/test_termflush.py", "Confirms open writable handles flush on program termination."],
-];
+  ["Termination", "scripts/test_termflush.py", "Confirms open writable handles flush on program termination."]];
 
 function ProgramsPage({ go }) {
   const T = window.T;

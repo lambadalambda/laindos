@@ -12,7 +12,6 @@ BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x0060
 ROOT_SEG  equ 0x0B40
 PSP_SEG   equ 0x3000
-TEMP_SEG  equ 0x4000
 
 HANDLE_SIZE equ 34
 H_USED      equ 0
