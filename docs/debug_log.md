@@ -2319,6 +2319,15 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - `python3 scripts/test_drivepath.py` now passes.
 - Phase 19 is archived after `make test` passed `65/65`; remaining deliberately deferred APIs are tracked by `Track Deferred DOS Compatibility APIs`.
 
+## 2026-06-05 EXEC Environment Overflow Guard
+
+- The fixed `ENV_PARAS=16` (256-byte) environment block in `update_exec_environment_path` had no destination bound check. A caller-supplied environment larger than ~170 bytes overran the block and corrupted the following MCB.
+- Added `ENV_SIZE_BYTES` to `src/memory.inc`, used `bx` as the destination capacity in `update_exec_environment_path`, and inserted a `cmp di, bx / jae .env_overflow` before every `stosb`/`stosw` in the caller-env copy, the path count word, the drive/colon/backslash prefix, the relative-CWD loop, the path copy loop, and the final null terminator.
+- On overflow the kernel calls `free_exec_environment` and returns carry, so `load_exec_program` returns `ax=8` and the INT 21h `AH=4Bh` caller sees a clean out-of-memory error with the env block released.
+- New `tests/programs/envoflow.asm` allocates 16 paras for a 268-byte caller env, runs `INT 21h AH=4Bh`, and asserts the call returns carry, `ax=8`, and the caller's env can still be freed.
+- `scripts/test_envoflow.py` drives the new program and is registered in `scripts/run_tests.py`.
+- `make test` passes `77/77`.
+
 ## 2026-05-29 Public Demo And Smoke Workflow
 
 - Added `make monkey-demo`, `make run-monkey-demo`, and `make test-monkey-demo` for the shell-boot Monkey Island demo floppy at `build/shell_monkey.img`.

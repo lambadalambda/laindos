@@ -277,31 +277,46 @@ update_exec_environment_path:
     mov ax, [cs:exec_env_seg]
     mov es, ax
     xor di, di
+    mov bx, ENV_SIZE_BYTES
     mov ax, [cs:exec_env_src_seg]
     test ax, ax
     jz .write_default_vars
     mov ds, ax
     xor si, si
 .copy_env:
+    cmp di, bx
+    jae .env_overflow
     lodsb
     stosb
     test al, al
     jnz .copy_env
     cmp byte [ds:si], 0
     jne .copy_env
+    cmp di, bx
+    jae .env_overflow
     lodsb
     stosb
     jmp .vars_done
 .write_default_vars:
     call write_environment_vars
 .vars_done:
+    mov ax, bx
+    dec ax
+    cmp di, ax
+    jae .env_overflow
     mov ax, 1
     stosw
     mov al, [cs:dos_drive_letter]
+    cmp di, bx
+    jae .env_overflow
     stosb
     mov al, ':'
+    cmp di, bx
+    jae .env_overflow
     stosb
     mov al, '\'
+    cmp di, bx
+    jae .env_overflow
     stosb
     mov ds, [cs:exec_path_seg]
     mov si, [cs:exec_path_off]
@@ -325,6 +340,8 @@ update_exec_environment_path:
     cmp byte [ds:si], 0
     je .relative_no_cwd
 .relative_cwd_loop:
+    cmp di, bx
+    jae .env_overflow_pop2
     lodsb
     test al, al
     jz .relative_cwd_done
@@ -356,6 +373,8 @@ update_exec_environment_path:
 .copy:
     mov cx, 80
 .copy_loop:
+    cmp di, bx
+    jae .env_overflow
     lodsb
     test al, al
     jz .path_done
@@ -371,9 +390,18 @@ update_exec_environment_path:
     stosb
     loop .copy_loop
 .path_done:
+    cmp di, bx
+    jae .env_overflow
     xor al, al
     stosb
     clc
+    jmp .done
+.env_overflow_pop2:
+    pop si
+    pop ds
+.env_overflow:
+    call free_exec_environment
+    stc
     jmp .done
 .fail:
     stc

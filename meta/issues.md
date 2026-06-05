@@ -1,6 +1,5 @@
 
 - [ ] [Track Deferred DOS Compatibility APIs](issues/track-deferred-dos-compatibility-apis.md)
-- [ ] [Guard EXEC Environment Construction](issues/guard-exec-environment-construction.md)
 - [ ] [Document INT 21h IF-On-Return Compatibility](issues/document-int21-if-on-return-compatibility.md)
 - [ ] [Coalesce MCBs After Failed EXEC Rollback](issues/coalesce-mcbs-after-failed-exec-rollback.md)
 - [ ] [Remove Stale setup_exe Loader Path](issues/remove-stale-setup-exe-loader-path.md)

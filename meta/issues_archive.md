@@ -101,3 +101,4 @@
 - [x] [Document Mouse Input And INT 33h Behavior](issues/document-mouse-input-and-int33h.md)
 - [x] [Harden Interactive Documentation Delivery](issues/harden-interactive-docs-delivery.md)
 - [x] [Document Emulator Workflows In The Site](issues/document-emulator-workflows-in-site.md)
+- [x] [Guard EXEC Environment Construction](issues/guard-exec-environment-construction.md)

@@ -8,6 +8,7 @@ READ_CACHE_BUF equ (SEC_BUF + SECTOR_BUF_PARAS)
 MCB_START equ 0x1000
 MEM_TOP equ 0xA000
 ENV_PARAS equ 16
+ENV_SIZE_BYTES equ (ENV_PARAS * 16)
 ENV_OWNER_TEMP equ 0xFFFF
 %if (MEM_TOP & 0xFF) != 0
 %error "MEM_TOP must be 256-byte aligned"
