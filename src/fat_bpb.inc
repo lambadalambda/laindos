@@ -1,0 +1,31 @@
+%ifndef FAT_BPB_INC
+%define FAT_BPB_INC 1
+
+FAT12_EOC        equ 0x0FF8
+FAT12_EOC_VALUE  equ 0x0FFF
+FAT12_RESERVED   equ 0x0FF0
+FAT12_MASK       equ 0x0FFF
+FAT16_EOC        equ 0xFFF8
+FAT16_EOC_VALUE  equ 0xFFFF
+FAT16_RESERVED   equ 0xFFF0
+
+BPB_BYTES_PER_SEC  equ 0x0B
+BPB_SECS_PER_CLUS  equ 0x0D
+BPB_RSV_SEC_COUNT  equ 0x0E
+BPB_NUM_FATS       equ 0x10
+BPB_ROOT_ENT_COUNT equ 0x11
+BPB_TOT_SECS_16    equ 0x13
+BPB_MEDIA          equ 0x15
+BPB_SECS_PER_FAT   equ 0x16
+BPB_SECS_PER_TRK   equ 0x18
+BPB_NUM_HEADS      equ 0x1A
+BPB_HIDDEN_SECS    equ 0x1C
+BPB_TOT_SECS_32    equ 0x20
+BPB_DRV_NUM        equ 0x24
+BPB_RESERVED1      equ 0x25
+BPB_BOOT_SIG       equ 0x26
+BPB_VOL_ID         equ 0x27
+BPB_VOL_LABEL      equ 0x2B
+BPB_FS_TYPE        equ 0x36
+
+%endif

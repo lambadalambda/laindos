@@ -2,6 +2,7 @@
 [org 0x7C00]
 
 %include "src/memory.inc"
+%include "src/fat_bpb.inc"
 FAT_SEG  equ 0x0060
 ROOT_SEG equ 0x0A20
 
@@ -40,21 +41,21 @@ boot:
     mov [drv],dl
     mov [0x500],dl
 
-    mov ax,[bpb+22]
-    movzx cx,byte[bpb+16]
+    mov ax,[bpb+BPB_SECS_PER_FAT]
+    movzx cx,byte[bpb+BPB_NUM_FATS]
     mul cx
-    add ax,[bpb+14]
+    add ax,[bpb+BPB_RSV_SEC_COUNT]
     mov [rsta],ax
-    mov ax,[bpb+17]
+    mov ax,[bpb+BPB_ROOT_ENT_COUNT]
     shr ax,4
     mov [rsc],ax
     add ax,[rsta]
     mov [dsta],ax
-    mov bx,[bpb+19]
+    mov bx,[bpb+BPB_TOT_SECS_16]
     sub bx,ax
     mov ax,bx
     xor dx,dx
-    movzx bx,byte[bpb+13]
+    movzx bx,byte[bpb+BPB_SECS_PER_CLUS]
     div bx
     add ax,2
     mov [mcl],ax
@@ -62,8 +63,8 @@ boot:
     mov ax,FAT_SEG
     mov es,ax
     xor bx,bx
-    mov ax,[bpb+14]
-    mov cx,[bpb+22]
+    mov ax,[bpb+BPB_RSV_SEC_COUNT]
+    mov cx,[bpb+BPB_SECS_PER_FAT]
     call rs
 
     mov ax,ROOT_SEG
@@ -76,7 +77,7 @@ boot:
     mov ax,ROOT_SEG
     mov es,ax
     xor di,di
-    mov cx,[bpb+17]
+    mov cx,[bpb+BPB_ROOT_ENT_COUNT]
 sf: cmp byte[es:di],0
     je nf
     push cx
@@ -98,21 +99,21 @@ fk: mov si,[es:di+26]
     mov ax,LOAD_SEG
     mov es,ax
     xor bx,bx
-ld: cmp si,0xFF8
+ld: cmp si,FAT12_EOC
     jae ldk
     cmp si,2
     jb nf
-    cmp si,0xFF0
+    cmp si,FAT12_RESERVED
     jae nf
     cmp si,[mcl]
     jae nf
     push si
     mov ax,si
     sub ax,2
-    movzx cx,byte[bpb+13]
+    movzx cx,byte[bpb+BPB_SECS_PER_CLUS]
     mul cx
     add ax,[dsta]
-    movzx cx,byte[bpb+13]
+    movzx cx,byte[bpb+BPB_SECS_PER_CLUS]
     call rs
     pop si
     jc nf
@@ -139,7 +140,7 @@ fat_next:
     jz fe
     shr ax,4
     jmp fr
-fe: and ax,0x0FFF
+fe: and ax,FAT12_MASK
 fr: pop bx
     ret
 
@@ -147,11 +148,11 @@ rs: mov [lb],ax
     mov [cnt],cx
 r1: mov ax,[lb]
     xor dx,dx
-    div word[bpb+24]
+    div word[bpb+BPB_SECS_PER_TRK]
     inc dl
     mov [sc],dl
     xor dx,dx
-    div word[bpb+26]
+    div word[bpb+BPB_NUM_HEADS]
     mov [hd],dl
     mov [cy],al
     mov ah,2

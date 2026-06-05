@@ -2,6 +2,31 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-05 Share FAT BPB Constants Across Boot And Kernel
+
+### Symptoms
+
+- `src/boot.asm`, `src/boot16.asm`, and `src/kernel.asm` each carried their own copies of FAT12/FAT16 EOC values (`0x0FF8` / `0x0FFF` / `0x0FF0` and `0xFFF8` / `0xFFFF` / `0xFFF0`) and BPB field offsets (`+0B` bytes/sector, `+0D` sec/cluster, ...). The values were correct but had to be edited in three places if a future FAT or boot-path change ever needed them.
+
+### Confirmed Facts
+
+- New shared include `src/fat_bpb.inc` defines `FAT12_EOC`, `FAT12_EOC_VALUE`, `FAT12_RESERVED`, `FAT12_MASK`, `FAT16_EOC`, `FAT16_EOC_VALUE`, `FAT16_RESERVED` plus the 18 standard BPB field offsets (`BPB_BYTES_PER_SEC` through `BPB_FS_TYPE`).
+- `src/boot.asm`, `src/boot16.asm`, and `src/kernel.asm` all `%include "src/fat_bpb.inc"` and use the named constants instead of the magic numbers.
+- Both boot sectors still assemble to exactly 512 bytes; `equ` declarations do not generate code, and the immediate operands encode to the same length as the original hex literals.
+- MBR partition table offsets at `src/kernel.asm:1003-1009` (`bx+0x1C` / `bx+0x1E`) are NOT BPB fields, so they stay as raw offsets.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_fat16.py`, `test_fat16_bounds.py`, `test_fat16_large.py`, `test_partitioned_fat16.py` all pass.
+- `make test` reports `78/78` tests pass.
+- `make test-game-smokes` passes (Wolf3D, Shortline, Ascendancy).
+- `python3 scripts/check_docs_sync.py` passes (with the BPB-name changes reflected in the doc excerpts).
+- `make site` and `deno check docs/site/*.jsx scripts/build_site.jsx` pass.
+
+### Closed State
+
+- All FAT12 and FAT16 thresholds and BPB field offsets now come from a single source. The kernel's BPB validation, FAT-type detection, and root-directory sizing all read through the same named constants the boot sectors use.
+
 ## 2026-06-05 Move Docs Source Excerpts To Stable Anchors
 
 ### Symptoms

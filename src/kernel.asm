@@ -6,6 +6,7 @@ VGA_TEXT_SEG equ 0xB800
 VGA_COLS equ 80
 VGA_ROWS equ 25
 %include "src/memory.inc"
+%include "src/fat_bpb.inc"
 
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
@@ -424,80 +425,80 @@ parse_bpb_geometry:
     pop ds
     mov bx, bpb_copy
 
-    cmp word [bx+0x0B], 512
+    cmp word [bx+BPB_BYTES_PER_SEC], 512
     jne .bad
-    mov al, [bx+0x0D]
+    mov al, [bx+BPB_SECS_PER_CLUS]
     test al, al
     jz .bad
     mov ah, al
     dec ah
     test al, ah
     jnz .bad
-    cmp word [bx+0x0E], 0
+    cmp word [bx+BPB_RSV_SEC_COUNT], 0
     je .bad
-    cmp byte [bx+0x10], 0
+    cmp byte [bx+BPB_NUM_FATS], 0
     je .bad
-    cmp byte [bx+0x10], 2
+    cmp byte [bx+BPB_NUM_FATS], 2
     ja .bad
-    mov ax, [bx+0x11]
+    mov ax, [bx+BPB_ROOT_ENT_COUNT]
     test ax, ax
     jz .bad
     test ax, 0x000F
     jnz .bad
     cmp ax, 2032
     ja .bad
-    cmp word [bx+0x16], 0
+    cmp word [bx+BPB_SECS_PER_FAT], 0
     je .bad
-    cmp word [bx+0x18], 0
+    cmp word [bx+BPB_SECS_PER_TRK], 0
     je .bad
-    cmp word [bx+0x1A], 0
+    cmp word [bx+BPB_NUM_HEADS], 0
     je .bad
-    mov ax, [bx+0x13]
+    mov ax, [bx+BPB_TOT_SECS_16]
     test ax, ax
     jnz .total_ok
-    mov ax, [bx+0x20]
-    or ax, [bx+0x22]
+    mov ax, [bx+BPB_TOT_SECS_32]
+    or ax, [bx+BPB_TOT_SECS_32+2]
     jz .bad
 .total_ok:
 
-    mov ax, [bx+0x1C]
+    mov ax, [bx+BPB_HIDDEN_SECS]
     mov [cs:kpart_lba], ax
-    mov ax, [bx+0x1E]
+    mov ax, [bx+BPB_HIDDEN_SECS+2]
     mov [cs:kpart_lba_hi], ax
 
     mov byte [cs:kfat_bits], 12
-    mov word [cs:kfat_eoc], 0x0FF8
-    mov word [cs:kfat_eoc_value], 0x0FFF
-    mov word [cs:kfat_reserved], 0x0FF0
-    cmp byte [bx+0x3A], '6'
+    mov word [cs:kfat_eoc], FAT12_EOC
+    mov word [cs:kfat_eoc_value], FAT12_EOC_VALUE
+    mov word [cs:kfat_reserved], FAT12_RESERVED
+    cmp byte [bx+BPB_FS_TYPE+4], '6'
     jne .fat_type_done
     mov byte [cs:kfat_bits], 16
-    mov word [cs:kfat_eoc], 0xFFF8
-    mov word [cs:kfat_eoc_value], 0xFFFF
-    mov word [cs:kfat_reserved], 0xFFF0
+    mov word [cs:kfat_eoc], FAT16_EOC
+    mov word [cs:kfat_eoc_value], FAT16_EOC_VALUE
+    mov word [cs:kfat_reserved], FAT16_RESERVED
 .fat_type_done:
-    mov ax, [bx+22]
+    mov ax, [bx+BPB_SECS_PER_FAT]
     mov [cs:kfat_secs], ax
-    mov ax, [bx+14]
+    mov ax, [bx+BPB_RSV_SEC_COUNT]
     mov [cs:kfat_start], ax
-    mov al, [bx+16]
+    mov al, [bx+BPB_NUM_FATS]
     mov [cs:knum_fats], al
-    mov ax, [bx+22]
-    movzx cx, byte [bx+16]
+    mov ax, [bx+BPB_SECS_PER_FAT]
+    movzx cx, byte [bx+BPB_NUM_FATS]
     mul cx
     test dx, dx
     jnz .bad
-    add ax, [bx+14]
+    add ax, [bx+BPB_RSV_SEC_COUNT]
     jc .bad
     mov [cs:krsta], ax
-    mov ax, [bx+17]
+    mov ax, [bx+BPB_ROOT_ENT_COUNT]
     mov [cs:kroot_entries], ax
     push ax
-    mov al, [bx+13]
+    mov al, [bx+BPB_SECS_PER_CLUS]
     mov [cs:kspc], al
-    mov ax, [bx+24]
+    mov ax, [bx+BPB_SECS_PER_TRK]
     mov [cs:kbio_spt], ax
-    mov ax, [bx+26]
+    mov ax, [bx+BPB_NUM_HEADS]
     mov [cs:kbio_heads], ax
     pop ax
     mov bx, 32
@@ -515,12 +516,12 @@ parse_bpb_geometry:
     mov [cs:kdsta], ax
 
     mov bx, bpb_copy
-    mov ax, [bx+19]
+    mov ax, [bx+BPB_TOT_SECS_16]
     xor dx, dx
     test ax, ax
     jnz .have_total
-    mov ax, [bx+32]
-    mov dx, [bx+34]
+    mov ax, [bx+BPB_TOT_SECS_32]
+    mov dx, [bx+BPB_TOT_SECS_32+2]
 .have_total:
     test dx, dx
     jnz .total_over_root
@@ -2880,9 +2881,9 @@ kfat_start: dw 0
 kfat_secs: dw 0
 knum_fats: db 0
 kfat_bits: db 12
-kfat_eoc: dw 0x0FF8
-kfat_eoc_value: dw 0x0FFF
-kfat_reserved: dw 0x0FF0
+kfat_eoc: dw FAT12_EOC
+kfat_eoc_value: dw FAT12_EOC_VALUE
+kfat_reserved: dw FAT12_RESERVED
 kroot_entries: dw 224
 kroot_bytes: dw 224 * 32
 kmax_cluster: dw 0
