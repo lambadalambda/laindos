@@ -102,3 +102,4 @@
 - [x] [Harden Interactive Documentation Delivery](issues/harden-interactive-docs-delivery.md)
 - [x] [Document Emulator Workflows In The Site](issues/document-emulator-workflows-in-site.md)
 - [x] [Guard EXEC Environment Construction](issues/guard-exec-environment-construction.md)
+- [x] [Coalesce MCBs After Failed EXEC Rollback](issues/coalesce-mcbs-after-failed-exec-rollback.md)
