@@ -105,3 +105,4 @@
 - [x] [Coalesce MCBs After Failed EXEC Rollback](issues/coalesce-mcbs-after-failed-exec-rollback.md)
 - [x] [Remove Stale setup_exe Loader Path](issues/remove-stale-setup-exe-loader-path.md)
 - [x] [Move Docs Source Excerpts To Stable Anchors](issues/move-docs-source-excerpts-to-stable-anchors.md)
+- [x] [Share FAT BPB Constants Across Boot And Kernel](issues/share-fat-bpb-constants-across-boot-and-kernel.md)
