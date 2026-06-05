@@ -7,4 +7,3 @@
 - [ ] [Share FAT BPB Constants Across Boot And Kernel](issues/share-fat-bpb-constants-across-boot-and-kernel.md)
 - [ ] [Harden INT 21h Frame Macro Pairing](issues/harden-int21-frame-macro-pairing.md)
 - [ ] [Standardize Serial QEMU Test Boilerplate](issues/standardize-serial-qemu-test-boilerplate.md)
-- [ ] [Move Docs Source Excerpts To Stable Anchors](issues/move-docs-source-excerpts-to-stable-anchors.md)
