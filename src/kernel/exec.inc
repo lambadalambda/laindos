@@ -501,11 +501,13 @@ free_prog_mcb:
     cmp byte [ds:0], MCB_SIG_M
     je .free
     cmp byte [ds:0], MCB_SIG_Z
-    jne .done
+    jne .clear
 .free:
     mov word [ds:1], 0
     mov si, ax
     call mcb_merge_free_forward
+.clear:
+    mov word [cs:prog_seg], 0
 .done:
     pop ds
     pop ax

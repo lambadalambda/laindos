@@ -20,6 +20,6 @@
 
 ## Notes
 
-- Relevant stale code: `src/kernel/exec.inc:1003-1066`.
+- Stale code removed: `setup_exe` and `exec_exe` in `src/kernel/exec.inc`. See commit history for the original line numbers (the file shrank by 90 lines after removal).
 - Current initial EXE path calls `setup_exe_dyn` at `src/kernel.asm:363`.
 - Current child EXEC path calls `setup_exe_dyn` at `src/kernel/int21.inc:1945`.

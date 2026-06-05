@@ -21,8 +21,6 @@ start:
     mov [exec_params], ax
     mov [exec_params+4], ds
 
-    push cs
-    pop es
     mov es, ax
     xor di, di
     mov si, big_var
@@ -54,8 +52,6 @@ start:
     cmp bx, ax
     jne fail_largest
 
-    push cs
-    pop es
     mov ah, 0x49
     mov es, [test_alloc]
     int 0x21
