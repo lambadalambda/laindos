@@ -103,3 +103,4 @@
 - [x] [Document Emulator Workflows In The Site](issues/document-emulator-workflows-in-site.md)
 - [x] [Guard EXEC Environment Construction](issues/guard-exec-environment-construction.md)
 - [x] [Coalesce MCBs After Failed EXEC Rollback](issues/coalesce-mcbs-after-failed-exec-rollback.md)
+- [x] [Remove Stale setup_exe Loader Path](issues/remove-stale-setup-exe-loader-path.md)
