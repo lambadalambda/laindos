@@ -116,3 +116,4 @@
 - [x] [Bound resolve_path name_buf writes](issues/bound-resolve-path-namebuf-writes.md)
 - [x] [Validate EXEC env source segment](issues/validate-exec-env-source-segment.md)
 - [x] [Clamp buffered line read for max=1](issues/clamp-buffered-line-read-for-max-1.md)
+- [x] [Distinguish no-separator from offset 0 in ff_scan](issues/distinguish-no-separator-from-offset-0-in-ff-scan.md)
