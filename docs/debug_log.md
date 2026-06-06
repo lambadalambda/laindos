@@ -2,6 +2,31 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-05 Standardize Serial QEMU Test Boilerplate
+
+### Symptoms
+
+- Many `scripts/test_*.py` files repeated the same build-image, run-serial-QEMU, and marker-check boilerplate. The pattern reappeared 40+ times across the test suite, making new tests longer than necessary and inviting subtle drift in QEMU arguments or timeouts.
+
+### Confirmed Facts
+
+- Added two helpers to `scripts/testlib.py`:
+  - `build_simple_test_image(label, boot_file, programs, ...)` — builds the standard boot + kernel + programs + mkimage dance, with a per-test label for output paths.
+  - `run_simple_serial_test(label, boot_file, programs, required=, forbidden=, ...)` — wraps the build, runs the image under QEMU, checks required/forbidden markers, exits non-zero on failure.
+- Migrated nine simple tests: `test_dup.py`, `test_attrapi.py`, `test_commit.py`, `test_createapi.py`, `test_compatapi.py`, `test_datetime.py`, `test_dosstruct.py`, `test_dbcs.py`, `test_fcbfind.py`. Each went from ~25-35 lines to 16-24 lines (a ~30% reduction).
+- Tests that need monitor interaction (e.g., `test_console.py`, `test_envpath.py`, `test_autoexec.py`) were left as-is — the new helpers cover the simple serial regression case.
+- The new helpers are additive; existing `build_nasm_test_image`/`run_serial_image`/`check_markers` stay in place for tests that need finer control.
+
+### Tests And Probes Run
+
+- Each migrated test passes individually.
+- `make test` reports `78/78` tests pass.
+- `make test-game-smokes` passes (Shell Monkey, Full Monkey, Wolf3D, Ascendancy).
+
+### Closed State
+
+- Simple serial regression tests now fit in under 25 lines. The next test can be written without re-implementing the boot/build/QEMU/marker dance.
+
 ## 2026-06-05 Unify FAT12 And FAT16 Boot Sectors
 
 ### Symptoms

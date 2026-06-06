@@ -80,6 +80,54 @@ def build_nasm_test_image(builddir, img, kernel, boot_file, program_source, prog
     return program
 
 
+def build_simple_test_image(label, boot_file, programs, builddir=None, extra_files=(), kernel_defines=()):
+    """Build a test image with one or more programs.
+
+    `programs` is a list of (source_path, output_name) tuples; each source is
+    assembled with `nasm -f bin` into the test build directory and added to
+    the disk image. Returns the image path.
+    """
+    if builddir is None:
+        builddir = build_dir()
+    os.makedirs(builddir, exist_ok=True)
+    img = os.path.join(builddir, f"{label}.img")
+    kernel = os.path.join(builddir, f"{label}_kernel.bin")
+    boot = os.path.join(builddir, "boot.bin")
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
+    kernel_cmd = ["nasm", f'-DBOOT_FILE="{boot_file}"']
+    kernel_cmd.extend(kernel_defines)
+    kernel_cmd.extend(["-f", "bin", "src/kernel.asm", "-o", kernel])
+    run_cmd(kernel_cmd)
+    output_paths = []
+    for source, name in programs:
+        out = os.path.join(builddir, name)
+        run_cmd(["nasm", "-f", "bin", source, "-o", out])
+        output_paths.append(out)
+    run_cmd(["python3", "scripts/mkimage.py", boot, kernel, img, *output_paths, *extra_files])
+    return img
+
+
+def run_simple_serial_test(label, boot_file, programs, required=(),
+                           forbidden=DEFAULT_FAIL_MARKERS, extra_files=(),
+                           kernel_defines=(), timeout=10, drive_opts="if=floppy",
+                           pass_message=None, builddir=None):
+    """Build a test image, run it in QEMU over serial, and verify markers.
+
+    Convenience wrapper around `build_simple_test_image` + `run_serial_image`
+    + `check_markers`. Exits the process with a non-zero status on any
+    missing required marker or unexpected forbidden marker.
+    """
+    img = build_simple_test_image(label, boot_file, programs,
+                                 builddir=builddir, extra_files=extra_files,
+                                 kernel_defines=kernel_defines)
+    output = run_serial_image(img, timeout=timeout, drive_opts=drive_opts)
+    passed = check_markers(output, required=required, forbidden=forbidden,
+                           output_label=f"{label} QEMU serial output")
+    if not passed:
+        sys.exit(1)
+    print(f"\n{pass_message or (label + ' test passed.')}")
+
+
 def run_serial_image(img, timeout=10, qemu="qemu-system-i386", drive_opts="if=floppy"):
     output, _ = run_qemu_capture([
         qemu,

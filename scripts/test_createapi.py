@@ -1,24 +1,16 @@
 #!/usr/bin/env python3
-import os
-import sys
-from testlib import build_dir, build_nasm_test_image, check_markers, run_serial_image
-
-BUILDDIR = build_dir()
-IMG = os.path.join(BUILDDIR, "createapi.img")
-KERNEL = os.path.join(BUILDDIR, "createapi_kernel.bin")
-TIMEOUT = 10
-
-
-def build_image():
-    build_nasm_test_image(BUILDDIR, IMG, KERNEL, "CREATEAPCOM", "tests/programs/createapi.asm", "createap.com")
+from testlib import run_simple_serial_test
 
 
 def main():
-    build_image()
-    output = run_serial_image(IMG, TIMEOUT)
-    if not check_markers(output, required=("PASS: CREATEAPI", "Program exited, code=00", "HALT"), forbidden=("FAIL:", "EXC ", "INT 21h AH=5A", "INT 21h AH=5B", "INT 21h AH=67")):
-        sys.exit(1)
-    print("\nCreate API test passed.")
+    run_simple_serial_test(
+        "createapi",
+        "CREATEAPCOM",
+        [("tests/programs/createapi.asm", "createap.com")],
+        required=("PASS: CREATEAPI", "Program exited, code=00", "HALT"),
+        forbidden=("FAIL:", "EXC ", "INT 21h AH=5A", "INT 21h AH=5B", "INT 21h AH=67"),
+        pass_message="Create API test passed.",
+    )
 
 
 if __name__ == "__main__":
