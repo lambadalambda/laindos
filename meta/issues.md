@@ -10,7 +10,7 @@
 - [x] [Clamp buffered line read for max=1](issues/clamp-buffered-line-read-for-max-1.md)
 - [ ] [Sanitize FindFirst filename bytes](issues/sanitize-findfirst-filename-bytes.md)
 - [x] [Distinguish no-separator from offset 0 in ff_scan](issues/distinguish-no-separator-from-offset-0-in-ff-scan.md)
-- [ ] [Use program size in exec_com_dyn stack top](issues/use-program-size-in-exec-com-dyn-stack-top.md)
+- [x] [Use program size in exec_com_dyn stack top](issues/use-program-size-in-exec-com-dyn-stack-top.md)
 - [x] [Reorder drive switch before cur_dir_cluster read](issues/reorder-drive-switch-before-cur-dir-cluster-read.md)
 - [ ] [Add INT21 trace-block macros](issues/add-int21-trace-block-macros.md)
 - [ ] [Add RET_ERR macro for handler error returns](issues/add-ret-err-macro-for-handler-error-returns.md)
