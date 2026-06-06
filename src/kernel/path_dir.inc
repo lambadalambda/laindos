@@ -38,6 +38,22 @@ alloc_handle:
 %%skip:
 %endmacro
 
+%macro LOAD_SUBDIR_SECTOR 3
+    mov ax, SEC_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:%2]
+    mov [cs:kio_lba_hi], ax
+    mov ax, [cs:%1]
+    push cx
+    call read_sector
+    pop cx
+    jc %3
+    mov ax, SEC_BUF
+    mov es, ax
+    xor di, di
+%endmacro
+
 
 psp_mark_handle_open:
     push ax
@@ -1182,19 +1198,7 @@ find_in_dir_from_common:
     mov [cs:rid_lba_hi], dx
     mov byte [cs:rid_sec_idx], 0
 .rid_sec_loop:
-    xor bx, bx
-    mov dx, SEC_BUF
-    mov es, dx
-    mov ax, [cs:rid_lba_hi]
-    mov [cs:kio_lba_hi], ax
-    mov ax, [cs:rid_lba]
-    push cx
-    call read_sector
-    pop cx
-    jc .rid_notfound_pop
-    mov ax, SEC_BUF
-    mov es, ax
-    xor di, di
+    LOAD_SUBDIR_SECTOR rid_lba, rid_lba_hi, .rid_notfound_pop
     mov bx, 16
 .rid_entry:
     cmp byte [es:di], 0
@@ -1374,17 +1378,7 @@ find_dir_free:
     mov [cs:rid_lba_hi], dx
     mov byte [cs:rid_sec_idx], 0
 .sd_sector:
-    mov dx, SEC_BUF
-    mov es, dx
-    xor bx, bx
-    mov ax, [cs:rid_lba_hi]
-    mov [cs:kio_lba_hi], ax
-    mov ax, [cs:rid_lba]
-    call read_sector
-    jc .sd_full
-    mov ax, SEC_BUF
-    mov es, ax
-    xor di, di
+    LOAD_SUBDIR_SECTOR rid_lba, rid_lba_hi, .sd_full
     mov cx, 16
 .sd_entry:
     cmp byte [es:di], 0
@@ -1664,17 +1658,7 @@ dir_is_empty:
     mov [cs:rd_scan_lba_hi], dx
     mov byte [cs:rd_scan_sec_idx], 0
 .die_sector:
-    mov ax, SEC_BUF
-    mov es, ax
-    xor bx, bx
-    mov ax, [cs:rd_scan_lba_hi]
-    mov [cs:kio_lba_hi], ax
-    mov ax, [cs:rd_scan_lba]
-    call read_sector
-    jc .die_not_empty
-    mov ax, SEC_BUF
-    mov es, ax
-    xor di, di
+    LOAD_SUBDIR_SECTOR rd_scan_lba, rd_scan_lba_hi, .die_not_empty
     mov cx, 16
 .die_entry:
     cmp byte [es:di], 0
