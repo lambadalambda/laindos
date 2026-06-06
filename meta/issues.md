@@ -4,7 +4,7 @@
 - [ ] [Bound exec_copy_command_tail source](issues/bound-exec-copy-command-tail-source.md)
 - [ ] [Guard mouse callback re-entry](issues/guard-mouse-callback-re-entry.md)
 - [ ] [Apply UTC offset to INT 21h get-time](issues/apply-utc-offset-to-int21-get-time.md)
-- [ ] [Preserve registers in INT 21h close](issues/preserve-registers-in-int21-close.md)
+- [x] [Preserve registers in INT 21h close](issues/preserve-registers-in-int21-close.md)
 - [ ] [Wire INT 24h into sector_io_loop](issues/wire-int24h-into-sector-io-loop.md)
 - [ ] [Free create-file handle on directory failure](issues/free-create-file-handle-on-directory-failure.md)
 - [x] [Clamp buffered line read for max=1](issues/clamp-buffered-line-read-for-max-1.md)
