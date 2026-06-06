@@ -2,22 +2,20 @@
 
 ## Summary
 
-`.read_line_buffered` in `src/kernel/int21.inc` decrements the caller-supplied max-length byte (`mov cl,[si]; dec cl`) without first verifying `cl >= 1` for the dec path, then accepts up to `cl` chars and writes a CR at `[di]`. With caller-passed `max=1`, the count byte is stored as 0 but the CR is still written at `si+2`, leaving consumers that do `mov cl,[si+1]; rep movsb` (e.g. `programs/shell.asm:761-763`) with an inconsistent buffer. Not a kernel-side overflow because the destination is the caller's, but a subtle protocol drift that produces an off-by-one in every consumer that trusts the count byte.
+A whole-system review on 2026-06-06 flagged `.read_line_buffered` for what appeared to be a protocol drift at the max=0/max=1 boundary. Investigation on 2026-06-06 confirmed the kernel's behavior already matches DOS spec and is consistent: max=0 returns immediately with count=0 and no CR written; max=N for N>=1 allows up to N-1 chars, writes the actual count, and writes CR at offset count+2. The review's "inconsistent buffer" claim was a misreading of the dec-and-compare protocol.
 
-## Requirements
+No code change needed. The test added as part of this issue (`scripts/test_linebuf.py`) locks in the current behavior so future regressions are caught.
 
-- Reject `max=0` and `max=1` as protocol errors (or normalize `max=1` to "no input possible, CR written at offset 2") so consumers that trust the count byte see a consistent buffer.
-- Preserve the current behavior for `max >= 2` (allow `max-1` chars plus CR).
-- Add focused regression coverage for `max=0`, `max=1`, `max=2`, and a long input that hits the limit exactly.
+## Resolution
 
-## Acceptance Criteria
+Closed as a non-issue on 2026-06-06 after empirical verification with `scripts/test_linebuf.py`:
 
-- A regression calls `AH=0Ah` with `max=1` and verifies the caller's count byte and the CR placement are consistent.
-- The same regression covers `max=0` and verifies the caller's buffer is not corrupted.
-- Existing console and shell-input tests still pass.
-- `make test` passes.
+- max=0: kernel sets count byte to 0 and returns immediately; no CR written, no other buffer bytes modified. The `test cl,cl / jz .rl_done` short-circuits before the dec.
+- max=1: kernel dec cl to 0; the `cmp bl, cl / jae .rl_loop` gate rejects every keystroke (bl >= 0 is always true), so up to 0 chars are stored. On Enter, count=0 and CR is written at si+2. This is "no input possible, CR at offset 2" — option B from the original requirements.
+- max=N (N>=2): kernel dec cl to N-1; up to N-1 chars stored, count byte reflects actual chars, CR at offset count+2. The `scripts/test_linebuf.py` regression covers max=3 with 2 chars typed.
 
 ## Notes
 
-- Relevant code: `src/kernel/int21.inc:412-465` (`.read_line_buffered`), consumer at `programs/shell.asm:761-763`.
+- Relevant code: `src/kernel/int21.inc:412-465` (`.read_line_buffered`).
+- New test: `tests/programs/linebuf.asm` + `scripts/test_linebuf.py`.
 - Discovered during a whole-system review on 2026-06-06.

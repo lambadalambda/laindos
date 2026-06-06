@@ -115,3 +115,4 @@
 - [x] [Track Deferred DOS Compatibility APIs](issues/track-deferred-dos-compatibility-apis.md)
 - [x] [Bound resolve_path name_buf writes](issues/bound-resolve-path-namebuf-writes.md)
 - [x] [Validate EXEC env source segment](issues/validate-exec-env-source-segment.md)
+- [x] [Clamp buffered line read for max=1](issues/clamp-buffered-line-read-for-max-1.md)

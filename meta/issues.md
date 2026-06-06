@@ -7,7 +7,7 @@
 - [ ] [Preserve registers in INT 21h close](issues/preserve-registers-in-int21-close.md)
 - [ ] [Wire INT 24h into sector_io_loop](issues/wire-int24h-into-sector-io-loop.md)
 - [ ] [Free create-file handle on directory failure](issues/free-create-file-handle-on-directory-failure.md)
-- [ ] [Clamp buffered line read for max=1](issues/clamp-buffered-line-read-for-max-1.md)
+- [x] [Clamp buffered line read for max=1](issues/clamp-buffered-line-read-for-max-1.md)
 - [ ] [Sanitize FindFirst filename bytes](issues/sanitize-findfirst-filename-bytes.md)
 - [ ] [Distinguish no-separator from offset 0 in ff_scan](issues/distinguish-no-separator-from-offset-0-in-ff-scan.md)
 - [ ] [Use program size in exec_com_dyn stack top](issues/use-program-size-in-exec-com-dyn-stack-top.md)
