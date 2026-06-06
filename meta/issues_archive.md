@@ -106,3 +106,4 @@
 - [x] [Remove Stale setup_exe Loader Path](issues/remove-stale-setup-exe-loader-path.md)
 - [x] [Move Docs Source Excerpts To Stable Anchors](issues/move-docs-source-excerpts-to-stable-anchors.md)
 - [x] [Share FAT BPB Constants Across Boot And Kernel](issues/share-fat-bpb-constants-across-boot-and-kernel.md)
+- [x] [Unify FAT12 And FAT16 Boot Sectors](issues/unify-fat12-and-fat16-boot-sectors.md)
