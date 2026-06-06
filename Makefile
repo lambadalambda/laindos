@@ -63,9 +63,9 @@ SITE_IMAGE_ARG := $(if $(SITE_IMAGE),--image $(SITE_IMAGE),)
 
 all: $(DISK_IMG)
 
-$(BOOT_BIN): $(SRCDIR)/boot.asm $(SRCDIR)/memory.inc
+$(BOOT_BIN): $(SRCDIR)/boot.asm $(SRCDIR)/memory.inc $(SRCDIR)/fat_bpb.inc
 	@mkdir -p $(BUILDDIR)
-	$(NASM) -f bin $< -o $@
+	$(NASM) -f bin -DFAT12=1 $< -o $@
 
 $(KERNEL_BIN): $(SRCDIR)/kernel.asm $(SRCDIR)/memory.inc $(SRCDIR)/kernel/mouse.inc $(SRCDIR)/kernel/console.inc $(SRCDIR)/kernel/memory_mcb.inc $(SRCDIR)/kernel/path_dir.inc $(SRCDIR)/kernel/fat.inc $(SRCDIR)/kernel/disk.inc $(SRCDIR)/kernel/fs.inc $(SRCDIR)/kernel/exec.inc $(SRCDIR)/kernel/int21.inc
 	@mkdir -p $(BUILDDIR)

@@ -53,7 +53,7 @@ def set_root_attr(image_path, dos_name, attr):
 
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
     run([
         "nasm", '-DBOOT_FILE="FINDATTRCOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,

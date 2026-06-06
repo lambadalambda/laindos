@@ -227,7 +227,7 @@ def main():
     wolf3d_files = extract_required_flat(WOLF3D_ZIP, WOLF3D_DIR, WOLF3D_REQUIRED, "Wolf3D")
     install_ascendancy_cd_cob()
 
-    run(["nasm", "-f", "bin", "src/boot16.asm", "-o", BOOT])
+    run(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
     run([
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,

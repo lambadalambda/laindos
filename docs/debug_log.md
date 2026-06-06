@@ -2,6 +2,30 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-05 Unify FAT12 And FAT16 Boot Sectors
+
+### Symptoms
+
+- `src/boot.asm` (FAT12 floppy) and `src/boot16.asm` (FAT16 hard disk) were two near-identical NASM sources. The 80% of code they shared would drift over time: a fix to the CHS math, retry loop, or FAT chain walk could land in one file but not the other.
+
+### Confirmed Facts
+
+- The two files now collapse into a single `src/boot.asm` with `%if FAT12 / %else / %endif` blocks selecting BPB values, total-sectors handling, fat_next body, and the `cy` size.
+- The Makefile and every test/build script that assembled a boot sector pass `-DFAT12=1` or `-DFAT16=1` to the new `src/boot.asm`. The previous `src/boot16.asm` is removed.
+- Both boot binaries still assemble to exactly 512 bytes with the `0xAA55` signature. One redundant `xor dx,dx` in the FAT12 mcl calculation was removed, which shortened the code by 2 bytes and shifted the data section up.
+- The BPB block, root-dir scan, kernel load, and rs routine are now in one place. The only FAT-specific code is the fat_next body, the BPB values, and a 4-line mcl block (FAT12 uses 16-bit total sectors, FAT16 falls back to 32-bit).
+
+### Tests And Probes Run
+
+- `make test` reports `78/78` tests pass.
+- `make test-game-smokes` passes (Wolf3D, Shortline, Ascendancy).
+- `python3 scripts/check_docs_sync.py` passes (with the line shifts applied via content-matching).
+- `make site` and `deno check` pass.
+
+### Closed State
+
+- A single source file owns the boot flow. Future boot-loader changes (CHS math, retry, FAT walk) need to be made in one place.
+
 ## 2026-06-05 Share FAT BPB Constants Across Boot And Kernel
 
 ### Symptoms

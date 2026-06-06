@@ -57,7 +57,7 @@ def main():
         print("Full Monkey archive does not contain MONKEY.EXE", file=sys.stderr)
         sys.exit(1)
 
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
     run([
         "nasm", '-DBOOT_FILE="MONKEY  EXE"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,

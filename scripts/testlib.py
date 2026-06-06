@@ -70,7 +70,7 @@ def build_nasm_test_image(builddir, img, kernel, boot_file, program_source, prog
     os.makedirs(builddir, exist_ok=True)
     boot = os.path.join(builddir, "boot.bin")
     program = os.path.join(builddir, program_name)
-    run_cmd(["nasm", "-f", "bin", "src/boot.asm", "-o", boot])
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
     kernel_cmd = ["nasm", f'-DBOOT_FILE="{boot_file}"']
     kernel_cmd.extend(kernel_defines)
     kernel_cmd.extend(["-f", "bin", "src/kernel.asm", "-o", kernel])

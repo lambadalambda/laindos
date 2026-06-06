@@ -29,7 +29,7 @@ def build_image():
     boot = os.path.join(BUILDDIR, "fat16seek_boot.bin")
     fatseek = os.path.join(BUILDDIR, "fatseek.com")
     bigdat = os.path.join(BUILDDIR, "seekbig.dat")
-    run(["nasm", "-f", "bin", "src/boot16.asm", "-o", boot])
+    run(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot])
     run(["nasm", '-DBOOT_FILE="FATSEEK COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
     run(["nasm", "-f", "bin", "tests/programs/fatseek.asm", "-o", fatseek])
     size = SEEK_START + SEEK_STEP * (SEEK_COUNT - 1) + 1

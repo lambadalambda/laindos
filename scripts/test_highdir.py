@@ -31,7 +31,7 @@ def build_image():
     highdir = os.path.join(BUILDDIR, "highdir.com")
     filler = os.path.join(BUILDDIR, "highdir_fill.dat")
     seed = os.path.join(BUILDDIR, "seed.dat")
-    run(["nasm", "-f", "bin", "src/boot16.asm", "-o", boot])
+    run(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot])
     run(["nasm", '-DBOOT_FILE="HIGHDIR COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
     run(["nasm", "-f", "bin", "tests/programs/highdir.asm", "-o", highdir])
     with open(filler, "wb") as f:

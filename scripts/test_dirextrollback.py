@@ -20,7 +20,7 @@ def write_fixture(name, data):
 
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
-    run_cmd(["nasm", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
     run_cmd([
         "nasm", "-DTEST_DIR_EXT_ZERO_FAIL", "-DTEST_DIR_EXT_FLUSH_BEFORE_ZERO_FAIL",
         '-DBOOT_FILE="DIREXTRBCOM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL,

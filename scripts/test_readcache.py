@@ -29,7 +29,7 @@ def build_image():
     struct.pack_into("<H", data, 0x28, 0x111B)
     with open(CACHE_DAT, "wb") as f:
         f.write(data)
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
     run([
         "nasm", '-DBOOT_FILE="READCACHCOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,

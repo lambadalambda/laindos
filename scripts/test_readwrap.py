@@ -26,7 +26,7 @@ def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
     with open(DATA, "wb") as handle:
         handle.write(bytes(range(256)) * 2)
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
     run([
         "nasm", '-DBOOT_FILE="READWRAPEXE"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,

@@ -25,7 +25,7 @@ def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
     boot = os.path.join(BUILDDIR, "boot.bin")
     dup_com = os.path.join(BUILDDIR, "duptest.com")
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", boot])
+    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
     run([
         "nasm", '-DBOOT_FILE="DUPTEST COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,

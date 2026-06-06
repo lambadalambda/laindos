@@ -97,7 +97,7 @@ def build_image():
     run_cmd(["bsdtar", "-xf", ARCHIVE, "-C", EXTRACT_DIR])
     disk1 = os.path.join(EXTRACT_DIR, "003064_norton_commander", "disk01.img")
     files = extract_fat12_root(disk1, FILES_DIR)
-    run_cmd(["nasm", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
     run_cmd(["nasm", '-DBOOT_FILE="NC      EXE"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
     run_cmd(["python3", "scripts/mkimage.py", "--format=hd10m", BOOT, KERNEL, IMG, *files])
 

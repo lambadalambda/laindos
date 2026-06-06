@@ -6,28 +6,64 @@
 FAT_SEG  equ 0x0060
 ROOT_SEG equ 0x0A20
 
+%ifndef FAT12
+%define FAT12 0
+%endif
+%ifndef FAT16
+%define FAT16 0
+%endif
+%if FAT12 + FAT16 != 1
+%error "Build must pass -DFAT12=1 or -DFAT16=1"
+%endif
+
+%if FAT12
+%define FAT_EOC        FAT12_EOC
+%define FAT_RESERVED   FAT12_RESERVED
+%define FS_TYPE_STR    "FAT12   "
+%define DRIVE_NUM      0
+%define MEDIA_BYTE     0xF0
+%define NUM_HEADS_VAL  2
+%define ROOT_ENTRIES_V 224
+%define SECS_PER_CLUS  1
+%define SECS_PER_FAT_V 9
+%define SECS_PER_TRK_V 18
+%define TOT_SECS_16_V  2880
+%else
+%define FAT_EOC        FAT16_EOC
+%define FAT_RESERVED   FAT16_RESERVED
+%define FS_TYPE_STR    "FAT16   "
+%define DRIVE_NUM      0x80
+%define MEDIA_BYTE     0xF8
+%define NUM_HEADS_VAL  16
+%define ROOT_ENTRIES_V 512
+%define SECS_PER_CLUS  8
+%define SECS_PER_FAT_V 32
+%define SECS_PER_TRK_V 63
+%define TOT_SECS_16_V  65520
+%endif
+
 bpb:
     jmp short boot
     nop
-    db "MSDOS5.0"      ; +03 OEM name
-    dw 512             ; +0B bytes/sector
-    db 1               ; +0D sec/cluster
-    dw 1               ; +0E reserved sectors
-    db 2               ; +10 num FATs
-    dw 224             ; +11 root entries
-    dw 2880            ; +13 total sectors
-    db 0xF0            ; +15 media
-    dw 9               ; +16 sec/FAT
-    dw 18              ; +18 sec/track
-    dw 2               ; +1A heads
-    dd 0               ; +1C hidden
-    dd 0               ; +20 total sectors 32
-    db 0               ; +24 drive
-    db 0               ; +25 reserved
-    db 0x29            ; +26 boot sig
-    dd 0x12345678      ; +27 vol id
-    db "NO NAME    "   ; +2B vol label
-    db "FAT12   "      ; +36 fs type
+    db "MSDOS5.0"
+    dw 512
+    db SECS_PER_CLUS
+    dw 1
+    db 2
+    dw ROOT_ENTRIES_V
+    dw TOT_SECS_16_V
+    db MEDIA_BYTE
+    dw SECS_PER_FAT_V
+    dw SECS_PER_TRK_V
+    dw NUM_HEADS_VAL
+    dd 0
+    dd 0
+    db DRIVE_NUM
+    db 0
+    db 0x29
+    dd 0x12345678
+    db "NO NAME    "
+    db FS_TYPE_STR
 
 boot:
     cli
@@ -51,21 +87,33 @@ boot:
     mov [rsc],ax
     add ax,[rsta]
     mov [dsta],ax
+%if FAT12
     mov bx,[bpb+BPB_TOT_SECS_16]
     sub bx,ax
     mov ax,bx
+%else
+    mov ax,[bpb+BPB_TOT_SECS_16]
     xor dx,dx
+    test ax,ax
+    jnz mtc
+    mov ax,[bpb+BPB_TOT_SECS_32]
+    mov dx,[bpb+BPB_TOT_SECS_32+2]
+mtc:sub ax,[dsta]
+    sbb dx,0
+%endif
     movzx bx,byte[bpb+BPB_SECS_PER_CLUS]
     div bx
     add ax,2
     mov [mcl],ax
 
+%if FAT12
     mov ax,FAT_SEG
     mov es,ax
     xor bx,bx
     mov ax,[bpb+BPB_RSV_SEC_COUNT]
     mov cx,[bpb+BPB_SECS_PER_FAT]
     call rs
+%endif
 
     mov ax,ROOT_SEG
     mov es,ax
@@ -99,11 +147,11 @@ fk: mov si,[es:di+26]
     mov ax,LOAD_SEG
     mov es,ax
     xor bx,bx
-ld: cmp si,FAT12_EOC
+ld: cmp si,FAT_EOC
     jae ldk
     cmp si,2
     jb nf
-    cmp si,FAT12_RESERVED
+    cmp si,FAT_RESERVED
     jae nf
     cmp si,[mcl]
     jae nf
@@ -126,6 +174,7 @@ ldk:
     dw 0
     dw LOAD_SEG
 
+%if FAT12
 fat_next:
     push bx
     mov bx,si
@@ -143,11 +192,49 @@ fat_next:
 fe: and ax,FAT12_MASK
 fr: pop bx
     ret
+%else
+fat_next:
+    push bx
+    push es
+    mov ax,si
+    mov bx,ax
+    mov cl,8
+    shr ax,cl
+    add ax,[bpb+BPB_RSV_SEC_COUNT]
+    xor bh,bh
+    shl bx,1
+    push bx
+    mov bx,0
+    mov cx,1
+    push ax
+    mov ax,FAT_SEG
+    mov es,ax
+    pop ax
+    call rs
+    pop bx
+    jc f16e
+    push ds
+    mov ax,FAT_SEG
+    mov ds,ax
+    mov ax,[bx]
+    pop ds
+    jmp f16r
+f16e:
+    mov ax,FAT16_EOC_VALUE
+f16r:
+    pop es
+    pop bx
+    ret
+%endif
 
 rs: mov [lb],ax
     mov [cnt],cx
 r1: mov ax,[lb]
     xor dx,dx
+%if !FAT12
+    add ax,[bpb+BPB_HIDDEN_SECS]
+    adc dx,[bpb+BPB_HIDDEN_SECS+2]
+%endif
     div word[bpb+BPB_SECS_PER_TRK]
     inc dl
     mov [sc],dl
@@ -209,7 +296,11 @@ lb:  dw 0
 cnt: dw 0
 sc:  db 0
 hd:  db 0
+%if FAT12
 cy:  db 0
+%else
+cy:  dw 0
+%endif
 ret_:db 3
 
 times 510-($-$$) db 0

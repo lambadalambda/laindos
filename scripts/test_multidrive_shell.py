@@ -27,8 +27,8 @@ def build_images():
     os.makedirs(BUILDDIR, exist_ok=True)
     with open(HDONLY, "wb") as f:
         f.write(b"Hello from C drive!\r\n")
-    run_cmd(["nasm", "-f", "bin", "src/boot.asm", "-o", BOOT])
-    run_cmd(["nasm", "-f", "bin", "src/boot16.asm", "-o", BOOT16])
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", BOOT16])
     run_cmd([
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,

@@ -26,7 +26,7 @@ def build_image():
     boot = os.path.join(BUILDDIR, "boot.bin")
     prog = os.path.join(BUILDDIR, "ioctlext.com")
     testdat = os.path.join(BUILDDIR, "test.dat")
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", boot])
+    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
     run(["nasm", '-DBOOT_FILE="IOCTLEXTCOM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
     run(["nasm", "-f", "bin", "tests/programs/ioctlext.asm", "-o", prog])
     with open(testdat, "wb") as f:

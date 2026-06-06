@@ -12,7 +12,7 @@ TIMEOUT = 8
 
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
-    run_cmd(["nasm", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
     run_cmd([
         "nasm", "-DTEST_BAD_BPB_SEC_PER_CLUS", "-f", "bin",
         "src/kernel.asm", "-o", KERNEL,

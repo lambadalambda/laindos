@@ -52,7 +52,7 @@ def main():
     safe_extract(MI2_ZIP, MI2DIR)
     os.makedirs(SHELLDIR, exist_ok=True)
 
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
     run([
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,

@@ -26,7 +26,7 @@ def build_image():
     boot = os.path.join(BUILDDIR, "boot.bin")
     parent = os.path.join(BUILDDIR, "envmcb.com")
     child = os.path.join(BUILDDIR, "envchld.com")
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", boot])
+    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
     run([
         "nasm", '-DBOOT_FILE="ENVMCB  COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,

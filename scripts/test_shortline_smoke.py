@@ -39,7 +39,7 @@ def build_image():
         archive.extractall(WORKDIR)
     game_dir = os.path.join(WORKDIR, "SHRTLINE")
     files = [os.path.join(game_dir, name) for name in os.listdir(game_dir)]
-    run_cmd(["nasm", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
     run_cmd(["nasm", '-DBOOT_FILE="SL      EXE"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
     run_cmd(["python3", "scripts/mkimage.py", "--format=hd10m", BOOT, KERNEL, IMG, *files])
 

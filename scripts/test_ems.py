@@ -29,7 +29,7 @@ def build_image():
     frame_seg = os.environ.get("LAINDOS_EMS_FRAME_SEG")
     if frame_seg:
         kernel_defines.append(f"-DEMS_FRAME_SEG={frame_seg}")
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", boot])
+    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
     run([
         "nasm", *kernel_defines, "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,

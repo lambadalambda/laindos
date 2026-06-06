@@ -68,8 +68,8 @@ def build_images():
         f.write(b"DRIVEOK")
     with open(HDONLY, "wb") as f:
         f.write(b"DRIVEOK")
-    run_cmd(["nasm", "-f", "bin", "src/boot.asm", "-o", BOOT])
-    run_cmd(["nasm", "-f", "bin", "src/boot16.asm", "-o", BOOT16])
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", BOOT16])
     run_cmd(["nasm", "-f", "bin", "tests/programs/mbr.asm", "-o", MBR])
     run_cmd([
         "nasm", '-DBOOT_FILE="MULTIDRVCOM"', "-f", "bin", "src/kernel.asm",

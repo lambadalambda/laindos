@@ -8,13 +8,13 @@ BUILDDIR = build_dir()
 TIMEOUT = 8
 
 
-def build_image(label, image_format=None, boot_source="src/boot.asm"):
+def build_image(label, image_format=None, boot_source="src/boot.asm", fat_type="12"):
     os.makedirs(BUILDDIR, exist_ok=True)
     boot = os.path.join(BUILDDIR, f"{label}_boot.bin")
     kernel = os.path.join(BUILDDIR, f"{label}_kernel.bin")
     program = os.path.join(BUILDDIR, "diskfree.com")
     img = os.path.join(BUILDDIR, f"{label}.img")
-    run_cmd(["nasm", "-f", "bin", boot_source, "-o", boot])
+    run_cmd(["nasm", f"-DFAT{fat_type}=1", "-f", "bin", boot_source, "-o", boot])
     run_cmd([
         "nasm", '-DBOOT_FILE="DISKFREECOM"', "-f", "bin", "src/kernel.asm",
         "-o", kernel,
@@ -45,7 +45,12 @@ def run_qemu(img, drive_opts="if=floppy", boot_order="a", timeout=TIMEOUT):
 
 def run_case(name, label, **kwargs):
     print(f"\n{name}")
-    img = build_image(label, kwargs.get("image_format"), kwargs.get("boot_source", "src/boot.asm"))
+    img = build_image(
+        label,
+        kwargs.get("image_format"),
+        kwargs.get("boot_source", "src/boot.asm"),
+        kwargs.get("fat_type", "12"),
+    )
     output = run_qemu(
         img,
         kwargs.get("drive_opts", "if=floppy"),
@@ -65,7 +70,8 @@ def main():
         "FAT16 hard disk free",
         "fat16",
         image_format="hd32m",
-        boot_source="src/boot16.asm",
+        boot_source="src/boot.asm",
+        fat_type="16",
         drive_opts="",
         boot_order="c",
         timeout=12,

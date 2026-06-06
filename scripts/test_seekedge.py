@@ -17,7 +17,7 @@ def build_image():
     data = os.path.join(BUILDDIR, "seekedge.dat")
     with open(data, "wb") as handle:
         handle.write(b"ABCDE")
-    run_cmd(["nasm", "-f", "bin", "src/boot.asm", "-o", boot])
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
     run_cmd(["nasm", '-DBOOT_FILE="SEEKEDGECOM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
     run_cmd(["nasm", "-f", "bin", "tests/programs/seekedge.asm", "-o", prog])
     run_cmd(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, prog, data])

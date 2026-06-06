@@ -76,7 +76,7 @@ def build_image():
     boot = os.path.join(BUILDDIR, "fat16part_boot.bin")
     memtest = os.path.join(BUILDDIR, "memtest.exe")
     run(["nasm", "-f", "bin", "tests/programs/mbr.asm", "-o", mbr])
-    run(["nasm", "-f", "bin", "src/boot16.asm", "-o", boot])
+    run(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot])
     run(["nasm", "-f", "bin", "src/kernel.asm", "-o", KERNEL])
     run(["nasm", "-f", "bin", "tests/programs/memtest.asm", "-o", memtest])
     run(["python3", "scripts/mkimage.py", "--format=hd32m", boot, KERNEL, RAW_IMG, memtest])

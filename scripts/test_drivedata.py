@@ -15,8 +15,8 @@ TIMEOUT = 10
 
 def build_artifacts():
     os.makedirs(BUILDDIR, exist_ok=True)
-    run_cmd(["nasm", "-f", "bin", "src/boot.asm", "-o", BOOT_FLOPPY])
-    run_cmd(["nasm", "-f", "bin", "src/boot16.asm", "-o", BOOT_HD])
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT_FLOPPY])
+    run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", BOOT_HD])
     run_cmd(["nasm", '-DBOOT_FILE="DRIVEDATCOM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
     run_cmd(["nasm", "-f", "bin", "tests/programs/drivedata.asm", "-o", PROGRAM])
 

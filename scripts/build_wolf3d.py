@@ -73,7 +73,7 @@ def main():
     os.makedirs(BUILDDIR, exist_ok=True)
     game_files = extract_game_files()
 
-    run(["nasm", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
     run([
         "nasm", '-DBOOT_FILE="WOLF3D  EXE"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,

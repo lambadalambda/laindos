@@ -29,7 +29,7 @@ def build_image():
     fatbig = os.path.join(BUILDDIR, "fatbig.com")
     bigdat = os.path.join(BUILDDIR, "big.dat")
     dummy = os.path.join(BUILDDIR, "cfgdummy.dat")
-    run(["nasm", "-f", "bin", "src/boot16.asm", "-o", boot])
+    run(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot])
     run(["nasm", '-DBOOT_FILE="FATBIG  COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
     run(["nasm", "-f", "bin", "tests/programs/fatbig.asm", "-o", fatbig])
     with open(bigdat, "wb") as f:

@@ -58,9 +58,9 @@ def build_base(label, fat_bits):
     boot = os.path.join(BUILDDIR, f"{label}_boot.bin")
     kernel = os.path.join(BUILDDIR, f"{label}_kernel.bin")
     img = os.path.join(BUILDDIR, f"{label}.img")
-    boot_src = "src/boot16.asm" if fat_bits == 16 else "src/boot.asm"
+    boot_src = "src/boot.asm"
     fmt = "hd32m" if fat_bits == 16 else "1440k"
-    run_cmd(["nasm", "-f", "bin", boot_src, "-o", boot])
+    run_cmd(["nasm", f"-DFAT{fat_bits}=1", "-f", "bin", boot_src, "-o", boot])
     run_cmd(["nasm", "-f", "bin", "src/kernel.asm", "-o", kernel])
     args = ["python3", "scripts/mkimage.py"]
     if fat_bits == 16:

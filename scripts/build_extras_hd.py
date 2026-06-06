@@ -193,7 +193,7 @@ def prepare_standard_games():
 
 
 def main():
-    if not os.path.exists("src/boot16.asm"):
+    if not os.path.exists("src/boot.asm"):
         print("Run this script from the LainDOS project root.", file=sys.stderr)
         sys.exit(1)
 
@@ -204,7 +204,7 @@ def main():
     extract_stunt_source()
     write_readme()
 
-    games.run(["nasm", "-f", "bin", "src/boot16.asm", "-o", BOOT])
+    games.run(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
     games.run(["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
     games.run(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
     games.run(["nasm", "-f", "bin", "programs/free.asm", "-o", FREE])

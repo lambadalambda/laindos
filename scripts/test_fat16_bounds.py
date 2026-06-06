@@ -15,7 +15,7 @@ SECTOR_SIZE = 512
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
     boot = os.path.join(BUILDDIR, "fat16bounds_boot.bin")
-    run_cmd(["nasm", "-f", "bin", "src/boot16.asm", "-o", boot])
+    run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot])
     run_cmd([
         "nasm", "-DTEST_FAT16_FAT_SECTOR_BOUNDS", "-f", "bin",
         "src/kernel.asm", "-o", KERNEL,

@@ -16,7 +16,7 @@ def build_image():
     boot = os.path.join(BUILDDIR, "boot.bin")
     pathcanon_com = os.path.join(BUILDDIR, "pathcan.com")
     subtest_dat = os.path.join(BUILDDIR, "subtest.dat")
-    run_cmd(["nasm", "-f", "bin", "src/boot.asm", "-o", boot])
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
     run_cmd([
         "nasm", '-DBOOT_FILE="PATHCAN COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
