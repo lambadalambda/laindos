@@ -25,6 +25,20 @@ alloc_handle:
     stc
     ret
 
+%macro STRIP_DRIVE_PREFIX 1
+    mov al, [ds:%1]
+    call ascii_upper
+    cmp al, 'A'
+    jb %%skip
+    cmp al, 'Z'
+    ja %%skip
+    cmp byte [ds:%1+1], ':'
+    jne %%skip
+    add %1, 2
+%%skip:
+%endmacro
+
+
 psp_mark_handle_open:
     push ax
     push bx
@@ -649,15 +663,7 @@ store_cur_dir_path:
     push es
     mov bx, si
     xor dx, dx
-    mov al, [ds:bx]
-    call ascii_upper
-    cmp al, 'A'
-    jb .check_abs_sep
-    cmp al, 'Z'
-    ja .check_abs_sep
-    cmp byte [ds:bx+1], ':'
-    jne .check_abs_sep
-    add bx, 2
+    STRIP_DRIVE_PREFIX bx
 .check_abs_sep:
     cmp byte [ds:bx], '\'
     je .absolute
@@ -787,15 +793,7 @@ chdir_dot_only_path:
     mov ax, [cs:cur_dir_cluster]
     mov [cs:cd_walk_cluster], ax
     xor dx, dx
-    mov al, [ds:bx]
-    call ascii_upper
-    cmp al, 'A'
-    jb .check_abs_sep
-    cmp al, 'Z'
-    ja .check_abs_sep
-    cmp byte [ds:bx+1], ':'
-    jne .check_abs_sep
-    add bx, 2
+    STRIP_DRIVE_PREFIX bx
 .check_abs_sep:
     cmp byte [ds:bx], '\'
     je .set_root
@@ -932,15 +930,7 @@ resolve_path:
     je .rp_abs
     cmp byte [ds:si], '/'
     je .rp_abs
-    mov al, [ds:si]
-    call ascii_upper
-    cmp al, 'A'
-    jb .rp_rel
-    cmp al, 'Z'
-    ja .rp_rel
-    cmp byte [ds:si+1], ':'
-    jne .rp_rel
-    add si, 2
+    STRIP_DRIVE_PREFIX si
     cmp byte [ds:si], '\'
     je .rp_abs_skip
     cmp byte [ds:si], '/'
@@ -1820,15 +1810,7 @@ parse_root_path:
     mov [cs:pr_dir_cluster], ax
     mov word [cs:pr_last_sep], 0xFFFF
     mov bx, si
-    mov al, [ds:bx]
-    call ascii_upper
-    cmp al, 'A'
-    jb .scan
-    cmp al, 'Z'
-    ja .scan
-    cmp byte [ds:bx+1], ':'
-    jne .scan
-    add bx, 2
+    STRIP_DRIVE_PREFIX bx
 .scan:
     mov al, [ds:bx]
     test al, al
@@ -1847,15 +1829,7 @@ parse_root_path:
     cmp bx, 0xFFFF
     jne .have_parent
     mov si, [cs:pr_path_off]
-    mov al, [ds:si]
-    call ascii_upper
-    cmp al, 'A'
-    jb .no_parent_name
-    cmp al, 'Z'
-    ja .no_parent_name
-    cmp byte [ds:si+1], ':'
-    jne .no_parent_name
-    add si, 2
+    STRIP_DRIVE_PREFIX si
 .no_parent_name:
     cmp byte [ds:si], 0
     je .err
@@ -1864,15 +1838,7 @@ parse_root_path:
     cmp byte [ds:bx+1], 0
     je .err
     mov si, [cs:pr_path_off]
-    mov al, [ds:si]
-    call ascii_upper
-    cmp al, 'A'
-    jb .root_check
-    cmp al, 'Z'
-    ja .root_check
-    cmp byte [ds:si+1], ':'
-    jne .root_check
-    add si, 2
+    STRIP_DRIVE_PREFIX si
 .root_check:
     cmp si, bx
     jae .parent_root
@@ -1899,14 +1865,7 @@ parse_root_path:
     je .set_abs_parent
     cmp byte [ds:si], '/'
     je .set_abs_parent
-    mov al, [ds:si]
-    call ascii_upper
-    cmp al, 'A'
-    jb .call_resolve_parent
-    cmp al, 'Z'
-    ja .call_resolve_parent
-    cmp byte [ds:si+1], ':'
-    jne .call_resolve_parent
+    STRIP_DRIVE_PREFIX si
 .set_abs_parent:
     mov byte [cs:pr_abs], 1
 .call_resolve_parent:
