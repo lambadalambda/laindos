@@ -560,6 +560,14 @@ do_cd:
     int 0x21
     ret
 
+do_cd_parent:
+    mov si, parent_arg
+    jmp do_cd
+
+do_cd_root:
+    mov si, root_arg
+    jmp do_cd
+
 do_md:
     cmp byte [si], 0
     je .missing
@@ -1347,19 +1355,31 @@ exit_cmd: db "EXIT", 0
 ver_cmd: db "VER", 0
 dir_cmd: db "DIR", 0
 cd_cmd: db "CD", 0
+cd_parent_cmd: db "CD..", 0
+cd_root_cmd: db "CD", 0x5C, 0
+chdir_cmd: db "CHDIR", 0
 md_cmd: db "MD", 0
+mkdir_cmd: db "MKDIR", 0
 rd_cmd: db "RD", 0
+rmdir_cmd: db "RMDIR", 0
 type_cmd: db "TYPE", 0
 cls_cmd: db "CLS", 0
 echo_cmd: db "ECHO", 0
 rem_cmd: db "REM", 0
+parent_arg: db "..", 0
+root_arg: db 0x5C, 0
 command_table:
     dw exit_cmd, exit_shell
     dw ver_cmd, do_ver
     dw dir_cmd, do_dir
     dw cd_cmd, do_cd
+    dw cd_parent_cmd, do_cd_parent
+    dw cd_root_cmd, do_cd_root
+    dw chdir_cmd, do_cd
     dw md_cmd, do_md
+    dw mkdir_cmd, do_md
     dw rd_cmd, do_rd
+    dw rmdir_cmd, do_rd
     dw type_cmd, do_type
     dw cls_cmd, do_cls
     dw echo_cmd, do_echo

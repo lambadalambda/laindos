@@ -128,3 +128,4 @@
 - [x] [Add LOAD_SUBDIR_SECTOR helper](issues/add-load-subdir-sector-helper.md)
 - [x] [Unify MCB walk skeleton with macro](issues/unify-mcb-walk-skeleton-with-macro.md)
 - [x] [Bound exec_copy_command_tail source](issues/bound-exec-copy-command-tail-source.md)
+- [x] [Support DOS compact directory commands and aliases](issues/support-dos-compact-directory-commands-and-aliases.md)

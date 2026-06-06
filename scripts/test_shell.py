@@ -185,11 +185,15 @@ def send_keys(output_chunks):
         "mem",
         "free",
         "md shdir",
+        "mkdir shalias",
         "dir",
-        "cd shdir",
-        "cd /",
-        "cd ..",
-        "rd shdir",
+        "cd..",
+        "chdir shdir",
+        "cd\\",
+        "chdir shdir",
+        "cd..",
+        "rmdir shdir",
+        "rd shalias",
         "cd shdir",
         "cd midemo",
         "dir",
@@ -269,6 +273,7 @@ def main():
         "Total memory",
         "Total Expanded (EMS)",
         "Largest executable program size",
+        "SHALIAS",
         "A:\\SHDIR>",
         "Path not found",
         "A:\\MIDEMO>",
@@ -296,6 +301,11 @@ def main():
         print("  PASS: CD .. at root did not error")
     else:
         print("  FAIL: expected exactly one Path not found")
+        failed = True
+    if output.count("Bad command or file name") == 1:
+        print("  PASS: only deliberate bad command failed")
+    else:
+        print("  FAIL: expected exactly one bad command")
         failed = True
     for marker in ["FAIL:", "EXC ", "INT 21h AH=", "Invalid MCB chain"]:
         if marker in output:
