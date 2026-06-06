@@ -17,5 +17,5 @@
 - [ ] [Unify MCB walk skeleton with macro](issues/unify-mcb-walk-skeleton-with-macro.md)
 - [ ] [Extract drive-prefix consumption helper](issues/extract-drive-prefix-consumption-helper.md)
 - [ ] [Add LOAD_SUBDIR_SECTOR helper](issues/add-load-subdir-sector-helper.md)
-- [ ] [Add MCB_IS_VALID macro](issues/add-mcb-is-valid-macro.md)
+- [x] [Add MCB_IS_VALID macro](issues/add-mcb-is-valid-macro.md)
 - [ ] [Add user-space handle count query and post-alloc_handle failure hook](issues/add-handle-count-query-and-failure-hook.md)
