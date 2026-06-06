@@ -109,3 +109,7 @@
 - [x] [Unify FAT12 And FAT16 Boot Sectors](issues/unify-fat12-and-fat16-boot-sectors.md)
 - [x] [Standardize Serial QEMU Test Boilerplate](issues/standardize-serial-qemu-test-boilerplate.md)
 - [x] [Harden INT 21h Frame Macro Pairing](issues/harden-int21-frame-macro-pairing.md)
+- [x] [Document INT 21h IF-On-Return Compatibility](issues/document-int21-if-on-return-compatibility.md)
+- [x] [Document 386+ CPU Floor](issues/document-386-plus-cpu-floor.md)
+- [x] [Clarify FAT Flush Error Flag Semantics](issues/clarify-fat-flush-error-flag-semantics.md)
+- [x] [Track Deferred DOS Compatibility APIs](issues/track-deferred-dos-compatibility-apis.md)
