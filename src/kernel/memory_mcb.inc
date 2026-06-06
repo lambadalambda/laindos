@@ -15,19 +15,26 @@ mcb_walk_next:
     stc
     ret
 
+%macro MCB_WALK_EACH 6
+%1:
+    mov ds, si
+    MCB_IS_VALID
+    je %2
+    jmp %4
+%3:
+    cmp byte [ds:0], MCB_SIG_Z
+    je %5
+    call mcb_walk_next
+    jc %6
+    jmp %1
+%endmacro
+
 alloc_mem_direct:
     push ds
     push si
     mov [cs:am_req], bx
     mov si, [cs:mcb_first]
-.amd_walk:
-    mov ds, si
-    MCB_IS_VALID
-    je .amd_check
-    stc
-    pop si
-    pop ds
-    ret
+    MCB_WALK_EACH .amd_walk, .amd_check, .amd_next, .amd_nomem, .amd_nomem, .amd_nomem
 .amd_check:
     cmp word [ds:1], 0
     jne .amd_next
@@ -65,12 +72,6 @@ alloc_mem_direct:
     pop ds
     clc
     ret
-.amd_next:
-    cmp byte [ds:0], MCB_SIG_Z
-    je .amd_nomem
-    call mcb_walk_next
-    jc .amd_nomem
-    jmp .amd_walk
 .amd_nomem:
     stc
     pop si
@@ -83,11 +84,7 @@ find_largest_free_block:
     push si
     xor bx, bx
     mov si, [cs:mcb_first]
-.flfb_walk:
-    mov ds, si
-    MCB_IS_VALID
-    je .flfb_check
-    jmp .flfb_done
+    MCB_WALK_EACH .flfb_walk, .flfb_check, .flfb_next, .flfb_done, .flfb_done, .flfb_done
 .flfb_check:
     cmp word [ds:1], 0
     jne .flfb_next
@@ -95,12 +92,7 @@ find_largest_free_block:
     cmp ax, bx
     jbe .flfb_next
     mov bx, ax
-.flfb_next:
-    cmp byte [ds:0], MCB_SIG_Z
-    je .flfb_done
-    call mcb_walk_next
-    jc .flfb_done
-    jmp .flfb_walk
+    jmp .flfb_next
 .flfb_done:
     pop si
     pop ds
@@ -146,21 +138,12 @@ mcb_coalesce_all_free:
     push ds
     push si
     mov si, [cs:mcb_first]
-.walk:
-    mov ds, si
-    MCB_IS_VALID
-    je .check
-    jmp .done
+    MCB_WALK_EACH .walk, .check, .next, .done, .done, .done
 .check:
     cmp word [ds:1], 0
     jne .next
     call mcb_merge_free_forward
-.next:
-    cmp byte [ds:0], MCB_SIG_Z
-    je .done
-    call mcb_walk_next
-    jc .done
-    jmp .walk
+    jmp .next
 .done:
     pop si
     pop ds
@@ -173,14 +156,7 @@ alloc_mem_direct_high:
     mov [cs:am_req], bx
     mov word [cs:am_best_seg], 0
     mov si, [cs:mcb_first]
-.amdh_walk:
-    mov ds, si
-    MCB_IS_VALID
-    je .amdh_check
-    stc
-    pop si
-    pop ds
-    ret
+    MCB_WALK_EACH .amdh_walk, .amdh_check, .amdh_next, .amdh_nomem, .amdh_choose, .amdh_nomem
 .amdh_check:
     cmp word [ds:1], 0
     jne .amdh_next
@@ -188,12 +164,7 @@ alloc_mem_direct_high:
     cmp ax, [cs:am_req]
     jb .amdh_next
     mov [cs:am_best_seg], si
-.amdh_next:
-    cmp byte [ds:0], MCB_SIG_Z
-    je .amdh_choose
-    call mcb_walk_next
-    jc .amdh_nomem
-    jmp .amdh_walk
+    jmp .amdh_next
 .amdh_choose:
     mov si, [cs:am_best_seg]
     test si, si
@@ -237,14 +208,7 @@ alloc_all_mem_direct:
     push si
     mov [cs:am_req], bx
     mov si, [cs:mcb_first]
-.aad_walk:
-    mov ds, si
-    MCB_IS_VALID
-    je .aad_check
-    stc
-    pop si
-    pop ds
-    ret
+    MCB_WALK_EACH .aad_walk, .aad_check, .aad_next, .aad_nomem, .aad_nomem, .aad_nomem
 .aad_check:
     cmp word [ds:1], 0
     jne .aad_next
@@ -259,12 +223,6 @@ alloc_all_mem_direct:
     pop ds
     clc
     ret
-.aad_next:
-    cmp byte [ds:0], MCB_SIG_Z
-    je .aad_nomem
-    call mcb_walk_next
-    jc .aad_nomem
-    jmp .aad_walk
 .aad_nomem:
     stc
     pop si
