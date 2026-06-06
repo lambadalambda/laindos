@@ -1,4 +1,17 @@
+; Each INT 21h handler saves and restores registers with one of the
+; INT21_POP_FRAME_* macros below. The macro name encodes the required
+; PUSH order in the handler. A handler MUST push exactly the registers
+; in the order shown in the macro name (or a strict subset) and use the
+; matching pop macro. Selecting a pop macro whose push set is larger or
+; whose push order differs silently misaligns the stack and corrupts
+; whatever follows.
+;
+; Canonical push order: ds, si, es, di, bx, cx, dx.
+; The five "non-canonical" macros below use a different order; their
+; doc comments call out the required push sequence.
+
 %macro INT21_POP_FRAME_DS_SI_ES_DI_BX 0
+; Handler must have pushed, in order: ds, si, es, di, bx.
     pop bx
     pop di
     pop es
@@ -7,6 +20,7 @@
 %endmacro
 
 %macro INT21_POP_FRAME_DS_SI_ES_DI_BX_CX 0
+; Handler must have pushed, in order: ds, si, es, di, bx, cx.
     pop cx
     pop bx
     pop di
@@ -16,6 +30,7 @@
 %endmacro
 
 %macro INT21_POP_FRAME_DS_SI_ES_DI_BX_CX_DX 0
+; Handler must have pushed, in order: ds, si, es, di, bx, cx, dx.
     pop dx
     pop cx
     pop bx
@@ -26,6 +41,7 @@
 %endmacro
 
 %macro INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI 0
+; Non-canonical. Handler must have pushed, in order: es, ds, bx, cx, dx, si, di.
     pop di
     pop si
     pop dx
@@ -36,6 +52,7 @@
 %endmacro
 
 %macro INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI 0
+; Non-canonical. Handler must have pushed, in order: bx, cx, dx, ds, es, si, di.
     pop di
     pop si
     pop es
@@ -46,6 +63,7 @@
 %endmacro
 
 %macro INT21_POP_FRAME_BX_CX_DX_ES_DI_DS_SI 0
+; Non-canonical. Handler must have pushed, in order: bx, cx, dx, es, di, ds, si.
     pop si
     pop ds
     pop di
@@ -56,6 +74,7 @@
 %endmacro
 
 %macro INT21_POP_FRAME_DS_SI_ES_DI_CX 0
+; Handler must have pushed, in order: ds, si, es, di, cx.
     pop cx
     pop di
     pop es
@@ -64,6 +83,7 @@
 %endmacro
 
 %macro INT21_POP_FRAME_DS_SI_ES_DI_DX_CX 0
+; Non-canonical. Handler must have pushed, in order: ds, si, es, di, dx, cx.
     pop cx
     pop dx
     pop di
@@ -73,6 +93,7 @@
 %endmacro
 
 %macro INT21_POP_FRAME_DS_SI_CX_BX_ES_DI 0
+; Non-canonical. Handler must have pushed, in order: ds, si, cx, bx, es, di.
     pop di
     pop es
     pop bx
@@ -82,6 +103,9 @@
 %endmacro
 
 %macro INT21_POP_EXEC_PROGRAM_FRAME 0
+; Special-cased exec frame: pops 5 caller-pushed values into
+; saved_sp/saved_ss/dta_off/dta_seg/cur_psp (ax), then di, si, es, ds,
+; dx, cx, bx in that order.
     pop ax
     mov [cs:saved_sp], ax
     pop ax
