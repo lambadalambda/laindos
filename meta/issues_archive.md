@@ -114,3 +114,4 @@
 - [x] [Clarify FAT Flush Error Flag Semantics](issues/clarify-fat-flush-error-flag-semantics.md)
 - [x] [Track Deferred DOS Compatibility APIs](issues/track-deferred-dos-compatibility-apis.md)
 - [x] [Bound resolve_path name_buf writes](issues/bound-resolve-path-namebuf-writes.md)
+- [x] [Validate EXEC env source segment](issues/validate-exec-env-source-segment.md)
