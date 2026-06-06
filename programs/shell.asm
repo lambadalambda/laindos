@@ -1316,6 +1316,9 @@ confirm_del_prompt:
 
 del_path_has_wildcard:
     mov si, del_path
+    jmp path_has_wildcard
+
+path_has_wildcard:
 .loop:
     lodsb
     test al, al
@@ -1323,6 +1326,101 @@ del_path_has_wildcard:
     cmp al, '*'
     je .yes
     cmp al, '?'
+    je .yes
+    jmp .loop
+.yes:
+    stc
+    ret
+.no:
+    clc
+    ret
+
+do_ren:
+    call parse_ren_args
+    cmp byte [ren_arg_count], 2
+    jb .missing
+    ja .too_many
+    call ren_paths_have_wildcard
+    jc .wildcard
+    call ren_dst_has_path
+    jc .bad_dst
+    push cs
+    pop es
+    mov dx, ren_src_path
+    mov di, ren_dst_path
+    mov ah, 0x56
+    int 0x21
+    jc .err
+    ret
+.missing:
+    mov dx, missing_arg_msg
+    call print_dollar
+    ret
+.too_many:
+    mov dx, too_many_args_msg
+    call print_dollar
+    ret
+.bad_dst:
+    mov dx, invalid_dst_msg
+    call print_dollar
+    ret
+.wildcard:
+    mov dx, wildcard_not_supported_msg
+    call print_dollar
+    ret
+.err:
+    mov dx, file_error_msg
+    call print_dollar
+    ret
+
+parse_ren_args:
+    mov byte [ren_arg_count], 0
+.loop:
+    call skip_spaces
+    cmp byte [si], 0
+    je .done
+    cmp byte [ren_arg_count], 0
+    je .src
+    cmp byte [ren_arg_count], 1
+    je .dst
+    mov byte [ren_arg_count], 3
+    call skip_token_chars
+    jmp .loop
+.src:
+    mov di, ren_src_path
+    call copy_path_token
+    inc byte [ren_arg_count]
+    jmp .loop
+.dst:
+    mov di, ren_dst_path
+    call copy_path_token
+    inc byte [ren_arg_count]
+    jmp .loop
+.done:
+    ret
+
+ren_paths_have_wildcard:
+    mov si, ren_src_path
+    call path_has_wildcard
+    jc .yes
+    mov si, ren_dst_path
+    call path_has_wildcard
+    ret
+.yes:
+    stc
+    ret
+
+ren_dst_has_path:
+    mov si, ren_dst_path
+.loop:
+    lodsb
+    test al, al
+    jz .no
+    cmp al, ':'
+    je .yes
+    cmp al, '\'
+    je .yes
+    cmp al, '/'
     je .yes
     jmp .loop
 .yes:
@@ -2092,6 +2190,8 @@ rmdir_cmd: db "RMDIR", 0
 copy_cmd: db "COPY", 0
 del_cmd: db "DEL", 0
 erase_cmd: db "ERASE", 0
+ren_cmd: db "REN", 0
+rename_cmd: db "RENAME", 0
 type_cmd: db "TYPE", 0
 cls_cmd: db "CLS", 0
 echo_cmd: db "ECHO", 0
@@ -2113,6 +2213,8 @@ command_table:
     dw copy_cmd, do_copy
     dw del_cmd, do_del
     dw erase_cmd, do_del
+    dw ren_cmd, do_ren
+    dw rename_cmd, do_ren
     dw type_cmd, do_type
     dw cls_cmd, do_cls
     dw echo_cmd, do_echo
@@ -2137,6 +2239,8 @@ copy_overwrite_suffix: db "? (Y/N)", "$"
 del_confirm_msg: db "Delete ", "$"
 del_confirm_suffix: db "? (Y/N)", "$"
 del_not_deleted_msg: db "File not deleted.", 13, 10, "$"
+invalid_dst_msg: db "Invalid destination", 13, 10, "$"
+too_many_args_msg: db "Too many arguments", 13, 10, "$"
 dir_page_lines equ 22
 dir_pow10_table:
     dd 1000000000
@@ -2181,10 +2285,13 @@ copy_src_path: times copy_path_size db 0
 copy_dst_path: times copy_path_size db 0
 copy_dst_final: times copy_path_size db 0
 del_path: times copy_path_size db 0
+ren_src_path: times copy_path_size db 0
+ren_dst_path: times copy_path_size db 0
 copy_yes: db 0
 copy_arg_count: db 0
 del_prompt: db 0
 del_has_arg: db 0
+ren_arg_count: db 0
 copy_src_handle: dw 0
 copy_dst_handle: dw 0
 copy_io_count: dw 0
