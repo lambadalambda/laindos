@@ -2666,6 +2666,11 @@ int21_handler:
     mov ax, 4
     jmp iret_cy
 .close_file:
+    push bx
+    push cx
+    push dx
+    push si
+    push di
     cmp bx, MAX_HANDLES
     jae .cf_err
     cmp word [cs:trace_left], 0
@@ -2686,19 +2691,11 @@ int21_handler:
 .cf_no_trace:
     cmp bx, 5
     jae .cf_table_handle
-    push ax
-    push cx
-    push dx
-    push si
     mov ax, bx
     mov cx, HANDLE_SIZE
     mul cx
     mov si, ax
     cmp byte [cs:si+handles+H_USED], 0
-    pop si
-    pop dx
-    pop cx
-    pop ax
     je .cf_std_handle
 .cf_table_handle:
     call .close_inherited_handle
@@ -2707,14 +2704,34 @@ int21_handler:
     jc .cf_status_err
 .cf_inherited_handle:
     call psp_mark_handle_closed
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
     jmp iret_nc
 .cf_status_err:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
     jmp iret_cy
 .cf_std_handle:
     call psp_mark_handle_closed
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
     jmp iret_nc
 .cf_err:
     mov ax, 6
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
     jmp iret_cy
 .close_inherited_handle:
     push ax
