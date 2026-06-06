@@ -95,6 +95,7 @@ DEFAULT_TESTS = [
     "scripts/test_execseg.py",
     "scripts/test_linebuf.py",
     "scripts/test_ffroot.py",
+    "scripts/test_int24h.py",
 ]
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124

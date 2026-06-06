@@ -46,6 +46,28 @@ sector_io_loop:
     int 0x13
     dec byte [cs:kret]
     jnz .next
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    push es
+    mov al, [cs:kio_op]
+    mov ah, [cs:kdrv]
+    int 0x24
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    cmp al, 1
+    jne .fail
+    mov byte [cs:kret], 3
+    jmp .next
+.fail:
 .geom_err:
     stc
     ret
