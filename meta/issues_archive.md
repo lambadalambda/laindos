@@ -129,3 +129,4 @@
 - [x] [Unify MCB walk skeleton with macro](issues/unify-mcb-walk-skeleton-with-macro.md)
 - [x] [Bound exec_copy_command_tail source](issues/bound-exec-copy-command-tail-source.md)
 - [x] [Support DOS compact directory commands and aliases](issues/support-dos-compact-directory-commands-and-aliases.md)
+- [x] [Support DIR path/pattern arguments and wide format](issues/support-dir-path-pattern-and-wide-format.md)
