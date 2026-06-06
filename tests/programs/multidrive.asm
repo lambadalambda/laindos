@@ -53,6 +53,9 @@ start:
     call findnext_drive_test
     jc fail_findnext_c
 
+    call bare_name_drive_test
+    jc fail_bare_name_drive
+
     mov dl, 2
     mov ah, 0x0E
     int 0x21
@@ -237,11 +240,33 @@ findnext_drive_test:
     mov cx, hdonly_name_len
     repe cmpsb
     jne .err
-    cmp byte [find_dta+30+hdonly_name_len], 0
+     cmp byte [find_dta+30+hdonly_name_len], 0
     jne .err
     clc
     ret
 .err:
+    stc
+    ret
+
+bare_name_drive_test:
+    mov dl, 0
+    mov ah, 0x0E
+    int 0x21
+    mov dx, bare_c_path
+    xor cx, cx
+    mov ah, 0x4E
+    int 0x21
+    jc .bare_err
+    mov si, find_dta+30
+    mov di, hdonly_name
+    mov cx, hdonly_name_len
+    repe cmpsb
+    jne .bare_err
+    cmp byte [find_dta+30+hdonly_name_len], 0
+    jne .bare_err
+    clc
+    ret
+.bare_err:
     stc
     ret
 
@@ -305,8 +330,11 @@ fail_prefix_c:
 fail_interleave:
     mov dx, fail_interleave_msg
     jmp fail
-fail_findnext_c:
+ fail_findnext_c:
     mov dx, fail_findnext_c_msg
+    jmp fail
+fail_bare_name_drive:
+    mov dx, fail_bare_name_drive_msg
     jmp fail
 fail_create_c:
     mov dx, fail_create_c_msg
@@ -341,6 +369,7 @@ hd_path: db "C:\HDONLY.TXT", 0
 floppy_path: db "A:\AONLY.TXT", 0
 write_path: db "C:\WRTEST.TXT", 0
 find_path: db "C:\*.*", 0
+bare_c_path: db "C:HDONLY.TXT", 0
 hdonly_name: db "HDONLY.TXT"
 hdonly_name_len equ $ - hdonly_name
 pass_msg: db "PASS: MULTIDRIVE", 13, 10, "$"
@@ -354,6 +383,7 @@ fail_read_a_msg: db "FAIL: MULTIDRIVE READ A", 13, 10, "$"
 fail_prefix_c_msg: db "FAIL: MULTIDRIVE PREFIX C", 13, 10, "$"
 fail_interleave_msg: db "FAIL: MULTIDRIVE INTERLEAVE", 13, 10, "$"
 fail_findnext_c_msg: db "FAIL: MULTIDRIVE FINDNEXT C", 13, 10, "$"
+fail_bare_name_drive_msg: db "FAIL: MULTIDRIVE BARE NAME DRIVE", 13, 10, "$"
 fail_create_c_msg: db "FAIL: MULTIDRIVE CREATE C", 13, 10, "$"
 fail_write_c_msg: db "FAIL: MULTIDRIVE WRITE C", 13, 10, "$"
 fail_close_c_msg: db "FAIL: MULTIDRIVE CLOSE C", 13, 10, "$"
