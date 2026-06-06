@@ -11,6 +11,14 @@ Three sites in `src/kernel/path_dir.inc` (lines 1186, 1378, 1668) repeat the sam
 - Optionally migrate the mirrored write sites in the same change.
 - Verify no filesystem or FAT regression.
 
+## Resolution
+
+Introduced `LOAD_SUBDIR_SECTOR <lba_var>, <lba_hi_var>, <err_label>` in `src/kernel/path_dir.inc` and migrated the three subdirectory read sites in `find_in_dir_from_common`, `find_dir_free`, and `dir_is_empty`. The write-path skeletons were left unchanged because they are separate write operations and optional for this issue.
+
+Commit: d5eee7f
+
+Verification: `make`, `make check-docs-sync`, and `make test` (`82/82` passed).
+
 ## Acceptance Criteria
 
 - The refactor reduces each migrated read site from 11 lines to 1 macro call (or 1 helper call).

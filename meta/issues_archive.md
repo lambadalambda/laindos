@@ -125,3 +125,4 @@
 - [x] [Free create-file handle on directory failure](issues/free-create-file-handle-on-directory-failure.md)
 - [x] [Add MCB_IS_VALID macro](issues/add-mcb-is-valid-macro.md)
 - [x] [Extract drive-prefix consumption helper](issues/extract-drive-prefix-consumption-helper.md)
+- [x] [Add LOAD_SUBDIR_SECTOR helper](issues/add-load-subdir-sector-helper.md)
