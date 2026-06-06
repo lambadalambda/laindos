@@ -133,3 +133,5 @@
 - [x] [Add COPY built-in for simple file copies](issues/add-copy-built-in-for-simple-file-copies.md)
 - [x] [Add DEL and ERASE built-ins for simple file deletion](issues/add-del-erase-built-ins-for-simple-file-deletion.md)
 - [x] [Add REN and RENAME built-ins for simple file renames](issues/add-ren-rename-built-ins-for-simple-file-renames.md)
+- [x] [Wire INT 24h into sector_io_loop](issues/wire-int24h-into-sector-io-loop.md)
+- [x] [Add REN and RENAME built-ins for simple file renames](issues/add-ren-rename-built-ins-for-simple-file-renames.md)
