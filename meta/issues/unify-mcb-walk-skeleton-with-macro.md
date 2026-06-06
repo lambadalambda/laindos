@@ -11,6 +11,14 @@ Five MCB walks in `src/kernel/memory_mcb.inc` (`.amd_walk:23`, `.flfb_walk:88`, 
 - Verify the resulting behavior is identical (focused regression or existing allocator tests).
 - Pick the smallest extraction that does not hide the per-walk differences (e.g. first-MCB check, owner-zero check, signature check).
 
+## Resolution
+
+Introduced `MCB_WALK_EACH <walk_label>, <body_label>, <next_label>, <invalid_label>, <eoc_label>, <next_fail_label>` in `src/kernel/memory_mcb.inc` and migrated all five MCB walks. The high-allocation walk keeps its distinct end-of-chain target through the separate `eoc_label` parameter.
+
+Commit: 00c9a78
+
+Verification: `make`, `make check-docs-sync`, and `make test` (`82/82` passed).
+
 ## Acceptance Criteria
 
 - The refactor reduces the per-walk skeleton from 9 lines to a single macro call (plus the body).

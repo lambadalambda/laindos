@@ -8,5 +8,4 @@
 - [ ] [Sanitize FindFirst filename bytes](issues/sanitize-findfirst-filename-bytes.md)
 - [ ] [Add INT21 trace-block macros](issues/add-int21-trace-block-macros.md)
 - [ ] [Add RET_ERR macro for handler error returns](issues/add-ret-err-macro-for-handler-error-returns.md)
-- [ ] [Unify MCB walk skeleton with macro](issues/unify-mcb-walk-skeleton-with-macro.md)
 - [ ] [Add user-space handle count query and post-alloc_handle failure hook](issues/add-handle-count-query-and-failure-hook.md)

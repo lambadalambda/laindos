@@ -126,3 +126,4 @@
 - [x] [Add MCB_IS_VALID macro](issues/add-mcb-is-valid-macro.md)
 - [x] [Extract drive-prefix consumption helper](issues/extract-drive-prefix-consumption-helper.md)
 - [x] [Add LOAD_SUBDIR_SECTOR helper](issues/add-load-subdir-sector-helper.md)
+- [x] [Unify MCB walk skeleton with macro](issues/unify-mcb-walk-skeleton-with-macro.md)
