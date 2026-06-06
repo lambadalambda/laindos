@@ -8,4 +8,3 @@
 - [ ] [Add INT21 trace-block macros](issues/add-int21-trace-block-macros.md)
 - [ ] [Add RET_ERR macro for handler error returns](issues/add-ret-err-macro-for-handler-error-returns.md)
 - [ ] [Add user-space handle count query and post-alloc_handle failure hook](issues/add-handle-count-query-and-failure-hook.md)
-- [ ] [Add REN and RENAME built-ins for simple file renames](issues/add-ren-rename-built-ins-for-simple-file-renames.md)
