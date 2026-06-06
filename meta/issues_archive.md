@@ -120,3 +120,4 @@
 - [x] [Reorder drive switch before cur_dir_cluster read](issues/reorder-drive-switch-before-cur-dir-cluster-read.md)
 - [x] [Use program size in exec_com_dyn stack top](issues/use-program-size-in-exec-com-dyn-stack-top.md)
 - [x] [Preserve registers in INT 21h close](issues/preserve-registers-in-int21-close.md)
+- [x] [Free create-file handle on directory failure](issues/free-create-file-handle-on-directory-failure.md)
