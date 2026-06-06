@@ -30,6 +30,8 @@ def main():
         cmd = ["nasm", "-f", "bin", src, "-o", out]
         if src == "src/kernel.asm":
             cmd.insert(1, '-DBOOT_FILE="MIDEMO  EXE"')
+        elif src == "src/boot.asm":
+            cmd.insert(1, "-DFAT12=1")
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode != 0:
             print(f"NASM error for {src}: {r.stderr}", file=sys.stderr)

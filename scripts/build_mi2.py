@@ -40,6 +40,8 @@ def main():
         cmd = ["nasm", "-f", "bin", src, "-o", out]
         if src == "src/kernel.asm":
             cmd.insert(1, '-DBOOT_FILE="MI2DEMO EXE"')
+        elif src == "src/boot.asm":
+            cmd.insert(1, "-DFAT12=1")
         run(cmd)
 
     mi2_files = [
