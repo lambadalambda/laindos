@@ -1975,36 +1975,44 @@ store_find_dta:
     mov [es:di+28], ax
     add di, 30
     push cs
-    pop ds
-    mov si, ff_entry_name
-    mov cx, 8
+     pop ds
+     mov si, ff_entry_name
+     mov cx, 8
 .sfd_name:
-    lodsb
-    cmp al, ' '
-    je .sfd_name_done
-    stosb
-    loop .sfd_name
+     lodsb
+     cmp al, ' '
+     je .sfd_name_done
+     cmp cx, 8
+     jne .sfd_name_sanitize
+     cmp al, 0x05
+     jne .sfd_name_sanitize
+     mov al, 0xE5
+.sfd_name_sanitize:
+     call sanitize_dta_byte
+     stosb
+     loop .sfd_name
 .sfd_name_done:
-    mov si, ff_entry_name + 8
-    mov bx, si
-    mov cx, 3
+     mov si, ff_entry_name + 8
+     mov bx, si
+     mov cx, 3
 .sfd_ext_check:
-    cmp byte [bx], ' '
-    jne .sfd_ext_yes
-    inc bx
-    loop .sfd_ext_check
-    jmp .sfd_term
+     cmp byte [bx], ' '
+     jne .sfd_ext_yes
+     inc bx
+     loop .sfd_ext_check
+     jmp .sfd_term
 .sfd_ext_yes:
-    mov al, '.'
-    stosb
-    mov si, ff_entry_name + 8
-    mov cx, 3
+     mov al, '.'
+     stosb
+     mov si, ff_entry_name + 8
+     mov cx, 3
 .sfd_ext:
-    lodsb
-    cmp al, ' '
-    je .sfd_term
-    stosb
-    loop .sfd_ext
+     lodsb
+     cmp al, ' '
+     je .sfd_term
+     call sanitize_dta_byte
+     stosb
+     loop .sfd_ext
 .sfd_term:
     xor al, al
     stosb
@@ -2013,9 +2021,24 @@ store_find_dta:
     pop es
     pop ds
     pop cx
-    pop bx
-    pop ax
-    ret
+     pop bx
+     pop ax
+     ret
+
+sanitize_dta_byte:
+     cmp al, 0xE5
+     jne .sdb_check_ctrl
+     mov al, 0x05
+     ret
+.sdb_check_ctrl:
+     cmp al, ' '
+     jb .sdb_subst
+     cmp al, 0x7F
+     je .sdb_subst
+     ret
+.sdb_subst:
+     mov al, '?'
+     ret
 
 load_file_direct:
     mov ax, [cs:kfsize]
