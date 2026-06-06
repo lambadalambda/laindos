@@ -1,7 +1,6 @@
 
 - [ ] [Fix asterisk wildcard in parse_83name](issues/fix-asterisk-wildcard-in-parse-83name.md)
 - [ ] [Honor standard FCB attribute filter](issues/honor-standard-fcb-attribute-filter.md)
-- [ ] [Bound exec_copy_command_tail source](issues/bound-exec-copy-command-tail-source.md)
 - [ ] [Guard mouse callback re-entry](issues/guard-mouse-callback-re-entry.md)
 - [ ] [Apply UTC offset to INT 21h get-time](issues/apply-utc-offset-to-int21-get-time.md)
 - [ ] [Wire INT 24h into sector_io_loop](issues/wire-int24h-into-sector-io-loop.md)
