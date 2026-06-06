@@ -4,12 +4,15 @@
 
 Seven sites in `src/kernel/path_dir.inc` (lines 652, 790, 935, 1815, 1842, 1859, 1894) repeat the same 6-line `cmp al,'A' / jb / cmp al,'Z' / ja / cmp [bx+1],':' / jne / add bx,2` block to consume a leading `C:`-style drive prefix. The total duplication is roughly 42 lines.
 
-## Requirements
+## Resolution
 
-- Introduce a `STRIP_DRIVE_PREFIX <ptr_reg>` macro that takes `bx` or `si` as an argument and emits the 6 lines, with the local skip label.
-- Or introduce a real helper `consume_drive_prefix` that takes a register by value and returns the post-prefix value in the same register.
-- Migrate at least the seven sites to the new form.
-- Verify no path-parsing regression.
+Introduced `STRIP_DRIVE_PREFIX <ptr_reg>` macro in `src/kernel/path_dir.inc:28-38`. All 7 sites migrated to single-line macro calls. 82/82 tests pass.
+
+Commit: 351f2ea
+
+## Follow-up
+
+The same pattern appears in `src/kernel/int21.inc` at lines 2048-2057, 4274-4282, 4354-4363. Moving the macro to a shared include and migrating those 3 sites would eliminate remaining duplication.
 
 ## Acceptance Criteria
 

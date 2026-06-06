@@ -1,3 +1,5 @@
+# Archived issues
+
 - [x] [Phase 0: Toolchain & Infrastructure](issues/phase0-toolchain-infrastructure.md)
 - [x] [Phase 1: Bootable Kernel](issues/phase1-bootable-kernel.md)
 - [x] [Phase 2: .COM Loader](issues/phase2-com-loader.md)
@@ -122,3 +124,4 @@
 - [x] [Preserve registers in INT 21h close](issues/preserve-registers-in-int21-close.md)
 - [x] [Free create-file handle on directory failure](issues/free-create-file-handle-on-directory-failure.md)
 - [x] [Add MCB_IS_VALID macro](issues/add-mcb-is-valid-macro.md)
+- [x] [Extract drive-prefix consumption helper](issues/extract-drive-prefix-consumption-helper.md)
