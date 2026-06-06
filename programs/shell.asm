@@ -1223,6 +1223,115 @@ do_rd:
     int 0x21
     ret
 
+do_del:
+    call parse_del_args
+    cmp byte [del_has_arg], 0
+    je .missing
+    call del_path_has_wildcard
+    jc .wildcard
+    call confirm_del_prompt
+    jc .cancel
+    mov dx, del_path
+    mov ah, 0x41
+    int 0x21
+    jc .err
+    ret
+.cancel:
+    mov dx, del_not_deleted_msg
+    call print_dollar
+    ret
+.err:
+    mov dx, file_error_msg
+    call print_dollar
+    ret
+.wildcard:
+    mov dx, wildcard_not_supported_msg
+    call print_dollar
+    ret
+.missing:
+    mov dx, missing_arg_msg
+    call print_dollar
+    ret
+
+parse_del_args:
+    mov byte [del_prompt], 0
+    mov byte [del_has_arg], 0
+.loop:
+    call skip_spaces
+    cmp byte [si], 0
+    je .done
+    cmp byte [si], '/'
+    je .switch
+    cmp byte [del_has_arg], 0
+    jne .skip_token
+    mov di, del_path
+    call copy_path_token
+    mov byte [del_has_arg], 1
+    jmp .loop
+.switch:
+    inc si
+.switch_loop:
+    cmp byte [si], 0
+    je .done
+    cmp byte [si], ' '
+    je .loop
+    cmp byte [si], 'P'
+    je .set_prompt
+    inc si
+    jmp .switch_loop
+.set_prompt:
+    mov byte [del_prompt], 1
+    inc si
+    jmp .switch_loop
+.skip_token:
+    call skip_token_chars
+    jmp .loop
+.done:
+    ret
+
+confirm_del_prompt:
+    cmp byte [del_prompt], 0
+    je .yes
+    mov dx, del_confirm_msg
+    call print_dollar
+    mov si, del_path
+    call print_asciiz
+    mov dx, del_confirm_suffix
+    call print_dollar
+    mov ah, 0x08
+    int 0x21
+    push ax
+    mov dx, crlf
+    call print_dollar
+    pop ax
+    cmp al, 'Y'
+    je .yes
+    cmp al, 'y'
+    je .yes
+    stc
+    ret
+.yes:
+    clc
+    ret
+
+del_path_has_wildcard:
+    mov si, del_path
+.loop:
+    lodsb
+    test al, al
+    jz .no
+    cmp al, '*'
+    je .yes
+    cmp al, '?'
+    je .yes
+    jmp .loop
+.yes:
+    stc
+    ret
+.no:
+    clc
+    ret
+
 do_type:
     cmp byte [si], 0
     je .missing
@@ -1967,6 +2076,7 @@ path_not_found_msg: db "Path not found", 13, 10, "$"
 file_not_found_msg: db "File not found", 13, 10, "$"
 file_error_msg: db "File error", 13, 10, "$"
 missing_arg_msg: db "Missing argument", 13, 10, "$"
+wildcard_not_supported_msg: db "Wildcard not supported", 13, 10, "$"
 resize_fail_msg: db "Shell resize failed", 13, 10, "$"
 exit_cmd: db "EXIT", 0
 ver_cmd: db "VER", 0
@@ -1980,6 +2090,8 @@ mkdir_cmd: db "MKDIR", 0
 rd_cmd: db "RD", 0
 rmdir_cmd: db "RMDIR", 0
 copy_cmd: db "COPY", 0
+del_cmd: db "DEL", 0
+erase_cmd: db "ERASE", 0
 type_cmd: db "TYPE", 0
 cls_cmd: db "CLS", 0
 echo_cmd: db "ECHO", 0
@@ -1999,6 +2111,8 @@ command_table:
     dw rd_cmd, do_rd
     dw rmdir_cmd, do_rd
     dw copy_cmd, do_copy
+    dw del_cmd, do_del
+    dw erase_cmd, do_del
     dw type_cmd, do_type
     dw cls_cmd, do_cls
     dw echo_cmd, do_echo
@@ -2020,6 +2134,9 @@ copy_success_msg: db "        1 File(s) copied.", 13, 10, "$"
 copy_not_copied_msg: db "File not copied.", 13, 10, "$"
 copy_overwrite_msg: db "Overwrite ", "$"
 copy_overwrite_suffix: db "? (Y/N)", "$"
+del_confirm_msg: db "Delete ", "$"
+del_confirm_suffix: db "? (Y/N)", "$"
+del_not_deleted_msg: db "File not deleted.", 13, 10, "$"
 dir_page_lines equ 22
 dir_pow10_table:
     dd 1000000000
@@ -2063,8 +2180,11 @@ path_command_name: times 128 db 0
 copy_src_path: times copy_path_size db 0
 copy_dst_path: times copy_path_size db 0
 copy_dst_final: times copy_path_size db 0
+del_path: times copy_path_size db 0
 copy_yes: db 0
 copy_arg_count: db 0
+del_prompt: db 0
+del_has_arg: db 0
 copy_src_handle: dw 0
 copy_dst_handle: dw 0
 copy_io_count: dw 0
