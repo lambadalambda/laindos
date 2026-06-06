@@ -131,3 +131,4 @@
 - [x] [Support DOS compact directory commands and aliases](issues/support-dos-compact-directory-commands-and-aliases.md)
 - [x] [Support DIR path/pattern arguments and wide format](issues/support-dir-path-pattern-and-wide-format.md)
 - [x] [Add COPY built-in for simple file copies](issues/add-copy-built-in-for-simple-file-copies.md)
+- [x] [Add DEL and ERASE built-ins for simple file deletion](issues/add-del-erase-built-ins-for-simple-file-deletion.md)
