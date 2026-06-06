@@ -1057,11 +1057,19 @@ resolve_path:
     call ascii_upper
     cmp al, '.'
     je .rp_dot
+    cmp di, name_buf + 11
+    jae .rp_name_overflow
     stosb
     jmp .rp_adv
 .rp_dot:
     mov di, name_buf + 8
     jmp .rp_adv
+.rp_name_overflow:
+    pop es
+    pop ds
+    stc
+    pop bx
+    ret
 .rp_adv:
     mov [cs:rp_path], si
     jmp .rp_copy
