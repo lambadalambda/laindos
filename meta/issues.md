@@ -1,5 +1,5 @@
 
-- [ ] [Bound resolve_path name_buf writes](issues/bound-resolve-path-namebuf-writes.md)
+- [x] [Bound resolve_path name_buf writes](issues/bound-resolve-path-namebuf-writes.md)
 - [ ] [Validate EXEC env source segment](issues/validate-exec-env-source-segment.md)
 - [ ] [Fix asterisk wildcard in parse_83name](issues/fix-asterisk-wildcard-in-parse-83name.md)
 - [ ] [Honor standard FCB attribute filter](issues/honor-standard-fcb-attribute-filter.md)
