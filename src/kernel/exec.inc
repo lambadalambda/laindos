@@ -182,6 +182,12 @@ load_exec_program:
     mov ax, [cs:prog_seg]
     call build_psp
     call exec_copy_command_tail
+    jnc .loaded_done
+    call free_prog_mcb
+    call free_exec_environment
+    mov ax, 8
+    stc
+    ret
 .loaded_done:
     xor ax, ax
     clc
@@ -237,12 +243,24 @@ exec_copy_command_tail:
     mov ax, [bx+4]
     test ax, ax
     jz .done
+    cmp ax, MCB_START
+    jb .err
+    cmp ax, MEM_TOP
+    jae .err
     mov ds, ax
     mov ax, [cs:prog_seg]
     mov es, ax
-    mov di, 0x80
-    mov cx, 128
+    xor cx, cx
+    mov cl, [ds:si]
+    cmp cl, 126
+    jbe .len_ok
+    mov cl, 126
+.len_ok:
+    mov [es:0x80], cl
+    inc si
+    mov di, 0x81
     rep movsb
+    mov byte [es:di], 0x0D
 .done:
     pop di
     pop si
@@ -251,6 +269,18 @@ exec_copy_command_tail:
     pop cx
     pop bx
     pop ax
+    clc
+    ret
+.err:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop cx
+    pop bx
+    pop ax
+    mov ax, 8
+    stc
     ret
 
 update_exec_environment_path:
@@ -1099,6 +1129,7 @@ setup_exe_dyn:
     mov ax, [cs:prog_seg]
     call build_psp
     call exec_copy_command_tail
+    jc .tail_err
 
     mov ax, [cs:prog_seg]
     add ax, 0x10
@@ -1165,6 +1196,10 @@ setup_exe_dyn:
     push cs
     pop ds
     mov ax, 11
+    stc
+    ret
+.tail_err:
+    mov ax, 8
     stc
     ret
 
