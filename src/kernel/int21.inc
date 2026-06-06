@@ -4234,7 +4234,7 @@ int21_handler:
     mov ax, ds
     mov es, ax
     mov di, dx
-    mov word [cs:ff_sep_off], 0
+    mov word [cs:ff_sep_off], -1
 .ff_scan:
     mov al, [es:di]
     test al, al
@@ -4250,7 +4250,7 @@ int21_handler:
     inc di
     jmp .ff_scan
 .ff_scan_done:
-    cmp word [cs:ff_sep_off], 0
+    cmp word [cs:ff_sep_off], -1
     je .ff_bare_name
     mov ds, [cs:ff_path_seg]
     mov si, [cs:ff_path_off]
