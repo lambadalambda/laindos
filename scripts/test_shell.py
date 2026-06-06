@@ -127,13 +127,25 @@ def send_command(sock, output_chunks, command, timeout=8):
     return b"".join(output_chunks)[start_len:]
 
 
+def send_command_answer(sock, output_chunks, command, marker, answer, timeout=8):
+    target_prompt = prompt_count(output_chunks) + 1
+    start_len = len(b"".join(output_chunks))
+    send_text(sock, command)
+    send_monitor_key(sock, "ret")
+    if not wait_for_output_since(output_chunks, marker, start_len, timeout=timeout):
+        raise TimeoutError(f"timed out waiting for {marker!r} after {command!r}")
+    send_text(sock, answer)
+    wait_for_prompt_count(output_chunks, target_prompt, timeout=timeout, context=f"prompt after {command!r}")
+    return b"".join(output_chunks)[start_len:]
+
+
 def require_command_output(command, output, expected=(), unexpected=()):
     for marker in expected:
         if marker.encode() not in output:
-            raise RuntimeError(f"{command!r} output missing {marker!r}")
+            raise RuntimeError(f"{command!r} output missing {marker!r}: {output!r}")
     for marker in unexpected:
         if marker.encode() in output:
-            raise RuntimeError(f"{command!r} output unexpectedly contained {marker!r}")
+            raise RuntimeError(f"{command!r} output unexpectedly contained {marker!r}: {output!r}")
 
 
 def wait_for_output_since(output_chunks, marker, start_len, timeout=8):
@@ -185,6 +197,27 @@ def send_keys(output_chunks):
     require_command_output("dir /w", dir_wide, ["SHELL.COM", "[DIRONLY]"])
     if not re.search(rb"SHELL\.COM[^\r\n]+HELLO\.COM", dir_wide):
         raise RuntimeError("'dir /w' did not print multiple file names on one row")
+
+    copy_new = send_command(sock, output_chunks, "copy testfile.dat copy1.dat")
+    require_command_output("copy testfile.dat copy1.dat", copy_new, ["1 File(s) copied."])
+    copy_new_type = send_command(sock, output_chunks, "type copy1.dat")
+    require_command_output("type copy1.dat", copy_new_type, ["Hello from TESTFILE.DAT! This is test data for LainDOS file I/O."])
+    copy_dir = send_command(sock, output_chunks, "copy testfile.dat dironly")
+    require_command_output("copy testfile.dat dironly", copy_dir, ["1 File(s) copied."])
+    copy_dir_type = send_command(sock, output_chunks, "type dironly\\testfile.dat")
+    require_command_output("type dironly\\testfile.dat", copy_dir_type, ["Hello from TESTFILE.DAT! This is test data for LainDOS file I/O."])
+    copy_no = send_command_answer(sock, output_chunks, "copy midemo\\subtest.dat copy1.dat", "Overwrite", "n")
+    require_command_output("copy midemo\\subtest.dat copy1.dat", copy_no, ["File not copied."])
+    copy_no_type = send_command(sock, output_chunks, "type copy1.dat")
+    require_command_output("type copy1.dat", copy_no_type, ["Hello from TESTFILE.DAT! This is test data for LainDOS file I/O."], ["Hello from MIDEMO subdirectory!"])
+    copy_yes = send_command(sock, output_chunks, "copy /y midemo\\subtest.dat copy1.dat")
+    require_command_output("copy /y midemo\\subtest.dat copy1.dat", copy_yes, ["1 File(s) copied."])
+    copy_yes_type = send_command(sock, output_chunks, "type copy1.dat")
+    require_command_output("type copy1.dat", copy_yes_type, ["Hello from MIDEMO subdirectory!"])
+    copy_prompt = send_command_answer(sock, output_chunks, "copy /y /-y testfile.dat copy1.dat", "Overwrite", "n")
+    require_command_output("copy /y /-y testfile.dat copy1.dat", copy_prompt, ["File not copied."])
+    copy_prompt_type = send_command(sock, output_chunks, "type copy1.dat")
+    require_command_output("type copy1.dat", copy_prompt_type, ["Hello from MIDEMO subdirectory!"], ["Hello from TESTFILE.DAT!"])
 
     target_prompt = prompt_count(output_chunks) + 1
     send_text(sock, "extkey")

@@ -862,6 +862,291 @@ print_char_al:
     pop ax
     ret
 
+do_copy:
+    call parse_copy_args
+    cmp byte [copy_arg_count], 2
+    jne .missing
+    call build_copy_destination
+    jc .file_error
+    mov dx, copy_src_path
+    xor al, al
+    mov ah, 0x3D
+    int 0x21
+    jc .open_error
+    mov [copy_src_handle], ax
+    call confirm_copy_overwrite
+    jc .cancel
+    xor cx, cx
+    mov dx, copy_dst_final
+    mov ah, 0x3C
+    int 0x21
+    jc .create_error
+    mov [copy_dst_handle], ax
+.read:
+    mov bx, [copy_src_handle]
+    mov dx, type_buf
+    mov cx, type_buf_size
+    mov ah, 0x3F
+    int 0x21
+    jc .io_error
+    test ax, ax
+    jz .success
+    mov [copy_io_count], ax
+    mov bx, [copy_dst_handle]
+    mov cx, ax
+    mov dx, type_buf
+    mov ah, 0x40
+    int 0x21
+    jc .io_error
+    cmp ax, [copy_io_count]
+    jne .io_error
+    jmp .read
+.success:
+    mov bx, [copy_dst_handle]
+    mov ah, 0x3E
+    int 0x21
+    mov bx, [copy_src_handle]
+    mov ah, 0x3E
+    int 0x21
+    mov dx, copy_success_msg
+    call print_dollar
+    ret
+.cancel:
+    mov bx, [copy_src_handle]
+    mov ah, 0x3E
+    int 0x21
+    mov dx, copy_not_copied_msg
+    call print_dollar
+    ret
+.create_error:
+    mov bx, [copy_src_handle]
+    mov ah, 0x3E
+    int 0x21
+    jmp .file_error
+.io_error:
+    mov bx, [copy_dst_handle]
+    mov ah, 0x3E
+    int 0x21
+    mov bx, [copy_src_handle]
+    mov ah, 0x3E
+    int 0x21
+.file_error:
+    mov dx, file_error_msg
+    call print_dollar
+    ret
+.open_error:
+    mov dx, file_not_found_msg
+    call print_dollar
+    ret
+.missing:
+    mov dx, missing_arg_msg
+    call print_dollar
+    ret
+
+parse_copy_args:
+    mov byte [copy_yes], 0
+    mov byte [copy_arg_count], 0
+.loop:
+    call skip_spaces
+    cmp byte [si], 0
+    je .done
+    cmp byte [si], '/'
+    je .switch
+    cmp byte [si], '-'
+    je .switch
+    cmp byte [copy_arg_count], 0
+    je .src
+    cmp byte [copy_arg_count], 1
+    je .dst
+    call skip_token_chars
+    jmp .loop
+.src:
+    mov di, copy_src_path
+    call copy_path_token
+    inc byte [copy_arg_count]
+    jmp .loop
+.dst:
+    mov di, copy_dst_path
+    call copy_path_token
+    inc byte [copy_arg_count]
+    jmp .loop
+.switch:
+    inc si
+    cmp byte [si], '-'
+    je .switch_minus
+    cmp byte [si], 'Y'
+    jne .switch_skip
+    mov byte [copy_yes], 1
+    jmp .switch_skip
+.switch_minus:
+    cmp byte [si+1], 'Y'
+    jne .switch_skip
+    mov byte [copy_yes], 0
+.switch_skip:
+    call skip_token_chars
+    jmp .loop
+.done:
+    ret
+
+copy_path_token:
+    push ax
+    push cx
+    push di
+    mov cx, copy_path_size - 1
+.copy:
+    mov al, [si]
+    test al, al
+    jz .end
+    cmp al, ' '
+    je .end
+    test cx, cx
+    jz .skip_rest
+    stosb
+    dec cx
+    inc si
+    jmp .copy
+.skip_rest:
+    inc si
+.skip_loop:
+    cmp byte [si], 0
+    je .end
+    cmp byte [si], ' '
+    je .end
+    inc si
+    jmp .skip_loop
+.end:
+    xor al, al
+    stosb
+    pop di
+    pop cx
+    pop ax
+    ret
+
+build_copy_destination:
+    mov si, copy_dst_path
+    mov di, copy_dst_final
+    mov cx, copy_path_size - 1
+    call copy_asciiz_bounded
+    mov dx, copy_dst_path
+    xor al, al
+    mov ah, 0x43
+    int 0x21
+    jc .not_dir
+    test cl, ATTR_DIR
+    jz .not_dir
+    call append_copy_basename
+    ret
+.not_dir:
+    clc
+    ret
+
+append_copy_basename:
+    mov di, copy_dst_final
+.find_end:
+    cmp byte [di], 0
+    je .at_end
+    inc di
+    jmp .find_end
+.at_end:
+    cmp di, copy_dst_final
+    je .basename
+    mov al, [di-1]
+    cmp al, '\'
+    je .basename
+    cmp al, '/'
+    je .basename
+    cmp al, ':'
+    je .basename
+    cmp di, copy_dst_final + copy_path_size - 1
+    jae .err
+    mov al, '\'
+    stosb
+.basename:
+    call copy_src_basename_ptr
+    cmp byte [si], 0
+    je .err
+.copy:
+    lodsb
+    test al, al
+    jz .done
+    cmp di, copy_dst_final + copy_path_size - 1
+    jae .err
+    stosb
+    jmp .copy
+.done:
+    xor al, al
+    stosb
+    clc
+    ret
+.err:
+    stc
+    ret
+
+copy_src_basename_ptr:
+    push ax
+    push bx
+    mov si, copy_src_path
+    mov bx, si
+.scan:
+    lodsb
+    test al, al
+    jz .done
+    cmp al, '\'
+    je .sep
+    cmp al, '/'
+    je .sep
+    cmp al, ':'
+    jne .scan
+.sep:
+    mov bx, si
+    jmp .scan
+.done:
+    mov si, bx
+    pop bx
+    pop ax
+    ret
+
+confirm_copy_overwrite:
+    cmp byte [copy_yes], 0
+    jne .yes
+    mov dx, copy_dst_final
+    xor al, al
+    mov ah, 0x43
+    int 0x21
+    jc .yes
+    mov dx, copy_overwrite_msg
+    call print_dollar
+    mov si, copy_dst_final
+    call print_asciiz
+    mov dx, copy_overwrite_suffix
+    call print_dollar
+    mov ah, 0x08
+    int 0x21
+    push ax
+    mov dx, crlf
+    call print_dollar
+    pop ax
+    cmp al, 'Y'
+    je .yes
+    cmp al, 'y'
+    je .yes
+    stc
+    ret
+.yes:
+    clc
+    ret
+
+skip_token_chars:
+.loop:
+    cmp byte [si], 0
+    je .done
+    cmp byte [si], ' '
+    je .done
+    inc si
+    jmp .loop
+.done:
+    ret
+
 do_cd:
     cmp byte [si], 0
     je .show
@@ -1694,6 +1979,7 @@ md_cmd: db "MD", 0
 mkdir_cmd: db "MKDIR", 0
 rd_cmd: db "RD", 0
 rmdir_cmd: db "RMDIR", 0
+copy_cmd: db "COPY", 0
 type_cmd: db "TYPE", 0
 cls_cmd: db "CLS", 0
 echo_cmd: db "ECHO", 0
@@ -1712,6 +1998,7 @@ command_table:
     dw mkdir_cmd, do_md
     dw rd_cmd, do_rd
     dw rmdir_cmd, do_rd
+    dw copy_cmd, do_copy
     dw type_cmd, do_type
     dw cls_cmd, do_cls
     dw echo_cmd, do_echo
@@ -1729,6 +2016,10 @@ dir_file_count_msg: db " File(s) ", "$"
 dir_bytes_msg: db " bytes", "$"
 dir_free_msg: db " bytes free", "$"
 dir_pause_msg: db "Press any key to continue . . .", "$"
+copy_success_msg: db "        1 File(s) copied.", 13, 10, "$"
+copy_not_copied_msg: db "File not copied.", 13, 10, "$"
+copy_overwrite_msg: db "Overwrite ", "$"
+copy_overwrite_suffix: db "? (Y/N)", "$"
 dir_page_lines equ 22
 dir_pow10_table:
     dd 1000000000
@@ -1746,6 +2037,7 @@ dir_pattern_size equ 80
 dir_header_path_size equ 64
 dir_wide_columns equ 5
 dir_wide_width equ 15
+copy_path_size equ 80
 type_buf_size equ 128
 batch_buf_size equ 512
 
@@ -1768,6 +2060,14 @@ path_more: db 0
 path_last_char: db 0
 path_run_mode: db 0
 path_command_name: times 128 db 0
+copy_src_path: times copy_path_size db 0
+copy_dst_path: times copy_path_size db 0
+copy_dst_final: times copy_path_size db 0
+copy_yes: db 0
+copy_arg_count: db 0
+copy_src_handle: dw 0
+copy_dst_handle: dw 0
+copy_io_count: dw 0
 dir_pattern: times dir_pattern_size db 0
 dir_header_path: times dir_header_path_size db 0
 dir_pause: db 0
