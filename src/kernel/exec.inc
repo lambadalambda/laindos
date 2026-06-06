@@ -270,6 +270,10 @@ update_exec_environment_path:
     mov ax, [bx]
     test ax, ax
     jz .default_env
+    cmp ax, MCB_START
+    jb .env_overflow
+    cmp ax, MEM_TOP
+    jae .env_overflow
     mov [cs:exec_env_src_seg], ax
 .default_env:
     call alloc_exec_environment

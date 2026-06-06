@@ -91,6 +91,7 @@ DEFAULT_TESTS = [
     "scripts/test_dirmut.py",
     "scripts/test_readwrap.py",
     "scripts/test_pathbuf.py",
+    "scripts/test_execseg.py",
 ]
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124
