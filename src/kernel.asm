@@ -411,6 +411,18 @@ iret_nc_nz:
     pop bp
     iret
 
+; INT 21h returns above force IF=1 on iret as a Stunt Island
+; compatibility shim. Stunt Island's install code calls INT 21h AH=4Eh
+; with IF=0 and deadlocked waiting for a tick because the kernel
+; preserved the caller's IF. Real MS-DOS 4.00 enables interrupts while
+; running DOS code (see DISP.ASM STI/CLI around stack switches) but its
+; IRET preserves the caller's saved IF, so the flag state on return
+; matches what the caller pushed. The C-carry and ZF variants preserve
+; the contract that callers rely on, but the IF=1 write is intentional
+; and not MS-DOS 4.00 return-flag fidelity. Do not remove without a
+; Stunt Island retest or an equivalent compatibility decision.
+; See docs/debug_log.md for the original investigation.
+
 init_bpb_geometry:
     call parse_bpb_geometry
     jc .done

@@ -65,6 +65,10 @@ When built with `ENABLE_EMS=1`, the experimental EMS frame uses `9000:0000`. Tha
 
 The low-memory layout is tight. See `src/memory.inc` and the compile-time assertions near the end of `src/kernel.asm` before moving buffers or adding large kernel features.
 
+## CPU Target
+
+LainDOS targets 386-compatible real-mode execution. The boot sectors and kernel rely on 386+ instructions such as `movzx`, `pusha`/`popa`, and 32-bit operand forms, and the game and DOS-extender compatibility targets (Ascendancy, Wolf3D, Stunt Island, Civilization, etc.) all assume at least a 386 host. Pre-386 support (8086/286) is intentionally out of scope unless a future target forces it. QEMU `i386` and 86Box with a 386+ CPU profile are the default validation targets; do not replace 386+ instructions with 8086-safe sequences purely for compatibility.
+
 ## Toolchain
 
 - **Assembly:** NASM for boot sectors, kernel, tests, and real-mode utilities.

@@ -285,6 +285,14 @@ flush_fat:
     mov byte [cs:fat_io_error], 0
     stc
     ret
+
+; `fat_io_error` is a consumed-on-flush diagnostic: it latches a pending
+; FAT I/O error between the most recent fat_set/fat_next and this call,
+; and flush_fat clears it (both in the success path via implicit carry=0
+; fallthrough and explicitly in .fat_err). Callers should consult the
+; carry return, not the flag, after flush_fat. Future diagnostics that
+; need a sticky flag should use a separate variable; do not change this
+; consume-on-flush contract without auditing every flush_fat caller.
 .fat12:
     cmp byte [cs:fat_dirty], 0
     je .clean
