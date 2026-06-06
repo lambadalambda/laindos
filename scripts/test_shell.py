@@ -15,7 +15,7 @@ MONITOR = os.path.join(BUILDDIR, "shelltest.sock")
 KEY_DELAY = 0.02
 KEY_HOLD_MS = 10
 PROMPT_RE = re.compile(rb"A:\\[^>\r\n]*>")
-KEYMAP = {" ": "spc", "\\": "backslash", ".": "dot", "/": "slash", "-": "minus", "_": "shift-minus", ":": "shift-semicolon"}
+KEYMAP = {" ": "spc", "\\": "backslash", ".": "dot", "/": "slash", "-": "minus", "_": "shift-minus", ":": "shift-semicolon", "*": "shift-8"}
 
 
 def run(cmd):
@@ -120,9 +120,20 @@ def send_text(sock, text):
 
 def send_command(sock, output_chunks, command, timeout=8):
     target_prompt = prompt_count(output_chunks) + 1
+    start_len = len(b"".join(output_chunks))
     send_text(sock, command)
     send_monitor_key(sock, "ret")
     wait_for_prompt_count(output_chunks, target_prompt, timeout=timeout, context=f"prompt after {command!r}")
+    return b"".join(output_chunks)[start_len:]
+
+
+def require_command_output(command, output, expected=(), unexpected=()):
+    for marker in expected:
+        if marker.encode() not in output:
+            raise RuntimeError(f"{command!r} output missing {marker!r}")
+    for marker in unexpected:
+        if marker.encode() in output:
+            raise RuntimeError(f"{command!r} output unexpectedly contained {marker!r}")
 
 
 def wait_for_output_since(output_chunks, marker, start_len, timeout=8):
@@ -163,6 +174,17 @@ def send_keys(output_chunks):
         send_command(sock, output_chunks, command)
     send_paged_dir(sock, output_chunks, "dir /p")
     send_paged_dir(sock, output_chunks, "dir/p")
+
+    dir_midemo = send_command(sock, output_chunks, "dir midemo")
+    require_command_output("dir midemo", dir_midemo, ["Directory of A:\\MIDEMO", "SUBTEST  DAT"])
+    dir_midemo_dat = send_command(sock, output_chunks, "dir midemo\\*.dat")
+    require_command_output("dir midemo\\*.dat", dir_midemo_dat, ["SUBTEST  DAT"], ["HELLOEXE EXE"])
+    dir_com = send_command(sock, output_chunks, "dir *.com")
+    require_command_output("dir *.com", dir_com, ["SHELL    COM", "HELLO    COM"], ["HELLOEXE EXE"])
+    dir_wide = send_command(sock, output_chunks, "dir /w")
+    require_command_output("dir /w", dir_wide, ["SHELL.COM", "[DIRONLY]"])
+    if not re.search(rb"SHELL\.COM[^\r\n]+HELLO\.COM", dir_wide):
+        raise RuntimeError("'dir /w' did not print multiple file names on one row")
 
     target_prompt = prompt_count(output_chunks) + 1
     send_text(sock, "extkey")

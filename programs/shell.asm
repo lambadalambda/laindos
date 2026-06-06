@@ -85,6 +85,7 @@ do_dir:
     mov [dir_free_lo], ax
     mov [dir_free_hi], ax
     mov [dir_lines], al
+    mov [dir_wide_cols], al
     call print_dir_header
     mov dx, dir_dta
     mov ah, 0x1A
@@ -95,16 +96,31 @@ do_dir:
     int 0x21
     jc .summary
 .entry:
+    cmp byte [dir_wide], 0
+    jne .wide_entry
     call print_dir_entry
+    jmp .next
+.wide_entry:
+    call print_dir_wide_entry
+.next:
     mov ah, 0x4F
     int 0x21
     jnc .entry
 .summary:
+    call finish_dir_wide_row
     call print_dir_summary
     ret
 
 parse_dir_args:
     mov byte [dir_pause], 0
+    mov byte [dir_wide], 0
+    mov byte [dir_has_operand], 0
+    mov byte [dir_header_path], 0
+    push si
+    mov si, dir_default_pattern
+    mov di, dir_pattern
+    call copy_asciiz
+    pop si
 .loop:
     call skip_spaces
     cmp byte [si], 0
@@ -113,21 +129,214 @@ parse_dir_args:
     je .switch
     cmp byte [si], '-'
     je .switch
-    jmp .skip_token
+    cmp byte [dir_has_operand], 0
+    jne .skip_token
+    call copy_dir_operand
+    mov byte [dir_has_operand], 1
+    jmp .loop
 .switch:
     inc si
+.switch_loop:
+    cmp byte [si], 0
+    je .done
+    cmp byte [si], ' '
+    je .loop
     cmp byte [si], 'P'
-    jne .skip_token
+    je .set_pause
+    cmp byte [si], 'W'
+    je .set_wide
+    inc si
+    jmp .switch_loop
+.set_pause:
     mov byte [dir_pause], 1
     inc si
+    jmp .switch_loop
+.set_wide:
+    mov byte [dir_wide], 1
+    inc si
+    jmp .switch_loop
 .skip_token:
     cmp byte [si], 0
-    je .loop
+    je .done
     cmp byte [si], ' '
     je .loop
     inc si
     jmp .skip_token
 .done:
+    call finish_dir_pattern
+    ret
+
+copy_dir_operand:
+    push ax
+    push cx
+    push di
+    mov di, dir_pattern
+    mov cx, dir_pattern_size - 1
+.copy:
+    mov al, [si]
+    test al, al
+    jz .end
+    cmp al, ' '
+    je .end
+    test cx, cx
+    jz .skip_rest
+    stosb
+    dec cx
+    inc si
+    jmp .copy
+.skip_rest:
+    inc si
+.skip_rest_loop:
+    cmp byte [si], 0
+    je .end
+    cmp byte [si], ' '
+    je .end
+    inc si
+    jmp .skip_rest_loop
+.end:
+    xor al, al
+    stosb
+    pop di
+    pop cx
+    pop ax
+    ret
+
+finish_dir_pattern:
+    cmp byte [dir_has_operand], 0
+    je .done
+    mov dx, dir_pattern
+    xor al, al
+    mov ah, 0x43
+    int 0x21
+    jc .pattern_operand
+    test cl, ATTR_DIR
+    jz .pattern_operand
+    call copy_dir_pattern_to_header
+    call append_dir_wildcard
+    ret
+.pattern_operand:
+    call set_dir_header_from_pattern
+.done:
+    ret
+
+copy_dir_pattern_to_header:
+    push si
+    push di
+    push cx
+    mov si, dir_pattern
+    mov di, dir_header_path
+    mov cx, dir_header_path_size - 1
+    call copy_asciiz_bounded
+    pop cx
+    pop di
+    pop si
+    ret
+
+set_dir_header_from_pattern:
+    push ax
+    push bx
+    push si
+    push di
+    xor bx, bx
+    mov si, dir_pattern
+.scan:
+    lodsb
+    test al, al
+    jz .scan_done
+    cmp al, '\'
+    je .sep
+    cmp al, '/'
+    jne .scan
+.sep:
+    mov bx, si
+    dec bx
+    jmp .scan
+.scan_done:
+    mov byte [dir_header_path], 0
+    test bx, bx
+    jz .done
+    mov si, dir_pattern
+    mov di, dir_header_path
+    mov cx, dir_header_path_size - 1
+.copy:
+    cmp si, bx
+    jae .end_copy
+    test cx, cx
+    jz .terminate
+    lodsb
+    stosb
+    dec cx
+    jmp .copy
+.end_copy:
+    cmp di, dir_header_path
+    jne .terminate
+    mov al, [bx]
+    stosb
+.terminate:
+    xor al, al
+    stosb
+.done:
+    pop di
+    pop si
+    pop bx
+    pop ax
+    ret
+
+append_dir_wildcard:
+    push ax
+    push si
+    push di
+    mov di, dir_pattern
+.find_end:
+    cmp byte [di], 0
+    je .at_end
+    inc di
+    jmp .find_end
+.at_end:
+    cmp di, dir_pattern + dir_pattern_size - 5
+    ja .done
+    cmp di, dir_pattern
+    je .copy_wildcard
+    mov al, [di-1]
+    cmp al, '\'
+    je .copy_wildcard
+    cmp al, '/'
+    je .copy_wildcard
+    mov al, '\'
+    stosb
+.copy_wildcard:
+    mov si, dir_default_pattern
+    call copy_asciiz
+.done:
+    pop di
+    pop si
+    pop ax
+    ret
+
+copy_asciiz:
+.copy:
+    lodsb
+    stosb
+    test al, al
+    jnz .copy
+    ret
+
+copy_asciiz_bounded:
+.copy:
+    test cx, cx
+    jz .terminate
+    lodsb
+    test al, al
+    jz .store_zero
+    stosb
+    dec cx
+    jmp .copy
+.store_zero:
+    stosb
+    ret
+.terminate:
+    xor al, al
+    stosb
     ret
 
 print_dir_header:
@@ -139,6 +348,8 @@ print_dir_header:
     call dir_line_end
     mov dx, dir_of_msg
     call print_dollar
+    cmp byte [dir_header_path], 0
+    jne .operand_path
     call print_drive_root
     mov si, cwd_buf
     xor dl, dl
@@ -152,6 +363,49 @@ print_dir_header:
 .path_done:
     call dir_line_end
     call dir_line_end
+    ret
+.operand_path:
+    call print_dir_header_path
+    jmp .path_done
+
+print_dir_header_path:
+    mov si, dir_header_path
+    mov al, [si]
+    cmp al, 'A'
+    jb .not_drive
+    cmp al, 'Z'
+    ja .not_drive
+    cmp byte [si+1], ':'
+    jne .not_drive
+    call print_asciiz
+    ret
+.not_drive:
+    cmp byte [si], '\'
+    je .rooted
+    cmp byte [si], '/'
+    je .rooted
+    call print_drive_root
+    mov si, cwd_buf
+    xor dl, dl
+    mov ah, 0x47
+    int 0x21
+    jc .print_operand
+    cmp byte [cwd_buf], 0
+    je .print_operand
+    mov si, cwd_buf
+    call print_asciiz
+    mov al, '\'
+    call print_char_al
+.print_operand:
+    mov si, dir_header_path
+    call print_asciiz
+    ret
+.rooted:
+    call print_current_drive_letter
+    mov al, ':'
+    call print_char_al
+    mov si, dir_header_path
+    call print_asciiz
     ret
 
 print_dir_entry:
@@ -187,6 +441,84 @@ print_dir_entry:
     call print_char_al
     call print_dir_time
     call dir_line_end
+    ret
+
+print_dir_wide_entry:
+    test byte [dir_dta + 21], ATTR_DIR
+    jnz .directory
+    call add_dir_file_total
+    mov si, dir_dta + 30
+    mov cx, dir_wide_width
+    call print_wide_field_asciiz
+    jmp .advance
+.directory:
+    inc word [dir_dir_count]
+    call print_wide_dir_field
+.advance:
+    inc byte [dir_wide_cols]
+    cmp byte [dir_wide_cols], dir_wide_columns
+    jb .done
+    mov byte [dir_wide_cols], 0
+    call dir_line_end
+.done:
+    ret
+
+print_wide_field_asciiz:
+.loop:
+    test cx, cx
+    jz .done
+    lodsb
+    test al, al
+    jz .pad
+    call print_char_al
+    dec cx
+    jmp .loop
+.pad:
+    call print_spaces_cx
+.done:
+    ret
+
+print_wide_dir_field:
+    mov cx, dir_wide_width
+    mov al, '['
+    call print_char_al
+    dec cx
+    mov si, dir_dta + 30
+.name:
+    cmp cx, 1
+    jbe .close
+    lodsb
+    test al, al
+    jz .close
+    call print_char_al
+    dec cx
+    jmp .name
+.close:
+    mov al, ']'
+    call print_char_al
+    dec cx
+    call print_spaces_cx
+    ret
+
+print_spaces_cx:
+    mov al, ' '
+.loop:
+    test cx, cx
+    jz .done
+    call print_char_al
+    dec cx
+    jmp .loop
+.done:
+    ret
+
+finish_dir_wide_row:
+    cmp byte [dir_wide], 0
+    je .done
+    cmp byte [dir_wide_cols], 0
+    je .done
+    mov byte [dir_wide_cols], 0
+    call dir_line_end
+.done:
     ret
 
 format_dir_name:
@@ -1388,7 +1720,7 @@ command_table:
 echo_off_arg: db "OFF", 0
 echo_on_arg: db "ON", 0
 autoexec_name: db "AUTOEXEC.BAT", 0
-dir_pattern: db "*.*", 0
+dir_default_pattern: db "*.*", 0
 dir_volume_msg: db " Volume in drive ", "$"
 dir_no_label_msg: db " has no label", "$"
 dir_of_msg: db " Directory of ", "$"
@@ -1410,6 +1742,10 @@ dir_pow10_table:
     dd 10
     dd 1
 dir_pow10_count equ 10
+dir_pattern_size equ 80
+dir_header_path_size equ 64
+dir_wide_columns equ 5
+dir_wide_width equ 15
 type_buf_size equ 128
 batch_buf_size equ 512
 
@@ -1432,7 +1768,12 @@ path_more: db 0
 path_last_char: db 0
 path_run_mode: db 0
 path_command_name: times 128 db 0
+dir_pattern: times dir_pattern_size db 0
+dir_header_path: times dir_header_path_size db 0
 dir_pause: db 0
+dir_wide: db 0
+dir_has_operand: db 0
+dir_wide_cols: db 0
 dir_lines: db 0
 dir_file_count: dw 0
 dir_dir_count: dw 0
