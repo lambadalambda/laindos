@@ -22,9 +22,7 @@ alloc_mem_direct:
     mov si, [cs:mcb_first]
 .amd_walk:
     mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .amd_check
-    cmp byte [ds:0], MCB_SIG_Z
+    MCB_IS_VALID
     je .amd_check
     stc
     pop si
@@ -87,9 +85,7 @@ find_largest_free_block:
     mov si, [cs:mcb_first]
 .flfb_walk:
     mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .flfb_check
-    cmp byte [ds:0], MCB_SIG_Z
+    MCB_IS_VALID
     je .flfb_check
     jmp .flfb_done
 .flfb_check:
@@ -152,9 +148,7 @@ mcb_coalesce_all_free:
     mov si, [cs:mcb_first]
 .walk:
     mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .check
-    cmp byte [ds:0], MCB_SIG_Z
+    MCB_IS_VALID
     je .check
     jmp .done
 .check:
@@ -181,9 +175,7 @@ alloc_mem_direct_high:
     mov si, [cs:mcb_first]
 .amdh_walk:
     mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .amdh_check
-    cmp byte [ds:0], MCB_SIG_Z
+    MCB_IS_VALID
     je .amdh_check
     stc
     pop si
@@ -247,9 +239,7 @@ alloc_all_mem_direct:
     mov si, [cs:mcb_first]
 .aad_walk:
     mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .aad_check
-    cmp byte [ds:0], MCB_SIG_Z
+    MCB_IS_VALID
     je .aad_check
     stc
     pop si

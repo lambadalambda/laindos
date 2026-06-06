@@ -15,4 +15,12 @@ ENV_OWNER_TEMP equ 0xFFFF
 %endif
 MCB_SIG_M equ 'M'
 MCB_SIG_Z equ 'Z'
+%macro MCB_IS_VALID 0
+    cmp byte [ds:0], MCB_SIG_M
+    je %%mcb_ok
+    cmp byte [ds:0], MCB_SIG_Z
+    jne %%mcb_fail
+%%mcb_ok:
+%%mcb_fail:
+%endmacro
 %endif

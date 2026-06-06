@@ -459,9 +459,7 @@ free_exec_environment:
     jne .clear
     dec ax
     mov ds, ax
-    cmp byte [ds:0], MCB_SIG_M
-    je .free
-    cmp byte [ds:0], MCB_SIG_Z
+    MCB_IS_VALID
     jne .clear
 .free:
 ; @anchor: free_exec_environment_coalesce
@@ -488,9 +486,7 @@ assign_exec_environment_owner:
     jne .done
     dec bx
     mov ds, bx
-    cmp byte [ds:0], MCB_SIG_M
-    je .assign
-    cmp byte [ds:0], MCB_SIG_Z
+    MCB_IS_VALID
     jne .done
 .assign:
     mov ax, [cs:cur_psp]
@@ -509,9 +505,7 @@ free_prog_mcb:
     jz .done
     dec ax
     mov ds, ax
-    cmp byte [ds:0], MCB_SIG_M
-    je .free
-    cmp byte [ds:0], MCB_SIG_Z
+    MCB_IS_VALID
     jne .clear
 .free:
     mov word [ds:1], 0
