@@ -10,6 +10,47 @@
 ; The five "non-canonical" macros below use a different order; their
 ; doc comments call out the required push sequence.
 
+; TRACE_BEGIN <label> / TRACE_END <label> wrap a gated trace block.
+; The macro emits the trace-left counter check, the pusha/push ds/push
+; cs/pop ds prologue, the trailing CRLF + pop ds/popa epilogue, and
+; the `.X_no_trace` skip label. The body between the macros is the
+; per-site trace print (msg_trace_X + any register/value prints).
+; Multiple TRACE blocks in the same handler must use distinct labels.
+%macro TRACE_BEGIN 1
+    cmp word [cs:trace_left], 0
+    je .%1_no_trace
+    dec word [cs:trace_left]
+    pusha
+    push ds
+    push cs
+    pop ds
+%endmacro
+
+%macro TRACE_END 1
+    mov si, msg_crlf
+    call serial_print
+    pop ds
+    popa
+.%1_no_trace:
+%endmacro
+
+; TRACE_UNCOND_BEGIN / TRACE_UNCOND_END wrap an unconditional trace
+; block (no gate, no skip label). Used for the unhandled-AH fall-through
+; dump at the end of the INT 21h dispatch.
+%macro TRACE_UNCOND_BEGIN 0
+    pusha
+    push ds
+    push cs
+    pop ds
+%endmacro
+
+%macro TRACE_UNCOND_END 0
+    mov si, msg_crlf
+    call serial_print
+    pop ds
+    popa
+%endmacro
+
 %macro INT21_POP_FRAME_DS_SI_ES_DI_BX 0
 ; Handler must have pushed, in order: ds, si, es, di, bx.
     pop bx
@@ -273,10 +314,7 @@ int21_handler:
     mov [cs:log_bx], bx
     mov [cs:log_cx], cx
     mov [cs:log_dx], dx
-    pusha
-    push ds
-    push cs
-    pop ds
+    TRACE_UNCOND_BEGIN
     mov si, msg_unhandled
     call serial_print
     mov al, ah
@@ -297,10 +335,7 @@ int21_handler:
     call serial_print
     mov ax, [cs:log_dx]
     call serial_print_hex_word
-    mov si, msg_crlf
-    call serial_print
-    pop ds
-    popa
+    TRACE_UNCOND_END
     mov ax, 1
     jmp iret_cy
 .lfn_unsupported:
@@ -475,21 +510,11 @@ int21_handler:
 .stdin_empty:
     mov ax, 0x0B00
 .stdin_done:
-    cmp word [cs:trace_left], 0
-    je .stdin_no_trace
-    dec word [cs:trace_left]
-    pusha
-    push ds
-    push cs
-    pop ds
+    TRACE_BEGIN stdin
     mov si, msg_trace_stdin
     call serial_print
     call serial_print_hex_word
-    mov si, msg_crlf
-    call serial_print
-    pop ds
-    popa
-.stdin_no_trace:
+    TRACE_END stdin
     pop dx
     pop cx
     pop bx
@@ -731,13 +756,7 @@ int21_handler:
     pop ax
     ret
 .set_vector:
-    cmp word [cs:trace_left], 0
-    je .sv_no_trace
-    dec word [cs:trace_left]
-    pusha
-    push ds
-    push cs
-    pop ds
+    TRACE_BEGIN sv
     mov si, msg_trace_setvec
     call serial_print
     call serial_print_hex
@@ -750,11 +769,7 @@ int21_handler:
     call serial_print
     mov ax, dx
     call serial_print_hex_word
-    mov si, msg_crlf
-    call serial_print
-    pop ds
-    popa
-.sv_no_trace:
+    TRACE_END sv
     cmp al, 0x09
     jne .sv_store
     push ax
@@ -815,14 +830,8 @@ int21_handler:
     mov bx, si
     pop si
     pop ax
-    cmp word [cs:trace_left], 0
-    je .gv_no_trace
-    dec word [cs:trace_left]
-    pusha
-    push ds
+    TRACE_BEGIN gv
     push es
-    push cs
-    pop ds
     mov si, msg_trace_getvec
     call serial_print
     call serial_print_hex
@@ -834,12 +843,8 @@ int21_handler:
     call serial_print
     mov ax, bx
     call serial_print_hex_word
-    mov si, msg_crlf
-    call serial_print
     pop es
-    pop ds
-    popa
-.gv_no_trace:
+    TRACE_END gv
     jmp iret_nc
 .get_disk_free:
     test dl, dl
@@ -1216,13 +1221,7 @@ int21_handler:
 .alloc_strategy:
     mov [cs:log_ax], ax
     mov [cs:log_bx], bx
-    cmp word [cs:trace_left], 0
-    je .as_no_trace
-    dec word [cs:trace_left]
-    pusha
-    push ds
-    push cs
-    pop ds
+    TRACE_BEGIN as
     mov si, msg_trace_strategy_call
     call serial_print
     mov ax, [cs:log_ax]
@@ -1231,11 +1230,7 @@ int21_handler:
     call serial_print
     mov ax, [cs:log_bx]
     call serial_print_hex_word
-    mov si, msg_crlf
-    call serial_print
-    pop ds
-    popa
-.as_no_trace:
+    TRACE_END as
     cmp al, 0
     je .as_get
     cmp al, 1
@@ -2610,13 +2605,7 @@ int21_handler:
     mov [cs:di+handles+H_DATE], ax
     pop ax
     call psp_mark_handle_open
-    cmp word [cs:trace_left], 0
-    je .of_no_handle_trace
-    dec word [cs:trace_left]
-    pusha
-    push ds
-    push cs
-    pop ds
+    TRACE_BEGIN of_handle
     mov si, msg_trace_handle
     call serial_print
     call serial_print_hex_word
@@ -2626,11 +2615,7 @@ int21_handler:
     call serial_print_hex_word
     mov ax, [cs:di+handles+H_SIZE_LO]
     call serial_print_hex_word
-    mov si, msg_crlf
-    call serial_print
-    pop ds
-    popa
-.of_no_handle_trace:
+    TRACE_END of_handle
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     jmp iret_nc
 .of_device:
@@ -2638,21 +2623,11 @@ int21_handler:
     jc .of_device_err
     call psp_mark_handle_open
     push ax
-    cmp word [cs:trace_left], 0
-    je .of_device_no_trace
-    dec word [cs:trace_left]
-    pusha
-    push ds
-    push cs
-    pop ds
+    TRACE_BEGIN of_device
     mov si, msg_trace_handle
     call serial_print
     call serial_print_hex_word
-    mov si, msg_crlf
-    call serial_print
-    pop ds
-    popa
-.of_device_no_trace:
+    TRACE_END of_device
     pop ax
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     jmp iret_nc
@@ -2673,22 +2648,12 @@ int21_handler:
     push di
     cmp bx, MAX_HANDLES
     jae .cf_err
-    cmp word [cs:trace_left], 0
-    je .cf_no_trace
-    dec word [cs:trace_left]
-    pusha
-    push ds
-    push cs
-    pop ds
+    TRACE_BEGIN cf
     mov si, msg_trace_close
     call serial_print
     mov ax, bx
     call serial_print_hex_word
-    mov si, msg_crlf
-    call serial_print
-    pop ds
-    popa
-.cf_no_trace:
+    TRACE_END cf
     cmp bx, 5
     jae .cf_table_handle
     mov ax, bx
@@ -3454,13 +3419,7 @@ int21_handler:
     mov dx, [cs:si+handles+H_POS_HI]
     mov [cs:sf_ret_lo], ax
     mov [cs:sf_ret_hi], dx
-    cmp word [cs:trace_left], 0
-    je .sf_no_trace
-    dec word [cs:trace_left]
-    pusha
-    push ds
-    push cs
-    pop ds
+    TRACE_BEGIN sf
     mov si, msg_trace_seek
     call serial_print
     mov ax, bx
@@ -3482,11 +3441,7 @@ int21_handler:
     call serial_print_hex_word
     mov ax, [cs:sf_ret_lo]
     call serial_print_hex_word
-    mov si, msg_crlf
-    call serial_print
-    pop ds
-    popa
-.sf_no_trace:
+    TRACE_END sf
     pop si
     jmp iret_nc
 .sf_bad_origin_saved:
@@ -3769,13 +3724,7 @@ int21_handler:
     mov [cs:ioctl_func], al
     cmp byte [cs:ioctl_func], 0
     je .ioctl_no_trace
-    cmp word [cs:trace_left], 0
-    je .ioctl_no_trace
-    dec word [cs:trace_left]
-    pusha
-    push ds
-    push cs
-    pop ds
+    TRACE_BEGIN ioctl
     mov si, msg_trace_ioctl
     call serial_print
     xor ax, ax
@@ -3785,11 +3734,7 @@ int21_handler:
     call serial_print
     mov ax, bx
     call serial_print_hex_word
-    mov si, msg_crlf
-    call serial_print
-    pop ds
-    popa
-.ioctl_no_trace:
+    TRACE_END ioctl
     cmp al, 0
     je .ioctl_get
     cmp al, 1
