@@ -16,7 +16,7 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 - Runs the full VGA Monkey Island image when `vendor/monkey_full.zip` is present.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
-- `make test` currently runs the automated QEMU regression ladder and passes `88/88` tests.
+- `make test` currently runs the automated QEMU regression ladder and passes `89/89` tests.
 
 ## Scope
 
@@ -79,7 +79,7 @@ LainDOS targets 386-compatible real-mode execution. The boot sectors and kernel 
 ## Source Layout
 
 - `src/` contains boot sectors, the kernel, kernel includes, and shared memory constants.
-- `programs/` contains DOS utilities shipped on test/game images, such as the shell and memory-report tool.
+- `programs/` contains DOS utilities shipped on test/game images, such as the shell, memory-report tool, and `TIME.COM`.
 - `tests/programs/` contains small NASM DOS regression programs and test boot helpers.
 - `scripts/` contains image builders, host-side generators, and Python/QEMU test runners.
 

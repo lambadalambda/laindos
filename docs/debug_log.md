@@ -2508,3 +2508,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - The first run failed with `FAIL: FINDSTAR ALL` because a name-part `*` with no explicit dot produced `????????   ` and only matched extensionless entries.
 - Updated `parse_83name` so a name-part `*` that reaches end-of-string fills the extension field with `?`, while a following explicit dot still controls extension parsing.
 - Focused checks passed: `python3 scripts/test_findstar.py`, `python3 scripts/test_findnext.py`, and `python3 scripts/test_parsefcb.py`.
+
+## 2026-06-07 UTC Offset For DOS Time
+
+- Added build-time `UTC_OFFSET_MINUTES` normalization in `src/kernel.asm`; default is zero and nonzero values are applied modulo 24 hours to BIOS-derived `INT 21h AH=2Ch` results.
+- `AH=2Dh` stored DOS time remains unchanged by the offset path because `.gt_stored` returns explicitly set time values.
+- Added `scripts/test_timeoffset.py` / `tests/programs/timeoffset.asm`. Before the fix, zero offset passed while `+150` and `-60` failed; after the fix all cases pass, including midnight wrap for the negative offset and 23:50 plus 20 minutes wrapping to 00:10.
+- Added `programs/time.asm` as `TIME.COM`, and wired it into default, shell-test, shell-demo, all-games, and extras images. `scripts/test_shell.py` now runs `time` and checks for `Current time:`.

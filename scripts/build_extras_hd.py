@@ -16,6 +16,7 @@ KERNEL = os.path.join(BUILDDIR, "extras_hd_kernel.bin")
 SHELL = os.path.join(BUILDDIR, "shell.com")
 FREE = os.path.join(BUILDDIR, "free.com")
 MEM = os.path.join(BUILDDIR, "mem.com")
+TIME = os.path.join(BUILDDIR, "time.com")
 IMG = os.path.join(BUILDDIR, "extras_hd.img")
 README = os.path.join(BUILDDIR, "extras.txt")
 
@@ -209,6 +210,7 @@ def main():
     games.run(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
     games.run(["nasm", "-f", "bin", "programs/free.asm", "-o", FREE])
     games.run(["nasm", "-f", "bin", "programs/free.asm", "-o", MEM])
+    games.run(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
 
     m1_demo = [
         "vendor/midemo.exe",
@@ -232,6 +234,7 @@ def main():
         SHELL,
         FREE,
         MEM,
+        TIME,
         README,
     ]
     cmd.extend(games.files_in(STUNT_FILES_DIR))

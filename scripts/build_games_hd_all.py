@@ -12,6 +12,7 @@ KERNEL = os.path.join(BUILDDIR, "games_hd_all_kernel.bin")
 SHELL = os.path.join(BUILDDIR, "shell.com")
 FREE = os.path.join(BUILDDIR, "free.com")
 MEM = os.path.join(BUILDDIR, "mem.com")
+TIME = os.path.join(BUILDDIR, "time.com")
 IMG = os.path.join(BUILDDIR, "games_hd_all.img")
 
 MONKEY_FULL_ZIP = "vendor/monkey_full.zip"
@@ -235,6 +236,7 @@ def main():
     run(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
     run(["nasm", "-f", "bin", "programs/free.asm", "-o", FREE])
     run(["nasm", "-f", "bin", "programs/free.asm", "-o", MEM])
+    run(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
 
     m1_demo = [
         "vendor/midemo.exe",
@@ -265,6 +267,7 @@ def main():
         SHELL,
         FREE,
         MEM,
+        TIME,
     ]
     cmd.extend(f"M1DEMO:{path}" for path in m1_demo)
     cmd.extend(f"MONKEY:{path}" for path in files_in(MONKEY_FULL_DIR))

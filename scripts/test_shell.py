@@ -44,6 +44,7 @@ def build_image():
     run(["nasm", "-f", "bin", "tests/programs/keytest.asm", "-o", os.path.join(BUILDDIR, "keytest.com")])
     run(["nasm", "-f", "bin", "tests/programs/extkey.asm", "-o", os.path.join(BUILDDIR, "extkey.com")])
     run(["nasm", "-f", "bin", "tests/programs/timetest.asm", "-o", os.path.join(BUILDDIR, "timetest.com")])
+    run(["nasm", "-f", "bin", "programs/time.asm", "-o", os.path.join(BUILDDIR, "time.com")])
     run(["nasm", "-f", "bin", "tests/programs/argtest.asm", "-o", os.path.join(BUILDDIR, "argtest.com")])
     run(["nasm", "-f", "bin", "tests/programs/argexe.asm", "-o", os.path.join(BUILDDIR, "argexe.exe")])
     run(["nasm", "-f", "bin", "tests/programs/exemax.asm", "-o", os.path.join(BUILDDIR, "exemax.exe")])
@@ -69,6 +70,7 @@ def build_image():
         os.path.join(BUILDDIR, "keytest.com"),
         os.path.join(BUILDDIR, "extkey.com"),
         os.path.join(BUILDDIR, "timetest.com"),
+        os.path.join(BUILDDIR, "time.com"),
         os.path.join(BUILDDIR, "argtest.com"),
         os.path.join(BUILDDIR, "argexe.exe"),
         os.path.join(BUILDDIR, "exemax.exe"),
@@ -294,6 +296,7 @@ def send_keys(output_chunks):
 
     for command in [
         "timetest",
+        "time",
         "testbat",
         "exemax",
         "memreg",
@@ -383,6 +386,7 @@ def main():
         "PASS: KEY",
         "PASS: EXTKEY",
         "PASS: TIME",
+        "Current time:",
         "PASS: ARGTEST",
         "PASS: ARGEXE",
         "PASS: EXEMAX",

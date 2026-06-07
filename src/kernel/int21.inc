@@ -1896,6 +1896,26 @@ int21_handler:
 .gt_min_done:
     mov ax, si
     mov [cs:time_min], al
+%if LOCAL_TIME_OFFSET_MINUTES != 0
+%if LOCAL_TIME_OFFSET_MINUTES_PART != 0
+    add al, LOCAL_TIME_OFFSET_MINUTES_PART
+    cmp al, 60
+    jb .gt_offset_min_ok
+    sub al, 60
+    inc byte [cs:time_hour]
+.gt_offset_min_ok:
+    mov [cs:time_min], al
+%endif
+    mov al, [cs:time_hour]
+%if LOCAL_TIME_OFFSET_HOURS != 0
+    add al, LOCAL_TIME_OFFSET_HOURS
+%endif
+    cmp al, 24
+    jb .gt_offset_hour_ok
+    sub al, 24
+.gt_offset_hour_ok:
+    mov [cs:time_hour], al
+%endif
     mov ax, dx
     mov bx, 6000
     mul bx

@@ -9,6 +9,7 @@ BOOT = f"{BUILDDIR}/shell_monkey_boot.bin"
 KERNEL = f"{BUILDDIR}/shell_monkey_kernel.bin"
 SHELLDIR = f"{BUILDDIR}/shell_monkey_files"
 SHELL = os.path.join(SHELLDIR, "shell.com")
+TIME = os.path.join(SHELLDIR, "time.com")
 IMG = f"{BUILDDIR}/shell_monkey.img"
 
 
@@ -36,6 +37,7 @@ def main():
         "-o", KERNEL,
     ])
     run(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
+    run(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
 
     game_files = [
         "vendor/midemo.exe",
@@ -60,6 +62,7 @@ def main():
         KERNEL,
         IMG,
         SHELL,
+        TIME,
         *game_files,
     ])
 

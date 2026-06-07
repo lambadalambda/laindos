@@ -141,3 +141,4 @@
 - [x] [Add REN and RENAME built-ins for simple file renames](issues/add-ren-rename-built-ins-for-simple-file-renames.md)
 - [x] [Fix asterisk wildcard in parse_83name](issues/fix-asterisk-wildcard-in-parse-83name.md)
 - [x] [Honor standard FCB attribute filter](issues/honor-standard-fcb-attribute-filter.md)
+- [x] [Apply UTC offset to INT 21h get-time](issues/apply-utc-offset-to-int21-get-time.md)

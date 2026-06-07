@@ -23,3 +23,4 @@
 - Relevant code: `src/kernel/int21.inc:1849-1912` (`.get_time`).
 - The BIOS `INT 0x1A` ticks count midnight as zero and roll over at 24:00; the offset must be applied modulo 24 hours.
 - Discovered during a whole-system review on 2026-06-06.
+- Completed on 2026-06-07 with build-time `UTC_OFFSET_MINUTES` (default `0`) normalized modulo 24 hours. The offset applies only to BIOS-derived `AH=2Ch`; time explicitly set with `AH=2Dh` is returned as stored. `scripts/test_timeoffset.py` covers zero, positive, negative, and hour-wrap offsets.

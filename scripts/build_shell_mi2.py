@@ -13,6 +13,7 @@ BOOT = f"{BUILDDIR}/shell_mi2_boot.bin"
 KERNEL = f"{BUILDDIR}/shell_mi2_kernel.bin"
 SHELLDIR = f"{BUILDDIR}/shell_mi2_files"
 SHELL = os.path.join(SHELLDIR, "shell.com")
+TIME = os.path.join(SHELLDIR, "time.com")
 IMG = f"{BUILDDIR}/shell_mi2.img"
 
 
@@ -58,6 +59,7 @@ def main():
         "-o", KERNEL,
     ])
     run(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
+    run(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
 
     mi2_files = [
         "MI2DEMO.EXE",
@@ -81,6 +83,7 @@ def main():
         KERNEL,
         IMG,
         SHELL,
+        TIME,
         *paths,
     ])
 

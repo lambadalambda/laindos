@@ -73,11 +73,11 @@ const DOSAPI_GROUPS = [
       [300, "    je .set_psp"],
       [301, "    cmp ah, 0x51"],
       [302, "    je .get_psp"],
-      [1942, ".exec:"],
+      [1962, ".exec:"],
       [910, "    cmp al, 0"],
-      [1971, "    call load_exec_program"],
-      [1975, "    call exec_com_dyn"],
-      [1978, "    call setup_exe_dyn"],
+      [1991, "    call load_exec_program"],
+      [1995, "    call exec_com_dyn"],
+      [1998, "    call setup_exe_dyn"],
     ],
     regs: [
       ["AH", "4Bh", "EXEC"],
@@ -110,8 +110,8 @@ const DOSAPI_GROUPS = [
       [298, "    je .find_next"],
       [623, ".fcb_find_first:"],
       [667, "    call .fcb_store_dta"],
-      [4323, "    call store_find_dta"],
-      [4361, "    call store_find_dta"],
+      [4381, "    call store_find_dta"],
+      [4343, "    call store_find_dta"],
     ],
     regs: [
       ["DS:DX", "FCB/DTA/path", "FCB for AH=11h/12h; DTA pointer for AH=1Ah; search path for AH=4Eh"],
@@ -159,14 +159,14 @@ const DOSAPI_GROUPS = [
     ],
     codeFile: "src/kernel/int21.inc",
     code: [
-      [3716, ".ioctl:"],
-      [3731, "    cmp al, 0"],
-      [3732, "    je .ioctl_get"],
+      [3736, ".ioctl:"],
+      [3751, "    cmp al, 0"],
+      [3752, "    je .ioctl_get"],
       [1275, "    cmp al, 6"],
-      [3736, "    je .ioctl_input_status"],
+      [3756, "    je .ioctl_input_status"],
       [488, "    cmp al, 8"],
-      [3740, "    je .ioctl_removable_drive"],
-      [3785, "    mov dx, 0x80D3"],
+      [3760, "    je .ioctl_removable_drive"],
+      [3805, "    mov dx, 0x80D3"],
     ],
     regs: [
       ["AL", "subfunc", "IOCTL subfunction"],
@@ -182,7 +182,7 @@ const DOSAPI_GROUPS = [
     calls: "AH=19h,1Bh,1Ch,25h,29h,2Ah-30h,33h,35h,36h,38h,52h,54h,5Dh,60h,63h,71h",
     prose: [
       "Many programs do not immediately open files. They first ask DOS what version it is, what drive is current, how much disk space is free, what the date/time is, or where an interrupt vector points.",
-      "LainDOS answers these probes with DOS 3.30-style behavior where that helps old games, returns real disk-free counts from the FAT, keeps enough vector/date/verify state for installers and utilities to continue, and includes narrow FCB compatibility used by older probes and launchers.",
+      "LainDOS answers these probes with DOS 3.30-style behavior where that helps old games, returns real disk-free counts from the FAT, keeps enough vector/date/verify state for installers and utilities to continue, and includes narrow FCB compatibility used by older probes and launchers. `AH=2Ch` derives time from BIOS ticks until `AH=2Dh` stores an explicit DOS time; builders can pass `-DUTC_OFFSET_MINUTES=<minutes>` to convert a UTC BIOS clock to local time modulo 24 hours.",
       "Newer DOS-extender runtimes also hit internal and Windows-era compatibility probes. LainDOS now canonicalizes truename paths, returns a minimal DOS swappable-data-area pointer for `AX=5D06h`, and reports unsupported long-filename APIs with `AX=7100h` so DJGPP-style callers can fall back to 8.3 searches."
     ],
     codeFile: "src/kernel/int21.inc",
@@ -205,7 +205,7 @@ const DOSAPI_GROUPS = [
       ["DL", "drive", "0=current, 1=A:, 2=B:, etc. for drive queries"],
       ["ES:BX", "vector", "AH=35h returns interrupt vector pointer"],
     ],
-    tests: ["scripts/test_versionapi.py", "scripts/test_diskfree.py", "scripts/test_datetime.py", "scripts/test_drivedata.py", "scripts/test_multidrive.py", "scripts/test_dbcs.py", "scripts/test_compatapi.py"],
+    tests: ["scripts/test_versionapi.py", "scripts/test_diskfree.py", "scripts/test_datetime.py", "scripts/test_timeoffset.py", "scripts/test_drivedata.py", "scripts/test_multidrive.py", "scripts/test_dbcs.py", "scripts/test_compatapi.py"],
   },
 ];
 
