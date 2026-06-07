@@ -185,6 +185,8 @@
 
 int21_handler:
     cld
+    cmp byte [cs:mouse_in_callback], 0
+    jne .reject_reentry
     inc byte [cs:indos_flag]
     cmp ah, 0x4C
     je .terminate
@@ -355,24 +357,21 @@ int21_handler:
     call serial_print_hex_word
     TRACE_UNCOND_END
     RET_ERR 1
+.reject_reentry:
+    mov ax, 0x0005
+    jmp iret_cy_no_indos
 .lfn_unsupported:
     RET_ERR 0x7100
 .terminate:
     mov [cs:ret_code], al
     mov byte [cs:ret_type], 0
     dec byte [cs:indos_flag]
-    jnz .no_drain_term
-    call mouse_drain_pending
-.no_drain_term:
     jmp do_terminate
 .terminate_tsr:
     mov [cs:ret_code], al
     mov byte [cs:ret_type], 3
     mov [cs:tsr_keep_par], dx
     dec byte [cs:indos_flag]
-    jnz .no_drain_tsr
-    call mouse_drain_pending
-.no_drain_tsr:
     jmp do_terminate_tsr
 .print_string:
     push ds

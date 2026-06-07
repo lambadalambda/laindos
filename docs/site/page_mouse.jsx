@@ -194,7 +194,7 @@ const MOUSE_SECTIONS = [
     summary: "Movement and button edges can call back into a game.",
     body: [
       "Once a full packet has updated movement and button state, LainDOS sets event-mask bits for motion, left press/release, and right press/release. It records edge positions and updates current button bits before considering a callback.",
-      "Callback invocation is guarded against re-entry. The game receives AX=matched mask, BX=buttons, CX/DX=position, and SI/DI=movement deltas, then returns with RETF.",
+      "Callback invocation is guarded against recursive mouse callbacks. The game receives AX=matched mask, BX=buttons, CX/DX=position, and SI/DI=movement deltas, then returns with RETF. INT 21h calls made from the callback are rejected so DOS file I/O state is not re-entered.",
     ],
     file: "src/kernel/mouse.inc",
     code: [
@@ -214,14 +214,14 @@ const MOUSE_SECTIONS = [
       [592, "    mov bx, [cs:mouse_buttons]"],
       [595, "    mov si, [cs:mouse_event_dx]"],
       [597, "    call far [cs:mouse_callback_off]"],
-      [605, "irq12_handler:"],
-      [615, "    in al, 0x60"],
-      [616, "    call mouse_ps2_byte"],
-      [619, "    out 0xA0, al"],
-      [620, "    out 0x20, al"],
+      [611, "irq12_handler:"],
+      [621, "    in al, 0x60"],
+      [622, "    call mouse_ps2_byte"],
+      [625, "    out 0xA0, al"],
+      [626, "    out 0x20, al"],
     ],
-    hi: [536, 546, 557, 567, 575, 579, 581, 591, 597, 605, 616, 619, 620],
-    tests: ["scripts/test_mousecb.py", "scripts/test_mouseratio.py"],
+    hi: [536, 546, 557, 567, 575, 579, 581, 591, 597, 611, 622, 625, 626],
+    tests: ["scripts/test_mousecb.py", "scripts/test_mouseratio.py", "scripts/test_mouseindos.py"],
   },
 ];
 

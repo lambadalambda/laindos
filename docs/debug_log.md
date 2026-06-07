@@ -2491,3 +2491,13 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Added GitHub Actions CI that installs NASM/QEMU and runs `make test`.
 - Verified `make test` passes `65/65` after the rename and drive-path fix.
 - Game smoke checks passed: `make test-monkey-demo`, `make test-monkey-full`, `make test-wolf3d-smoke`, and `make test-ascendancy-smoke`.
+
+## 2026-06-07 Ascendancy Mouse Callback Re-entry Regression
+
+- User reported Ascendancy mouse movement regressed after the recent `indos_flag` mouse guard work: movement arrived in short bursts with multi-second pauses, then later appeared not to react at all. Monkey Island 2 still worked.
+- A focused `mousedefer` probe initially failed to boot because an 8-character basename needs raw 8.3 `BOOT_FILE` form without a separator (`MOUSDEFRCOM`) and because a far call into a near-returning kernel helper corrupts the caller stack.
+- Added test-only far wrapper hooks for mouse callback invocation and replaced the stale hardcoded offsets with NASM-listing-derived offsets in the new `scripts/test_mouseindos.py` regression.
+- Root cause: deferring all `INT 33h AX=000Ch` callbacks while `indos_flag != 0` does not match real mouse-driver behavior and starves callback-driven games during frequent or long DOS calls. A one-byte pending flag also collapses multiple mouse packets into one callback.
+- Fix: `mouse_invoke_callback` now allows callbacks while DOS is active, keeping only the `mouse_in_callback` recursive-callback guard. `int21_handler` rejects DOS calls made from inside a mouse callback with carry set and `AX=0005`, without touching `indos_flag`.
+- An over-broad first attempt rejected every `INT 21h` entry while `indos_flag != 0`; `scripts/test_ascendancy_smoke.py` then failed with `EXC 06` before DOS/4GW because LainDOS `EXEC` runs the child before the parent `AH=4Bh` returns, so child DOS calls legitimately occur with `indos_flag` already set. Narrowing the guard to `mouse_in_callback != 0` fixed the smoke.
+- Tests run: `python3 scripts/test_mouseindos.py`, `python3 scripts/test_indos.py`, `python3 scripts/test_mousecb.py`, `python3 scripts/test_mouseratio.py`, and `python3 scripts/test_ascendancy_smoke.py` all pass.
