@@ -2522,3 +2522,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - The first run failed on unhandled `INT 21h AH=F0` with `FAIL: HANDLELEAK QUERY BASE`, confirming user space had no way to query the kernel handle count.
 - Added test-build `AH=F0h AL=00h` handle-count query behind `TEST_HANDLE_COUNT_QUERY`, returning the number of `H_USED` entries in `AX`.
 - Added one-shot `TEST_FLUSH_DIR_SLOT_FAIL` in `flush_dir_slot`; the focused regression sets handle count metadata with `AH=67h`, forces the first create to fail with error 5, verifies the handle count is unchanged, then creates, closes, and reopens a real file.
+
+## 2026-06-07 Norton Commander Program Launch
+
+- Added `scripts/test_norton_commander_launch.py`, which builds NC with `SHELL.COM` and `HELLO.COM`, presses Enter on the selected `HELLO.COM`, and expects the child serial marker.
+- Before the fix, the launch probe failed on unhandled `INT 21h AH=0Dh`; with a temporary local disk-reset stub, NC started COMSPEC but the child shell ignored its PSP:80h command tail and stayed interactive at `C:\>hello.com`.
+- Implemented `AH=0Dh` as a synchronous-disk no-op and taught `SHELL.COM` to execute `/C <command>` from its PSP command tail once before exiting.
+- Focused checks passed: `python3 scripts/test_norton_commander_launch.py`, `python3 scripts/test_norton_commander_smoke.py`, `python3 scripts/test_shell.py`, and `python3 scripts/test_compatapi.py`.

@@ -143,3 +143,4 @@
 - [x] [Honor standard FCB attribute filter](issues/honor-standard-fcb-attribute-filter.md)
 - [x] [Apply UTC offset to INT 21h get-time](issues/apply-utc-offset-to-int21-get-time.md)
 - [x] [Add user-space handle count query and post-alloc_handle failure hook](issues/add-handle-count-query-and-failure-hook.md)
+- [x] [Allow Norton Commander to launch programs](issues/allow-norton-commander-to-launch-programs.md)

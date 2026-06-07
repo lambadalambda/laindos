@@ -8,7 +8,7 @@ def main():
         "COMPATAPCOM",
         [("tests/programs/compatapi.asm", "compatap.com")],
         required=("PASS: COMPATAPI", "Program exited, code=00", "HALT"),
-        forbidden=("FAIL:", "EXC ", "INT 21h AH=50", "INT 21h AH=5D",
+        forbidden=("FAIL:", "EXC ", "INT 21h AH=0D", "INT 21h AH=50", "INT 21h AH=5D",
                    "INT 21h AH=60", "INT 21h AH=66", "INT 21h AH=71"),
         pass_message="Compatibility API test passed.",
     )

@@ -259,6 +259,9 @@ test-ascendancy-smoke: vendor/Ascendancy_1995.zip
 test-norton-commander-smoke: vendor/003064_norton_commander.7z
 	$(RUN_TEST) $(PYTHON) scripts/test_norton_commander_smoke.py
 
+test-norton-commander-launch: vendor/003064_norton_commander.7z
+	$(RUN_TEST) $(PYTHON) scripts/test_norton_commander_launch.py
+
 test-shortline-smoke: vendor/SHRTLINE.zip
 	$(RUN_TEST) $(PYTHON) scripts/test_shortline_smoke.py
 

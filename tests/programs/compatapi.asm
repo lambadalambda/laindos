@@ -5,6 +5,10 @@ start:
     push cs
     pop ds
 
+    mov ah, 0x0D
+    int 0x21
+    jc fail_disk_reset
+
     mov ah, 0x62
     int 0x21
     mov [orig_psp], bx
@@ -247,6 +251,11 @@ fail_psp:
     pop ds
     mov dx, fail_psp_msg
     jmp fail
+fail_disk_reset:
+    push cs
+    pop ds
+    mov dx, fail_disk_reset_msg
+    jmp fail
 fail_sda:
     push cs
     pop ds
@@ -294,6 +303,7 @@ subdir: db "SUB", 0
 root_name: db "A:\", 0
 out_buf: times 128 db 0
 pass_msg: db "PASS: COMPATAPI", 13, 10, "$"
+fail_disk_reset_msg: db "FAIL: COMPATAPI DISK RESET", 13, 10, "$"
 fail_psp_msg: db "FAIL: COMPATAPI PSP", 13, 10, "$"
 fail_sda_msg: db "FAIL: COMPATAPI SDA", 13, 10, "$"
 fail_true_msg: db "FAIL: COMPATAPI TRUE", 13, 10, "$"

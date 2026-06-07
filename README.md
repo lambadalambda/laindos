@@ -241,6 +241,13 @@ The script rebuilds `build/shell_monkey.img`, attaches the supplied image with Q
 
 The same smoke is available as `make test-attached-hd-shell` when `LAINDOS_HD_IMAGE` is set.
 
+Norton Commander has startup and child-launch smokes when `vendor/003064_norton_commander.7z` is present:
+
+```sh
+make test-norton-commander-smoke
+make test-norton-commander-launch
+```
+
 Build the experimental Wolfenstein 3D shareware image from `vendor/wolf3dsw.zip`:
 
 ```sh

@@ -208,6 +208,8 @@ int21_handler:
     je .stdin_status
     cmp ah, 0x0C
     je .flush_and_read
+    cmp ah, 0x0D
+    je .disk_reset
     cmp ah, 0x0E
     je .select_disk
     cmp ah, 0x11
@@ -574,6 +576,8 @@ int21_handler:
 .flush_read_line_buffered:
     mov ah, 0x0A
     jmp .read_line_buffered
+.disk_reset:
+    jmp iret_nc
 .get_drive:
     mov al, [cs:dos_drive_num]
     jmp iret_nc

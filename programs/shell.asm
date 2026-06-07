@@ -22,6 +22,8 @@ start:
     mov dx, banner
     mov ah, 0x09
     int 0x21
+    call run_command_tail
+    jc exit_shell
     call run_autoexec
 
 prompt:
@@ -1595,6 +1597,51 @@ read_line:
     rep movsb
     xor al, al
     stosb
+    ret
+
+run_command_tail:
+    push cs
+    pop ds
+    mov cl, [0x80]
+    test cl, cl
+    jz .none
+    cmp cl, 63
+    jbe .copy_len_ok
+    mov cl, 63
+.copy_len_ok:
+    xor ch, ch
+    mov si, 0x81
+    mov di, line_buf
+    rep movsb
+    xor al, al
+    stosb
+    call uppercase_line
+    mov si, line_buf
+    call skip_spaces
+    cmp byte [si], '/'
+    jne .none
+    inc si
+    cmp byte [si], 'C'
+    jne .none
+    inc si
+    mov al, [si]
+    test al, al
+    jz .run
+    cmp al, ' '
+    jne .none
+    call skip_spaces
+.run:
+    mov di, line_buf
+.move_command:
+    lodsb
+    stosb
+    test al, al
+    jnz .move_command
+    call execute_line
+    stc
+    ret
+.none:
+    clc
     ret
 
 uppercase_line:

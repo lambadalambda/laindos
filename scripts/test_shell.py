@@ -184,7 +184,7 @@ def send_keys(output_chunks):
                 raise
             time.sleep(0.1)
     sock.recv(4096)
-    for command in ["ver", "cls", "dir", "type testfile.dat", "echo interactive echo", "rem interactive comment", "hello", "keytest"]:
+    for command in ["ver", "cls", "dir", "type testfile.dat", "echo interactive echo", "rem interactive comment", "hello", "shell /c hello", "keytest"]:
         send_command(sock, output_chunks, command)
     send_paged_dir(sock, output_chunks, "dir /p")
     send_paged_dir(sock, output_chunks, "dir/p")
@@ -411,10 +411,10 @@ def main():
         else:
             print(f"  FAIL: missing '{marker}'")
             failed = True
-    if output.count("PASS: HELLO.COM") >= 3:
-        print("  PASS: found three HELLO.COM runs")
+    if output.count("PASS: HELLO.COM") >= 4:
+        print("  PASS: found at least four HELLO.COM runs")
     else:
-        print("  FAIL: expected three HELLO.COM runs")
+        print("  FAIL: expected at least four HELLO.COM runs")
         failed = True
     if output.count("Hello from TESTFILE.DAT! This is test data for LainDOS file I/O.") >= 2:
         print("  PASS: found root TYPE before and after CD ..")
