@@ -361,12 +361,18 @@ int21_handler:
     mov [cs:ret_code], al
     mov byte [cs:ret_type], 0
     dec byte [cs:indos_flag]
+    jnz .no_drain_term
+    call mouse_drain_pending
+.no_drain_term:
     jmp do_terminate
 .terminate_tsr:
     mov [cs:ret_code], al
     mov byte [cs:ret_type], 3
     mov [cs:tsr_keep_par], dx
     dec byte [cs:indos_flag]
+    jnz .no_drain_tsr
+    call mouse_drain_pending
+.no_drain_tsr:
     jmp do_terminate_tsr
 .print_string:
     push ds

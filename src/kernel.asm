@@ -386,6 +386,9 @@ iret_nc:
     and word [bp+6], ~CF
     or word [bp+6], IFLAG
     dec byte [cs:indos_flag]
+    jnz .no_drain_nc
+    call mouse_drain_pending
+.no_drain_nc:
     pop bp
     iret
 
@@ -394,6 +397,9 @@ iret_cy:
     mov bp, sp
     or word [bp+6], CF | IFLAG
     dec byte [cs:indos_flag]
+    jnz .no_drain_cy
+    call mouse_drain_pending
+.no_drain_cy:
     pop bp
     iret
 
@@ -403,6 +409,9 @@ iret_nc_zf:
     and word [bp+6], ~CF
     or word [bp+6], ZF | IFLAG
     dec byte [cs:indos_flag]
+    jnz .no_drain_zf
+    call mouse_drain_pending
+.no_drain_zf:
     pop bp
     iret
 
@@ -412,6 +421,9 @@ iret_nc_nz:
     and word [bp+6], ~(CF | ZF)
     or word [bp+6], IFLAG
     dec byte [cs:indos_flag]
+    jnz .no_drain_nz
+    call mouse_drain_pending
+.no_drain_nz:
     pop bp
     iret
 
@@ -3269,6 +3281,7 @@ mouse_scale_rem_y: dw 0
 mouse_event_dx: dw 0
 mouse_event_dy: dw 0
 mouse_in_callback: db 0
+mouse_callback_pending: db 0
 mouse_ps2_enabled: db 0
 mouse_cmd: db 0
 mouse_ps2_stage: db 0

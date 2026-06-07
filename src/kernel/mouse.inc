@@ -65,6 +65,7 @@ int33_handler:
     mov word [cs:mouse_callback_off], 0
     mov word [cs:mouse_callback_seg], 0
     mov byte [cs:mouse_in_callback], 0
+    mov byte [cs:mouse_callback_pending], 0
     mov word [cs:mouse_ratio_x], 8
     mov word [cs:mouse_ratio_y], 8
     mov word [cs:mouse_scale_rem_x], 0
@@ -585,7 +586,7 @@ mouse_invoke_callback:
     cmp byte [cs:mouse_in_callback], 0
     jne .done
     cmp byte [cs:indos_flag], 0
-    jne .done
+    jne .defer
     mov byte [cs:mouse_in_callback], 1
     pusha
     push ds
@@ -602,6 +603,17 @@ mouse_invoke_callback:
     popa
     mov byte [cs:mouse_in_callback], 0
 .done:
+    ret
+.defer:
+    mov byte [cs:mouse_callback_pending], 1
+    ret
+
+mouse_drain_pending:
+    cmp byte [cs:mouse_callback_pending], 0
+    je .no_drain
+    mov byte [cs:mouse_callback_pending], 0
+    jmp mouse_invoke_callback
+.no_drain:
     ret
 
 irq12_handler:
