@@ -95,6 +95,7 @@ DEFAULT_TESTS = [
     "scripts/test_execseg.py",
     "scripts/test_linebuf.py",
     "scripts/test_ffroot.py",
+    "scripts/test_findstar.py",
     "scripts/test_int24h.py",
     "scripts/test_ffname.py",
     "scripts/test_indos.py",

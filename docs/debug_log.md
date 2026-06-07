@@ -2501,3 +2501,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Fix: `mouse_invoke_callback` now allows callbacks while DOS is active, keeping only the `mouse_in_callback` recursive-callback guard. `int21_handler` rejects DOS calls made from inside a mouse callback with carry set and `AX=0005`, without touching `indos_flag`.
 - An over-broad first attempt rejected every `INT 21h` entry while `indos_flag != 0`; `scripts/test_ascendancy_smoke.py` then failed with `EXC 06` before DOS/4GW because LainDOS `EXEC` runs the child before the parent `AH=4Bh` returns, so child DOS calls legitimately occur with `indos_flag` already set. Narrowing the guard to `mouse_in_callback != 0` fixed the smoke.
 - Tests run: `python3 scripts/test_mouseindos.py`, `python3 scripts/test_indos.py`, `python3 scripts/test_mousecb.py`, `python3 scripts/test_mouseratio.py`, and `python3 scripts/test_ascendancy_smoke.py` all pass.
+
+## 2026-06-07 parse_83name Asterisk Wildcards
+
+- Added `scripts/test_findstar.py` / `tests/programs/findstar.asm` to cover FindFirst/FindNext patterns `*`, `B*`, and `*.EXE` against fixture files `A.TXT`, `B`, `B.EXE`, and `C.EXE`.
+- The first run failed with `FAIL: FINDSTAR ALL` because a name-part `*` with no explicit dot produced `????????   ` and only matched extensionless entries.
+- Updated `parse_83name` so a name-part `*` that reaches end-of-string fills the extension field with `?`, while a following explicit dot still controls extension parsing.
+- Focused checks passed: `python3 scripts/test_findstar.py`, `python3 scripts/test_findnext.py`, and `python3 scripts/test_parsefcb.py`.

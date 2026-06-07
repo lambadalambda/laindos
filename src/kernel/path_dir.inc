@@ -1759,10 +1759,18 @@ parse_83name:
 .pl_skip_to_dot:
     lodsb
     test al, al
-    jz .pl_done
+    jz .pl_name_star_ext_fill_start
     cmp al, '.'
     jne .pl_skip_to_dot
     jmp .pl_dot
+.pl_name_star_ext_fill_start:
+    mov di, name_buf + 8
+.pl_name_star_ext_fill:
+    cmp di, name_buf + 11
+    jae .pl_done
+    mov byte [es:di], '?'
+    inc di
+    jmp .pl_name_star_ext_fill
 .pl_ext_star:
     cmp di, name_buf + 11
     jae .pl_skip_ext

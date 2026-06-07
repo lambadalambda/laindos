@@ -139,3 +139,4 @@
 - [x] [Add REN and RENAME built-ins for simple file renames](issues/add-ren-rename-built-ins-for-simple-file-renames.md)
 - [x] [Wire INT 24h into sector_io_loop](issues/wire-int24h-into-sector-io-loop.md)
 - [x] [Add REN and RENAME built-ins for simple file renames](issues/add-ren-rename-built-ins-for-simple-file-renames.md)
+- [x] [Fix asterisk wildcard in parse_83name](issues/fix-asterisk-wildcard-in-parse-83name.md)
