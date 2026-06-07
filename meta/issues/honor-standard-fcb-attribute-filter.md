@@ -21,3 +21,4 @@
 
 - Relevant code: `src/kernel/int21.inc:584-590` (`.fcb_find_first` attribute load).
 - Discovered during a whole-system review on 2026-06-06; Civilization and other FCB-based tools may rely on this.
+- Closed as invalid on 2026-06-07. A standard FCB stores `drive + 8-byte name + 3-byte extension`, so standard FCB byte `+6` is part of the filename, not an attribute filter. The attribute byte at extended-FCB `+6` exists only when the FCB starts with `0xFF`; the embedded standard FCB then begins at `+7`. Existing `tests/programs/fcbfind.asm` already verifies that a standard FCB named `FCBDIR` does not match a directory, while an extended FCB with attribute `0x10` does.
