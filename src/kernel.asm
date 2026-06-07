@@ -385,6 +385,7 @@ iret_nc:
     mov bp, sp
     and word [bp+6], ~CF
     or word [bp+6], IFLAG
+    dec byte [cs:indos_flag]
     pop bp
     iret
 
@@ -392,6 +393,7 @@ iret_cy:
     push bp
     mov bp, sp
     or word [bp+6], CF | IFLAG
+    dec byte [cs:indos_flag]
     pop bp
     iret
 
@@ -400,6 +402,7 @@ iret_nc_zf:
     mov bp, sp
     and word [bp+6], ~CF
     or word [bp+6], ZF | IFLAG
+    dec byte [cs:indos_flag]
     pop bp
     iret
 
@@ -408,6 +411,7 @@ iret_nc_nz:
     mov bp, sp
     and word [bp+6], ~(CF | ZF)
     or word [bp+6], IFLAG
+    dec byte [cs:indos_flag]
     pop bp
     iret
 
@@ -3214,6 +3218,7 @@ log_bx: dw 0
 log_cx: dw 0
 log_dx: dw 0
 trace_left: dw 0
+indos_flag: db 0
 exc_vec: db 0
 bpb_copy: times 64 db 0
 %if TRACE_EXEC_STATE

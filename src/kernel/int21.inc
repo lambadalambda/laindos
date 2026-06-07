@@ -185,6 +185,7 @@
 
 int21_handler:
     cld
+    inc byte [cs:indos_flag]
     cmp ah, 0x4C
     je .terminate
     cmp ah, 0x09
@@ -359,11 +360,13 @@ int21_handler:
 .terminate:
     mov [cs:ret_code], al
     mov byte [cs:ret_type], 0
+    dec byte [cs:indos_flag]
     jmp do_terminate
 .terminate_tsr:
     mov [cs:ret_code], al
     mov byte [cs:ret_type], 3
     mov [cs:tsr_keep_par], dx
+    dec byte [cs:indos_flag]
     jmp do_terminate_tsr
 .print_string:
     push ds

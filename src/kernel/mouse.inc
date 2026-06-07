@@ -584,6 +584,8 @@ mouse_invoke_callback:
     je .done
     cmp byte [cs:mouse_in_callback], 0
     jne .done
+    cmp byte [cs:indos_flag], 0
+    jne .done
     mov byte [cs:mouse_in_callback], 1
     pusha
     push ds

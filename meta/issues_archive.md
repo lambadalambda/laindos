@@ -135,6 +135,7 @@
 - [x] [Sanitize FindFirst filename bytes](issues/sanitize-findfirst-filename-bytes.md)
 - [x] [Add INT21 trace-block macros](issues/add-int21-trace-block-macros.md)
 - [x] [Add RET_ERR macro for handler error returns](issues/add-ret-err-macro-for-handler-error-returns.md)
+- [x] [Guard mouse callback re-entry](issues/guard-mouse-callback-re-entry.md)
 - [x] [Add REN and RENAME built-ins for simple file renames](issues/add-ren-rename-built-ins-for-simple-file-renames.md)
 - [x] [Wire INT 24h into sector_io_loop](issues/wire-int24h-into-sector-io-loop.md)
 - [x] [Add REN and RENAME built-ins for simple file renames](issues/add-ren-rename-built-ins-for-simple-file-renames.md)
