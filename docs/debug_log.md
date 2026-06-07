@@ -2529,3 +2529,8 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Before the fix, the launch probe failed on unhandled `INT 21h AH=0Dh`; with a temporary local disk-reset stub, NC started COMSPEC but the child shell ignored its PSP:80h command tail and stayed interactive at `C:\>hello.com`.
 - Implemented `AH=0Dh` as a synchronous-disk no-op and taught `SHELL.COM` to execute `/C <command>` from its PSP command tail once before exiting.
 - Focused checks passed: `python3 scripts/test_norton_commander_launch.py`, `python3 scripts/test_norton_commander_smoke.py`, `python3 scripts/test_shell.py`, and `python3 scripts/test_compatapi.py`.
+
+## 2026-06-07 Norton Commander File Copy Smoke
+
+- Added `scripts/test_norton_commander_copy.py`, which builds NC with `HELLO.COM`, presses F5 on the selected file, enters `HELLO2.COM`, and verifies the resulting disk image contains `HELLO2.COM` with the same bytes as `HELLO.COM`.
+- The first run passed without a kernel compatibility fix, confirming NC's basic UI copy path works with the existing open/create/read/write/close and directory update behavior.

@@ -262,6 +262,9 @@ test-norton-commander-smoke: vendor/003064_norton_commander.7z
 test-norton-commander-launch: vendor/003064_norton_commander.7z
 	$(RUN_TEST) $(PYTHON) scripts/test_norton_commander_launch.py
 
+test-norton-commander-copy: vendor/003064_norton_commander.7z
+	$(RUN_TEST) $(PYTHON) scripts/test_norton_commander_copy.py
+
 test-shortline-smoke: vendor/SHRTLINE.zip
 	$(RUN_TEST) $(PYTHON) scripts/test_shortline_smoke.py
 
