@@ -330,6 +330,10 @@ int21_handler:
     je .commit_file
     cmp ah, 0x71
     je .lfn_unsupported
+%ifdef TEST_HANDLE_COUNT_QUERY
+    cmp ah, 0xF0
+    je .test_api
+%endif
     mov [cs:log_ax], ax
     mov [cs:log_bx], bx
     mov [cs:log_cx], cx
@@ -4576,3 +4580,39 @@ int21_handler:
     pop es
     pop ax
     jmp iret_nc
+
+%ifdef TEST_HANDLE_COUNT_QUERY
+.test_api:
+    cmp al, 0
+    je .test_handle_count
+    RET_ERR 1
+.test_handle_count:
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    xor di, di
+    xor bx, bx
+.thc_loop:
+    cmp bx, MAX_HANDLES
+    jae .thc_done
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 1
+    jne .thc_next
+    inc di
+.thc_next:
+    inc bx
+    jmp .thc_loop
+.thc_done:
+    mov ax, di
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    jmp iret_nc
+%endif

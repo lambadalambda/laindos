@@ -2515,3 +2515,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - `AH=2Dh` stored DOS time remains unchanged by the offset path because `.gt_stored` returns explicitly set time values.
 - Added `scripts/test_timeoffset.py` / `tests/programs/timeoffset.asm`. Before the fix, zero offset passed while `+150` and `-60` failed; after the fix all cases pass, including midnight wrap for the negative offset and 23:50 plus 20 minutes wrapping to 00:10.
 - Added `programs/time.asm` as `TIME.COM`, and wired it into default, shell-test, shell-demo, all-games, and extras images. `scripts/test_shell.py` now runs `time` and checks for `Current time:`.
+
+## 2026-06-07 Post-Alloc Create Failure Handle Leak Probe
+
+- Added `scripts/test_handleleak.py` / `tests/programs/handleleak.asm` for a create failure after `alloc_handle` but before `init_handle_entry`.
+- The first run failed on unhandled `INT 21h AH=F0` with `FAIL: HANDLELEAK QUERY BASE`, confirming user space had no way to query the kernel handle count.
+- Added test-build `AH=F0h AL=00h` handle-count query behind `TEST_HANDLE_COUNT_QUERY`, returning the number of `H_USED` entries in `AX`.
+- Added one-shot `TEST_FLUSH_DIR_SLOT_FAIL` in `flush_dir_slot`; the focused regression sets handle count metadata with `AH=67h`, forces the first create to fail with error 5, verifies the handle count is unchanged, then creates, closes, and reopens a real file.

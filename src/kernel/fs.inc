@@ -51,6 +51,14 @@ load_dir_slot:
     ret
 
 flush_dir_slot:
+%ifdef TEST_FLUSH_DIR_SLOT_FAIL
+    cmp byte [cs:flush_dir_slot_fail_once], 0
+    jne .fds_no_test_fail
+    mov byte [cs:flush_dir_slot_fail_once], 1
+    stc
+    ret
+.fds_no_test_fail:
+%endif
     mov [cs:kio_lba_hi], dx
     call flush_dir_sector
     ret

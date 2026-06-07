@@ -3135,6 +3135,9 @@ dir_slot_off: dw 0
 dir_update_hoff: dw 0
 dir_ext_old_next: dw 0
 dir_ext_fail_once: db 0
+%ifdef TEST_FLUSH_DIR_SLOT_FAIL
+flush_dir_slot_fail_once: db 0
+%endif
 
 fat_dirty: db 0
 fat_io_error: db 0
