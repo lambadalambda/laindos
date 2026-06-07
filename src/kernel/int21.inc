@@ -51,6 +51,23 @@
     popa
 %endmacro
 
+; RET_ERR <code> emits the standard "return error from INT 21h handler"
+; epilogue: load the error code into AX and tail-call iret_cy. Use this
+; whenever a handler wants to set CF=1 and AX=<code> before returning.
+%macro RET_ERR 1
+    mov ax, %1
+    jmp iret_cy
+%endmacro
+
+; RET_ERR_STATUS <name> is the same shape but loads the error code from
+; the handler's per-call status variable (the convention used by
+; exec, overlay, md, dup, create_file, open_file, write_file, delete,
+; rename, etc.) instead of a literal.
+%macro RET_ERR_STATUS 1
+    mov ax, [cs:%1]
+    jmp iret_cy
+%endmacro
+
 %macro INT21_POP_FRAME_DS_SI_ES_DI_BX 0
 ; Handler must have pushed, in order: ds, si, es, di, bx.
     pop bx
@@ -336,11 +353,9 @@ int21_handler:
     mov ax, [cs:log_dx]
     call serial_print_hex_word
     TRACE_UNCOND_END
-    mov ax, 1
-    jmp iret_cy
+    RET_ERR 1
 .lfn_unsupported:
-    mov ax, 0x7100
-    jmp iret_cy
+    RET_ERR 0x7100
 .terminate:
     mov [cs:ret_code], al
     mov byte [cs:ret_type], 0
@@ -888,8 +903,7 @@ int21_handler:
     je .ci_get
     cmp al, 1
     je .ci_get
-    mov ax, 2
-    jmp iret_cy
+    RET_ERR 2
 .ci_get:
     push cx
     push dx
@@ -917,8 +931,7 @@ int21_handler:
 .ci_set:
     cmp bx, 1
     je .ci_set_ok
-    mov ax, 2
-    jmp iret_cy
+    RET_ERR 2
 .ci_set_ok:
     jmp iret_nc
 .get_psp:
@@ -930,8 +943,7 @@ int21_handler:
 .dos_internal:
     cmp al, 0x06
     je .get_sda
-    mov ax, 1
-    jmp iret_cy
+    RET_ERR 1
 .get_sda:
     push cs
     pop ds
@@ -955,8 +967,7 @@ int21_handler:
 .get_dbcs_table:
     cmp al, 0
     je .get_dbcs_table_ok
-    mov ax, 1
-    jmp iret_cy
+    RET_ERR 1
 .get_dbcs_table_ok:
     push cs
     pop ds
@@ -968,8 +979,7 @@ int21_handler:
     je .code_page_get
     cmp al, 2
     je .code_page_set
-    mov ax, 1
-    jmp iret_cy
+    RET_ERR 1
 .code_page_get:
     mov bx, 437
     mov dx, 437
@@ -979,8 +989,7 @@ int21_handler:
     jne .code_page_bad
     jmp iret_nc
 .code_page_bad:
-    mov ax, 2
-    jmp iret_cy
+    RET_ERR 2
 .get_list_of_lists:
     push cs
     pop es
@@ -1247,8 +1256,7 @@ int21_handler:
     xor ax, ax
     jmp iret_nc
 .as_bad:
-    mov ax, 1
-    jmp iret_cy
+    RET_ERR 1
 .break_check:
     cmp al, 0
     je .bc_get
@@ -1258,8 +1266,7 @@ int21_handler:
     je .bc_boot_drive
     cmp al, 6
     je .bc_true_version
-    mov ax, 1
-    jmp iret_cy
+    RET_ERR 1
 .bc_get:
     mov dl, [cs:break_flag]
     jmp iret_nc
@@ -1929,8 +1936,7 @@ int21_handler:
     je .exec_program
     cmp al, 3
     je .exec_overlay
-    mov ax, 1
-    jmp iret_cy
+    RET_ERR 1
 .get_return_code:
     mov ah, [cs:ret_type]
     mov al, [cs:ret_code]
@@ -1975,8 +1981,7 @@ int21_handler:
 .exec_program_err:
     mov [cs:exec_status], ax
     INT21_POP_EXEC_PROGRAM_FRAME
-    mov ax, [cs:exec_status]
-    jmp iret_cy
+    RET_ERR_STATUS exec_status
 .exec_overlay:
     push bx
     push cx
@@ -2016,8 +2021,7 @@ int21_handler:
     mov word [cs:ov_status], 1
 .exec_overlay_pop_err:
     INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
-    mov ax, [cs:ov_status]
-    jmp iret_cy
+    RET_ERR_STATUS ov_status
 .validate_path_drive:
     push si
     mov si, dx
@@ -2112,12 +2116,10 @@ int21_handler:
     jmp iret_nc
 .cd_drive_err:
     INT21_POP_FRAME_DS_SI_ES_DI_BX
-    mov ax, 15
-    jmp iret_cy
+    RET_ERR 15
 .cd_err:
     INT21_POP_FRAME_DS_SI_ES_DI_BX
-    mov ax, 3
-    jmp iret_cy
+    RET_ERR 3
 
 .make_dir:
     push ds
@@ -2212,8 +2214,7 @@ int21_handler:
 .md_err:
     mov [cs:md_status], ax
     INT21_POP_FRAME_DS_SI_ES_DI_BX_CX_DX
-    mov ax, [cs:md_status]
-    jmp iret_cy
+    RET_ERR_STATUS md_status
 
 .remove_dir:
     push ds
@@ -2285,8 +2286,7 @@ int21_handler:
 .rd_err:
     mov [cs:rd_status], ax
     INT21_POP_FRAME_DS_SI_ES_DI_BX_CX_DX
-    mov ax, [cs:rd_status]
-    jmp iret_cy
+    RET_ERR_STATUS rd_status
 .create_file:
     mov byte [cs:cf_new_only], 0
     jmp .create_file_start
@@ -2408,8 +2408,7 @@ int21_handler:
 .cr_device_err:
     mov [cs:cf_status], ax
     INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
-    mov ax, [cs:cf_status]
-    jmp iret_cy
+    RET_ERR_STATUS cf_status
 .cr_path_err:
     mov ax, 3
     jmp .cr_err
@@ -2430,8 +2429,7 @@ int21_handler:
 .cr_err:
     mov [cs:cf_status], ax
     INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
-    mov ax, [cs:cf_status]
-    jmp iret_cy
+    RET_ERR_STATUS cf_status
 
 .create_temp_file:
     push ax
@@ -2512,8 +2510,7 @@ int21_handler:
     pop cx
     pop bx
     pop ax
-    mov ax, [cs:cf_status]
-    jmp iret_cy
+    RET_ERR_STATUS cf_status
 .ct_store_digit:
     push ax
     mov ax, bx
@@ -2568,8 +2565,7 @@ int21_handler:
     call resolve_path
     jnc .of_found
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
-    mov ax, 2
-    jmp iret_cy
+    RET_ERR 2
 .of_found:
     call alloc_handle
     jc .of_no_handles
@@ -2634,12 +2630,10 @@ int21_handler:
 .of_device_err:
     mov [cs:of_status], ax
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
-    mov ax, [cs:of_status]
-    jmp iret_cy
+    RET_ERR_STATUS of_status
 .of_no_handles:
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
-    mov ax, 4
-    jmp iret_cy
+    RET_ERR 4
 .close_file:
     push bx
     push cx
@@ -3016,8 +3010,7 @@ int21_handler:
 .rf_err_pop:
     INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
 .rf_err:
-    mov ax, 6
-    jmp iret_cy
+    RET_ERR 6
 
 .write_file:
     cmp bx, MAX_HANDLES
@@ -3310,11 +3303,9 @@ int21_handler:
 .wf_file_err_pop:
     mov [cs:wf_status], ax
     INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
-    mov ax, [cs:wf_status]
-    jmp iret_cy
+    RET_ERR_STATUS wf_status
 .wf_invalid:
-    mov ax, 6
-    jmp iret_cy
+    RET_ERR 6
 .wf_stdio:
     push ds
     push si
@@ -3380,8 +3371,7 @@ int21_handler:
 .df_err:
     mov [cs:df_status], ax
     INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
-    mov ax, [cs:df_status]
-    jmp iret_cy
+    RET_ERR_STATUS df_status
 
 .seek_file:
     cmp bx, MAX_HANDLES
@@ -3446,13 +3436,11 @@ int21_handler:
     jmp iret_nc
 .sf_bad_origin_saved:
     pop si
-    mov ax, 1
-    jmp iret_cy
+    RET_ERR 1
 .sf_bad_handle_saved:
     pop si
 .sf_bad_handle:
-    mov ax, 6
-    jmp iret_cy
+    RET_ERR 6
 
 .truename:
     push bx
@@ -3629,8 +3617,7 @@ int21_handler:
     pop dx
     pop cx
     pop bx
-    mov ax, [cs:tn_status]
-    jmp iret_cy
+    RET_ERR_STATUS tn_status
 .tn_store_char:
     cmp di, [cs:tn_limit_off]
     jae .tn_store_err
@@ -3661,8 +3648,7 @@ int21_handler:
     je .fa_get
     cmp al, 1
     je .fa_set
-    mov ax, 1
-    jmp iret_cy
+    RET_ERR 1
 .fa_get:
     push es
     push ds
@@ -3706,8 +3692,7 @@ int21_handler:
     jmp iret_nc
 .fa_get_nf:
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
-    mov ax, 2
-    jmp iret_cy
+    RET_ERR 2
 .fa_set_io_err:
     mov ax, 5
     jmp .fa_set_err
@@ -3749,8 +3734,7 @@ int21_handler:
     je .ioctl_local_drive
     cmp al, 0x0A
     je .ioctl_local_handle
-    mov ax, 1
-    jmp iret_cy
+    RET_ERR 1
 .ioctl_set:
     jmp .ioctl_get
 .ioctl_get:
@@ -3798,8 +3782,7 @@ int21_handler:
     pop ax
     pop bx
 .ioctl_bad_handle:
-    mov ax, 6
-    jmp iret_cy
+    RET_ERR 6
 
 .ioctl_input_status:
     cmp bx, MAX_HANDLES
@@ -3938,8 +3921,7 @@ int21_handler:
     xor dx, dx
     jmp iret_nc
 .ioctl_bad_drive:
-    mov ax, 15
-    jmp iret_cy
+    RET_ERR 15
 .ioctl_validate_drive_bl:
     test bl, bl
     jz .ioctl_drive_ok
@@ -4030,21 +4012,18 @@ int21_handler:
     pop si
     pop dx
     pop bx
-    mov ax, [cs:dup_status]
-    jmp iret_cy
+    RET_ERR_STATUS dup_status
 .dh_no_handles_pop:
     pop si
     pop dx
     pop bx
-    mov ax, 4
-    jmp iret_cy
+    RET_ERR 4
 .dh_bad_handle_pop:
     pop si
     pop dx
     pop bx
 .dh_bad_handle:
-    mov ax, 6
-    jmp iret_cy
+    RET_ERR 6
 
 .force_duplicate_handle:
     cmp bx, MAX_HANDLES
@@ -4137,16 +4116,14 @@ int21_handler:
     pop dx
     pop cx
     pop bx
-    mov ax, [cs:dup_status]
-    jmp iret_cy
+    RET_ERR_STATUS dup_status
 .fdh_bad_handle_pop:
     pop si
     pop dx
     pop cx
     pop bx
 .fdh_bad_handle:
-    mov ax, 6
-    jmp iret_cy
+    RET_ERR 6
 
 .get_curdir:
     test dl, dl
@@ -4179,8 +4156,7 @@ int21_handler:
     pop ds
     jmp iret_nc
 .gc_bad_drive:
-    mov ax, 0x000F
-    jmp iret_cy
+    RET_ERR 0x000F
 
 .find_first:
     push ds
@@ -4328,16 +4304,13 @@ int21_handler:
     call find_in_dir_filtered
     jnc .ff_found
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
-    mov ax, 2
-    jmp iret_cy
+    RET_ERR 2
 .ff_drive_err:
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
-    mov ax, 15
-    jmp iret_cy
+    RET_ERR 15
 .ff_err:
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
-    mov ax, 3
-    jmp iret_cy
+    RET_ERR 3
 .ff_found:
     call store_find_dta
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
@@ -4372,12 +4345,10 @@ int21_handler:
     call find_in_dir_from
     jnc .fn_found
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
-    mov ax, 2
-    jmp iret_cy
+    RET_ERR 2
 .fn_bad_drive:
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
-    mov ax, 15
-    jmp iret_cy
+    RET_ERR 15
 .fn_found:
     call store_find_dta
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
@@ -4454,8 +4425,7 @@ int21_handler:
 .rn_err:
     mov [cs:rn_status], ax
     INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
-    mov ax, [cs:rn_status]
-    jmp iret_cy
+    RET_ERR_STATUS rn_status
 
 .file_time:
     cmp bx, MAX_HANDLES
@@ -4475,8 +4445,7 @@ int21_handler:
     pop dx
     pop cx
     pop si
-    mov ax, 1
-    jmp iret_cy
+    RET_ERR 1
 .ft_get:
     pop ax
     pop ax
@@ -4499,15 +4468,13 @@ int21_handler:
     pop dx
     pop cx
     pop si
-    mov ax, 5
-    jmp iret_cy
+    RET_ERR 5
 .ft_bad_handle_saved:
     pop dx
     pop cx
     pop si
 .ft_bad_handle:
-    mov ax, 6
-    jmp iret_cy
+    RET_ERR 6
 
 .commit_file:
     cmp bx, MAX_HANDLES
@@ -4557,8 +4524,7 @@ int21_handler:
     pop cx
     pop bx
     pop ax
-    mov ax, 5
-    jmp iret_cy
+    RET_ERR 5
 .cm_bad_pop:
     pop si
     pop dx
@@ -4566,8 +4532,7 @@ int21_handler:
     pop bx
     pop ax
 .cm_bad_handle:
-    mov ax, 6
-    jmp iret_cy
+    RET_ERR 6
 
 .set_handle_count:
     push ax
