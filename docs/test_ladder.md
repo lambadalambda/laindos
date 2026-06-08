@@ -18,7 +18,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `make test-monkey-demo`: smoke-test the shell-launched Monkey Island demo image.
 - `make test-game-smokes`: run the standard game smoke ladder for Monkey Island, Wolfenstein 3D, and Ascendancy when local media is present.
 - `make test-shortline-smoke`: run the Shortline-specific smoke with QEMU `-icount shift=6` for its timer calibration.
-- `make test-norton-commander-smoke`: smoke-test Norton Commander from the local archive.
+- `make test-norton-commander`: run the Norton Commander startup, launch, copy, rename/delete, and mkdir/rmdir smokes from the local archive.
 - Site docs edits: run `make check-docs-sync`, JSX parsing checks, and a local browser or Playwright smoke when one is available.
 
 ## Adding A Focused DOS API Test
