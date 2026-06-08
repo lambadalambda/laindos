@@ -60,7 +60,7 @@ SITE_IMAGE_DEPS := monkey-demo
 endif
 SITE_IMAGE_ARG := $(if $(SITE_IMAGE),--image $(SITE_IMAGE),)
 
-.PHONY: all clean run site check-docs-sync test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell extras-hd run-extras-hd test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-norton-commander-launch test-norton-commander-copy test-norton-commander-rename-delete test-shortline-smoke test-game-smokes
+.PHONY: all clean run site check-docs-sync test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell extras-hd run-extras-hd test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-norton-commander-launch test-norton-commander-copy test-norton-commander-rename-delete test-norton-commander-mkdir-rmdir test-shortline-smoke test-game-smokes
 
 all: $(DISK_IMG)
 
@@ -267,6 +267,9 @@ test-norton-commander-copy: vendor/003064_norton_commander.7z
 
 test-norton-commander-rename-delete: vendor/003064_norton_commander.7z
 	$(RUN_TEST) $(PYTHON) scripts/test_norton_commander_rename_delete.py
+
+test-norton-commander-mkdir-rmdir: vendor/003064_norton_commander.7z
+	$(RUN_TEST) $(PYTHON) scripts/test_norton_commander_mkdir_rmdir.py
 
 test-shortline-smoke: vendor/SHRTLINE.zip
 	$(RUN_TEST) $(PYTHON) scripts/test_shortline_smoke.py

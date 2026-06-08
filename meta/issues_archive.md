@@ -146,3 +146,4 @@
 - [x] [Allow Norton Commander to launch programs](issues/allow-norton-commander-to-launch-programs.md)
 - [x] [Exercise Norton Commander file copy](issues/exercise-norton-commander-file-copy.md)
 - [x] [Exercise Norton Commander rename and delete](issues/exercise-norton-commander-rename-delete.md)
+- [x] [Exercise Norton Commander mkdir and rmdir](issues/exercise-norton-commander-mkdir-rmdir.md)

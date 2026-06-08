@@ -2539,3 +2539,9 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - Added `scripts/test_norton_commander_rename_delete.py`, which builds NC with `HELLO.COM`, uses F6 to rename it to `HELLO3.COM`, verifies the image contents, then boots NC again and uses F8 to delete `HELLO3.COM`.
 - The first run passed without a kernel compatibility fix, confirming NC's UI rename/delete paths work with the existing AH=56h rename and AH=41h delete behavior.
+
+## 2026-06-08 Norton Commander Mkdir Rmdir Smoke
+
+- Added `scripts/test_norton_commander_mkdir_rmdir.py`, which builds NC, uses F7 to create `AAADIR`, verifies the directory entry plus `.` and `..`, then boots NC again and removes `AAADIR` through F8.
+- The mkdir half passed on the first run. The rmdir half needed NC-specific keyboard flow: the F8 directory delete dialog starts on option checkboxes, needs three Tabs to reach `Delete`, then opens a second `Delete File` confirmation that needs another Enter.
+- The final smoke passed without a kernel compatibility fix, confirming NC's UI mkdir/rmdir paths work with the existing AH=39h mkdir and AH=3Ah rmdir behavior.
