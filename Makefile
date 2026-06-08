@@ -60,7 +60,7 @@ SITE_IMAGE_DEPS := monkey-demo
 endif
 SITE_IMAGE_ARG := $(if $(SITE_IMAGE),--image $(SITE_IMAGE),)
 
-.PHONY: all clean run site check-docs-sync test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell extras-hd run-extras-hd test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-norton-commander-launch test-norton-commander-copy test-norton-commander-rename-delete test-norton-commander-mkdir-rmdir test-norton-commander test-shortline-smoke test-game-smokes
+.PHONY: all clean run site check-docs-sync test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell extras-hd run-extras-hd test-cd-bios test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-norton-commander-launch test-norton-commander-copy test-norton-commander-rename-delete test-norton-commander-mkdir-rmdir test-norton-commander test-shortline-smoke test-game-smokes
 
 all: $(DISK_IMG)
 
@@ -240,6 +240,9 @@ test-monkey-demo: $(MONKEY_DEMO_FILES)
 
 test-attached-hd-shell: $(MONKEY_DEMO_FILES)
 	$(RUN_TEST) $(PYTHON) scripts/test_attached_hd_shell.py
+
+test-cd-bios:
+	$(RUN_TEST) $(PYTHON) scripts/test_cd_bios.py
 
 extras-hd: $(MONKEY_DEMO_FILES) vendor/monkey_full.zip vendor/mi2demo.zip vendor/Monkey_Island_2_-_LeChucks_Revenge_1991.zip vendor/simon1demo.zip vendor/Ascendancy_1995.zip vendor/wolf3dsw.zip vendor/003064_norton_commander.7z vendor/sid-meiers-civilization-au.zip vendor/002514_stunt_island.7z
 	$(PYTHON) scripts/build_extras_hd.py

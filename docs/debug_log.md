@@ -2545,3 +2545,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Added `scripts/test_norton_commander_mkdir_rmdir.py`, which builds NC, uses F7 to create `AAADIR`, verifies the directory entry plus `.` and `..`, then boots NC again and removes `AAADIR` through F8.
 - The mkdir half passed on the first run. The rmdir half needed NC-specific keyboard flow: the F8 directory delete dialog starts on option checkboxes, needs three Tabs to reach `Delete`, then opens a second `Delete File` confirmation that needs another Enter.
 - The final smoke passed without a kernel compatibility fix, confirming NC's UI mkdir/rmdir paths work with the existing AH=39h mkdir and AH=3Ah rmdir behavior.
+
+## 2026-06-09 Sam & Max CD-ROM Bring-Up
+
+- User added `vendor/Bestseller Games Gold 3 - Sam & Max Hit the Road.zip` containing `BG GOLD 3.bin` and `BG GOLD 3.cue`.
+- The cue sheet has `TRACK 01 MODE1/2352` at `00:00:00`, then four audio tracks starting at `57:52:40`, `59:58:12`, `63:36:56`, and `65:19:05`.
+- Current LainDOS drive support is FAT12/FAT16-only and hard-coded around up to three logical drives; CD-ROM work needs a read-only ISO/MSCDEX path rather than a small extension to FAT mutation code.
+- Added `scripts/mkiso.py`, `tests/programs/cdprobe.asm`, and `scripts/test_cd_bios.py`; the focused test boots LainDOS from FAT with a generated ISO attached and confirms real-mode BIOS INT 13h extensions can read the ISO Primary Volume Descriptor at LBA 16.
