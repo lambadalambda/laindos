@@ -2534,3 +2534,8 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - Added `scripts/test_norton_commander_copy.py`, which builds NC with `HELLO.COM`, presses F5 on the selected file, enters `HELLO2.COM`, and verifies the resulting disk image contains `HELLO2.COM` with the same bytes as `HELLO.COM`.
 - The first run passed without a kernel compatibility fix, confirming NC's basic UI copy path works with the existing open/create/read/write/close and directory update behavior.
+
+## 2026-06-08 Norton Commander Rename Delete Smoke
+
+- Added `scripts/test_norton_commander_rename_delete.py`, which builds NC with `HELLO.COM`, uses F6 to rename it to `HELLO3.COM`, verifies the image contents, then boots NC again and uses F8 to delete `HELLO3.COM`.
+- The first run passed without a kernel compatibility fix, confirming NC's UI rename/delete paths work with the existing AH=56h rename and AH=41h delete behavior.
