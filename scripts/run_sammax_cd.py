@@ -73,6 +73,7 @@ def build_c_image():
 def qemu_command():
     return [
         qemu_binary(),
+        *shlex.split(os.environ.get("LAINDOS_SAMMAX_QEMU_ARGS", "")),
         "-drive", f"file={C_IMG},format=raw,if=ide,index=0,media=disk",
         "-drive", f"file={ISO},format=raw,if=ide,index=1,media=cdrom,readonly=on",
         "-boot", "order=c",

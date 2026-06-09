@@ -2,6 +2,30 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-09 Sam & Max INSTALL QEMU Runtime Error 200
+
+### Symptoms
+
+- Root `D:\INSTALL.EXE` from the Sam & Max CD data track did not reach its installer UI under the default QEMU Sam & Max CD launch path, while it started under 86Box.
+
+### Confirmed Facts
+
+- `INSTALL.EXE` lives at the ISO root alongside `INSTALL.CFG`; it is not under `D:\SAMNMAX`.
+- A clean writable C: image plus the CD as D: running `D:`, `INSTALL` under default QEMU started LainDOS and then printed `Runtime error 200 at 0534:108C.` before returning to the shell and halting.
+- QEMU `-cpu 486` and `-cpu pentium` still produced `Runtime error 200`.
+- QEMU `-icount shift=6`, `shift=8`, and `shift=10` all reached the text installer screen showing `CDReader`, `V 1.0  (c) 1994 by B.S.`, `AGENCY`, and `BESTSELLER GAMES GOLD 3`.
+- The failure is therefore the classic Borland Pascal CRT timing overflow on too-fast QEMU execution, not a BIOS-vs-direct-ATAPI CD-ROM issue.
+
+### Tests And Probes Run
+
+- Inline QEMU probe with `D:\INSTALL` in `AUTOEXEC.BAT` reproduced `Runtime error 200 at 0534:108C.` under the default patched QEMU command.
+- Variant sweep showed `baseline`, `-cpu 486`, and `-cpu pentium` fail with `Runtime error 200`; `-icount shift=6`, `shift=8`, `shift=10`, and `-cpu 486 -icount shift=6` reach the installer screen.
+- Added `scripts/test_sammax_cd_install.py` and `make test-sammax-cd-install` to run the installer under `-icount shift=6` and verify the CDReader/Bestseller screen markers.
+
+### Closed State
+
+- Use QEMU `-icount shift=6` for the Sam & Max root installer. The standard Sam & Max game and SETMUSE smokes do not require this timer mode.
+
 ## 2026-06-09 Sam & Max SETMUSE Save File
 
 ### Symptoms
