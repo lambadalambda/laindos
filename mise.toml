@@ -34,6 +34,10 @@ hd="${LAINDOS_FREEDOS_VHD:-vendor/FreeDOS.VHD}"
 "$LAINDOS_QEMU" -drive file=build/shell_monkey.img,format=raw,if=floppy -drive "file=$hd,format=vpc,if=ide,index=0,media=disk" -snapshot -boot order=a -serial stdio -monitor none -vga "$LAINDOS_QEMU_VGA" -device sb16
 '''
 
+[tasks.run-sammax-cd]
+description = "Boot LainDOS with a scratch C: drive and Sam & Max CD as D:"
+run = "python3 scripts/run_sammax_cd.py"
+
 [tasks.test-monkey-demo]
 description = "Run headless shell Monkey Island demo QEMU smoke"
 run = "make test-monkey-demo"

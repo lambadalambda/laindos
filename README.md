@@ -170,6 +170,7 @@ mise run run-games-hd-all
 mise run build-extras-hd
 mise run run-extras-hd
 mise run run-freedos-vhd
+mise run run-sammax-cd
 mise run build-monkey-demo
 mise run test-monkey-demo
 ```
@@ -225,6 +226,14 @@ mise run run-freedos-vhd
 ```
 
 Set `LAINDOS_FREEDOS_VHD=/path/to/FreeDOS.VHD` to use a different local VHD. The task runs QEMU with `-snapshot` so the VHD is not written back.
+
+Boot a fresh writable `hd160m` LainDOS `C:` image with the Sam & Max Hit the Road CD data track attached as read-only `D:`:
+
+```sh
+mise run run-sammax-cd
+```
+
+The task extracts `vendor/Bestseller Games Gold 3 - Sam & Max Hit the Road.zip` into `build/sammax_cd/BG_GOLD_3_data.iso`, rebuilds `build/sammax_cd/sammax_c.img` by default, and starts QEMU with SB16 enabled. Set `LAINDOS_SAMMAX_ARCHIVE=/path/to/archive.zip` to use a different source zip, `LAINDOS_SAMMAX_REBUILD_C=0` to reuse an existing C: image, `LAINDOS_SAMMAX_C_IMG=/path/to/image.img` to choose a different scratch disk, or `LAINDOS_SAMMAX_C_FORMAT=hd96m`/`hd160m` to choose the generated C: size.
 
 If the local generated Stunt Island image exists at `build/stunt_xmsfix_hd.img`, boot it in a normal visible QEMU window and launch `STUNT` using:
 
