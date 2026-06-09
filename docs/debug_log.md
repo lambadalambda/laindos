@@ -24,7 +24,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Closed State
 
-- Use QEMU `-icount shift=6` for the Sam & Max root installer. The standard Sam & Max game and SETMUSE smokes do not require this timer mode.
+- Use QEMU `-icount shift=6` for the Sam & Max root installer. The standard Sam & Max game and SETMUSE smokes do not require this timer mode, but the `mise run run-sammax-cd` task now includes it by default so the root installer path works from the normal interactive launcher.
 
 ## 2026-06-09 Sam & Max SETMUSE Save File
 

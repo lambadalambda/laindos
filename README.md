@@ -233,7 +233,7 @@ Boot a fresh writable `hd160m` LainDOS `C:` image with the Sam & Max Hit the Roa
 mise run run-sammax-cd
 ```
 
-The task extracts `vendor/Bestseller Games Gold 3 - Sam & Max Hit the Road.zip` into `build/sammax_cd/BG_GOLD_3_data.iso`, rebuilds `build/sammax_cd/sammax_c.img` by default, and starts QEMU with SB16 plus AdLib enabled so the Sound Blaster path has FM/OPL ports. Set `LAINDOS_SAMMAX_ARCHIVE=/path/to/archive.zip` to use a different source zip, `LAINDOS_SAMMAX_REBUILD_C=0` to reuse an existing C: image, `LAINDOS_SAMMAX_C_IMG=/path/to/image.img` to choose a different scratch disk, `LAINDOS_SAMMAX_C_FORMAT=hd96m`/`hd160m` to choose the generated C: size, or `LAINDOS_SAMMAX_QEMU_ARGS="-icount shift=6"` when manually running the root `D:\INSTALL.EXE` installer under QEMU.
+The task extracts `vendor/Bestseller Games Gold 3 - Sam & Max Hit the Road.zip` into `build/sammax_cd/BG_GOLD_3_data.iso`, rebuilds `build/sammax_cd/sammax_c.img` by default, and starts QEMU with `-icount shift=6`, SB16, and AdLib enabled so the root installer avoids Borland Pascal `Runtime error 200` and the Sound Blaster path has FM/OPL ports. Set `LAINDOS_SAMMAX_ARCHIVE=/path/to/archive.zip` to use a different source zip, `LAINDOS_SAMMAX_REBUILD_C=0` to reuse an existing C: image, `LAINDOS_SAMMAX_C_IMG=/path/to/image.img` to choose a different scratch disk, `LAINDOS_SAMMAX_C_FORMAT=hd96m`/`hd160m` to choose the generated C: size, `LAINDOS_SAMMAX_QEMU_ARGS="..."` to replace the default extra QEMU arguments, or `LAINDOS_SAMMAX_QEMU_ARGS=` to disable them.
 
 If the local generated Stunt Island image exists at `build/stunt_xmsfix_hd.img`, boot it in a normal visible QEMU window and launch `STUNT` using:
 
