@@ -27,3 +27,4 @@ Add enough CD-ROM support for LainDOS to install and start Sam & Max Hit the Roa
 - The vendor archive is `vendor/Bestseller Games Gold 3 - Sam & Max Hit the Road.zip`.
 - The cue sheet has one `MODE1/2352` data track followed by four audio tracks.
 - Initial scope should ignore Redbook audio unless the installer/startup path requires MSCDEX audio/control calls.
+- Focused generated-ISO smokes now cover BIOS CD reads, read-only `D:` file open/read, drive selection, and root `FindFirst`/`FindNext`; the issue remains open for MSCDEX probes and vendor cue/bin setup/startup coverage.

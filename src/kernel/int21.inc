@@ -4284,6 +4284,8 @@ int21_handler:
     inc di
     jmp .ff_scan
 .ff_scan_done:
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .ff_cd_path
     cmp word [cs:ff_sep_off], -1
     je .ff_bare_name
     mov ds, [cs:ff_path_seg]
@@ -4395,6 +4397,8 @@ int21_handler:
     mov si, name_buf
     mov cx, 11
     rep movsb
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .ff_cd_find
     mov ax, [cs:ff_dir_cluster]
     xor dx, dx
     call find_in_dir_filtered
@@ -4407,6 +4411,44 @@ int21_handler:
 .ff_err:
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     RET_ERR 3
+.ff_cd_path:
+    mov word [cs:ff_dir_cluster], ROOT_CLUSTER
+    mov ds, [cs:ff_path_seg]
+    mov si, [cs:ff_path_off]
+    mov al, [ds:si]
+    call ascii_upper
+    cmp al, 'A'
+    jb .ff_cd_check_sep
+    cmp al, 'Z'
+    ja .ff_cd_check_sep
+    cmp byte [ds:si+1], ':'
+    jne .ff_cd_check_sep
+    add si, 2
+.ff_cd_check_sep:
+    cmp word [cs:ff_sep_off], -1
+    je .ff_parse_name
+.ff_cd_root_scan:
+    cmp si, [cs:ff_sep_off]
+    jae .ff_cd_after_sep
+    cmp byte [ds:si], '\'
+    je .ff_cd_root_next
+    cmp byte [ds:si], '/'
+    jne .ff_err
+.ff_cd_root_next:
+    inc si
+    jmp .ff_cd_root_scan
+.ff_cd_after_sep:
+    mov si, [cs:ff_sep_off]
+    inc si
+    jmp .ff_parse_name
+.ff_cd_find:
+    cmp word [cs:ff_dir_cluster], ROOT_CLUSTER
+    jne .ff_err
+    xor bx, bx
+    call cd_find_root_from
+    jnc .ff_found
+    INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
+    RET_ERR 2
 .ff_found:
     call store_find_dta
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
@@ -4437,6 +4479,8 @@ int21_handler:
     mov cx, 11
     rep movsb
     inc bx
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .fn_cd_find
     mov ax, [cs:ff_dir_cluster]
     call find_in_dir_from
     jnc .fn_found
@@ -4445,6 +4489,14 @@ int21_handler:
 .fn_bad_drive:
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     RET_ERR 15
+.fn_cd_find:
+    cmp word [cs:ff_dir_cluster], ROOT_CLUSTER
+    jne .fn_cd_not_found
+    call cd_find_root_from
+    jnc .fn_found
+.fn_cd_not_found:
+    INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
+    RET_ERR 2
 .fn_found:
     call store_find_dta
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI

@@ -3009,6 +3009,7 @@ cd_file_lba_lo: dw 0
 cd_file_lba_hi: dw 0
 cd_file_size_lo: dw 0
 cd_file_size_hi: dw 0
+cd_find_start: dw 0
 cd_dap: db 0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 cd_cmp_name: times 11 db 0
 drive_present: times MAX_DRIVES db 0

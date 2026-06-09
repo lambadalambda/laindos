@@ -110,15 +110,15 @@ const DOSAPI_GROUPS = [
       [300, "    je .find_next"],
       [639, ".fcb_find_first:"],
       [683, "    call .fcb_store_dta"],
-      [4411, "    call store_find_dta"],
-      [4411, "    call store_find_dta"],
+      [4453, "    call store_find_dta"],
+      [4501, "    call store_find_dta"],
     ],
     regs: [
       ["DS:DX", "FCB/DTA/path", "FCB for AH=11h/12h; DTA pointer for AH=1Ah; search path for AH=4Eh"],
       ["CX", "attrs", "FindFirst attribute mask"],
       ["AL/CF", "status", "FCB search returns AL=00h/FFh; handle search uses carry clear/set"],
     ],
-    tests: ["scripts/test_findnext.py", "scripts/test_findattr.py", "scripts/test_findtime.py", "scripts/test_pathcanon.py", "scripts/test_fcbfind.py"],
+    tests: ["scripts/test_findnext.py", "scripts/test_findattr.py", "scripts/test_findtime.py", "scripts/test_pathcanon.py", "scripts/test_fcbfind.py", "scripts/test_cd_find.py"],
   },
   {
     id: "memory",

@@ -17,6 +17,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `python3 scripts/test_irqmask.py`: run one focused test directly.
 - `make test-cd-bios`: run the generated-ISO BIOS CD-ROM probe.
 - `make test-cd-file`: run the generated-ISO read-only `D:` file API probe.
+- `make test-cd-find`: run the generated-ISO read-only `D:` directory enumeration probe.
 - `make test-monkey-demo`: smoke-test the shell-launched Monkey Island demo image.
 - `make test-game-smokes`: run the standard game smoke ladder for Monkey Island, Wolfenstein 3D, and Ascendancy when local media is present.
 - `make test-shortline-smoke`: run the Shortline-specific smoke with QEMU `-icount shift=6` for its timer calibration.

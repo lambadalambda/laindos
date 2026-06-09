@@ -318,6 +318,33 @@ cd_record_name_match:
     push ax
     push bx
     push cx
+    call cd_record_name_to_83
+    jc .err
+.compare:
+    xor bx, bx
+.compare_loop:
+    cmp bx, 11
+    jae .match
+    mov al, [cs:name_buf+bx]
+    cmp al, [cs:cd_cmp_name+bx]
+    jne .err
+    inc bx
+    jmp .compare_loop
+.match:
+    clc
+    jmp .done
+.err:
+    stc
+.done:
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+cd_record_name_to_83:
+    push ax
+    push bx
+    push cx
     push es
     push si
     push di
@@ -343,11 +370,11 @@ cd_record_name_match:
     mov di, cd_cmp_name
 .copy:
     test cx, cx
-    jz .compare
+    jz .ok
     lodsb
     dec cx
     cmp al, ';'
-    je .compare
+    je .ok
     cmp al, '.'
     je .dot
     call ascii_upper
@@ -358,17 +385,7 @@ cd_record_name_match:
 .dot:
     mov di, cd_cmp_name + 8
     jmp .copy
-.compare:
-    xor bx, bx
-.compare_loop:
-    cmp bx, 11
-    jae .match
-    mov al, [cs:name_buf+bx]
-    cmp al, [cs:cd_cmp_name+bx]
-    jne .err
-    inc bx
-    jmp .compare_loop
-.match:
+.ok:
     clc
     jmp .done
 .err:
@@ -380,6 +397,195 @@ cd_record_name_match:
     pop cx
     pop bx
     pop ax
+    ret
+
+cd_find_root_from:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov [cs:cd_find_start], bx
+    mov word [cs:fid_idx], 0
+    cmp word [cs:cd_root_size_hi], 0
+    jne .err
+    mov ax, [cs:cd_root_size_lo]
+    add ax, 2047
+    jc .err
+    mov cx, 11
+.sector_count_shift:
+    shr ax, 1
+    loop .sector_count_shift
+    test ax, ax
+    jz .err
+    mov [cs:cd_scan_sectors], ax
+    mov ax, [cs:cd_root_lba_lo]
+    mov [cs:cd_scan_lba_lo], ax
+    mov ax, [cs:cd_root_lba_hi]
+    mov [cs:cd_scan_lba_hi], ax
+.sector_loop:
+    cmp word [cs:cd_scan_sectors], 0
+    je .err
+    mov ax, CD_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:cd_scan_lba_lo]
+    mov dx, [cs:cd_scan_lba_hi]
+    call cd_read_sector_current
+    jc .err
+    call cd_find_scan_sector
+    jnc .ok
+    inc word [cs:cd_scan_lba_lo]
+    jnz .lba_ok
+    inc word [cs:cd_scan_lba_hi]
+.lba_ok:
+    dec word [cs:cd_scan_sectors]
+    jmp .sector_loop
+.ok:
+    clc
+    jmp .done
+.err:
+    stc
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+cd_find_scan_sector:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, CD_BUF
+    mov ds, ax
+    xor si, si
+    mov word [cs:cd_sector_left], 2048
+.record_loop:
+    cmp word [cs:cd_sector_left], 0
+    je .err
+    xor ah, ah
+    mov al, [si]
+    test al, al
+    jz .err
+    mov [cs:cd_record_len], ax
+    cmp ax, [cs:cd_sector_left]
+    ja .err
+    cmp al, 33
+    jb .next
+    mov ax, [cs:fid_idx]
+    cmp ax, [cs:cd_find_start]
+    jb .next
+    call cd_record_name_to_83
+    jc .next
+    mov al, [si+25]
+    test al, 2
+    jz .file_attr
+    mov al, ATTR_RDONLY | ATTR_DIR
+    jmp .have_attr
+.file_attr:
+    mov al, ATTR_RDONLY
+.have_attr:
+    mov [cs:ff_entry_attr], al
+    call cd_attr_match
+    jc .next
+    push cs
+    pop es
+    mov di, cd_cmp_name
+    call name_matches
+    jc .next
+    mov ax, [si+10]
+    mov [cs:ff_entry_size], ax
+    mov ax, [si+12]
+    mov [cs:ff_entry_size_hi], ax
+    mov word [cs:ff_entry_cluster], ROOT_CLUSTER
+    mov word [cs:ff_entry_time], FAT_TIME
+    mov word [cs:ff_entry_date], FAT_DATE
+    mov ax, [cs:fid_idx]
+    mov [cs:ff_entry_idx], ax
+    mov ax, [cs:cd_scan_lba_lo]
+    mov [cs:ff_entry_lba], ax
+    mov ax, [cs:cd_scan_lba_hi]
+    mov [cs:ff_entry_lba_hi], ax
+    mov ax, si
+    mov [cs:ff_entry_off], ax
+    push ds
+    push es
+    push cs
+    pop ds
+    push cs
+    pop es
+    mov si, cd_cmp_name
+    mov di, ff_entry_name
+    mov cx, 11
+    rep movsb
+    pop es
+    pop ds
+    clc
+    jmp .done
+.next:
+    inc word [cs:fid_idx]
+    mov ax, [cs:cd_record_len]
+    add si, ax
+    sub [cs:cd_sector_left], ax
+    jmp .record_loop
+.err:
+    stc
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+cd_attr_match:
+    push ax
+    mov ah, [cs:ff_attr_mask]
+    test ah, ATTR_VOLUME
+    jz .not_volume_search
+    test al, ATTR_VOLUME
+    jnz .yes
+    jmp .no
+.not_volume_search:
+    test al, ATTR_VOLUME
+    jnz .no
+    test al, ATTR_HIDDEN
+    jz .check_system
+    test ah, ATTR_HIDDEN
+    jz .no
+.check_system:
+    test al, ATTR_SYSTEM
+    jz .check_dir
+    test ah, ATTR_SYSTEM
+    jz .no
+.check_dir:
+    test al, ATTR_DIR
+    jz .yes
+    test ah, ATTR_DIR
+    jz .no
+.yes:
+    pop ax
+    clc
+    ret
+.no:
+    pop ax
+    stc
     ret
 
 cd_read_handle:
