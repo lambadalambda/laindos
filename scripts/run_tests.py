@@ -19,6 +19,7 @@ DEFAULT_TESTS = [
     "scripts/test_cd_bios.py",
     "scripts/test_cd_file.py",
     "scripts/test_cd_find.py",
+    "scripts/test_cd_mscdex.py",
     "scripts/test_highmcb.py",
     "scripts/test_stratapi.py",
     "scripts/test_memrelease.py",

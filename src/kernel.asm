@@ -1498,10 +1498,8 @@ init_interrupts:
     mov [es:0x20*4+2], cs
     mov [es:0x21*4], word int21_handler
     mov [es:0x21*4+2], cs
-%if ENABLE_XMS
     mov [es:0x2F*4], word int2f_handler
     mov [es:0x2F*4+2], cs
-%endif
     mov ax, kernel_entry
     mov [es:0x22*4], ax
     mov [es:0x22*4+2], cs
@@ -1664,6 +1662,14 @@ init_xms_size:
 %endif
 
 int2f_handler:
+    cmp ax, 0x1500
+    je int2f_cd_install_check
+    cmp ax, 0x150B
+    je int2f_cd_drive_check
+    cmp ax, 0x150C
+    je int2f_cd_version
+    cmp ax, 0x150D
+    je int2f_cd_drive_letters
 %if ENABLE_XMS
     cmp ax, 0x4300
     je .xms_installed
@@ -1673,12 +1679,12 @@ int2f_handler:
     iret
 .xms_installed:
     mov al, 0x80
-    jmp iret_nc
+    jmp int2f_iret_nc
 .xms_entry:
     mov bx, xms_entry
     push cs
     pop es
-    jmp iret_nc
+    jmp int2f_iret_nc
 %else
     xor al, al
     iret
@@ -3397,6 +3403,70 @@ ems_map_pages: times 4 dw 0xFFFF
 ems_req_logical: dw 0
 ems_req_phys: db 0
 %endif
+
+int2f_cd_install_check:
+    call int2f_cd_ensure
+    jc .none
+    mov bx, 1
+    mov cx, 3
+    jmp int2f_iret_nc
+.none:
+    xor bx, bx
+    xor cx, cx
+    jmp int2f_iret_nc
+
+int2f_cd_drive_check:
+    call int2f_cd_ensure
+    jc .none
+    mov bx, 0xADAD
+    xor ax, ax
+    cmp cx, 3
+    jne .done
+    mov ax, 1
+.done:
+    jmp int2f_iret_nc
+.none:
+    xor ax, ax
+    xor bx, bx
+    jmp int2f_iret_nc
+
+int2f_cd_version:
+    call int2f_cd_ensure
+    jc .none
+    mov bx, 0x0200
+    jmp int2f_iret_nc
+.none:
+    xor bx, bx
+    jmp int2f_iret_nc
+
+int2f_cd_drive_letters:
+    call int2f_cd_ensure
+    jc .done
+    mov byte [es:bx], 3
+.done:
+    jmp int2f_iret_nc
+
+int2f_cd_ensure:
+    cmp byte [cs:drive_present+3], 0
+    jne .ok
+    call mount_bios_cdrom_d
+    jc .err
+    mov byte [cs:dos_drive_count], 4
+.ok:
+    clc
+    ret
+.err:
+    stc
+    ret
+
+int2f_iret_nc:
+    push bp
+    mov bp, sp
+    and word [bp+6], ~CF
+    or word [bp+6], IFLAG
+    pop bp
+    iret
+
 kernel_end:
 
 %if mouse_callback_seg != (mouse_callback_off + 2)
