@@ -2,6 +2,34 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-09 EXEC Environment Inheritance For Launchers
+
+### Symptoms
+
+- The Sam & Max CD root installer menu reached its `CDReader` / `BESTSELLER GAMES GOLD 3` UI under QEMU `-icount shift=6`, but selecting entries only changed the current directory and did not launch the configured command.
+
+### Confirmed Facts
+
+- `INSTALL.CFG` maps the root menu entries to a directory plus command, for example `SAM & MAX` -> `\` + `sam.exe` and `Demo: Rebel Assault` -> `\rebel\` + `start.bat`.
+- Temporary tracing showed the selected path only performed `CHDIR` and did not reach a target `EXEC`, `FindFirst`, or `INT 2Eh` command dispatch.
+- The child `INSTALL.EXE` environment was rebuilt from the current default drive, so the installer launched from `D:` saw `COMSPEC=D:\SHELL.COM` even though the usable shell lives on the writable boot drive.
+- DOS `EXEC` parameter block environment segment `0` means inherit the parent environment. LainDOS instead generated a fresh default environment from the current drive.
+- After fixing inheritance, the focused multidrive regression exposed a related executable-path tail bug: launching explicit `A:\ENVTEST.COM` while current drive was `C:` wrote a `C:\ENVTEST.COM` tail.
+
+### Tests And Probes Run
+
+- Added multidrive coverage that switches the parent to `C:` and `EXEC`s `A:\ENVTEST.COM` with env segment `0`; before the fix it failed with `FAIL: ENVTEST COMSPEC` and then, after inheritance was fixed, `FAIL: ENVTEST TAIL`.
+- `python3 scripts/test_multidrive.py` now passes for both raw and partitioned hard-disk images.
+- Adjacent focused checks pass: `python3 scripts/test_execenv.py`, `python3 scripts/test_envpath.py`, `python3 scripts/test_exectail.py`, and `python3 scripts/test_spawn.py`.
+- `make test-sammax-cd-install` still reaches the root installer UI under QEMU `-icount shift=6`.
+- One-off Sam & Max selection probes using QEMU HMP `sendkey` were inconclusive: `Esc` exits the installer, but `ret`/`enter`/`kp_enter` did not trigger the highlighted action in this setup.
+
+### Current State
+
+- `EXEC` env segment `0` now copies variables from the current PSP environment when present and appends a new child executable-path tail.
+- The executable-path tail now uses an explicit drive from the launched path rather than always using the current default drive.
+- A follow-up issue remains open to manually or otherwise reliably verify the Sam & Max root installer selection path once input automation can trigger `Enter` in that UI.
+
 ## 2026-06-09 Sam & Max INSTALL QEMU Runtime Error 200
 
 ### Symptoms

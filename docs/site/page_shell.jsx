@@ -267,7 +267,7 @@ const SHELL_SECTIONS = [
     summary: "COMSPEC, PATH, PROMPT, and BLASTER are kernel-provided.",
     body: [
       "The boot program gets an MCB-backed environment before it starts. Default variables include `COMSPEC=A:\SHELL.COM`, `PATH=A:\;A:\BIN`, `PROMPT=$P$G`, and the conventional Sound Blaster string used by game setup tools.",
-      "When the shell EXECs a child, the loader copies or writes an environment and appends the DOS executable-path tail. The environment tests read PSP:2Ch and verify both the variables and the tail visible to child programs.",
+      "When the shell EXECs a child with env segment 0, the loader copies the shell's environment and appends a fresh DOS executable-path tail. The environment tests read PSP:2Ch and verify both the variables and the tail visible to child programs.",
     ],
     file: "src/kernel.asm",
     code: [

@@ -446,16 +446,34 @@ update_exec_environment_path:
     mov word [cs:exec_env_src_seg], 0
     mov ax, [cs:exec_param_seg]
     test ax, ax
-    jz .default_env
+    jz .inherit_parent_env
     mov ds, ax
     mov bx, [cs:exec_param_off]
     mov ax, [bx]
     test ax, ax
-    jz .default_env
+    jz .inherit_parent_env
     cmp ax, MCB_START
     jb .env_overflow
     cmp ax, MEM_TOP
     jae .env_overflow
+    mov [cs:exec_env_src_seg], ax
+    jmp .default_env
+.inherit_parent_env:
+    mov ax, [cs:cur_psp]
+    test ax, ax
+    jz .default_env
+    cmp ax, MCB_START
+    jb .default_env
+    cmp ax, MEM_TOP
+    jae .default_env
+    mov ds, ax
+    mov ax, [0x2C]
+    test ax, ax
+    jz .default_env
+    cmp ax, MCB_START
+    jb .default_env
+    cmp ax, MEM_TOP
+    jae .default_env
     mov [cs:exec_env_src_seg], ax
 .default_env:
     call alloc_exec_environment
@@ -492,7 +510,14 @@ update_exec_environment_path:
     jae .env_overflow
     mov ax, 1
     stosw
+    mov ds, [cs:exec_path_seg]
+    mov si, [cs:exec_path_off]
     mov al, [cs:dos_drive_letter]
+    cmp byte [ds:si+1], ':'
+    jne .tail_drive_ready
+    mov al, [ds:si]
+    call ascii_upper
+.tail_drive_ready:
     cmp di, bx
     jae .env_overflow
     stosb
@@ -504,8 +529,6 @@ update_exec_environment_path:
     cmp di, bx
     jae .env_overflow
     stosb
-    mov ds, [cs:exec_path_seg]
-    mov si, [cs:exec_path_off]
     cmp byte [ds:si], '\'
     je .skip_sep
     cmp byte [ds:si], '/'

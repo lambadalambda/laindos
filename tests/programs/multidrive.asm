@@ -21,6 +21,9 @@ start:
     cmp al, 2
     jne fail_select_c_current
 
+    call exec_inherit_env_test
+    jc fail_exec_inherit_env
+
     mov dx, hd_path
     call open_read_expect
     jc fail_read_c
@@ -273,6 +276,24 @@ bare_name_drive_test:
     stc
     ret
 
+exec_inherit_env_test:
+    push cs
+    pop es
+    mov bx, exec_env_params
+    mov dx, envtest_path
+    mov ax, 0x4B00
+    int 0x21
+    jc .err
+    mov ah, 0x4D
+    int 0x21
+    test ax, ax
+    jnz .err
+    clc
+    ret
+.err:
+    stc
+    ret
+
 explicit_parent_create_test:
     mov dl, 0
     mov ah, 0x0E
@@ -387,6 +408,9 @@ fail_select_c_count:
 fail_select_c_current:
     mov dx, fail_select_c_current_msg
     jmp fail
+fail_exec_inherit_env:
+    mov dx, fail_exec_inherit_env_msg
+    jmp fail
 fail_select_a_count:
     mov dx, fail_select_a_count_msg
     jmp fail
@@ -448,6 +472,13 @@ floppy_path: db "A:\AONLY.TXT", 0
 write_path: db "C:\WRTEST.TXT", 0
 find_path: db "C:\*.*", 0
 bare_c_path: db "C:HDONLY.TXT", 0
+envtest_path: db "A:\ENVTEST.COM", 0
+exec_cmd_tail: db 0, 13
+exec_env_params:
+    dw 0
+    dw exec_cmd_tail, 0
+    dw 0, 0
+    dw 0, 0
 sammax_dir: db "C:\SAMNMAX.CD", 0
 sammax_ini: db "C:\SAMNMAX.CD\SETMUSE.INI", 0
 hdonly_name: db "HDONLY.TXT"
@@ -458,6 +489,7 @@ pass_msg: db "PASS: MULTIDRIVE", 13, 10, "$"
 fail_initial_drive_msg: db "FAIL: MULTIDRIVE INITIAL DRIVE", 13, 10, "$"
 fail_select_c_count_msg: db "FAIL: MULTIDRIVE SELECT C COUNT", 13, 10, "$"
 fail_select_c_current_msg: db "FAIL: MULTIDRIVE SELECT C CURRENT", 13, 10, "$"
+fail_exec_inherit_env_msg: db "FAIL: MULTIDRIVE EXEC INHERIT ENV", 13, 10, "$"
 fail_select_a_count_msg: db "FAIL: MULTIDRIVE SELECT A COUNT", 13, 10, "$"
 fail_select_a_current_msg: db "FAIL: MULTIDRIVE SELECT A CURRENT", 13, 10, "$"
 fail_read_c_msg: db "FAIL: MULTIDRIVE READ C", 13, 10, "$"

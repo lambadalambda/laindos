@@ -63,8 +63,8 @@ const DOSAPI_GROUPS = [
     verdict: "Shell-launched COM/EXE programs, overlays, TSR exits, and PSP probes are supported.",
     calls: "AH=31h,4Bh,4Ch,4Dh,50h,51h,62h",
     prose: [
-      "When SHELL.COM starts another program, it uses EXEC. LainDOS loads the child image, builds a PSP, supplies the command tail and child-owned environment, inherits the parent's fixed PSP handle table, applies EXE relocations, and restores the parent after the child exits. Secondary shells launched as COMSPEC can run `/C <command>` from PSP:80h and terminate, which lets Norton Commander launch selected programs.",
-      "The default environment includes COMSPEC, PATH, PROMPT, and a conventional SB16 BLASTER string so games launched under QEMU's `-device sb16` can detect the emulator-provided sound card.",
+      "When SHELL.COM starts another program, it uses EXEC. LainDOS loads the child image, builds a PSP, supplies the command tail and child-owned environment, inherits the parent's fixed PSP handle table and environment when requested, applies EXE relocations, and restores the parent after the child exits. Secondary shells launched as COMSPEC can run `/C <command>` from PSP:80h and terminate, which lets Norton Commander launch selected programs.",
+      "The generated default environment includes COMSPEC, PATH, PROMPT, and a conventional SB16 BLASTER string so games launched under QEMU's `-device sb16` can detect the emulator-provided sound card.",
       "For users this is why typing `midemo` at A:\\> works instead of needing a direct-boot image. The same path also supports overlay loads, TSR-style keep-process exits used by runtime helpers such as DPMI hosts, and set/get PSP probes used by older runtimes."
     ],
     codeFile: "src/kernel/int21.inc",
@@ -295,7 +295,7 @@ const DOSAPI_CALLS = [
       ["48h", "Allocate memory", "supported", "Allocates paragraphs from the MCB arena."],
       ["49h", "Free memory", "supported", "Releases an MCB-owned block."],
       ["4Ah", "Resize memory", "supported", "Shrinks or grows blocks when adjacent free space permits."],
-      ["4Bh", "EXEC", "partial", "Supports AL=00h load-and-run, AL=03h overlay load, child-owned environment copies with executable path tails, and inherited child PSP JFT entries."],
+      ["4Bh", "EXEC", "partial", "Supports AL=00h load-and-run, AL=03h overlay load, custom or inherited child-owned environment copies with executable path tails, and inherited child PSP JFT entries."],
       ["4Ch", "Terminate with return code", "supported", "Stores AL and returns control to the parent or shell."],
       ["4Dh", "Get return code", "supported", "Returns and clears the last child return code and termination type."],
       ["58h", "Allocation strategy", "supported", "Supports get/set for first, best, and last fit."],

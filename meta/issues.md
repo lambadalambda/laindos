@@ -1,0 +1,1 @@
+- [ ] [Verify Sam & Max root installer selection launch](issues/verify-sammax-root-installer-selection-launch.md)

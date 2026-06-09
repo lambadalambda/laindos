@@ -30,9 +30,9 @@ Status key: `implemented` means tested core behavior exists; `partial` means sub
 | Area | Current Status | Priority | Notes |
 | --- | --- | --- | --- |
 | PSP creation and command tails | implemented/partial | high | Covered by `PSPTEST`, `ARGTEST`, `ARGEXE`, and game smokes. |
-| `AH=4B00h` EXEC | implemented/partial | high | Supports COM/EXE, MZ relocation, command tails, MaxAlloc, caller-provided environment variable copies with child executable-path tails, default/null parameter blocks, and default FCB copying. Covered by `EXECPARAM`, `EXECENV`, `RETCODE`, shell, and game smokes. |
+| `AH=4B00h` EXEC | implemented/partial | high | Supports COM/EXE, MZ relocation, command tails, MaxAlloc, caller-provided or inherited environment variable copies with child executable-path tails, default/null parameter blocks, and default FCB copying. Covered by `EXECPARAM`, `EXECENV`, `MULTIDRIVE`, `RETCODE`, shell, and game smokes. |
 | `AH=4B03h` overlay load | implemented/partial | high | Covered by overlay regression; preserve for MI2-style overlays. |
-| Environment block, `COMSPEC`, `PATH`, executable path tail | implemented/partial | high | Default child environments are MCB-allocated per process; `EXECENV` covers caller-provided environment variable copying, launched path tails, and original environment ownership preservation. |
+| Environment block, `COMSPEC`, `PATH`, executable path tail | implemented/partial | high | Child environments are MCB-allocated per process; env segment `0` inherits the parent PSP environment, nonzero env segments are copied, and missing parent environments fall back to generated defaults. `EXECENV` and `MULTIDRIVE` cover copying, launched path tails, and original environment ownership preservation. |
 | `AH=4Dh` child return code | implemented/partial | medium | `RETCODE` covers initial zero state, destructive reads, nonzero child codes, and failed-`EXEC` preservation; `TSR` covers AH=03h return type after `AH=31h`. |
 | `AH=50h/51h` set/get PSP | implemented/partial | medium | `COMPATAPI` covers permissive current-PSP switching and restoration; `AH=51h` aliases `AH=62h` for runtimes that use the older internal call. |
 | `AH=62h` get PSP | implemented | medium | Trivial but common runtime call; returns the current PSP segment. |

@@ -17,6 +17,7 @@ BOOT = os.path.join(BUILDDIR, "boot.bin")
 BOOT16 = os.path.join(BUILDDIR, "boot16.bin")
 MBR = os.path.join(BUILDDIR, "mbr.bin")
 PROGRAM = os.path.join(BUILDDIR, "multidrv.com")
+ENVTEST = os.path.join(BUILDDIR, "envtest.com")
 AONLY = os.path.join(BUILDDIR, "aonly.txt")
 HDONLY = os.path.join(BUILDDIR, "hdonly.txt")
 PART_START = 63
@@ -76,7 +77,8 @@ def build_images():
         "-o", KERNEL,
     ])
     run_cmd(["nasm", "-f", "bin", "tests/programs/multidrive.asm", "-o", PROGRAM])
-    run_cmd(["python3", "scripts/mkimage.py", BOOT, KERNEL, FLOPPY_IMG, PROGRAM, AONLY])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/envtest.asm", "-o", ENVTEST])
+    run_cmd(["python3", "scripts/mkimage.py", BOOT, KERNEL, FLOPPY_IMG, PROGRAM, ENVTEST, AONLY])
     run_cmd(["python3", "scripts/mkimage.py", "--format=hd10m", BOOT16, KERNEL, HD_IMG, HDONLY])
     run_cmd(["python3", "scripts/mkimage.py", "--format=hd32m", BOOT16, KERNEL, HD_PART_VOL, HDONLY])
     build_partitioned_hd()
