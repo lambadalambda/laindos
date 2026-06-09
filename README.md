@@ -17,6 +17,7 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 - Runs the full VGA Monkey Island image when `vendor/monkey_full.zip` is present.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
+- Provides a vendor-gated `make test-sammax-cd-files` smoke for reading the Sam & Max Hit the Road CD data track from its cue/bin archive.
 - `make test` currently runs the automated QEMU regression ladder and passes `95/95` tests.
 
 ## Scope

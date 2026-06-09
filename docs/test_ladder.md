@@ -20,6 +20,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `make test-cd-subdir`: run the generated-ISO read-only `D:` subdirectory file API probe.
 - `make test-cd-find`: run the generated-ISO read-only `D:` directory enumeration probe.
 - `make test-cd-mscdex`: run the generated-ISO MSCDEX detection probe.
+- `make test-sammax-cd-files`: with local Sam & Max media, extract the cue/bin data track and verify `D:\SAMNMAX` file reads.
 - `make test-monkey-demo`: smoke-test the shell-launched Monkey Island demo image.
 - `make test-game-smokes`: run the standard game smoke ladder for Monkey Island, Wolfenstein 3D, and Ascendancy when local media is present.
 - `make test-shortline-smoke`: run the Shortline-specific smoke with QEMU `-icount shift=6` for its timer calibration.
