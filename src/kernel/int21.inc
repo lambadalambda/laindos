@@ -4476,26 +4476,58 @@ int21_handler:
     add si, 2
 .ff_cd_check_sep:
     cmp word [cs:ff_sep_off], -1
-    je .ff_parse_name
+    jne .ff_cd_parent_path
+    push cs
+    pop ds
+    mov si, cd_empty_path
+    call cd_open_dir_path
+    jc .ff_err
+    mov ds, [cs:ff_path_seg]
+    mov si, [cs:ff_path_off]
+    mov al, [ds:si]
+    call ascii_upper
+    cmp al, 'A'
+    jb .ff_parse_name
+    cmp al, 'Z'
+    ja .ff_parse_name
+    cmp byte [ds:si+1], ':'
+    jne .ff_parse_name
+    add si, 2
+    jmp .ff_parse_name
+.ff_cd_parent_path:
 .ff_cd_root_scan:
     cmp si, [cs:ff_sep_off]
-    jae .ff_cd_after_sep
+    jae .ff_cd_parent_root
     cmp byte [ds:si], '\'
     je .ff_cd_root_next
     cmp byte [ds:si], '/'
-    jne .ff_err
+    jne .ff_cd_parent_subdir
 .ff_cd_root_next:
     inc si
     jmp .ff_cd_root_scan
-.ff_cd_after_sep:
+.ff_cd_parent_root:
+    mov di, [cs:ff_sep_off]
+    inc di
+    jmp .ff_cd_open_parent
+.ff_cd_parent_subdir:
+    mov di, [cs:ff_sep_off]
+.ff_cd_open_parent:
+    mov al, [ds:di]
+    push ax
+    push di
+    mov byte [ds:di], 0
+    mov si, [cs:ff_path_off]
+    call cd_open_dir_path
+    pop di
+    pop bx
+    mov [ds:di], bl
+    jc .ff_err
     mov si, [cs:ff_sep_off]
     inc si
     jmp .ff_parse_name
 .ff_cd_find:
-    cmp word [cs:ff_dir_cluster], ROOT_CLUSTER
-    jne .ff_err
     xor bx, bx
-    call cd_find_root_from
+    call cd_find_from
     jnc .ff_found
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     RET_ERR 2
@@ -4522,6 +4554,12 @@ int21_handler:
     mov bx, [ds:si+13]
     mov ax, [ds:si+15]
     mov [cs:ff_dir_cluster], ax
+    mov [cs:cd_dir_size_lo], ax
+    mov word [cs:cd_dir_size_hi], 0
+    mov ax, [ds:si+17]
+    mov [cs:cd_dir_lba_lo], ax
+    mov ax, [ds:si+19]
+    mov [cs:cd_dir_lba_hi], ax
     inc si
     push cs
     pop es
@@ -4540,11 +4578,8 @@ int21_handler:
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     RET_ERR 15
 .fn_cd_find:
-    cmp word [cs:ff_dir_cluster], ROOT_CLUSTER
-    jne .fn_cd_not_found
-    call cd_find_root_from
+    call cd_find_from
     jnc .fn_found
-.fn_cd_not_found:
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     RET_ERR 2
 .fn_found:

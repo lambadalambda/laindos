@@ -10,14 +10,14 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 - Loads `.COM` and MZ `.EXE` programs with PSP setup, relocation, terminate vectors, environment blocks, and MCB allocation.
 - Provides a small shell with `AUTOEXEC.BAT`, current directory support, environment/PATH/BLASTER handling, and parent/child `EXEC` coverage including inherited child PSP handle tables.
 - Implements the core DOS file APIs used by the current suite: open/read/write/seek/close, create/truncate, delete, rename, attributes, timestamps, disk free, FindFirst/FindNext, and writable FAT12/FAT16 paths.
-- Mounts ISO-9660 CD-ROM media as read-only `D:` for file open/read/`EXEC`/overlay load through subdirectories, root `FindFirst`/`FindNext`, and minimal MSCDEX detection coverage. QEMU uses BIOS EDD reads; 86Box ATAPI profiles fall back to direct IDE packet reads.
+- Mounts ISO-9660 CD-ROM media as read-only `D:` for file open/read/`EXEC`/overlay load through subdirectories, root and current-directory `FindFirst`/`FindNext`, and minimal MSCDEX detection coverage. QEMU uses BIOS EDD reads; 86Box ATAPI profiles fall back to direct IDE packet reads.
 - Provides a built-in `INT 33h` mouse service backed by PS/2 mouse packets, including movement, button press/release queries, callbacks, scaling, and edge clamping.
 - Provides minimal single-handle XMS APIs for game startup detection and backed XMS moves, using BIOS-reported extended memory capped at 15 MiB. Experimental backed EMS support exists behind `ENABLE_EMS=1` but is hidden in default builds.
 - Builds and runs the bundled shell-boot Monkey Island demo floppy.
 - Runs the full VGA Monkey Island image when `vendor/monkey_full.zip` is present.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
-- Provides vendor-gated `make test-sammax-cd-files` and `make test-sammax-cd-start` smokes for the Sam & Max Hit the Road CD data track from its cue/bin archive.
+- Provides vendor-gated `make test-sammax-cd-files`, `make test-sammax-cd-start`, and `make test-sammax-cd-setmuse` smokes for the Sam & Max Hit the Road CD data track from its cue/bin archive.
 - `make test` currently runs the automated QEMU regression ladder and passes `96/96` tests.
 
 ## Scope

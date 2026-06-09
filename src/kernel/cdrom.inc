@@ -1006,6 +1006,19 @@ cd_record_name_to_83:
 
 cd_find_root_from:
     push ax
+    mov ax, [cs:cd_root_lba_lo]
+    mov [cs:cd_dir_lba_lo], ax
+    mov ax, [cs:cd_root_lba_hi]
+    mov [cs:cd_dir_lba_hi], ax
+    mov ax, [cs:cd_root_size_lo]
+    mov [cs:cd_dir_size_lo], ax
+    mov ax, [cs:cd_root_size_hi]
+    mov [cs:cd_dir_size_hi], ax
+    pop ax
+    jmp cd_find_from
+
+cd_find_from:
+    push ax
     push bx
     push cx
     push dx
@@ -1015,9 +1028,9 @@ cd_find_root_from:
     push di
     mov [cs:cd_find_start], bx
     mov word [cs:fid_idx], 0
-    cmp word [cs:cd_root_size_hi], 0
+    cmp word [cs:cd_dir_size_hi], 0
     jne .err
-    mov ax, [cs:cd_root_size_lo]
+    mov ax, [cs:cd_dir_size_lo]
     add ax, 2047
     jc .err
     mov cx, 11
@@ -1027,9 +1040,9 @@ cd_find_root_from:
     test ax, ax
     jz .err
     mov [cs:cd_scan_sectors], ax
-    mov ax, [cs:cd_root_lba_lo]
+    mov ax, [cs:cd_dir_lba_lo]
     mov [cs:cd_scan_lba_lo], ax
-    mov ax, [cs:cd_root_lba_hi]
+    mov ax, [cs:cd_dir_lba_hi]
     mov [cs:cd_scan_lba_hi], ax
 .sector_loop:
     cmp word [cs:cd_scan_sectors], 0

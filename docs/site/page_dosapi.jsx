@@ -74,7 +74,7 @@ const DOSAPI_GROUPS = [
       [305, "    cmp ah, 0x51"],
       [306, "    je .get_psp"],
       [1986, ".exec:"],
-      [934, "    cmp al, 0"],
+      [1000, "    cmp al, 0"],
       [2015, "    call load_exec_program"],
       [2019, "    call exec_com_dyn"],
       [2022, "    call setup_exe_dyn"],
@@ -110,8 +110,8 @@ const DOSAPI_GROUPS = [
       [302, "    je .find_next"],
       [647, ".fcb_find_first:"],
       [691, "    call .fcb_store_dta"],
-      [4503, "    call store_find_dta"],
-      [4551, "    call store_find_dta"],
+      [4535, "    call store_find_dta"],
+      [4586, "    call store_find_dta"],
     ],
     regs: [
       ["DS:DX", "FCB/DTA/path", "FCB for AH=11h/12h; DTA pointer for AH=1Ah; search path for AH=4Eh"],
@@ -138,7 +138,7 @@ const DOSAPI_GROUPS = [
       [255, "    cmp ah, 0x4A"],
       [256, "    je .resize_mem"],
       [1262, ".alloc_strategy:"],
-      [1275, "    cmp al, 0"],
+      [1293, "    cmp al, 0"],
       [1287, "    mov [cs:alloc_strat], bl"],
     ],
     regs: [
@@ -160,7 +160,7 @@ const DOSAPI_GROUPS = [
     codeFile: "src/kernel/int21.inc",
     code: [
       [3854, ".ioctl:"],
-      [3793, "    cmp al, 0"],
+      [3869, "    cmp al, 0"],
       [3870, "    je .ioctl_get"],
       [1299, "    cmp al, 6"],
       [3874, "    je .ioctl_input_status"],

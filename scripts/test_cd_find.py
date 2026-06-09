@@ -10,6 +10,7 @@ KERNEL = os.path.join(WORKDIR, "kernel.bin")
 PROGRAM = os.path.join(WORKDIR, "cdfind.com")
 HELLO = os.path.join(WORKDIR, "hello.txt")
 README = os.path.join(WORKDIR, "readme.txt")
+DRIVER = os.path.join(WORKDIR, "driver.msd")
 IMG = os.path.join(WORKDIR, "cd_find.img")
 ISO = os.path.join(WORKDIR, "cd_find.iso")
 TIMEOUT = 10
@@ -21,7 +22,9 @@ def build_artifacts():
         f.write(b"Hello from LainDOS CD-ROM find test.\r\n")
     with open(README, "wb") as f:
         f.write(b"Second CD-ROM directory entry.\r\n")
-    run_cmd(["python3", "scripts/mkiso.py", ISO, f"HELLO.TXT={HELLO}", f"README.TXT={README}"])
+    with open(DRIVER, "wb") as f:
+        f.write(b"Generated CD-ROM sound driver placeholder.\r\n")
+    run_cmd(["python3", "scripts/mkiso.py", ISO, f"HELLO.TXT={HELLO}", f"README.TXT={README}", f"SUBDIR/DRIVER.MSD={DRIVER}"])
     run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
     run_cmd(["nasm", '-DBOOT_FILE="CDFIND  COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
     run_cmd(["nasm", "-f", "bin", "tests/programs/cdfind.asm", "-o", PROGRAM])

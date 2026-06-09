@@ -1969,8 +1969,19 @@ store_find_dta:
     mov [es:di], al
     mov ax, [cs:ff_entry_idx]
     mov [es:di+13], ax
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .sfd_cd_dir_state
     mov ax, [cs:ff_dir_cluster]
     mov [es:di+15], ax
+    jmp .sfd_after_dir_state
+.sfd_cd_dir_state:
+    mov ax, [cs:cd_dir_size_lo]
+    mov [es:di+15], ax
+    mov ax, [cs:cd_dir_lba_lo]
+    mov [es:di+17], ax
+    mov ax, [cs:cd_dir_lba_hi]
+    mov [es:di+19], ax
+.sfd_after_dir_state:
     mov al, [cs:ff_entry_attr]
     mov [es:di+21], al
     mov ax, [cs:ff_entry_time]

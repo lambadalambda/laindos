@@ -2,6 +2,30 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-09 Sam & Max SETMUSE Driver List
+
+### Symptoms
+
+- `D:`, `CD \SAMNMAX`, `SETMUSE` reached the LucasArts protected-mode sound setup utility, but pressing Enter on `Soundkarte` opened a blank card selector.
+
+### Confirmed Facts
+
+- The utility is `D:\SAMNMAX\SETMUSE.EXE`; companion files include `SETMUSE.TXT`, `*.MSD`, `*.WSD`, `TESTMIDI`, and `TESTWAVE` in `D:\SAMNMAX`.
+- A text-mode QEMU capture initially showed only `Soundkarte` in the selector, with no unhandled `INT 21h` trap.
+- Serial trace showed `SETMUSE.EXE` loaded `SETMUSE.TXT` and probed `c:\samnmax.cd\setmuse.ini`; embedded strings in `SETMUSE.EXE` include `*.msd`, `*.wsd`, and `build_driver_list`.
+- The failure was CD `INT 21h AH=4Eh/4Fh` with a bare wildcard in the current CD directory. LainDOS only searched the ISO root for CD `FindFirst`, so SETMUSE found no `*.MSD`/`*.WSD` files after `D:` and `CD \SAMNMAX`.
+
+### Tests And Probes Run
+
+- Added explicit `D:\SUBDIR\*.MSD` and current-directory `*.MSD` wildcard coverage to `tests/programs/cdfind.asm` and `scripts/test_cd_find.py`.
+- `python3 scripts/test_cd_find.py` failed before the CD current-directory find fix with `FAIL: CDFIND SUBDIR FIRST`, then passed after the fix.
+- Added `scripts/test_sammax_cd_setmuse.py`; it launches `SETMUSE`, opens the sound-card selector, and checks for `Sound Blaster 16`, `Sound Blaster Pro`, `General MIDI`, and `Roland`.
+
+### Closed State
+
+- CD `FindFirst/FindNext` now resolves and preserves the searched ISO directory, so current-directory wildcard searches on `D:` work through `FindNext`.
+- SETMUSE's sound-card selector now lists the expected drivers under QEMU.
+
 ## 2026-06-09 86Box ATAPI CD-ROM Mount
 
 ### Symptoms
