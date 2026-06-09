@@ -65,6 +65,8 @@ ROOT_BUF_PARAS equ ((ROOT_MAX_ENTRIES * 32) + 15) / 16
 MAX_DRIVES equ 4
 DRIVE_TYPE_FAT equ 0
 DRIVE_TYPE_CDROM equ 1
+CD_READ_METHOD_BIOS equ 0
+CD_READ_METHOD_ATAPI equ 1
 
 CF equ 0x0001
 ZF equ 0x0040
@@ -2999,6 +3001,7 @@ cd_present: db 0
 cd_probe_drive: db 0
 cd_io_drive: db 0
 cd_bios_drive: db 0
+cd_read_method: db CD_READ_METHOD_BIOS
 cd_seen_name: db 0
 cd_lba_lo: dw 0
 cd_lba_hi: dw 0
@@ -3023,6 +3026,14 @@ cd_file_size_lo: dw 0
 cd_file_size_hi: dw 0
 cd_find_start: dw 0
 cd_dap: db 0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+atapi_base: dw 0
+atapi_ctrl: dw 0
+atapi_devsel: db 0
+atapi_scan_base: dw 0
+atapi_scan_ctrl: dw 0
+atapi_scan_devsel: db 0
+atapi_count: dw 0
+atapi_cdb: times 12 db 0
 cd_cmp_name: times 11 db 0
 drive_present: times MAX_DRIVES db 0
 drive_type: times MAX_DRIVES db 0

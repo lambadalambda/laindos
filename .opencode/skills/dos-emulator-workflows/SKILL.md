@@ -10,7 +10,7 @@ Use this skill when the task is about running or comparing LainDOS, real DOS, or
 ## Primary Playbook
 
 1. Start with QEMU for fast scripted runs.
-2. If QEMU and 86Box diverge, compare against the isolated 86Box VM under `build/86box-serial-file/`.
+2. If QEMU and 86Box diverge, first run a focused 86Box boot-only discriminator before changing DOS code.
 3. If you need to rule LainDOS in or out, boot a real DOS floppy in QEMU and expose the game tree with `file=fat:rw:<hostdir>`.
 4. Use CPU/screen sampling before long waits.
 
@@ -61,15 +61,30 @@ quit
 
 ## 86Box Notes
 
-- Use the isolated VM profile under `build/86box-serial-file/`.
-- Copy it for experiments instead of mutating the main profile.
+- 86Box executable on this host: `/Applications/86Box.app/Contents/MacOS/86Box`.
+- Existing user VMs live under `~/Library/Application Support/86Box/Virtual Machines/`; read that directory and `~/Library/Preferences/86Box/vmm.ini` directly instead of globbing all of `~/`.
+- Use the isolated VM profile under `build/86box-serial-file/` when it exists.
+- Copy existing profiles only when you need their BIOS setup. For new probes, prefer a fresh disposable profile under `build/<probe>/profile/`.
+- Do not copy `nvr/` by default. Stale NVR can preserve boot order/disk geometry and produce `NoK` by booting the wrong disk or failing to find `KERNEL.SYS` before your probe runs.
+- Always add `[Ports (COM & LPT)] serial1_device = stdio` and `[Virtual Console (COM) #1] mode = 0` for automated probes.
 - Ascendancy currently wants `gfxcard = s3_trio64_pci`.
 - `cpu_use_dynarec = 0` and `fpu_softfloat = 1` are useful comparison toggles.
+- For CD debugging, run `python3 scripts/test_cd_86box.py --boot-only` first. Then run `make test-cd-86box`. Use IDE secondary master (`cdrom_01_ide_channel = 1:0`) for isolated generated-ISO probes; move back to hard disk `0:0` plus CD `0:1` only after boot-only and generated-ISO checks pass.
+- LainDOS CD reads try BIOS EDD first and direct ATAPI PIO fallback second. 86Box ATAPI profiles may not expose non-boot CD media through `INT 13h AH=42h`.
 
 Launch command:
 
 ```sh
 "/Applications/86Box.app/Contents/MacOS/86Box" -P "/Users/lainsoykaf/repos/laindos/build/86box-serial-file" -N
+```
+
+Focused floppy probe shape:
+
+```sh
+"/Applications/86Box.app/Contents/MacOS/86Box" \
+  -P "/Users/lainsoykaf/repos/laindos/build/cd_86box/profile" \
+  -I "a:/Users/lainsoykaf/repos/laindos/build/cd_86box/cd_86box.img" \
+  -N
 ```
 
 ## Decision Rules

@@ -2,6 +2,32 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-09 86Box ATAPI CD-ROM Mount
+
+### Symptoms
+
+- QEMU CD-ROM smokes mounted generated ISO media as `D:`, but the user's 86Box Sam & Max profile did not expose a `D:` drive even though the 86Box config attached the ISO as an IDE ATAPI CD-ROM.
+
+### Confirmed Facts
+
+- The user VM profile had `sammax_c.img` on IDE `0:0` and the Sam & Max ISO on IDE `0:1` with `cdrom_01_parameters = 1, atapi`.
+- The existing LainDOS CD mount path scanned BIOS `INT 13h` EDD drives and read ISO sector 16 with `AH=42h`. That path works in QEMU but does not cover 86Box profiles where BIOS does not register the non-boot ATAPI CD as an EDD drive.
+- Useful 86Box discovery paths on this host are `/Applications/86Box.app/Contents/MacOS/86Box`, `~/Library/Preferences/86Box/vmm.ini`, and `~/Library/Application Support/86Box/Virtual Machines/`. Reading those directly avoids noisy permission errors from globbing all of `~/`.
+- A first generated 86Box smoke printed only `NoK`, but a follow-up `python3 scripts/test_cd_86box.py --boot-only` with no hard disk and no CD passed. The `NoK` was therefore a test-profile boot/geometry problem, not a general 86Box inability to boot LainDOS.
+- Avoid copying `nvr/` for fresh generated profiles unless intentionally preserving BIOS setup. Stale NVR can preserve boot order or disk geometry and make the BIOS boot the wrong disk before the intended floppy probe.
+- Added a runtime fallback that scans primary/secondary IDE master/slave devices for ATAPI signatures and reads 2048-byte sectors with ATAPI PACKET `READ(10)` when BIOS CD reads are unavailable.
+
+### Tests And Probes Run
+
+- `make test-cd-bios` passed under QEMU after the fallback was added.
+- `make test-cd-file` passed under QEMU after the fallback was added.
+- `python3 scripts/test_cd_86box.py --boot-only` passed in 86Box with no hard disk and no CD.
+- `make test-cd-86box` passed in 86Box with a generated ISO attached as IDE secondary-master ATAPI CD-ROM.
+
+### Closed State
+
+- Basic read-only CD file access now works under both QEMU's BIOS-visible CD path and 86Box's direct ATAPI path. The next Sam & Max-specific check should boot the user's hard-disk profile with current `sammax_c.img` and verify `D:`, `CD \\SAMNMAX`, and `SAMNMAX` from the 86Box UI or serial-driven shell.
+
 ## 2026-06-05 Standardize Serial QEMU Test Boilerplate
 
 ### Symptoms

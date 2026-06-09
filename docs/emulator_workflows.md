@@ -57,6 +57,25 @@ Current repo convention:
 - Keep an isolated VM profile under `build/86box-serial-file/`.
 - Prefer copying that profile for one-off experiments instead of mutating the base VM.
 - Keep COM1 on `stdio` so traces land in the terminal or log.
+- `make test-cd-86box` builds a disposable generated-ISO profile under `build/cd_86box/profile/` and verifies LainDOS can mount an ATAPI CD-ROM as `D:` in 86Box.
+
+Host paths that matter on macOS:
+
+- 86Box executable: `/Applications/86Box.app/Contents/MacOS/86Box`
+- Global 86Box config: `~/Library/Preferences/86Box/86box_global.cfg`
+- VM manager index: `~/Library/Preferences/86Box/vmm.ini`
+- User VM profiles: `~/Library/Application Support/86Box/Virtual Machines/<name>/86box.cfg`
+- 86Box ROM bundle: `~/Library/Application Support/net.86box.86Box/roms/`
+
+When locating existing VMs, read `~/Library/Application Support/86Box/Virtual Machines/` and `~/Library/Preferences/86Box/vmm.ini` directly. Do not glob the whole home directory; macOS protected directories produce noisy permission errors.
+
+Disposable 86Box profile checklist:
+
+- Put the profile under `build/<probe>/profile/` and write a fresh `86box.cfg` there.
+- Do not copy `nvr/` unless you intentionally need an existing BIOS setup. Stale NVR can preserve boot order or disk geometry and make the BIOS boot the wrong disk; a `NoK` serial marker usually means the boot loader did not find `KERNEL.SYS`, not that the kernel or CD path failed.
+- Before debugging a CD, run `python3 scripts/test_cd_86box.py --boot-only` or an equivalent floppy-only `HELLO.COM` profile. If boot-only fails, fix the 86Box profile first.
+- Add `[Ports (COM & LPT)] serial1_device = stdio` and `[Virtual Console (COM) #1] mode = 0` so serial markers reach the test harness.
+- Use `86Box -P <profile> -I a:/abs/path/to/floppy.img -N` for focused floppy probes. Absolute paths are easier to reason about, although 86Box may rewrite them relative to the profile after launch.
 
 Useful command:
 
@@ -69,6 +88,10 @@ Useful command:
 Current known-good graphics choice for Ascendancy:
 
 - `gfxcard = s3_trio64_pci`
+
+For CD-ROM tests, attach the ISO as an IDE ATAPI drive. LainDOS first tries BIOS EDD CD reads and then falls back to direct ATAPI PIO reads, which covers 86Box profiles whose BIOS does not expose non-boot CD media through `INT 13h AH=42h`.
+
+For isolated CD tests, prefer the CD as IDE secondary master (`cdrom_01_ide_channel = 1:0`) and no hard disk. That keeps boot-order and hard-disk geometry out of the first discriminator. Once the floppy-only and generated-ISO probes pass, move back to the real profile shape, such as hard disk on `0:0` and CD on `0:1` for Sam & Max.
 
 Useful knobs when comparing emulator behavior:
 

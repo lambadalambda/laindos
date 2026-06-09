@@ -60,7 +60,7 @@ SITE_IMAGE_DEPS := monkey-demo
 endif
 SITE_IMAGE_ARG := $(if $(SITE_IMAGE),--image $(SITE_IMAGE),)
 
-.PHONY: all clean run site check-docs-sync test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell extras-hd run-extras-hd test-cd-bios test-cd-file test-cd-subdir test-cd-find test-cd-mscdex test-cd-exec test-sammax-cd-files test-sammax-cd-start test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-norton-commander-launch test-norton-commander-copy test-norton-commander-rename-delete test-norton-commander-mkdir-rmdir test-norton-commander test-shortline-smoke test-game-smokes
+.PHONY: all clean run site check-docs-sync test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell extras-hd run-extras-hd test-cd-bios test-cd-file test-cd-subdir test-cd-find test-cd-mscdex test-cd-exec test-cd-86box test-sammax-cd-files test-sammax-cd-start test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-norton-commander-launch test-norton-commander-copy test-norton-commander-rename-delete test-norton-commander-mkdir-rmdir test-norton-commander test-shortline-smoke test-game-smokes
 
 all: $(DISK_IMG)
 
@@ -258,6 +258,9 @@ test-cd-mscdex:
 
 test-cd-exec:
 	$(RUN_TEST) $(PYTHON) scripts/test_cd_exec.py
+
+test-cd-86box:
+	$(RUN_TEST) $(PYTHON) scripts/test_cd_86box.py
 
 test-sammax-cd-files: vendor/Bestseller\ Games\ Gold\ 3\ -\ Sam\ &\ Max\ Hit\ the\ Road.zip
 	$(RUN_TEST) $(PYTHON) scripts/test_sammax_cd_files.py
