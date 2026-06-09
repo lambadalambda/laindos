@@ -8,7 +8,7 @@ PVD_LBA = 16
 VDT_LBA = 17
 PATH_TABLE_LBA = 18
 ROOT_LBA = 19
-FIRST_FILE_LBA = 20
+FIRST_DATA_LBA = 20
 
 
 def both32(value):
@@ -43,7 +43,7 @@ def pad_sector(data):
     return data + bytes(SECTOR - len(data))
 
 
-def iso_name(path):
+def iso_file_name(path):
     name = os.path.basename(path).upper()
     if "." in name:
         base, ext = name.split(".", 1)
@@ -51,30 +51,124 @@ def iso_name(path):
     return f"{name[:8]}.;1"
 
 
+def iso_dir_name(path):
+    return os.path.basename(path).upper()[:8]
+
+
+def split_iso_path(path):
+    parts = [part for part in path.replace("\\", "/").split("/") if part]
+    if not parts:
+        raise RuntimeError("empty ISO path")
+    return parts
+
+
+def make_dir(name, parent=None):
+    return {
+        "name": name,
+        "parent": parent,
+        "dirs": {},
+        "files": [],
+        "lba": 0,
+        "path_index": 0,
+    }
+
+
+def add_file(root, iso_path, host_path):
+    parts = split_iso_path(iso_path)
+    cur = root
+    for part in parts[:-1]:
+        name = iso_dir_name(part)
+        if name not in cur["dirs"]:
+            cur["dirs"][name] = make_dir(name, cur)
+        cur = cur["dirs"][name]
+    with open(host_path, "rb") as f:
+        data = f.read()
+    cur["files"].append({
+        "ident": iso_file_name(parts[-1]),
+        "data": data,
+        "lba": 0,
+    })
+
+
+def collect_dirs(root):
+    dirs = [root]
+    idx = 0
+    while idx < len(dirs):
+        dirs.extend(dirs[idx]["dirs"].values())
+        idx += 1
+    return dirs
+
+
+def path_table_entry(directory):
+    if directory["parent"] is None:
+        ident = b"\x00"
+        parent_idx = 1
+    else:
+        ident = directory["name"].encode("ascii")
+        parent_idx = directory["parent"]["path_index"]
+    entry = bytearray()
+    entry.append(len(ident))
+    entry.append(0)
+    entry.extend(struct.pack("<I", directory["lba"]))
+    entry.extend(struct.pack("<H", parent_idx))
+    entry.extend(ident)
+    if len(entry) & 1:
+        entry.append(0)
+    return bytes(entry)
+
+
+def build_path_table(dirs):
+    return b"".join(path_table_entry(directory) for directory in dirs)
+
+
+def build_dir_sector(directory):
+    parent = directory["parent"] if directory["parent"] is not None else directory
+    data = bytearray()
+    data.extend(record(directory["lba"], SECTOR, 2, b"\x00"))
+    data.extend(record(parent["lba"], SECTOR, 2, b"\x01"))
+    for child in directory["dirs"].values():
+        data.extend(record(child["lba"], SECTOR, 2, child["name"]))
+    for entry in directory["files"]:
+        data.extend(record(entry["lba"], len(entry["data"]), 0, entry["ident"]))
+    return pad_sector(bytes(data))
+
+
 def build_iso(output, files):
-    entries = []
-    next_lba = FIRST_FILE_LBA
-    image = bytearray(SECTOR * FIRST_FILE_LBA)
+    root = make_dir("", None)
     for iso_path, host_path in files:
-        with open(host_path, "rb") as f:
-            data = f.read()
-        sectors = max(1, (len(data) + SECTOR - 1) // SECTOR)
-        entries.append((iso_name(iso_path), next_lba, len(data), data))
-        next_lba += sectors
+        add_file(root, iso_path, host_path)
+
+    dirs = collect_dirs(root)
+    root["lba"] = ROOT_LBA
+    next_lba = FIRST_DATA_LBA
+    for idx, directory in enumerate(dirs, 1):
+        directory["path_index"] = idx
+        if directory is not root:
+            directory["lba"] = next_lba
+            next_lba += 1
+
+    file_count = 0
+    for directory in dirs:
+        for entry in directory["files"]:
+            sectors = max(1, (len(entry["data"]) + SECTOR - 1) // SECTOR)
+            entry["lba"] = next_lba
+            file_count += 1
+            next_lba += sectors
+
+    path_table = build_path_table(dirs)
+    if len(path_table) > SECTOR:
+        raise RuntimeError("test ISO path table overflow")
 
     total_sectors = next_lba
-    image.extend(bytes(SECTOR * (total_sectors - FIRST_FILE_LBA)))
+    image = bytearray(SECTOR * total_sectors)
 
-    root = bytearray()
-    root.extend(record(ROOT_LBA, SECTOR, 2, b"\x00"))
-    root.extend(record(ROOT_LBA, SECTOR, 2, b"\x01"))
-    for name, lba, size, _data in entries:
-        root.extend(record(lba, size, 0, name))
-    image[ROOT_LBA * SECTOR:(ROOT_LBA + 1) * SECTOR] = pad_sector(bytes(root))
+    for directory in dirs:
+        image[directory["lba"] * SECTOR:(directory["lba"] + 1) * SECTOR] = build_dir_sector(directory)
 
-    for _name, lba, _size, data in entries:
-        off = lba * SECTOR
-        image[off:off + len(data)] = data
+    for directory in dirs:
+        for entry in directory["files"]:
+            off = entry["lba"] * SECTOR
+            image[off:off + len(entry["data"])] = entry["data"]
 
     pvd = bytearray(SECTOR)
     pvd[0] = 1
@@ -86,7 +180,7 @@ def build_iso(output, files):
     pvd[120:124] = both16(1)
     pvd[124:128] = both16(1)
     pvd[128:132] = both16(SECTOR)
-    pvd[132:140] = both32(10)
+    pvd[132:140] = both32(len(path_table))
     pvd[140:144] = struct.pack("<I", PATH_TABLE_LBA)
     pvd[156:190] = record(ROOT_LBA, SECTOR, 2, b"\x00")[:34]
     image[PVD_LBA * SECTOR:(PVD_LBA + 1) * SECTOR] = pvd
@@ -97,16 +191,11 @@ def build_iso(output, files):
     vdt[6] = 1
     image[VDT_LBA * SECTOR:(VDT_LBA + 1) * SECTOR] = vdt
 
-    path_table = bytearray(SECTOR)
-    path_table[0] = 1
-    path_table[2:6] = struct.pack("<I", ROOT_LBA)
-    path_table[6:8] = struct.pack("<H", 1)
-    path_table[8] = 1
-    image[PATH_TABLE_LBA * SECTOR:(PATH_TABLE_LBA + 1) * SECTOR] = path_table
+    image[PATH_TABLE_LBA * SECTOR:PATH_TABLE_LBA * SECTOR + len(path_table)] = path_table
 
     with open(output, "wb") as f:
         f.write(image)
-    print(f"Created {output}: {len(image)} bytes, {len(entries)} file(s)")
+    print(f"Created {output}: {len(image)} bytes, {file_count} file(s)")
 
 
 def main():

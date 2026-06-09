@@ -3011,6 +3011,12 @@ cd_scan_lba_hi: dw 0
 cd_scan_sectors: dw 0
 cd_sector_left: dw 0
 cd_record_len: dw 0
+cd_record_flags: db 0
+cd_path_last: db 0
+cd_dir_lba_lo: dw 0
+cd_dir_lba_hi: dw 0
+cd_dir_size_lo: dw 0
+cd_dir_size_hi: dw 0
 cd_file_lba_lo: dw 0
 cd_file_lba_hi: dw 0
 cd_file_size_lo: dw 0

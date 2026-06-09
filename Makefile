@@ -60,7 +60,7 @@ SITE_IMAGE_DEPS := monkey-demo
 endif
 SITE_IMAGE_ARG := $(if $(SITE_IMAGE),--image $(SITE_IMAGE),)
 
-.PHONY: all clean run site check-docs-sync test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell extras-hd run-extras-hd test-cd-bios test-cd-file test-cd-find test-cd-mscdex test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-norton-commander-launch test-norton-commander-copy test-norton-commander-rename-delete test-norton-commander-mkdir-rmdir test-norton-commander test-shortline-smoke test-game-smokes
+.PHONY: all clean run site check-docs-sync test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell extras-hd run-extras-hd test-cd-bios test-cd-file test-cd-subdir test-cd-find test-cd-mscdex test-monkey-full test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-norton-commander-launch test-norton-commander-copy test-norton-commander-rename-delete test-norton-commander-mkdir-rmdir test-norton-commander test-shortline-smoke test-game-smokes
 
 all: $(DISK_IMG)
 
@@ -246,6 +246,9 @@ test-cd-bios:
 
 test-cd-file:
 	$(RUN_TEST) $(PYTHON) scripts/test_cd_file.py
+
+test-cd-subdir:
+	$(RUN_TEST) $(PYTHON) scripts/test_cd_subdir.py
 
 test-cd-find:
 	$(RUN_TEST) $(PYTHON) scripts/test_cd_find.py

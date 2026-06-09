@@ -130,13 +130,66 @@ mount_bios_cdrom_d:
     pop ax
     ret
 
-cd_parse_path_name:
+cd_prepare_path:
+    push ax
+    push ds
+    push si
+    mov [cs:cd_path_seg], ds
+    mov al, [ds:si]
+    call ascii_upper
+    cmp al, 'A'
+    jb .check_sep
+    cmp al, 'Z'
+    ja .check_sep
+    cmp byte [ds:si+1], ':'
+    jne .check_sep
+    add si, 2
+.check_sep:
+    cmp byte [ds:si], '\'
+    je .skip_sep
+    cmp byte [ds:si], '/'
+    jne .done
+.skip_sep:
+    inc si
+    jmp .check_sep
+.done:
+    mov [cs:cd_path_off], si
+    mov ax, [cs:cd_root_lba_lo]
+    mov [cs:cd_dir_lba_lo], ax
+    mov ax, [cs:cd_root_lba_hi]
+    mov [cs:cd_dir_lba_hi], ax
+    mov ax, [cs:cd_root_size_lo]
+    mov [cs:cd_dir_size_lo], ax
+    mov ax, [cs:cd_root_size_hi]
+    mov [cs:cd_dir_size_hi], ax
+    pop si
+    pop ds
+    pop ax
+    clc
+    ret
+
+cd_parse_next_component:
     push ax
     push bx
     push cx
     push dx
+    push ds
     push es
+    push si
     push di
+    mov ds, [cs:cd_path_seg]
+    mov si, [cs:cd_path_off]
+.skip_sep:
+    cmp byte [ds:si], '\'
+    je .skip_one
+    cmp byte [ds:si], '/'
+    jne .have_component
+.skip_one:
+    inc si
+    jmp .skip_sep
+.have_component:
+    cmp byte [ds:si], 0
+    je .err
     push cs
     pop es
     mov di, name_buf
@@ -144,35 +197,15 @@ cd_parse_path_name:
     mov al, ' '
     rep stosb
     mov byte [cs:cd_seen_name], 0
-    mov al, [ds:si]
-    call ascii_upper
-    cmp al, 'A'
-    jb .skip_drive
-    cmp al, 'Z'
-    ja .skip_drive
-    cmp byte [ds:si+1], ':'
-    jne .skip_drive
-    add si, 2
-.skip_drive:
-    cmp byte [ds:si], '\'
-    je .skip_sep
-    cmp byte [ds:si], '/'
-    jne .have_component
-.skip_sep:
-    inc si
-    jmp .skip_drive
-.have_component:
-    cmp byte [ds:si], 0
-    je .err
     mov di, name_buf
 .copy:
     lodsb
     test al, al
     jz .done_name
     cmp al, '\'
-    je .err
+    je .done_sep
     cmp al, '/'
-    je .err
+    je .done_sep
     call ascii_upper
     cmp al, '.'
     je .dot
@@ -184,7 +217,14 @@ cd_parse_path_name:
 .dot:
     mov di, name_buf + 8
     jmp .copy
+.done_sep:
+    mov byte [cs:cd_path_last], 0
+    mov [cs:cd_path_off], si
+    jmp .finish_name
 .done_name:
+    mov byte [cs:cd_path_last], 1
+    mov [cs:cd_path_off], si
+.finish_name:
     cmp byte [cs:cd_seen_name], 0
     je .err
     clc
@@ -193,7 +233,9 @@ cd_parse_path_name:
     stc
 .done:
     pop di
+    pop si
     pop es
+    pop ds
     pop dx
     pop cx
     pop bx
@@ -209,11 +251,55 @@ cd_open_path:
     push es
     push si
     push di
-    call cd_parse_path_name
+    call cd_prepare_path
     jc .err
-    cmp word [cs:cd_root_size_hi], 0
+    call cd_parse_next_component
+    jc .err
+.component_loop:
+    call cd_scan_current_dir
+    jc .err
+    cmp byte [cs:cd_path_last], 0
+    jne .last_component
+    test byte [cs:cd_record_flags], 2
+    jz .err
+    mov ax, [cs:cd_file_lba_lo]
+    mov [cs:cd_dir_lba_lo], ax
+    mov ax, [cs:cd_file_lba_hi]
+    mov [cs:cd_dir_lba_hi], ax
+    mov ax, [cs:cd_file_size_lo]
+    mov [cs:cd_dir_size_lo], ax
+    mov ax, [cs:cd_file_size_hi]
+    mov [cs:cd_dir_size_hi], ax
+    call cd_parse_next_component
+    jc .err
+    jmp .component_loop
+.last_component:
+    test byte [cs:cd_record_flags], 2
+    jnz .err
+    clc
+    jmp .done
+.err:
+    stc
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+cd_scan_current_dir:
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+    cmp word [cs:cd_dir_size_hi], 0
     jne .err
-    mov ax, [cs:cd_root_size_lo]
+    mov ax, [cs:cd_dir_size_lo]
     add ax, 2047
     jc .err
     mov cx, 11
@@ -223,9 +309,9 @@ cd_open_path:
     test ax, ax
     jz .err
     mov [cs:cd_scan_sectors], ax
-    mov ax, [cs:cd_root_lba_lo]
+    mov ax, [cs:cd_dir_lba_lo]
     mov [cs:cd_scan_lba_lo], ax
-    mov ax, [cs:cd_root_lba_hi]
+    mov ax, [cs:cd_dir_lba_hi]
     mov [cs:cd_scan_lba_hi], ax
 .sector_loop:
     cmp word [cs:cd_scan_sectors], 0
@@ -251,10 +337,7 @@ cd_open_path:
 .err:
     stc
 .done:
-    pop di
-    pop si
     pop es
-    pop ds
     pop dx
     pop cx
     pop bx
@@ -284,10 +367,10 @@ cd_scan_sector:
     ja .err
     cmp al, 33
     jb .next
-    test byte [si+25], 2
-    jnz .next
     call cd_record_name_match
     jc .next
+    mov al, [si+25]
+    mov [cs:cd_record_flags], al
     mov ax, [si+2]
     mov [cs:cd_file_lba_lo], ax
     mov ax, [si+4]
