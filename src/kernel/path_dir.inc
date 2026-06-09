@@ -1853,12 +1853,6 @@ parse_root_path:
     mov [cs:pr_sep_char], al
     mov byte [ds:bx], 0
     mov si, [cs:pr_path_off]
-    cmp byte [ds:si], '\'
-    je .set_abs_parent
-    cmp byte [ds:si], '/'
-    je .set_abs_parent
-    STRIP_DRIVE_PREFIX si
-.set_abs_parent:
     mov byte [cs:pr_abs], 1
 .call_resolve_parent:
     call resolve_path

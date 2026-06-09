@@ -80,6 +80,7 @@ def qemu_command():
         "-monitor", "none",
         "-vga", qemu_vga(),
         "-device", "sb16",
+        "-device", "adlib",
     ]
 
 

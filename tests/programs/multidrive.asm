@@ -89,6 +89,9 @@ start:
     call open_read_written
     jc fail_reread_c
 
+    call explicit_parent_create_test
+    jc fail_explicit_parent_create
+
     mov dx, pass_msg
     mov ah, 0x09
     int 0x21
@@ -270,6 +273,78 @@ bare_name_drive_test:
     stc
     ret
 
+explicit_parent_create_test:
+    mov dl, 0
+    mov ah, 0x0E
+    int 0x21
+    mov dx, sammax_dir
+    mov ah, 0x39
+    int 0x21
+    jc .err
+    mov dx, sammax_ini
+    xor cx, cx
+    mov ax, 0x3C80
+    int 0x21
+    jc .err
+    mov [handle], ax
+    mov bx, ax
+    mov dx, setmuse_payload
+    mov cx, setmuse_payload_len
+    mov ah, 0x40
+    int 0x21
+    jc .close_err
+    cmp ax, setmuse_payload_len
+    jne .close_err
+    mov bx, [handle]
+    mov ah, 0x3E
+    int 0x21
+    jc .err
+    mov dx, sammax_ini
+    call open_read_setmuse
+    jc .err
+    clc
+    ret
+.close_err:
+    mov bx, [handle]
+    mov ah, 0x3E
+    int 0x21
+.err:
+    stc
+    ret
+
+open_read_setmuse:
+    xor al, al
+    mov ah, 0x3D
+    int 0x21
+    jc .err
+    mov [handle], ax
+    mov bx, ax
+    mov dx, read_buf
+    mov cx, setmuse_payload_len
+    mov ah, 0x3F
+    int 0x21
+    jc .close_err
+    cmp ax, setmuse_payload_len
+    jne .close_err
+    mov si, read_buf
+    mov di, setmuse_payload
+    mov cx, setmuse_payload_len
+    repe cmpsb
+    jne .close_err
+    mov bx, [handle]
+    mov ah, 0x3E
+    int 0x21
+    jc .err
+    clc
+    ret
+.close_err:
+    mov bx, [handle]
+    mov ah, 0x3E
+    int 0x21
+.err:
+    stc
+    ret
+
 open_read_written:
     xor al, al
     mov ah, 0x3D
@@ -350,6 +425,9 @@ fail_write_interlude_a:
     jmp fail
 fail_reread_c:
     mov dx, fail_reread_c_msg
+    jmp fail
+fail_explicit_parent_create:
+    mov dx, fail_explicit_parent_create_msg
 
 fail:
     mov ah, 0x09
@@ -370,8 +448,12 @@ floppy_path: db "A:\AONLY.TXT", 0
 write_path: db "C:\WRTEST.TXT", 0
 find_path: db "C:\*.*", 0
 bare_c_path: db "C:HDONLY.TXT", 0
+sammax_dir: db "C:\SAMNMAX.CD", 0
+sammax_ini: db "C:\SAMNMAX.CD\SETMUSE.INI", 0
 hdonly_name: db "HDONLY.TXT"
 hdonly_name_len equ $ - hdonly_name
+setmuse_payload: db "INI"
+setmuse_payload_len equ $ - setmuse_payload
 pass_msg: db "PASS: MULTIDRIVE", 13, 10, "$"
 fail_initial_drive_msg: db "FAIL: MULTIDRIVE INITIAL DRIVE", 13, 10, "$"
 fail_select_c_count_msg: db "FAIL: MULTIDRIVE SELECT C COUNT", 13, 10, "$"
@@ -389,6 +471,7 @@ fail_write_c_msg: db "FAIL: MULTIDRIVE WRITE C", 13, 10, "$"
 fail_close_c_msg: db "FAIL: MULTIDRIVE CLOSE C", 13, 10, "$"
 fail_write_interlude_a_msg: db "FAIL: MULTIDRIVE WRITE INTERLUDE A", 13, 10, "$"
 fail_reread_c_msg: db "FAIL: MULTIDRIVE REREAD C", 13, 10, "$"
+fail_explicit_parent_create_msg: db "FAIL: MULTIDRIVE EXPLICIT PARENT CREATE", 13, 10, "$"
 handle: dw 0
 handle_a: dw 0
 handle_c: dw 0

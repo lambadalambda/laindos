@@ -1,1 +1,0 @@
-- [ ] [Support CD-ROM install and startup for Sam & Max Hit the Road](issues/support-cdrom-sam-and-max-hit-the-road.md)

@@ -147,3 +147,4 @@
 - [x] [Exercise Norton Commander file copy](issues/exercise-norton-commander-file-copy.md)
 - [x] [Exercise Norton Commander rename and delete](issues/exercise-norton-commander-rename-delete.md)
 - [x] [Exercise Norton Commander mkdir and rmdir](issues/exercise-norton-commander-mkdir-rmdir.md)
+- [x] [Support CD-ROM install and startup for Sam & Max Hit the Road](issues/support-cdrom-sam-and-max-hit-the-road.md)

@@ -32,7 +32,7 @@ qemu-system-i386 \
   -device sb16
 ```
 
-Use bare `-device sb16` for the generic game path. Add `-device adlib` only for games that need the separate AdLib/OPL setup probe; Wolf3D needs it to match 86Box Sound Blaster detection, while the Monkey Island demo currently trips runtime error `R6003` with AdLib attached. The all-games QEMU task intentionally stays SB16-only; use the dedicated Wolf3D task when checking that sound-detection path.
+Use bare `-device sb16` for the generic game path. Add `-device adlib` only for games that need the separate AdLib/OPL setup probe; Wolf3D needs it to match 86Box Sound Blaster detection, and the Sam & Max CD launcher needs it so the Sound Blaster setup path also sees FM/OPL ports. The Monkey Island demo currently trips runtime error `R6003` with AdLib attached. The all-games QEMU task intentionally stays SB16-only; use the dedicated Wolf3D or Sam & Max CD task when checking those sound-detection paths.
 
 Real DOS comparison run:
 

@@ -130,7 +130,7 @@ const FS_SECTIONS = [
     summary: "Drive prefixes, relative roots, dot segments, and case folding meet in name_buf.",
     body: [
       "A path first activates the requested drive, then chooses a starting directory. Leading separators force root, drive-qualified relative paths keep that drive's current directory, and plain relative paths start from `cur_dir_cluster`.",
-      "The parser fills an eleven-byte DOS name with spaces, uppercases each character, moves to byte eight after a dot, and expands wildcards to question marks for find-first/find-next, including extension wildcards for a name-part `*` without an explicit dot. Parent resolution temporarily terminates the path at the last separator and calls the same resolver on the parent directory.",
+      "The parser fills an eleven-byte DOS name with spaces, uppercases each character, moves to byte eight after a dot, and expands wildcards to question marks for find-first/find-next, including extension wildcards for a name-part `*` without an explicit dot. Parent resolution temporarily terminates the path at the last separator and calls the same resolver on the parent directory while preserving any explicit drive prefix.",
     ],
     file: "src/kernel/path_dir.inc",
     code: [
@@ -160,10 +160,10 @@ const FS_SECTIONS = [
       [1801, "    mov ax, [cs:cur_dir_cluster]"],
       [1815, "    mov [cs:pr_last_sep], bx"],
       [1846, "    mov word [cs:pr_dir_cluster], ROOT_CLUSTER"],
-      [1864, "    call resolve_path"],
-      [1877, "    call parse_83name"],
+      [1858, "    call resolve_path"],
+      [1871, "    call parse_83name"],
     ],
-    hi: [939, 960, 1063, 1711, 1756, 1793, 1864],
+    hi: [939, 960, 1063, 1711, 1756, 1793, 1858],
     tests: ["scripts/test_pathcanon.py", "scripts/test_drivepath.py", "scripts/test_diredge.py", "scripts/test_parsefcb.py", "scripts/test_findstar.py"],
   },
   {

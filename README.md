@@ -17,7 +17,7 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 - Runs the full VGA Monkey Island image when `vendor/monkey_full.zip` is present.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
-- Provides vendor-gated `make test-sammax-cd-files`, `make test-sammax-cd-start`, and `make test-sammax-cd-setmuse` smokes for the Sam & Max Hit the Road CD data track from its cue/bin archive.
+- Provides vendor-gated `make test-sammax-cd-files`, `make test-sammax-cd-start`, `make test-sammax-cd-setmuse`, and `make test-sammax-cd-setmuse-save` smokes for the Sam & Max Hit the Road CD data track from its cue/bin archive.
 - `make test` currently runs the automated QEMU regression ladder and passes `96/96` tests.
 
 ## Scope
@@ -39,7 +39,7 @@ Still out of scope unless a target forces it:
 - Full `COMMAND.COM` compatibility.
 - Native DOS device driver loading or `CONFIG.SYS` processing.
 - Full XMS multi-handle/reallocation/HMA behavior, full multi-handle EMS/named-handle behavior, UMB/HMA, load-high behavior, SHARE, redirectors, printing, or networking.
-- Implementing sound hardware in DOS; games talk to emulator-provided hardware such as `-device sb16` directly, with `-device adlib` added only for games that need a separate OPL/AdLib probe path such as Wolf3D. LainDOS supplies a conventional `BLASTER=A220 I5 D1 H5 P330 T6` environment variable so games can find the Sound Blaster-compatible device.
+- Implementing sound hardware in DOS; games talk to emulator-provided hardware such as `-device sb16` directly, with `-device adlib` added only for games that need a separate OPL/AdLib probe path such as Wolf3D and the Sam & Max CD launcher. LainDOS supplies a conventional `BLASTER=A220 I5 D1 H5 P330 T6` environment variable so games can find the Sound Blaster-compatible device.
 - General DPMI/VCPI services. DOS extenders that manage protected mode themselves may work if their real-mode DOS calls and CPU assumptions are satisfied.
 
 ## Architecture
@@ -128,7 +128,7 @@ Headless smoke-test the shell-launched Monkey Island demo:
 make test-monkey-demo
 ```
 
-Game smoke tests keep the emulated SB16 device when a game expects it, and Wolf3D also adds QEMU's separate AdLib device. Automated runs route those devices to QEMU's `none` audio backend so tests stay silent.
+Game smoke tests keep the emulated SB16 device when a game expects it, and Wolf3D plus the Sam & Max CD launcher also add QEMU's separate AdLib device. Automated runs route those devices to QEMU's `none` audio backend so tests stay silent.
 
 Build and boot the local extras hard-disk image, which combines local archives that are not part of `vendor/FreeDOS.VHD` into `build/extras_hd.img`:
 
@@ -233,7 +233,7 @@ Boot a fresh writable `hd160m` LainDOS `C:` image with the Sam & Max Hit the Roa
 mise run run-sammax-cd
 ```
 
-The task extracts `vendor/Bestseller Games Gold 3 - Sam & Max Hit the Road.zip` into `build/sammax_cd/BG_GOLD_3_data.iso`, rebuilds `build/sammax_cd/sammax_c.img` by default, and starts QEMU with SB16 enabled. Set `LAINDOS_SAMMAX_ARCHIVE=/path/to/archive.zip` to use a different source zip, `LAINDOS_SAMMAX_REBUILD_C=0` to reuse an existing C: image, `LAINDOS_SAMMAX_C_IMG=/path/to/image.img` to choose a different scratch disk, or `LAINDOS_SAMMAX_C_FORMAT=hd96m`/`hd160m` to choose the generated C: size.
+The task extracts `vendor/Bestseller Games Gold 3 - Sam & Max Hit the Road.zip` into `build/sammax_cd/BG_GOLD_3_data.iso`, rebuilds `build/sammax_cd/sammax_c.img` by default, and starts QEMU with SB16 plus AdLib enabled so the Sound Blaster path has FM/OPL ports. Set `LAINDOS_SAMMAX_ARCHIVE=/path/to/archive.zip` to use a different source zip, `LAINDOS_SAMMAX_REBUILD_C=0` to reuse an existing C: image, `LAINDOS_SAMMAX_C_IMG=/path/to/image.img` to choose a different scratch disk, or `LAINDOS_SAMMAX_C_FORMAT=hd96m`/`hd160m` to choose the generated C: size.
 
 If the local generated Stunt Island image exists at `build/stunt_xmsfix_hd.img`, boot it in a normal visible QEMU window and launch `STUNT` using:
 

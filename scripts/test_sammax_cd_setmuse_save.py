@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+import os
+import shlex
+import shutil
+import struct
+import sys
+import tempfile
+import time
+import zipfile
+from pathlib import Path
+
+from testlib import (
+    check_markers,
+    collect_output,
+    monitor_quit,
+    monitor_screendump,
+    open_monitor,
+    qemu_binary,
+    qemu_sb16_adlib_silent_args,
+    qemu_vga,
+    remove_if_exists,
+    run_cmd,
+    send_monitor_command,
+    send_monitor_key,
+    start_qemu,
+    stop_qemu,
+    wait_for_output,
+)
+
+
+ARCHIVE = "vendor/Bestseller Games Gold 3 - Sam & Max Hit the Road.zip"
+BUILDDIR = Path(os.environ.get("LAINDOS_TEST_BUILD_DIR", "build"))
+WORKDIR = BUILDDIR / "sammax_cd"
+CUE = WORKDIR / "BG GOLD 3.cue"
+BIN = WORKDIR / "BG GOLD 3.bin"
+ISO = WORKDIR / "BG_GOLD_3_data.iso"
+BOOT = WORKDIR / "sammax_setmuse_save_boot.bin"
+KERNEL = WORKDIR / "sammax_setmuse_save_kernel.bin"
+SHELL = WORKDIR / "shell.com"
+AUTOEXEC = WORKDIR / "autoexec_setmuse_save.bat"
+IMG = WORKDIR / "sammax_cd_setmuse_save.img"
+MONITOR = Path(tempfile.gettempdir()) / "laindos-sammax-cd-setmuse-save.sock"
+SCREENSHOT = BUILDDIR / "sammax_cd_setmuse_save_screen.ppm"
+TEXTMEM = BUILDDIR / "sammax_cd_setmuse_save_b800.bin"
+TIMEOUT = int(os.environ.get("SAMMAX_CD_SETMUSE_SAVE_TIMEOUT", "55"))
+KEYS = os.environ.get(
+    "SAMMAX_CD_SETMUSE_SAVE_KEYS",
+    "ret up up up up up up ret down ret ret down down down down down down ret j",
+).split()
+
+
+def extract_member(archive, name, output):
+    info = archive.getinfo(name)
+    if output.exists() and output.stat().st_size == info.file_size:
+        return
+    with archive.open(info) as src, open(output, "wb") as dst:
+        shutil.copyfileobj(src, dst)
+
+
+def prepare_cd_image():
+    if not os.path.exists(ARCHIVE):
+        print(f"Missing {ARCHIVE}", file=sys.stderr)
+        sys.exit(1)
+    WORKDIR.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        extract_member(archive, "BG GOLD 3.cue", CUE)
+        extract_member(archive, "BG GOLD 3.bin", BIN)
+    run_cmd(["python3", "scripts/extract_mode1_2352.py", str(CUE), str(ISO)])
+
+
+def build_artifacts():
+    prepare_cd_image()
+    AUTOEXEC.write_bytes(b"D:\r\nCD \\SAMNMAX\r\nSETMUSE\r\nEXIT\r\n")
+    run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", str(BOOT)])
+    kernel_cmd = ["nasm", '-DBOOT_FILE="SHELL   COM"']
+    kernel_cmd.extend(shlex.split(os.environ.get("SAMMAX_CD_SETMUSE_KERNEL_DEFINES", "")))
+    kernel_cmd.extend(["-f", "bin", "src/kernel.asm", "-o", str(KERNEL)])
+    run_cmd(kernel_cmd)
+    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", str(SHELL)])
+    run_cmd([
+        "python3", "scripts/mkimage.py", "--format=hd160m", str(BOOT), str(KERNEL), str(IMG), str(SHELL), str(AUTOEXEC),
+    ])
+
+
+def run_qemu():
+    remove_if_exists(str(MONITOR))
+    remove_if_exists(str(SCREENSHOT))
+    remove_if_exists(str(TEXTMEM))
+    proc, stdout_chunks, stderr_chunks, threads = start_qemu([
+        qemu_binary(),
+        "-drive", f"file={IMG},format=raw,if=ide,index=0,media=disk",
+        "-drive", f"file={ISO},format=raw,if=ide,index=1,media=cdrom,readonly=on",
+        "-boot", "order=c",
+        "-serial", "stdio",
+        "-monitor", f"unix:{MONITOR},server,nowait",
+        "-vga", qemu_vga(),
+        "-vnc", "127.0.0.1:59",
+        *qemu_sb16_adlib_silent_args(),
+    ])
+    sock = None
+    ready = False
+    halted = False
+    try:
+        sock = open_monitor(str(MONITOR), timeout=10)
+        ready = wait_for_output(stdout_chunks, "DOS/4GW Protected Mode Run-time", timeout=TIMEOUT, stop_markers=("EXC ", "Assertion failed", "INT 21h AH="))
+        if ready:
+            time.sleep(8)
+            for key in KEYS:
+                send_monitor_key(sock, key, delay=1.5)
+            halted = wait_for_output(stdout_chunks, "HALT", timeout=TIMEOUT, stop_markers=("EXC ", "Assertion failed", "INT 21h AH="))
+        monitor_screendump(sock, str(SCREENSHOT), delay=1)
+        send_monitor_command(sock, f"pmemsave 0xb8000 4000 {TEXTMEM}", delay=1)
+        monitor_quit(sock, proc)
+    finally:
+        if sock is not None:
+            sock.close()
+        stop_qemu(proc)
+    return collect_output(stdout_chunks, stderr_chunks, threads), ready, halted
+
+
+def read_fat_entry(fat, cluster, fat_bits):
+    if fat_bits == 16:
+        return struct.unpack_from("<H", fat, cluster * 2)[0]
+    off = cluster + (cluster >> 1)
+    value = fat[off] | (fat[off + 1] << 8)
+    if cluster & 1:
+        return value >> 4
+    return value & 0x0FFF
+
+
+def parse_83(name):
+    base, _, ext = name.upper().partition(".")
+    return base.ljust(8)[:8].encode("ascii") + ext.ljust(3)[:3].encode("ascii")
+
+
+def iter_dir_entries(image, start, size):
+    end = start + size
+    off = start
+    while off + 32 <= end:
+        entry = image[off:off + 32]
+        first = entry[0]
+        if first == 0:
+            return
+        if first != 0xE5 and entry[11] != 0x0F:
+            yield entry
+        off += 32
+
+
+def find_entry(entries, name):
+    target = parse_83(name)
+    for entry in entries:
+        if entry[:11] == target:
+            return entry
+    return None
+
+
+def read_cluster_chain(image, fat, first_cluster, fat_bits, data_start, sec_per_clus, bytes_per_sec):
+    if first_cluster < 2:
+        return b""
+    eoc = 0xFFF8 if fat_bits == 16 else 0xFF8
+    cluster = first_cluster
+    chunks = []
+    for _ in range(4096):
+        off = (data_start + (cluster - 2) * sec_per_clus) * bytes_per_sec
+        chunks.append(image[off:off + sec_per_clus * bytes_per_sec])
+        nxt = read_fat_entry(fat, cluster, fat_bits)
+        if nxt >= eoc:
+            break
+        if nxt < 2:
+            break
+        cluster = nxt
+    return b"".join(chunks)
+
+
+def saved_ini_size():
+    image = IMG.read_bytes()
+    bytes_per_sec = struct.unpack_from("<H", image, 11)[0]
+    sec_per_clus = image[13]
+    rsvd = struct.unpack_from("<H", image, 14)[0]
+    fats = image[16]
+    root_entries = struct.unpack_from("<H", image, 17)[0]
+    total16 = struct.unpack_from("<H", image, 19)[0]
+    total32 = struct.unpack_from("<I", image, 32)[0]
+    fat16_sz = struct.unpack_from("<H", image, 22)[0]
+    total = total16 or total32
+    root_secs = (root_entries * 32 + bytes_per_sec - 1) // bytes_per_sec
+    data_start = rsvd + fats * fat16_sz + root_secs
+    data_secs = total - data_start
+    clusters = data_secs // sec_per_clus
+    fat_bits = 16 if clusters >= 4085 else 12
+    fat = image[rsvd * bytes_per_sec:(rsvd + fat16_sz) * bytes_per_sec]
+    root_start = (rsvd + fats * fat16_sz) * bytes_per_sec
+    root_size = root_entries * 32
+    root = list(iter_dir_entries(image, root_start, root_size))
+    samnmax_dir = find_entry(root, "SAMNMAX.CD")
+    if samnmax_dir is None:
+        return None
+    first_cluster = struct.unpack_from("<H", samnmax_dir, 26)[0]
+    dir_data = read_cluster_chain(image, fat, first_cluster, fat_bits, data_start, sec_per_clus, bytes_per_sec)
+    ini = find_entry(iter_dir_entries(dir_data, 0, len(dir_data)), "SETMUSE.INI")
+    if ini is None:
+        return None
+    return struct.unpack_from("<I", ini, 28)[0]
+
+
+def text_screen():
+    if not TEXTMEM.exists():
+        return ""
+    data = TEXTMEM.read_bytes()
+    lines = []
+    for row in range(25):
+        chars = []
+        for col in range(80):
+            ch = data[(row * 80 + col) * 2]
+            chars.append(chr(ch) if 32 <= ch < 127 else " ")
+        lines.append("".join(chars).rstrip())
+    return "\n".join(lines).rstrip()
+
+
+def main():
+    build_artifacts()
+    output, ready, halted = run_qemu()
+    if os.environ.get("SAMMAX_CD_SETMUSE_SAVE_DUMP_SERIAL"):
+        print("\n--- Sam & Max SETMUSE save serial output ---")
+        print(output)
+        print("--- end ---")
+    ok = check_markers(
+        output,
+        required=("DOS/4GW Protected Mode Run-time",),
+        forbidden=("EXC ", "Assertion failed", "INT 21h AH=", "Bad command", "No such file", "Not enough memory"),
+        output_label="Sam & Max SETMUSE save serial output",
+    )
+    if not ready:
+        print("  FAIL: timed out waiting for SETMUSE startup")
+        ok = False
+    if not halted:
+        print("  FAIL: SETMUSE save flow did not return to shell")
+        ok = False
+    ini_size = saved_ini_size()
+    if ini_size is None:
+        print("  FAIL: missing C:\\SAMNMAX.CD\\SETMUSE.INI")
+        ok = False
+    elif ini_size == 0:
+        print("  FAIL: C:\\SAMNMAX.CD\\SETMUSE.INI is empty")
+        ok = False
+    else:
+        print(f"  PASS: C:\\SAMNMAX.CD\\SETMUSE.INI size {ini_size} bytes")
+    if not ok:
+        print("\n--- Sam & Max SETMUSE save text screen ---")
+        print(text_screen())
+        print("--- end ---")
+        print("\n--- Sam & Max SETMUSE save serial output ---")
+        print(output)
+        print("--- end ---")
+        sys.exit(1)
+    print("\nSam & Max SETMUSE save smoke passed.")
+
+
+if __name__ == "__main__":
+    main()

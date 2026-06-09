@@ -2,6 +2,30 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-09 Sam & Max SETMUSE Save File
+
+### Symptoms
+
+- SETMUSE could list and configure Sound Blaster 16, but choosing `Dieses dumme Programm verlassen` and saving on a clean writable C: image asserted with `Assertion failed: infile != NULL, file init.c, line 165`.
+
+### Confirmed Facts
+
+- `SETMUSE.TXT` names `[dir name] c:\samnmax.cd` and `[ini name] c:\samnmax.cd\setmuse.ini`.
+- Pre-seeding an empty `C:\SAMNMAX.CD\SETMUSE.INI` avoided the assertion and produced a 400-byte config, proving the failure was initial INI creation rather than later writes.
+- A traced clean run showed `AH=39h` created `C:\SAMNMAX.CD`, then `AH=3Dh` failed to open `C:\SAMNMAX.CD\SETMUSE.INI`, then `AH=3Ch` create returned DOS error `3` for the same path.
+- The root cause was `parse_root_path` stripping the explicit `C:` before resolving the parent directory. Because SETMUSE runs from default drive `D:`, the parent lookup for `C:\SAMNMAX.CD\SETMUSE.INI` became a lookup for `D:\SAMNMAX.CD` and failed.
+
+### Tests And Probes Run
+
+- Added `tests/programs/multidrive.asm` coverage for creating `C:\SAMNMAX.CD\SETMUSE.INI` with `AX=3C80h` while the default drive is `A:`; it failed before the resolver fix and passed after.
+- Added `scripts/test_sammax_cd_setmuse_save.py` and `make test-sammax-cd-setmuse-save`; the smoke boots a writable hard-disk C: image with the Sam & Max CD as D:, selects Sound Blaster 16, selects port 220, exits/saves, and verifies a non-empty `SETMUSE.INI` in the FAT image.
+- `python3 scripts/test_multidrive.py` passes after the fix.
+- `python3 scripts/test_sammax_cd_setmuse_save.py` passes and verifies `C:\SAMNMAX.CD\SETMUSE.INI` is 400 bytes.
+
+### Closed State
+
+- Explicit-drive parent path resolution keeps the drive prefix when resolving the parent component, so create/delete-style APIs no longer fall back to the current default drive for paths such as `C:\DIR\FILE` while running from another drive.
+
 ## 2026-06-09 Sam & Max SETMUSE Driver List
 
 ### Symptoms
