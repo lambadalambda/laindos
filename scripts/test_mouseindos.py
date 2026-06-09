@@ -48,6 +48,15 @@ def parse_listing(path):
     return labels
 
 
+def parse_reloc_seg():
+    with open("src/memory.inc", encoding="utf-8") as memory:
+        for line in memory:
+            match = re.match(r"\s*RELOC_SEG\s+equ\s+(0x[0-9A-Fa-f]+|\d+)\s*$", line)
+            if match:
+                return int(match.group(1), 0)
+    raise SystemExit("RELOC_SEG not found in src/memory.inc")
+
+
 def main():
     os.makedirs(BUILDDIR, exist_ok=True)
     boot = os.path.join(BUILDDIR, "boot.bin")
@@ -71,7 +80,9 @@ def main():
     ])
 
     offsets = parse_listing(listing)
-    defines = [f"-D{define}=0x{offset:04X}" for label, define in LABELS.items()
+    reloc_seg = parse_reloc_seg()
+    defines = [f"-DKERNEL_SEG=0x{reloc_seg:04X}"]
+    defines += [f"-D{define}=0x{offset:04X}" for label, define in LABELS.items()
                for offset in (offsets[label],)]
     run_cmd(["nasm", *defines, "-f", "bin", "tests/programs/mouseindos.asm", "-o", program])
     run_cmd(["python3", "scripts/mkimage.py", boot, kernel, img, program])

@@ -582,6 +582,14 @@ int21_handler:
     mov al, [cs:dos_drive_num]
     jmp iret_nc
 .select_disk:
+    cmp dl, 3
+    jne .select_disk_check_count
+    cmp byte [cs:drive_present+3], 0
+    jne .select_disk_check_count
+    call mount_bios_cdrom_d
+    jc .select_disk_return
+    mov byte [cs:dos_drive_count], 4
+.select_disk_check_count:
     mov al, [cs:dos_drive_count]
     cmp dl, al
     jae .select_disk_return
@@ -2340,6 +2348,11 @@ int21_handler:
     call detect_device_path
     jnc .cr_device
     mov si, dx
+    call activate_drive_for_path
+    jc .cr_path_err
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .cr_access_denied
+    mov si, dx
     call parse_root_path
     jc .cr_path_err
     mov byte [cs:ff_attr_mask], 0
@@ -2598,10 +2611,51 @@ int21_handler:
     call detect_device_path
     jnc .of_device
     mov si, dx
+    call activate_drive_for_path
+    jc .of_not_found
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .of_cd
+    mov si, dx
     call resolve_path
     jnc .of_found
+.of_not_found:
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     RET_ERR 2
+.of_cd:
+    cmp byte [cs:of_mode], 0
+    jne .of_cd_access
+    mov si, dx
+    call cd_open_path
+    jc .of_not_found
+    call alloc_handle
+    jc .of_no_handles
+    push ax
+    mov di, ax
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov di, ax
+    mov al, [cs:of_mode]
+    mov bx, di
+    call init_handle_entry
+    mov ax, [cs:cd_file_lba_lo]
+    mov [cs:di+handles+H_CLUSTER], ax
+    mov ax, [cs:cd_file_lba_hi]
+    mov [cs:di+handles+H_LAST_CLUSTER], ax
+    mov ax, [cs:cd_file_size_lo]
+    mov [cs:di+handles+H_SIZE_LO], ax
+    mov ax, [cs:cd_file_size_hi]
+    mov [cs:di+handles+H_SIZE_HI], ax
+    mov word [cs:di+handles+H_POS_LO], 0
+    mov word [cs:di+handles+H_POS_HI], 0
+    mov word [cs:di+handles+H_DIR_LBA], 0xFFFF
+    mov word [cs:di+handles+H_DIR_LBA_HI], 0
+    pop ax
+    call psp_mark_handle_open
+    INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
+    jmp iret_nc
+.of_cd_access:
+    INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
+    RET_ERR 5
 .of_found:
     call alloc_handle
     jc .of_no_handles
@@ -2815,6 +2869,12 @@ int21_handler:
     je .rf_device
     call activate_drive_for_handle
     jc .rf_err_pop
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    jne .rf_fat
+    call cd_read_handle
+    jc .rf_err_pop
+    jmp .rf_done
+.rf_fat:
     mov ax, [cs:si+handles+H_POS_LO]
     mov [cs:rf_start_lo], ax
     mov ax, [cs:si+handles+H_POS_HI]

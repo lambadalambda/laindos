@@ -1,7 +1,9 @@
 [bits 16]
 [org 0x0100]
 
-%define KERNEL_SEG 0x0340
+%ifndef KERNEL_SEG
+%error "KERNEL_SEG must be defined"
+%endif
 
 %ifndef MOUSE_X
 %error "MOUSE_X must be defined"

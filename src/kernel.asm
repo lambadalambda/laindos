@@ -37,7 +37,7 @@ H_ALIAS_NONE equ 0xFFFF
 MAX_HANDLES equ 20
 SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
-KERNEL_STACK_TOP equ 0xC800
+KERNEL_STACK_TOP equ 0xD400
 STACK_ROOT_GUARD_PARAS equ 0x80
 %ifndef XMS_MAX_KB
 %define XMS_MAX_KB 15360
@@ -62,6 +62,9 @@ ATTR_IMMUTABLE equ ATTR_VOLUME | ATTR_DIR
 ROOT_ENT_CNT equ 224
 ROOT_MAX_ENTRIES equ 512
 ROOT_BUF_PARAS equ ((ROOT_MAX_ENTRIES * 32) + 15) / 16
+MAX_DRIVES equ 4
+DRIVE_TYPE_FAT equ 0
+DRIVE_TYPE_CDROM equ 1
 
 CF equ 0x0001
 ZF equ 0x0040
@@ -604,12 +607,15 @@ init_drive_table:
     push di
     push cs
     pop ds
-    mov cx, 3
+    mov cx, MAX_DRIVES
     xor bx, bx
+    xor di, di
 .clear_loop:
     mov byte [cs:drive_present+bx], 0
-    mov byte [cs:drive_cur_paths+bx+0], 0
+    mov byte [cs:drive_type+bx], DRIVE_TYPE_FAT
+    mov byte [cs:drive_cur_paths+di], 0
     inc bx
+    add di, 64
     loop .clear_loop
     push ds
     xor ax, ax
@@ -634,6 +640,11 @@ init_drive_table:
     call save_active_drive_slot
     call load_active_volume_buffers
     jc .done
+    call mount_bios_cdrom_d
+    jc .hard_boot_cd_done
+    mov byte [cs:dos_drive_count], 4
+.hard_boot_cd_done:
+    clc
     jmp .done
 .floppy_boot:
     mov byte [cs:dos_drive_num], 0
@@ -655,6 +666,11 @@ init_drive_table:
     call save_active_drive_slot
     mov byte [cs:dos_drive_num], 0
     mov byte [cs:dos_drive_letter], 'A'
+    call mount_bios_cdrom_d
+    jc .floppy_cd_done
+    mov byte [cs:dos_drive_count], 4
+.floppy_cd_done:
+    clc
     jmp .done
 .restore_floppy:
     mov byte [cs:active_drive_num], 0xFF
@@ -663,6 +679,11 @@ init_drive_table:
     mov byte [cs:dos_drive_num], 0
     mov byte [cs:dos_drive_letter], 'A'
     mov byte [cs:dos_drive_count], 1
+    call mount_bios_cdrom_d
+    jc .restore_cd_done
+    mov byte [cs:dos_drive_count], 4
+.restore_cd_done:
+    clc
 .done:
     pop di
     pop si
@@ -685,9 +706,10 @@ save_active_drive_slot:
     push di
     xor bh, bh
     mov bl, al
-    cmp bl, 3
+    cmp bl, MAX_DRIVES
     jae .done
     mov byte [cs:drive_present+bx], 1
+    mov byte [cs:drive_type+bx], DRIVE_TYPE_FAT
     mov al, [cs:kdrv]
     mov [cs:drive_bios+bx], al
     mov al, [cs:kspc]
@@ -785,7 +807,7 @@ save_active_drive_cwd:
     push di
     xor bh, bh
     mov bl, [cs:active_drive_num]
-    cmp bl, 3
+    cmp bl, MAX_DRIVES
     jae .done
     mov si, bx
     shl si, 1
@@ -823,7 +845,7 @@ load_active_drive_cwd:
     push di
     xor bh, bh
     mov bl, [cs:active_drive_num]
-    cmp bl, 3
+    cmp bl, MAX_DRIVES
     jae .done
     mov si, bx
     shl si, 1
@@ -858,6 +880,8 @@ load_drive_slot_geometry:
     mov bl, al
     mov al, [cs:drive_bios+bx]
     mov [cs:kdrv], al
+    mov al, [cs:drive_type+bx]
+    mov [cs:kdrive_type], al
     mov al, [cs:drive_kspc+bx]
     mov [cs:kspc], al
     mov al, [cs:drive_knum_fats+bx]
@@ -1108,7 +1132,7 @@ activate_drive:
     mov al, [cs:active_drive_num]
     mov [cs:drive_prev], al
     mov al, [cs:drive_req]
-    cmp al, 3
+    cmp al, MAX_DRIVES
     jae .err
     xor bh, bh
     mov bl, al
@@ -1142,7 +1166,7 @@ activate_drive:
     ret
 .restore_old:
     mov al, [cs:drive_prev]
-    cmp al, 3
+    cmp al, MAX_DRIVES
     jae .err
     call load_drive_slot_geometry
     mov byte [cs:rf_cache_valid], 0
@@ -1167,6 +1191,8 @@ load_active_volume_buffers:
     push cx
     push dx
     push es
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .ok
     cmp byte [cs:kfat_bits], 16
     je .root
     mov ax, FAT_SEG
@@ -1184,6 +1210,7 @@ load_active_volume_buffers:
     mov cx, [cs:krsc]
     call read_sector_loop
     jc .err
+.ok:
     clc
     jmp .done
 .err:
@@ -1233,6 +1260,13 @@ activate_drive_for_path:
     cmp byte [ds:si+1], ':'
     jne .default
     sub al, 'A'
+    cmp al, 3
+    jne .activate
+    cmp byte [cs:drive_present+3], 0
+    jne .activate
+    call mount_bios_cdrom_d
+    jc .activate
+    mov byte [cs:dos_drive_count], 4
     jmp .activate
 .default:
     mov al, [cs:dos_drive_num]
@@ -2432,6 +2466,7 @@ release_inherited_handles:
 
 %include "src/kernel/path_dir.inc"
 
+%include "src/kernel/cdrom.inc"
 
 %include "src/kernel/fat.inc"
 
@@ -2943,6 +2978,7 @@ ksc:   db 0
 khd:   db 0
 kcy:   dw 0
 kdrv:  db 0
+kdrive_type: db DRIVE_TYPE_FAT
 int13_scratch: times 32 db 0
 dos_drive_num: db 0
 dos_drive_letter: db 'A'
@@ -2953,29 +2989,52 @@ drive_prev: db 0
 drive_load_lba: dw 0
 mbr_part_lba: dw 0
 mbr_part_lba_hi: dw 0
-drive_present: times 3 db 0
-drive_bios: times 3 db 0
-drive_kspc: times 3 db 0
-drive_knum_fats: times 3 db 0
-drive_kfat_bits: times 3 db 0
-drive_krsta: times 3 dw 0
-drive_krsc: times 3 dw 0
-drive_kdsta: times 3 dw 0
-drive_kbio_spt: times 3 dw 0
-drive_kbio_heads: times 3 dw 0
-drive_kfat_start: times 3 dw 0
-drive_kfat_secs: times 3 dw 0
-drive_kfat_eoc: times 3 dw 0
-drive_kfat_eoc_value: times 3 dw 0
-drive_kfat_reserved: times 3 dw 0
-drive_kroot_entries: times 3 dw 0
-drive_kroot_bytes: times 3 dw 0
-drive_kmax_cluster: times 3 dw 0
-drive_kpart_lba: times 3 dw 0
-drive_kpart_lba_hi: times 3 dw 0
-drive_bpbs: times 3 * 64 db 0
-drive_cur_clusters: times 3 dw 0
-drive_cur_paths: times 3 * 64 db 0
+cd_present: db 0
+cd_probe_drive: db 0
+cd_io_drive: db 0
+cd_bios_drive: db 0
+cd_seen_name: db 0
+cd_lba_lo: dw 0
+cd_lba_hi: dw 0
+cd_root_lba_lo: dw 0
+cd_root_lba_hi: dw 0
+cd_root_size_lo: dw 0
+cd_root_size_hi: dw 0
+cd_scan_lba_lo: dw 0
+cd_scan_lba_hi: dw 0
+cd_scan_sectors: dw 0
+cd_sector_left: dw 0
+cd_record_len: dw 0
+cd_file_lba_lo: dw 0
+cd_file_lba_hi: dw 0
+cd_file_size_lo: dw 0
+cd_file_size_hi: dw 0
+cd_dap: db 0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+cd_cmp_name: times 11 db 0
+drive_present: times MAX_DRIVES db 0
+drive_type: times MAX_DRIVES db 0
+drive_bios: times MAX_DRIVES db 0
+drive_kspc: times MAX_DRIVES db 0
+drive_knum_fats: times MAX_DRIVES db 0
+drive_kfat_bits: times MAX_DRIVES db 0
+drive_krsta: times MAX_DRIVES dw 0
+drive_krsc: times MAX_DRIVES dw 0
+drive_kdsta: times MAX_DRIVES dw 0
+drive_kbio_spt: times MAX_DRIVES dw 0
+drive_kbio_heads: times MAX_DRIVES dw 0
+drive_kfat_start: times MAX_DRIVES dw 0
+drive_kfat_secs: times MAX_DRIVES dw 0
+drive_kfat_eoc: times MAX_DRIVES dw 0
+drive_kfat_eoc_value: times MAX_DRIVES dw 0
+drive_kfat_reserved: times MAX_DRIVES dw 0
+drive_kroot_entries: times MAX_DRIVES dw 0
+drive_kroot_bytes: times MAX_DRIVES dw 0
+drive_kmax_cluster: times MAX_DRIVES dw 0
+drive_kpart_lba: times MAX_DRIVES dw 0
+drive_kpart_lba_hi: times MAX_DRIVES dw 0
+drive_bpbs: times MAX_DRIVES * 64 db 0
+drive_cur_clusters: times MAX_DRIVES dw 0
+drive_cur_paths: times MAX_DRIVES * 64 db 0
 break_flag: db 0
 verify_flag: db 0
 irq1_null_mask_active: db 0
@@ -3363,6 +3422,12 @@ kernel_end:
 %endif
 %if (ROOT_SEG + ROOT_BUF_PARAS + STACK_ROOT_GUARD_PARAS) > (RELOC_SEG + (KERNEL_STACK_TOP / 16))
 %error "ROOT buffer leaves too little kernel stack guard"
+%endif
+%if (CD_BUF + CD_BUF_PARAS) > SEC_BUF
+%error "CD_BUF overlaps SEC_BUF"
+%endif
+%if (CD_BUF + CD_BUF_PARAS) > RELOC_SEG
+%error "CD_BUF overlaps relocated kernel"
 %endif
 %if (RELOC_SEG + (KERNEL_STACK_TOP / 16)) > MCB_START
 %error "kernel stack overlaps MCB arena"
