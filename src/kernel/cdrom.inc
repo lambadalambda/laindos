@@ -132,28 +132,86 @@ mount_bios_cdrom_d:
 
 cd_prepare_path:
     push ax
+    push bx
+    push cx
     push ds
+    push es
     push si
-    mov [cs:cd_path_seg], ds
-    mov al, [ds:si]
+    push di
+    mov bx, si
+    mov al, [ds:bx]
     call ascii_upper
     cmp al, 'A'
     jb .check_sep
     cmp al, 'Z'
     ja .check_sep
-    cmp byte [ds:si+1], ':'
+    cmp byte [ds:bx+1], ':'
     jne .check_sep
-    add si, 2
+    add bx, 2
 .check_sep:
-    cmp byte [ds:si], '\'
+    push cs
+    pop es
+    mov di, cd_full_path
+    mov cx, 127
+    cmp byte [ds:bx], '\'
+    je .abs_skip_sep
+    cmp byte [ds:bx], '/'
+    je .abs_skip_sep
+    push ds
+    push cs
+    pop ds
+    mov si, cur_dir_path
+.cwd_copy:
+    lodsb
+    test al, al
+    jz .cwd_done
+    call .store_char
+    jc .cwd_err
+    jmp .cwd_copy
+.cwd_err:
+    pop ds
+    jmp .err
+.cwd_done:
+    pop ds
+    cmp di, cd_full_path
+    je .copy_input
+    cmp byte [ds:bx], 0
+    je .finish
+    mov al, '\'
+    call .store_char
+    jc .err
+    jmp .copy_input
+.abs_skip_sep:
+    cmp byte [ds:bx], '\'
     je .skip_sep
-    cmp byte [ds:si], '/'
-    jne .done
+    cmp byte [ds:bx], '/'
+    jne .copy_input
 .skip_sep:
-    inc si
-    jmp .check_sep
-.done:
-    mov [cs:cd_path_off], si
+    inc bx
+    jmp .abs_skip_sep
+.copy_input:
+    cmp byte [ds:bx], 0
+    je .finish
+    mov al, [ds:bx]
+    inc bx
+    cmp al, '/'
+    je .slash
+    cmp al, '\'
+    je .slash
+    call ascii_upper
+    jmp .store_input
+.slash:
+    mov al, '\'
+.store_input:
+    call .store_char
+    jc .err
+    jmp .copy_input
+.finish:
+    mov byte [es:di], 0
+    push cs
+    pop ax
+    mov [cs:cd_path_seg], ax
+    mov word [cs:cd_path_off], cd_full_path
     mov ax, [cs:cd_root_lba_lo]
     mov [cs:cd_dir_lba_lo], ax
     mov ax, [cs:cd_root_lba_hi]
@@ -162,10 +220,34 @@ cd_prepare_path:
     mov [cs:cd_dir_size_lo], ax
     mov ax, [cs:cd_root_size_hi]
     mov [cs:cd_dir_size_hi], ax
+    pop di
     pop si
+    pop es
     pop ds
+    pop cx
+    pop bx
     pop ax
     clc
+    ret
+.store_char:
+    test cx, cx
+    jz .store_err
+    stosb
+    dec cx
+    clc
+    ret
+.store_err:
+    stc
+    ret
+.err:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop cx
+    pop bx
+    pop ax
+    stc
     ret
 
 cd_parse_next_component:
@@ -288,6 +370,96 @@ cd_open_path:
     pop dx
     pop cx
     pop bx
+    pop ax
+    ret
+
+cd_open_dir_path:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    call cd_prepare_path
+    jc .err
+    mov ds, [cs:cd_path_seg]
+    mov si, [cs:cd_path_off]
+    cmp byte [ds:si], 0
+    je .root
+    call cd_parse_next_component
+    jc .err
+.component_loop:
+    call cd_scan_current_dir
+    jc .err
+    test byte [cs:cd_record_flags], 2
+    jz .err
+    mov ax, [cs:cd_file_lba_lo]
+    mov [cs:cd_dir_lba_lo], ax
+    mov ax, [cs:cd_file_lba_hi]
+    mov [cs:cd_dir_lba_hi], ax
+    mov ax, [cs:cd_file_size_lo]
+    mov [cs:cd_dir_size_lo], ax
+    mov ax, [cs:cd_file_size_hi]
+    mov [cs:cd_dir_size_hi], ax
+    cmp byte [cs:cd_path_last], 0
+    jne .ok
+    call cd_parse_next_component
+    jc .err
+    jmp .component_loop
+.root:
+    mov ax, [cs:cd_root_lba_lo]
+    mov [cs:cd_file_lba_lo], ax
+    mov ax, [cs:cd_root_lba_hi]
+    mov [cs:cd_file_lba_hi], ax
+    mov ax, [cs:cd_root_size_lo]
+    mov [cs:cd_file_size_lo], ax
+    mov ax, [cs:cd_root_size_hi]
+    mov [cs:cd_file_size_hi], ax
+.ok:
+    clc
+    jmp .done
+.err:
+    stc
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+cd_copy_full_path_to_cwd:
+    push ax
+    push cx
+    push ds
+    push es
+    push si
+    push di
+    push cs
+    pop ds
+    push cs
+    pop es
+    mov si, cd_full_path
+    mov di, cur_dir_path
+    mov cx, 63
+.copy:
+    lodsb
+    test al, al
+    jz .done
+    stosb
+    loop .copy
+.done:
+    mov byte [es:di], 0
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop cx
     pop ax
     ret
 

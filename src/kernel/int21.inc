@@ -288,6 +288,8 @@ int21_handler:
     je near .terminate_tsr
     cmp ah, 0x33
     je .break_check
+    cmp ah, 0x34
+    je .get_indos_flag
     cmp ah, 0x35
     je .get_vector
     cmp ah, 0x36
@@ -366,6 +368,12 @@ int21_handler:
 .reject_reentry:
     mov ax, 0x0005
     jmp iret_cy_no_indos
+
+.get_indos_flag:
+    push cs
+    pop es
+    mov bx, indos_flag
+    jmp iret_nc
 .lfn_unsupported:
     RET_ERR 0x7100
 .terminate:
@@ -2043,6 +2051,13 @@ int21_handler:
     mov [cs:ov_load_seg], ax
     mov ax, [es:bx+2]
     mov [cs:ov_reloc_seg], ax
+    mov word [cs:ov_cd_lba_hi], 0
+    mov ds, [cs:ov_path_seg]
+    mov si, [cs:ov_path_off]
+    call activate_drive_for_path
+    jc .exec_overlay_nf
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .exec_overlay_cd
     mov ds, [cs:ov_path_seg]
     mov si, [cs:ov_path_off]
     call resolve_path
@@ -2052,6 +2067,24 @@ int21_handler:
     mov ax, [es:di+28]
     mov [cs:ov_size_lo], ax
     mov ax, [es:di+30]
+    mov [cs:ov_size_hi], ax
+    call load_overlay_direct
+    jc .exec_overlay_err
+    INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
+    xor ax, ax
+    jmp iret_nc
+.exec_overlay_cd:
+    mov ds, [cs:ov_path_seg]
+    mov si, [cs:ov_path_off]
+    call cd_open_path
+    jc .exec_overlay_nf
+    mov ax, [cs:cd_file_lba_lo]
+    mov [cs:ov_cluster], ax
+    mov ax, [cs:cd_file_lba_hi]
+    mov [cs:ov_cd_lba_hi], ax
+    mov ax, [cs:cd_file_size_lo]
+    mov [cs:ov_size_lo], ax
+    mov ax, [cs:cd_file_size_hi]
     mov [cs:ov_size_hi], ax
     call load_overlay_direct
     jc .exec_overlay_err
@@ -2111,9 +2144,16 @@ int21_handler:
     jne .cd_resolve
     cmp byte [ds:si+2], 0
     jne .cd_resolve
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .cd_parent_cd
     cmp word [cs:cur_dir_cluster], ROOT_CLUSTER
     je .cd_same_dir
     jmp .cd_resolve
+.cd_parent_cd:
+    call cur_dir_path_parent
+    mov word [cs:cur_dir_cluster], ROOT_CLUSTER
+    INT21_POP_FRAME_DS_SI_ES_DI_BX
+    jmp iret_nc
 .cd_root_sep:
     inc si
 .cd_root_skip:
@@ -2143,6 +2183,8 @@ int21_handler:
     INT21_POP_FRAME_DS_SI_ES_DI_BX
     jmp iret_nc
 .cd_resolve_full:
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .cd_resolve_cd
     mov si, dx
     call resolve_path
     jc .cd_err
@@ -2153,6 +2195,14 @@ int21_handler:
     mov ds, [cs:cd_path_seg]
     mov si, [cs:cd_path_off]
     call store_cur_dir_path
+    INT21_POP_FRAME_DS_SI_ES_DI_BX
+    jmp iret_nc
+.cd_resolve_cd:
+    mov si, dx
+    call cd_open_dir_path
+    jc .cd_err
+    mov word [cs:cur_dir_cluster], ROOT_CLUSTER
+    call cd_copy_full_path_to_cwd
     INT21_POP_FRAME_DS_SI_ES_DI_BX
     jmp iret_nc
 .cd_same_dir:

@@ -1,13 +1,38 @@
 load_exec_program:
     mov word [cs:exec_env_seg], 0
     mov byte [cs:exec_env_owned], 0
+    mov word [cs:exec_cd_lba_hi], 0
+    mov ds, [cs:exec_path_seg]
+    mov si, [cs:exec_path_off]
+    call activate_drive_for_path
+    jc .not_found
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .cd_found
     mov ds, [cs:exec_path_seg]
     mov si, [cs:exec_path_off]
     call resolve_path
     jnc .found
+.not_found:
     mov ax, 2
     stc
     ret
+.cd_found:
+    mov ds, [cs:exec_path_seg]
+    mov si, [cs:exec_path_off]
+    call cd_open_path
+    jc .not_found
+    mov byte [cs:exec_is_exe], 0
+    mov ax, [cs:cd_file_lba_lo]
+    mov [cs:exec_cluster], ax
+    mov ax, [cs:cd_file_lba_hi]
+    mov [cs:exec_cd_lba_hi], ax
+    mov ax, [cs:cd_file_size_lo]
+    mov [cs:kfsize], ax
+    mov ax, [cs:cd_file_size_hi]
+    mov [cs:kfsize_hi], ax
+    call exec_read_first_sector_cd
+    jc .io_err
+    jmp .header_ready
 .found:
     mov byte [cs:exec_is_exe], 0
     mov ax, [es:di+26]
@@ -18,6 +43,7 @@ load_exec_program:
     mov [cs:kfsize_hi], ax
     call exec_read_first_sector
     jc .io_err
+.header_ready:
     call update_exec_environment_path
     jnc .env_ready
     mov ax, 8
@@ -166,8 +192,14 @@ load_exec_program:
     add ax, 0x10
     mov es, ax
     xor bx, bx
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .load_cd
     mov si, [cs:exec_cluster]
     call load_file_direct
+    jmp .load_done
+.load_cd:
+    call load_cd_file_direct
+.load_done:
     cmp ax, 0
     je .loaded
     call free_prog_mcb
@@ -222,6 +254,126 @@ exec_read_first_sector:
     pop bx
     stc
     ret
+
+exec_read_first_sector_cd:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, CD_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:exec_cluster]
+    mov dx, [cs:exec_cd_lba_hi]
+    call cd_read_sector_current
+    jc .err
+    mov ax, CD_BUF
+    mov ds, ax
+    mov ax, SEC_BUF
+    mov es, ax
+    xor si, si
+    xor di, di
+    mov cx, 256
+    rep movsw
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.err:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
+
+load_cd_file_direct:
+    mov ax, [cs:kfsize]
+    mov [cs:lf_left_lo], ax
+    mov ax, [cs:kfsize_hi]
+    mov [cs:lf_left_hi], ax
+    mov ax, [cs:exec_cluster]
+    mov [cs:.lba_lo], ax
+    mov ax, [cs:exec_cd_lba_hi]
+    mov [cs:.lba_hi], ax
+.load:
+    cmp word [cs:lf_left_hi], 0
+    jne .have_left
+    cmp word [cs:lf_left_lo], 0
+    je .done
+.have_left:
+    push es
+    push bx
+    mov ax, CD_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:.lba_lo]
+    mov dx, [cs:.lba_hi]
+    call cd_read_sector_current
+    pop bx
+    pop es
+    jc .err
+    push ds
+    push si
+    push di
+    mov ax, CD_BUF
+    mov ds, ax
+    xor si, si
+    mov di, bx
+    cmp word [cs:lf_left_hi], 0
+    jne .copy_full_sector
+    mov cx, [cs:lf_left_lo]
+    cmp cx, 2048
+    jb .copy_chunk_set
+.copy_full_sector:
+    mov cx, 2048
+.copy_chunk_set:
+    mov [cs:lf_chunk], cx
+    rep movsb
+    pop di
+    pop si
+    pop ds
+    mov ax, [cs:lf_chunk]
+    sub [cs:lf_left_lo], ax
+    sbb word [cs:lf_left_hi], 0
+    add bx, ax
+    jnc .adv_ok
+    mov ax, es
+    add ax, 0x1000
+    mov es, ax
+.adv_ok:
+    inc word [cs:.lba_lo]
+    jnz .lba_inc_done
+    inc word [cs:.lba_hi]
+.lba_inc_done:
+    jmp .load
+.done:
+    push cs
+    pop ds
+    xor ax, ax
+    ret
+.err:
+    push cs
+    pop ds
+    mov ax, 1
+    ret
+
+.lba_lo: dw 0
+.lba_hi: dw 0
 
 exec_copy_command_tail:
     push ax
@@ -692,6 +844,8 @@ overlay_apply_relocs:
     ret
 
 overlay_read_reloc_sector:
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je overlay_read_reloc_sector_cd
     push ax
     push bx
     push cx
@@ -745,7 +899,71 @@ overlay_read_reloc_sector:
     stc
     ret
 
+overlay_read_reloc_sector_cd:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, [cs:ov_reloc_off]
+    mov cx, 9
+.logical_shift:
+    shr ax, 1
+    loop .logical_shift
+    mov bx, ax
+    mov cl, 2
+    shr ax, cl
+    mov dx, [cs:ov_cd_lba_hi]
+    add ax, [cs:ov_cluster]
+    adc dx, 0
+    push bx
+    push ax
+    mov ax, CD_BUF
+    mov es, ax
+    xor bx, bx
+    pop ax
+    call cd_read_sector_current
+    pop bx
+    jc .err
+    and bx, 3
+    mov cl, 9
+    shl bx, cl
+    mov ax, CD_BUF
+    mov ds, ax
+    mov si, bx
+    mov ax, SEC_BUF
+    mov es, ax
+    xor di, di
+    mov cx, 256
+    rep movsw
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.err:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
+
 overlay_read_first_sector:
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je overlay_read_first_sector_cd
     push bx
     push cx
     push dx
@@ -775,7 +993,55 @@ overlay_read_first_sector:
     stc
     ret
 
+overlay_read_first_sector_cd:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, CD_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:ov_cluster]
+    mov dx, [cs:ov_cd_lba_hi]
+    call cd_read_sector_current
+    jc .err
+    mov ax, CD_BUF
+    mov ds, ax
+    mov ax, SEC_BUF
+    mov es, ax
+    xor si, si
+    xor di, di
+    mov cx, 256
+    rep movsw
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.err:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
+
 overlay_copy_range:
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je overlay_copy_range_cd
     push ax
     push bx
     push cx
@@ -886,6 +1152,92 @@ overlay_copy_range:
     pop ax
     stc
     ret
+
+overlay_copy_range_cd:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    mov ax, [cs:ov_skip]
+    mov dx, ax
+    and dx, 2047
+    mov [cs:ov_sector_offset], dx
+    mov cx, 11
+.sector_shift:
+    shr ax, 1
+    loop .sector_shift
+    mov dx, [cs:ov_cd_lba_hi]
+    add ax, [cs:ov_cluster]
+    adc dx, 0
+    mov [cs:.lba_lo], ax
+    mov [cs:.lba_hi], dx
+.copy_loop:
+    mov ax, [cs:ov_left]
+    test ax, ax
+    jz .done
+    mov ax, CD_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:.lba_lo]
+    mov dx, [cs:.lba_hi]
+    call cd_read_sector_current
+    jc .err_pop
+    mov cx, 2048
+    sub cx, [cs:ov_sector_offset]
+    mov ax, [cs:ov_left]
+    cmp cx, ax
+    jbe .chunk_ok
+    mov cx, ax
+.chunk_ok:
+    mov [cs:ov_chunk], cx
+    push ds
+    mov ax, CD_BUF
+    mov ds, ax
+    mov si, [cs:ov_sector_offset]
+    mov ax, [cs:ov_dst_seg]
+    mov es, ax
+    mov di, [cs:ov_dst_off]
+    rep movsb
+    pop ds
+    mov ax, [cs:ov_dst_off]
+    add ax, [cs:ov_chunk]
+    mov [cs:ov_dst_off], ax
+    jnc .dst_no_wrap
+    add word [cs:ov_dst_seg], 0x1000
+.dst_no_wrap:
+    mov ax, [cs:ov_chunk]
+    sub [cs:ov_left], ax
+    mov word [cs:ov_sector_offset], 0
+    inc word [cs:.lba_lo]
+    jnz .copy_loop
+    inc word [cs:.lba_hi]
+    jmp .copy_loop
+.done:
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.err_pop:
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
+
+.lba_lo: dw 0
+.lba_hi: dw 0
 
 exec_com:
     mov byte [cs:ret_code], 0

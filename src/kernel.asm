@@ -37,7 +37,7 @@ H_ALIAS_NONE equ 0xFFFF
 MAX_HANDLES equ 20
 SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
-KERNEL_STACK_TOP equ 0xD400
+KERNEL_STACK_TOP equ 0xDC00
 STACK_ROOT_GUARD_PARAS equ 0x80
 %ifndef XMS_MAX_KB
 %define XMS_MAX_KB 15360
@@ -3142,6 +3142,7 @@ cur_dir_cluster: dw 0
 cur_dir_path: times 64 db 0
 cd_path_off: dw 0
 cd_path_seg: dw 0
+cd_full_path: times 128 db 0
 cd_walk_cluster: dw 0
 of_mode: db 0
 of_status: dw 0
@@ -3281,6 +3282,7 @@ ov_path_seg: dw 0
 ov_load_seg: dw 0
 ov_reloc_seg: dw 0
 ov_cluster: dw 0
+ov_cd_lba_hi: dw 0
 ov_size_lo: dw 0
 ov_size_hi: dw 0
 ov_skip: dw 0
@@ -3300,6 +3302,7 @@ exec_param_seg: dw 0
 exec_path_off: dw 0
 exec_path_seg: dw 0
 exec_cluster: dw 0
+exec_cd_lba_hi: dw 0
 exec_status: dw 0
 exec_is_exe: db 0
 
