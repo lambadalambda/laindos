@@ -1511,6 +1511,408 @@ do_echo:
 do_rem:
     ret
 
+do_pause:
+    call parse_pause_args
+    cmp byte [pause_quiet], 1
+    je .no_prompt
+    mov dx, pause_msg
+    call print_dollar
+    call wait_key
+.no_prompt:
+    ret
+
+do_break:
+    ret
+
+do_mode:
+    call parse_mode_args
+    cmp byte [mode_co80], 1
+    jne .done
+    mov ax, 0x0003
+    int 0x10
+    cmp byte [mode_quiet], 1
+    je .done
+    call print_drive_root
+    mov si, mode_status_msg
+    call print_asciiz
+.done:
+    ret
+
+do_more:
+    call parse_more_args
+    cmp byte [more_has_file], 0
+    je .done
+    cmp byte [more_quiet], 1
+    je .done
+    call more_display_file
+.done:
+    ret
+
+parse_pause_args:
+    mov byte [pause_quiet], 0
+    mov si, line_buf
+    call skip_command_prefix
+    call skip_spaces
+    call skip_shell_word
+    jmp parse_pause_scan
+
+parse_pause_scan:
+.pause_scan_loop:
+    call skip_spaces
+    mov al, [si]
+    test al, al
+    jz .pause_done
+    cmp al, 13
+    je .pause_done
+    cmp al, 10
+    je .pause_done
+    cmp al, '>'
+    jne .pause_scan_advance
+    inc si
+    call skip_spaces
+    push si
+    mov di, nul_arg
+    call cmd_match
+    pop si
+    jc .pause_set_quiet
+    jmp .pause_done
+.pause_scan_advance:
+    inc si
+    jmp .pause_scan_loop
+.pause_set_quiet:
+    mov byte [pause_quiet], 1
+.pause_done:
+    ret
+
+parse_mode_args:
+    mov byte [mode_co80], 0
+    mov byte [mode_quiet], 0
+    mov si, line_buf
+    call skip_command_prefix
+    call skip_spaces
+    call skip_shell_word
+    jmp parse_mode_scan
+
+parse_mode_scan:
+.mode_scan_loop:
+    call skip_spaces
+    mov al, [si]
+    test al, al
+    jz .mode_done
+    cmp al, 13
+    je .mode_done
+    cmp al, 10
+    je .mode_done
+    cmp al, '>'
+    jne .mode_scan_advance
+    inc si
+    call skip_spaces
+    push si
+    mov di, nul_arg
+    call cmd_match
+    pop si
+    jc .mode_set_quiet
+    jmp .mode_done
+.mode_scan_advance:
+    push si
+    mov di, co80_arg
+    call cmd_match
+    pop si
+    jc .mode_set_co80
+    inc si
+    jmp .mode_scan_loop
+.mode_set_co80:
+    mov byte [mode_co80], 1
+    call skip_shell_word
+    jmp .mode_scan_loop
+.mode_set_quiet:
+    mov byte [mode_quiet], 1
+.mode_done:
+    ret
+
+parse_more_args:
+    mov byte [more_has_file], 0
+    mov byte [more_quiet], 0
+    mov si, line_buf
+    call skip_command_prefix
+    call skip_spaces
+    call skip_shell_word
+    jmp parse_more_scan
+
+parse_more_scan:
+.more_scan_loop:
+    call skip_spaces
+    mov al, [si]
+    test al, al
+    jz .more_done
+    cmp al, 13
+    je .more_done
+    cmp al, 10
+    je .more_done
+    cmp al, '<'
+    jne .more_scan_redir
+    inc si
+    call skip_spaces
+    call copy_more_filename
+    mov byte [more_has_file], 1
+    jmp .more_scan_loop
+.more_scan_redir:
+    cmp al, '>'
+    jne .more_scan_advance
+    inc si
+    call skip_spaces
+    push si
+    mov di, nul_arg
+    call cmd_match
+    pop si
+    jc .more_scan_set_quiet
+    jmp .more_done
+.more_scan_set_quiet:
+    mov byte [more_quiet], 1
+    jmp .more_done
+.more_scan_advance:
+    inc si
+    jmp .more_scan_loop
+.more_done:
+    ret
+
+skip_shell_word:
+.skip_shell_word_loop:
+    mov al, [si]
+    test al, al
+    jz .skip_shell_word_done
+    cmp al, ' '
+    je .skip_shell_word_done
+    cmp al, 9
+    je .skip_shell_word_done
+    cmp al, 13
+    je .skip_shell_word_done
+    cmp al, 10
+    je .skip_shell_word_done
+    cmp al, '>'
+    je .skip_shell_word_done
+    cmp al, '<'
+    je .skip_shell_word_done
+    cmp al, '|'
+    je .skip_shell_word_done
+    inc si
+    jmp .skip_shell_word_loop
+.skip_shell_word_done:
+    ret
+
+copy_more_filename:
+    push si
+    push di
+    mov di, more_path_buf
+.cp_loop:
+    lodsb
+    test al, al
+    jz .cp_done
+    cmp al, ' '
+    je .cp_done
+    cmp al, 9
+    je .cp_done
+    cmp al, 13
+    je .cp_done
+    cmp al, 10
+    je .cp_done
+    cmp al, '<'
+    je .cp_done
+    cmp al, '>'
+    je .cp_done
+    cmp al, '|'
+    je .cp_done
+    stosb
+    jmp .cp_loop
+.cp_done:
+    xor al, al
+    stosb
+    pop di
+    pop si
+    ret
+
+more_display_file:
+    push si
+    push bx
+    push cx
+    push dx
+    push ds
+    push cs
+    pop ds
+    mov dx, more_path_buf
+    mov ax, 0x3D00
+    int 0x21
+    jc .open_err
+    mov [more_handle], ax
+    mov word [more_line_count], 0
+.read_loop:
+    mov bx, [more_handle]
+    mov dx, more_buf
+    mov cx, more_buf_size
+    mov ah, 0x3F
+    int 0x21
+    jc .read_err
+    cmp ax, 0
+    je .cleanup
+    mov [more_bytes], ax
+    mov word [more_pos], 0
+    call more_pump
+    cmp ax, 0
+    jne .cleanup
+    jmp .read_loop
+.open_err:
+    mov dx, more_open_err_msg
+    call print_dollar
+    jmp .cleanup
+.read_err:
+    mov dx, file_error_msg
+    call print_dollar
+.cleanup:
+    cmp word [more_handle], 0
+    je .skip_close
+    mov bx, [more_handle]
+    push ax
+    mov ah, 0x3E
+    int 0x21
+    pop ax
+    mov word [more_handle], 0
+.skip_close:
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop si
+    ret
+
+more_pump:
+    push si
+    push bx
+    push cx
+    push di
+    push word [more_bytes]
+    pop ax
+    sub ax, [more_pos]
+    jle .done
+    mov si, [more_pos]
+    mov bx, more_buf
+    add bx, si
+    mov cx, [more_bytes]
+    sub cx, si
+    jle .done
+.more_line:
+    cmp cx, 0
+    jle .done
+    mov al, [bx]
+    cmp al, 13
+    je .emit_cr
+    cmp al, 10
+    je .emit_lf_current
+    mov dl, al
+    mov ah, 0x02
+    int 0x21
+    inc si
+    inc bx
+    dec cx
+    jmp .more_line
+.emit_cr:
+    inc si
+    inc bx
+    dec cx
+    mov dl, 13
+    mov ah, 0x02
+    int 0x21
+    jmp .more_line_check_lf
+.more_line_check_lf:
+    cmp cx, 0
+    jle .emit_cr_line
+    mov al, [bx]
+    cmp al, 10
+    jne .emit_cr_line
+    inc si
+    inc bx
+    dec cx
+    jmp .emit_lf
+.emit_lf_current:
+    inc si
+    inc bx
+    dec cx
+.emit_lf:
+    mov dl, 10
+    mov ah, 0x02
+    int 0x21
+    jmp .count_line
+.emit_cr_line:
+.count_line:
+    inc word [more_line_count]
+    mov ax, [more_line_count]
+    cmp ax, [more_lines_per_page]
+    jl .more_line
+    mov word [more_line_count], 0
+.check_more:
+    push si
+    push bx
+    push cx
+    call more_check_pause
+    pop cx
+    pop bx
+    pop si
+    cmp ax, 0
+    jne .abort
+    mov cx, [more_bytes]
+    sub cx, si
+    jg .more_line
+.done:
+    mov [more_pos], si
+    mov ax, 0
+    jmp .restore
+.abort:
+    mov [more_pos], si
+    mov ax, 1
+.restore:
+    pop di
+    pop cx
+    pop bx
+    pop si
+    ret
+
+more_check_pause:
+    push bx
+    push cx
+    push dx
+    mov dx, more_pause_msg
+    call print_dollar
+.more_pause:
+    mov ah, 0x00
+    int 0x16
+    cmp al, 13
+    je .more_resume
+    cmp al, 3
+    jne .more_pause
+.more_resume:
+    cmp al, 13
+    je .more_emit_nl
+    mov dx, crlf
+    call print_dollar
+    pop dx
+    pop cx
+    pop bx
+    mov ax, 1
+    ret
+.more_emit_nl:
+    mov dx, crlf
+    call print_dollar
+.more_done_pause:
+    pop dx
+    pop cx
+    pop bx
+    xor ax, ax
+    ret
+
+wait_key:
+    mov ah, 0x00
+    int 0x16
+    ret
+
 change_drive_command:
     push ax
     push dx
@@ -2197,6 +2599,14 @@ cmd_match:
     je .arg_spaces
     cmp al, '/'
     je .yes
+    cmp al, 13
+    je .yes
+    cmp al, 10
+    je .yes
+    cmp al, '>'
+    je .yes
+    cmp al, '<'
+    je .yes
     jne .no
 .arg_spaces:
     inc si
@@ -2243,6 +2653,10 @@ type_cmd: db "TYPE", 0
 cls_cmd: db "CLS", 0
 echo_cmd: db "ECHO", 0
 rem_cmd: db "REM", 0
+pause_cmd: db "PAUSE", 0
+break_cmd: db "BREAK", 0
+mode_cmd: db "MODE", 0
+more_cmd: db "MORE", 0
 parent_arg: db "..", 0
 root_arg: db 0x5C, 0
 command_table:
@@ -2266,9 +2680,32 @@ command_table:
     dw cls_cmd, do_cls
     dw echo_cmd, do_echo
     dw rem_cmd, do_rem
+    dw pause_cmd, do_pause
+    dw break_cmd, do_break
+    dw mode_cmd, do_mode
+    dw more_cmd, do_more
     dw 0, 0
 echo_off_arg: db "OFF", 0
 echo_on_arg: db "ON", 0
+nul_arg: db "NUL", 0
+co80_arg: db "CO80", 0
+pause_msg: db "Press any key to continue . . .", 13, 10, "$"
+mode_status_msg: db " is the current mode", 13, 10, 0
+more_pause_msg: db "-- More --", "$"
+more_open_err_msg: db "File not found", 13, 10, "$"
+pause_quiet: db 0
+mode_co80: db 0
+mode_quiet: db 0
+more_has_file: db 0
+more_quiet: db 0
+more_path_buf: times 64 db 0
+more_handle: dw 0
+more_bytes: dw 0
+more_pos: dw 0
+more_line_count: dw 0
+more_lines_per_page: dw 24
+more_buf_size equ 4096
+more_buf: times more_buf_size db 0
 autoexec_name: db "AUTOEXEC.BAT", 0
 dir_default_pattern: db "*.*", 0
 dir_volume_msg: db " Volume in drive ", "$"

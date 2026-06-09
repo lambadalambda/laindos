@@ -49,6 +49,7 @@ DEFAULT_TESTS = [
     "scripts/test_tsr.py",
     "scripts/test_jft.py",
     "scripts/test_shell.py",
+    "scripts/test_shell_batch_builtins.py",
     "scripts/test_console.py",
     "scripts/test_devnames.py",
     "scripts/test_diskfree.py",

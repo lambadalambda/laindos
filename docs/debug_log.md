@@ -2,6 +2,31 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-09 Sam & Max INSTALL Selection Verified As Working
+
+### Symptoms
+
+- Selecting an entry in the Sam & Max CD root installer menu made the screen flash and then redrew the menu, and pressing `Esc` afterwards showed the prompt at a changed current directory. The user reasonably inferred that the launch path was broken.
+
+### Confirmed Facts
+
+- The installer's `INSTALL.CFG` maps the first row `SAM & MAX` to `\` + `sam.exe` and the other rows to `\rebel\start.bat`, `\demos\dig\start.bat`, and so on.
+- A focused attribute-aware probe (`scripts/test_sammax_cd_install_select.py`) reads the text-mode framebuffer at `0xB8000` and confirms the highlight starts on `SAM & MAX`, moves on `Up` (the installer's six-item menu wraps), and returns to the default `SAM & MAX` row after `Enter`. The keyboard BDA head/tail advances by two bytes per `sendkey ret`, confirming `INT 16h AH=0h` actually consumed the key.
+- The original visible `Bad command or file name` after the action was printed by `programs/shell.asm` while executing the launched action's batch file, not by `INSTALL.EXE`. The `D:\REBEL\START.BAT` chain calls `pause > nul` then `rebel.bat`; `D:\REBEL\README.BAT` calls `more < font\readme.txt`. That identified the missing shell-utility gap later covered by `PAUSE`, `MORE`, `BREAK`, `MODE`, and redirect handling.
+- Manually running `D:\REBEL\README.BAT` or `D:\REBEL\START.BAT` from the prompt reproduces the same `Bad command or file name`, which is independent evidence that the failure is downstream of the installer.
+- A direct `INT 21h AH=3Dh` open followed by `INT 21h AH=3Fh` read of `D:\REBEL\README.BAT` in a tiny `.COM` program returns success and reads the full 26 bytes, confirming the kernel handles CD subdirectory `.BAT` files correctly.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_sammax_cd_install_select.py` (vendor-gated) boots the installer, drives `Up` + `Enter`, and confirms the highlight moves and the menu redraws without a `Bad command or file name` originating from the installer itself.
+- Attribute bytes (offset 0xB8000 + 1) were necessary to disambiguate the highlighted row from text-only screen captures, because every menu item is rendered in attribute `0x70` (black on white) with the selected row additionally using `0x17` (white on blue) in the central columns.
+- The previous "sendkey ret does nothing" hypothesis was wrong: the key was reaching the installer's `INT 16h AH=1h` peek + `AH=0h` read, the action handler dispatched, and the `INT 21h AH=3Bh` CHDIR ran. The reason the action looked like a no-op is that the installer's `AH=3Bh` path happens to be the *only* visible side effect when the launched batch fails before its `pause`/`more` step, which the kernel returns to the parent within tens of milliseconds.
+
+### Current State
+
+- No kernel or shell fix is needed for the installer selection itself. The relevant `meta/issues/verify-sammax-root-installer-selection-launch.md` is updated and the new probe is wired behind the existing vendor-gated `make test-sammax-cd-install-select` target, which depends on `vendor/Bestseller Games Gold 3 - Sam & Max Hit the Road.zip` and is intentionally not in the default `make test` ladder.
+- Follow-up shell work added the vendor-independent `PAUSE`, `MORE`, `BREAK`, and `MODE CO80` subset plus the `> nul` / `< file` forms used by these batches. `@` prefixes, batch parameter expansion, and the protected-mode Win16 `sam.exe` remain separate limitations.
+
 ## 2026-06-09 EXEC Environment Inheritance For Launchers
 
 ### Symptoms
@@ -2694,3 +2719,11 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Sam & Max next exposed missing `INT 21h AH=34h`; LainDOS now returns `ES:BX` pointing at `indos_flag`, and `tests/programs/indos.asm` uses that API instead of hardcoded kernel offsets.
 - Review follow-up: CD `CHDIR ..` now strips `cur_dir_path` directly because CD directories do not have FAT clusters; `tests/programs/cdexec.asm` verifies returning from `D:\SUBDIR` to the CD root and launching `CDHELLO.COM` by relative name.
 - The existing XMS `INT 2Fh` return path reused the `INT 21h` `iret_nc` helper, which decremented `indos_flag` despite `INT 2Fh` not incrementing it. The multiplex handler now uses a local carry-clear IRET path for XMS and MSCDEX returns.
+- Sam & Max CD `.BAT` files (e.g. `D:\REBEL\START.BAT`, `REBEL\README.BAT`, `DEMOS\*.BAT`, `SETUP.BAT`, `REBEL.BAT`) hit "Bad command or file name" because LainDOS' shell only had `REM`, `CLS`, `DEL` builtins; the installer chain calls `PAUSE`, `MORE`, `BREAK`, `MODE CO80`, plus `> nul` / `< file` redirect forms.
+- `cmd_match` previously accepted only `\0`, ` `, `/` as builtin terminators, so `PAUSE>NUL` and `MORE < file` (with no space before the redirect) bypassed the builtin dispatch and tried `PAUSE.COM`/`MORE.COM` etc. Extended the terminator set to include `\r`, `\n`, `>`, `<` so redirect forms match builtins.
+- `skip_word` only stopped on space/tab/null, which let `parse_*_args` routines walk past the redirect operator. Added a local `skip_shell_word` that also stops on `>`, `<`, `|`.
+- `cmd_match` uses `stc` on match and `clc` on no match (the builtin dispatcher's `jc .builtin_found` relies on that). The first attempt at `parse_pause_args` in this round inverted the carry check and silently failed the redirect; the fix swapped `jnc` to `jc` for the match path.
+- `wait_key` is part of `do_pause`; in quiet mode the prompt must be skipped AND no key should be consumed, otherwise `pause>nul` hangs the batch waiting for a key the test never sends.
+- `MORE` initially paged after every line, which produced 200 `-- More --` prompts for `longtest.dat` and froze the test. Switched the pager to a 24-lines-per-page counter (`more_lines_per_page`) and added `> nul` handling that suppresses both the output and the prompts.
+- Added `scripts/test_shell_batch_builtins.py` (vendor-independent smoke) that builds `pausetest.bat`, `pausetest2.bat`, `modetest.bat`, `moretest.bat`, and `longtest.dat` onto a 1.44 MB floppy image and exercises PAUSE / PAUSE>nul / PAUSE > nul / BREAK ON / BREAK OFF / MODE CO80 / MODE CO80>nul / MORE < longtest.dat / MORE / `more < longtest.dat > nul` in batch context.
+- Verified the Sam & Max root installer selection path is now unblocked past its `Bad command or file name` errors; `SAM.EXE` itself is a Win16 image and still cannot run under real-mode LainDOS, but the installer's text/selection stages complete.
