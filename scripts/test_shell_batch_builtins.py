@@ -51,6 +51,31 @@ def build_image():
         f.write(b"pause > nul\r\n")
     with open(os.path.join(BUILDDIR, "modetest.bat"), "wb") as f:
         f.write(b"mode co80>nul\r\n")
+    with open(os.path.join(BUILDDIR, "longbat.bat"), "wb") as f:
+        for i in range(40):
+            f.write(f"echo LONG BATCH FILLER LINE {i:02d}\r\n".encode())
+        f.write(b"echo LONG_BATCH_DONE\r\n")
+    with open(os.path.join(BUILDDIR, "inner.bat"), "wb") as f:
+        f.write(b"echo INNER_BATCH_DONE\r\n")
+    with open(os.path.join(BUILDDIR, "outer.bat"), "wb") as f:
+        f.write(b"inner.bat\r\necho OUTER_BATCH_DONE\r\n")
+    with open(os.path.join(BUILDDIR, "ifgoto.bat"), "wb") as f:
+        f.write(
+            b"mkdir TESTDIR\r\n"
+            b"if exist TESTDIR goto gotdir\r\n"
+            b"echo IF_GOTO_FAILED\r\n"
+            b":gotdir\r\n"
+            b"echo IF_GOTO_DONE\r\n"
+            b"if exist TESTDIR barelabel\r\n"
+            b"echo IF_BARE_LABEL_FAILED\r\n"
+            b":barelabel\r\n"
+            b"echo IF_BARE_LABEL_DONE\r\n"
+            b"if exist MISSING goto missing\r\n"
+            b"echo IF_MISSING_SKIPPED\r\n"
+            b":missing\r\n"
+        )
+    with open(os.path.join(BUILDDIR, "casebat.bat"), "wb") as f:
+        f.write(b"echo mixedCaseToken\r\n")
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
@@ -62,6 +87,11 @@ def build_image():
         os.path.join(BUILDDIR, "pausetest.bat"),
         os.path.join(BUILDDIR, "pausetest2.bat"),
         os.path.join(BUILDDIR, "modetest.bat"),
+        os.path.join(BUILDDIR, "longbat.bat"),
+        os.path.join(BUILDDIR, "inner.bat"),
+        os.path.join(BUILDDIR, "outer.bat"),
+        os.path.join(BUILDDIR, "ifgoto.bat"),
+        os.path.join(BUILDDIR, "casebat.bat"),
     ])
 
 
@@ -293,6 +323,61 @@ def test_more_from_batch(sock, output_chunks):
     return True
 
 
+def test_long_batch_file(sock, output_chunks):
+    output = send_command(sock, output_chunks, "longbat", timeout=12)
+    if b"LONG_BATCH_DONE" not in output:
+        print("  FAIL: long batch did not continue past first buffer")
+        return False
+    if b"Bad command" in output:
+        print("  FAIL: long batch hit a bad command")
+        return False
+    print("  PASS: long batch continued past first buffer")
+    return True
+
+
+def test_nested_batch_file(sock, output_chunks):
+    output = send_command(sock, output_chunks, "outer")
+    if b"INNER_BATCH_DONE" not in output:
+        print("  FAIL: nested batch did not run inner batch")
+        return False
+    if b"OUTER_BATCH_DONE" not in output:
+        print("  FAIL: outer batch did not resume after inner batch")
+        return False
+    if b"Bad command" in output:
+        print("  FAIL: nested batch hit a bad command")
+        return False
+    print("  PASS: nested batch ran inner batch and resumed outer batch")
+    return True
+
+
+def test_if_goto_labels(sock, output_chunks):
+    output = send_command(sock, output_chunks, "ifgoto", timeout=12)
+    expected = (b"IF_GOTO_DONE", b"IF_BARE_LABEL_DONE", b"IF_MISSING_SKIPPED")
+    for marker in expected:
+        if marker not in output:
+            print(f"  FAIL: ifgoto output missing {marker.decode()}")
+            return False
+    unexpected = (b"IF_GOTO_FAILED", b"IF_BARE_LABEL_FAILED", b"Bad command")
+    for marker in unexpected:
+        if marker in output:
+            print(f"  FAIL: ifgoto output unexpectedly contained {marker.decode()}")
+            return False
+    print("  PASS: IF EXIST, GOTO, labels, and bare-label branch worked")
+    return True
+
+
+def test_batch_preserves_case(sock, output_chunks):
+    output = send_command(sock, output_chunks, "casebat")
+    if b"mixedCaseToken" not in output:
+        print("  FAIL: batch output did not preserve argument case")
+        return False
+    if b"MIXEDCASETOKEN" in output:
+        print("  FAIL: batch output was uppercased")
+        return False
+    print("  PASS: batch command arguments preserve case")
+    return True
+
+
 def main():
     build_image()
     try:
@@ -335,6 +420,10 @@ def main():
         results.append(test_more_builtin(sock, stdout_chunks))
         results.append(test_more_missing_arg(sock, stdout_chunks))
         results.append(test_more_from_batch(sock, stdout_chunks))
+        results.append(test_long_batch_file(sock, stdout_chunks))
+        results.append(test_nested_batch_file(sock, stdout_chunks))
+        results.append(test_if_goto_labels(sock, stdout_chunks))
+        results.append(test_batch_preserves_case(sock, stdout_chunks))
         if not all(results):
             print("\nShell batch-builtin test FAILED")
             sys.exit(1)

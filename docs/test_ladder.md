@@ -27,6 +27,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `make test-sammax-cd-start`: with local Sam & Max media, launch `D:\SAMNMAX\SAMNMAX.EXE`, pass the sound-driver prompt, and verify an active framebuffer.
 - `make test-sammax-cd-setmuse`: with local Sam & Max media, launch `D:\SAMNMAX\SETMUSE.EXE`, open the sound-card selector, and verify the driver list appears.
 - `make test-sammax-cd-setmuse-save`: with local Sam & Max media, boot a writable C: image plus the CD as D:, configure SETMUSE for Sound Blaster 16 port 220, exit/save, and verify `C:\SAMNMAX.CD\SETMUSE.INI` is created.
+- `make test-sammax-cd-dig`: with local Sam & Max media, run `D:\DEMOS\DIG\START.BAT`, pass the two batch pauses, and verify IMUSE opens `.\imuse.exe` from the current CD directory and reaches `C:\LECDEMOS\DIG\IMUSE.INI` without the previous sound-engine fatal error.
 - `make test-monkey-demo`: smoke-test the shell-launched Monkey Island demo image.
 - `make test-game-smokes`: run the standard game smoke ladder for Monkey Island, Wolfenstein 3D, and Ascendancy when local media is present.
 - `make test-shortline-smoke`: run the Shortline-specific smoke with QEMU `-icount shift=6` for its timer calibration.

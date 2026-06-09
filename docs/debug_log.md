@@ -2,6 +2,32 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-09 Sam & Max DIG Demo Batch Chain
+
+### Symptoms
+
+- Running `D:\DEMOS\DIG\START.BAT` from the Sam & Max CD initially returned from the shell after only the first screenful of `START.BAT`, then later reached `DIG.BAT` but printed `Fatal error: Error opening sound engine (imuse.exe).`
+
+### Confirmed Facts
+
+- `START.BAT` is 2056 bytes, so the previous single-buffer batch reader truncated it before the `CD\DEMOS\DIG` and `dig.bat` tail.
+- `DIG.BAT` needs labels, `IF EXIST`, `GOTO`, a bare-label `IF EXIST path label` form, nested batch execution, lowercase command matching, and preserved argument case for `imuse.exe . imuse.exe c:\lecdemos\dig\imuse.ini`.
+- After the batch fixes, trace showed `OPEN .\imuse.exe` immediately before the fatal sound-engine error. A generated-ISO regression in `tests/programs/cdsubdir.asm` reproduced the same CD current-directory path bug with `CHDIR D:\SUBDIR` followed by `OPEN .\HELLO.TXT`.
+- FAT path canonicalization already handled `.` components for `.\file`; the failing case was CD ISO path parsing, where a standalone `.` component was treated as an empty 8.3 name. CD path preparation now also trims terminal `.` / `\.` components so `D:\SUBDIR\.` works for directory changes.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_shell_batch_builtins.py` covers long batch streaming past the first buffer, nested batch resume, `IF EXIST`, `GOTO`, labels, bare-label branching, and case-preserved batch arguments.
+- `python3 scripts/test_cd_subdir.py` now covers CD current-directory `.\HELLO.TXT` opens and `D:\SUBDIR\.` directory changes; it failed before `cd_parse_next_component` skipped `.` separator components and `cd_prepare_path` trimmed terminal dot components.
+- `python3 scripts/test_pathcanon.py` still passes with added FAT `.\subtest.dat` coverage.
+- `python3 scripts/test_sammax_cd_dig.py` is vendor-gated and boots the Sam & Max CD, runs `D:\DEMOS\DIG\START.BAT`, sends the silent `START.BAT` pause key and the visible `DIG.BAT` pause key, then verifies `OPEN .\imuse.exe` reaches `OPEN c:\lecdemos\dig\imuse.ini` without `Fatal error: Error opening sound engine`, `DOS/4GW error`, or `Bad command or file name`.
+
+### Current State
+
+- The shell batch reader streams through a refillable 512-byte buffer and syncs the parent handle position before running a nested batch, avoiding the previous one-INT-21h-per-byte implementation while preserving nested batch resume.
+- The CD parser skips `.` separator components, so IMUSE's `OPEN .\imuse.exe` succeeds from `D:\DEMOS\DIG`.
+- The DIG smoke stops at the IMUSE setup boundary where the program polls keyboard input after creating/opening `C:\LECDEMOS\DIG\IMUSE.INI`; automating the sound setup and proving `THEDIG.EXE` launch remains a separate follow-up.
+
 ## 2026-06-09 Sam & Max INSTALL Selection Verified As Working
 
 ### Symptoms

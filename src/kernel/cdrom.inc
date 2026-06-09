@@ -557,6 +557,19 @@ cd_prepare_path:
     jc .err
     jmp .copy_input
 .finish:
+    cmp di, cd_full_path
+    je .finish_store
+    cmp byte [es:di-1], '.'
+    jne .finish_store
+    cmp di, cd_full_path + 1
+    je .trim_one_dot
+    cmp byte [es:di-2], '\'
+    jne .finish_store
+    sub di, 2
+    jmp .finish_store
+.trim_one_dot:
+    dec di
+.finish_store:
     mov byte [es:di], 0
     push cs
     pop ax
@@ -622,6 +635,18 @@ cd_parse_next_component:
 .have_component:
     cmp byte [ds:si], 0
     je .err
+    cmp byte [ds:si], '.'
+    jne .start_name
+    mov al, [ds:si+1]
+    cmp al, '\'
+    je .skip_dot_component
+    cmp al, '/'
+    jne .start_name
+.skip_dot_component:
+    add si, 2
+    mov [cs:cd_path_off], si
+    jmp .skip_sep
+.start_name:
     push cs
     pop es
     mov di, name_buf

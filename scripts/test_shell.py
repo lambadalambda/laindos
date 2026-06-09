@@ -55,7 +55,7 @@ def build_image():
     run(["python3", "scripts/mktestfile.py", os.path.join(BUILDDIR, "testfile.dat")])
     run(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
     with open(os.path.join(BUILDDIR, "testbat.bat"), "wb") as f:
-        f.write(b"Echo off\r\nargtest gdemo /3\r\nargexe gdemo /3\r\nEcho on\r\n")
+        f.write(b"Echo off\r\nargtest GDEMO /3\r\nargexe GDEMO /3\r\nEcho on\r\n")
     run([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
@@ -190,7 +190,7 @@ def send_keys(output_chunks):
     send_paged_dir(sock, output_chunks, "dir/p")
 
     dir_midemo = send_command(sock, output_chunks, "dir midemo")
-    require_command_output("dir midemo", dir_midemo, ["Directory of A:\\MIDEMO", "SUBTEST  DAT"])
+    require_command_output("dir midemo", dir_midemo, ["Directory of A:\\midemo", "SUBTEST  DAT"])
     dir_midemo_dat = send_command(sock, output_chunks, "dir midemo\\*.dat")
     require_command_output("dir midemo\\*.dat", dir_midemo_dat, ["SUBTEST  DAT"], ["HELLOEXE EXE"])
     dir_com = send_command(sock, output_chunks, "dir *.com")
@@ -378,7 +378,7 @@ def main():
         "Press any key to continue . . .",
         "DIRONLY",
         "Hello from TESTFILE.DAT! This is test data for LainDOS file I/O.",
-        "INTERACTIVE ECHO",
+        "interactive echo",
         "PASS: HELLO.EXE",
         "EXECTEST COM",
         "PASS: EXECTEST",

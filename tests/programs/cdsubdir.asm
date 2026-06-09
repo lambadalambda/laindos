@@ -5,6 +5,31 @@ start:
     push cs
     pop ds
 
+    mov ah, 0x0E
+    mov dl, 3
+    int 0x21
+    cmp al, 4
+    jb fail_select
+
+    mov dx, cd_dir_path
+    mov ah, 0x3B
+    int 0x21
+    jc fail_chdir
+
+    mov ax, 0x3D00
+    mov dx, dot_relative_path
+    int 0x21
+    jc fail_dot_open
+    mov bx, ax
+    mov ah, 0x3E
+    int 0x21
+    jc fail_close
+
+    mov dx, cd_dot_dir_path
+    mov ah, 0x3B
+    int 0x21
+    jc fail_chdir_dot
+
     mov ax, 0x3D00
     mov dx, read_path
     int 0x21
@@ -37,6 +62,18 @@ start:
     mov ax, 0x4C00
     int 0x21
 
+fail_select:
+    mov dx, fail_select_msg
+    jmp fail
+fail_chdir:
+    mov dx, fail_chdir_msg
+    jmp fail
+fail_dot_open:
+    mov dx, fail_dot_open_msg
+    jmp fail
+fail_chdir_dot:
+    mov dx, fail_chdir_dot_msg
+    jmp fail
 fail_open:
     mov dx, fail_open_msg
     jmp fail
@@ -60,10 +97,17 @@ fail:
     int 0x21
 
 handle: dw 0
+cd_dir_path: db 'D:\SUBDIR', 0
+cd_dot_dir_path: db 'D:\SUBDIR\.', 0
+dot_relative_path: db '.\HELLO.TXT', 0
 read_path: db 'D:\SUBDIR\HELLO.TXT', 0
 expected: db 'Hello from a LainDOS CD-ROM subdirectory.', 13, 10
 expected_len equ $ - expected
 pass_msg: db 'PASS: CDSUBDIR', 13, 10, '$'
+fail_select_msg: db 'FAIL: CDSUBDIR SELECT', 13, 10, '$'
+fail_chdir_msg: db 'FAIL: CDSUBDIR CHDIR', 13, 10, '$'
+fail_dot_open_msg: db 'FAIL: CDSUBDIR DOT OPEN', 13, 10, '$'
+fail_chdir_dot_msg: db 'FAIL: CDSUBDIR CHDIR DOT', 13, 10, '$'
 fail_open_msg: db 'FAIL: CDSUBDIR OPEN', 13, 10, '$'
 fail_read_msg: db 'FAIL: CDSUBDIR READ', 13, 10, '$'
 fail_read_len_msg: db 'FAIL: CDSUBDIR READ LEN', 13, 10, '$'

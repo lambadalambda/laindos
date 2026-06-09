@@ -118,11 +118,11 @@ def run_qemu(ready_marker):
 def check_present_output(output):
     failed = False
     for marker in [
-        "AUTOEXEC START",
-        "IN STARTUP DIR",
+        "autoexec start",
+        "in startup dir",
         "PASS: HELLO.COM",
         "Bad command or file name",
-        "AUTOEXEC DONE",
+        "autoexec done",
         "A:\\>",
         "Program exited, code=00",
     ]:
@@ -132,7 +132,7 @@ def check_present_output(output):
             print(f"  FAIL: missing '{marker}'")
             failed = True
     bad = output.find("Bad command or file name")
-    done = output.find("AUTOEXEC DONE")
+    done = output.find("autoexec done")
     if bad != -1 and done > bad:
         print("  PASS: batch continued after bad command")
     else:
@@ -149,7 +149,7 @@ def check_absent_output(output):
         else:
             print(f"  FAIL: missing no-AUTOEXEC '{marker}'")
             failed = True
-    for marker in ["AUTOEXEC START", "AUTOEXEC DONE", "File not found"]:
+    for marker in ["autoexec start", "autoexec done", "File not found"]:
         if marker in output:
             print(f"  FAIL: unexpected no-AUTOEXEC '{marker}'")
             failed = True
@@ -167,7 +167,7 @@ def check_unexpected(output):
 
 def main():
     build_image(True)
-    output = run_qemu("AUTOEXEC DONE")
+    output = run_qemu("autoexec done")
     failed = check_present_output(output)
     failed = check_unexpected(output) or failed
     if failed:

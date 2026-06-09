@@ -62,6 +62,13 @@ start:
     call check_curdir
     jc fail_curdir
 
+    mov dx, dot_relative_file
+    mov ax, 0x3D00
+    int 0x21
+    jc fail_open_dot_relative
+    mov [handle], ax
+    call close_handle
+
     mov dx, above_root_dir
     mov ah, 0x3B
     int 0x21
@@ -146,6 +153,9 @@ fail_device_path:
 fail_cd_mixed:
     mov dx, fail_cd_mixed_msg
     jmp fail
+fail_open_dot_relative:
+    mov dx, fail_open_dot_relative_msg
+    jmp fail
 fail_cd_above:
     mov dx, fail_cd_above_msg
     jmp fail
@@ -173,6 +183,7 @@ lower_mixed_file: db "a:/midemo\subtest.dat", 0
 lower_find_pattern: db "a:\midemo/*.dat", 0
 lower_device_path: db "a:/nUl.txt", 0
 mixed_dot_dir: db "a:/midemo/../midemo/.", 0
+dot_relative_file: db ".\subtest.dat", 0
 above_root_dir: db "..\..", 0
 dot_dir: db ".", 0
 dotdot_dir: db "..", 0
@@ -187,6 +198,7 @@ fail_read_lower_msg: db "FAIL: PATHCANON READ LOWER", 13, 10, "$"
 fail_find_lower_msg: db "FAIL: PATHCANON FIND LOWER", 13, 10, "$"
 fail_device_path_msg: db "FAIL: PATHCANON DEVICE PATH", 13, 10, "$"
 fail_cd_mixed_msg: db "FAIL: PATHCANON CD MIXED", 13, 10, "$"
+fail_open_dot_relative_msg: db "FAIL: PATHCANON OPEN DOTREL", 13, 10, "$"
 fail_cd_above_msg: db "FAIL: PATHCANON CD ABOVE", 13, 10, "$"
 fail_cd_dot_msg: db "FAIL: PATHCANON CD DOT", 13, 10, "$"
 fail_cd_dotdot_msg: db "FAIL: PATHCANON CD DOTDOT", 13, 10, "$"
