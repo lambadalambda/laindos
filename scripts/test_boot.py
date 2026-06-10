@@ -26,6 +26,7 @@ def test_boot():
     output, _ = run_qemu_capture([
         QEMU,
         "-drive", f"file={DISK_IMG},format=raw,if=floppy",
+        "-snapshot",
         "-boot", "order=a",
         "-serial", "stdio",
         "-monitor", "none",

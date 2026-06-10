@@ -12,3 +12,7 @@
 ## Acceptance Criteria
 
 - `mise run test` exit status reflects the full suite; running the boot test twice produces a byte-identical `build/disk.img` (checksum before/after).
+
+## Resolution
+
+Resolved 2026-06-10. mise `test` now runs `make test` (full suite plus docs sync); the single boot smoke moved to a new `test-boot` task. test_boot.py runs QEMU with `-snapshot`, and build/disk.img checksums identically before and after consecutive runs.

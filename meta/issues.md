@@ -1,5 +1,4 @@
 - [ ] [Fix the Monkey Island 2 save dialog crash](issues/fix-mi2-save-dialog-crash.md)
-- [ ] [Point mise test at the full suite and snapshot the boot test image](issues/point-mise-test-at-full-suite.md)
 - [ ] [Harden mkimage capacity checks](issues/harden-mkimage-capacity-checks.md)
 - [ ] [Extract a shared FAT reader for Python scripts](issues/extract-shared-fat-reader-for-scripts.md)
 - [ ] [Migrate long-hand tests to testlib helpers](issues/migrate-tests-to-testlib-helpers.md)

@@ -189,3 +189,4 @@
 - [x] [Re-list orphaned regression tests and add suite discovery](issues/run-orphaned-regression-tests.md)
 - [x] [Fail tests on QEMU timeout by default](issues/fail-tests-on-qemu-timeout.md)
 - [x] [Make the INT 24h test exercise the critical-error path](issues/make-int24h-test-exercise-critical-error.md)
+- [x] [Point mise test at the full suite and snapshot the boot test image](issues/point-mise-test-at-full-suite.md)

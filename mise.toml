@@ -3,7 +3,11 @@ LAINDOS_QEMU = "../qemu-ascendancy/build-asc/qemu-system-i386-unsigned"
 LAINDOS_QEMU_VGA = "std,retrace=precise"
 
 [tasks.test]
-description = "Run automated QEMU boot tests"
+description = "Run the full automated QEMU regression suite (make test)"
+run = "make test"
+
+[tasks.test-boot]
+description = "Run only the quick QEMU boot smoke"
 run = "python3 scripts/test_boot.py"
 
 [tasks.build]
