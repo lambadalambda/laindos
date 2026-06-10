@@ -150,3 +150,4 @@
 - [x] [Support CD-ROM install and startup for Sam & Max Hit the Road](issues/support-cdrom-sam-and-max-hit-the-road.md)
 - [x] [Verify Sam & Max root installer selection launch](issues/verify-sammax-root-installer-selection-launch.md)
 - [x] [Move the kernel to the High Memory Area](issues/move-kernel-to-hma.md)
+- [x] [Detect FAT bitness from cluster count](issues/detect-fat-bitness-from-cluster-count.md)

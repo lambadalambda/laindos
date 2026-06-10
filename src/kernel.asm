@@ -594,17 +594,6 @@ parse_bpb_geometry:
     mov ax, [bx+BPB_HIDDEN_SECS+2]
     mov [cs:kpart_lba_hi], ax
 
-    mov byte [cs:kfat_bits], 12
-    mov word [cs:kfat_eoc], FAT12_EOC
-    mov word [cs:kfat_eoc_value], FAT12_EOC_VALUE
-    mov word [cs:kfat_reserved], FAT12_RESERVED
-    cmp byte [bx+BPB_FS_TYPE+4], '6'
-    jne .fat_type_done
-    mov byte [cs:kfat_bits], 16
-    mov word [cs:kfat_eoc], FAT16_EOC
-    mov word [cs:kfat_eoc_value], FAT16_EOC_VALUE
-    mov word [cs:kfat_reserved], FAT16_RESERVED
-.fat_type_done:
     mov ax, [bx+BPB_SECS_PER_FAT]
     mov [cs:kfat_secs], ax
     mov ax, [bx+BPB_RSV_SEC_COUNT]
@@ -663,10 +652,22 @@ parse_bpb_geometry:
     cmp dx, cx
     jae .bad
     div cx
-    cmp ax, 0xFFFD
+    cmp ax, 0xFFF4
     ja .bad
     add ax, 2
     mov [cs:kmax_cluster], ax
+
+    mov byte [cs:kfat_bits], 12
+    mov word [cs:kfat_eoc], FAT12_EOC
+    mov word [cs:kfat_eoc_value], FAT12_EOC_VALUE
+    mov word [cs:kfat_reserved], FAT12_RESERVED
+    cmp ax, 4087
+    jb .fat_type_done
+    mov byte [cs:kfat_bits], 16
+    mov word [cs:kfat_eoc], FAT16_EOC
+    mov word [cs:kfat_eoc_value], FAT16_EOC_VALUE
+    mov word [cs:kfat_reserved], FAT16_RESERVED
+.fat_type_done:
 
     pop bx
     pop ds
