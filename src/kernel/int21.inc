@@ -338,7 +338,7 @@ int21_handler:
     cmp ah, 0x12
     je .fcb_find_next
     cmp ah, 0x00
-    je .terminate
+    je .terminate_zero
     cmp ah, 0x39
     je .make_dir
     cmp ah, 0x3A
@@ -497,6 +497,8 @@ int21_handler:
     jmp iret_nc
 .lfn_unsupported:
     RET_ERR 0x7100
+.terminate_zero:
+    xor al, al
 .terminate:
     mov [cs:ret_code], al
     mov byte [cs:ret_type], 0
@@ -1230,6 +1232,8 @@ int21_handler:
     cmp al, 'Z'
     ja .pf_bad_drive
     sub al, 'A' - 1
+    cmp al, [cs:dos_drive_count]
+    ja .pf_bad_drive
     mov [es:bp], al
     add si, 2
     test dl, 0x01
@@ -1458,7 +1462,7 @@ int21_handler:
     mov [cs:break_flag], dl
     jmp iret_nc
 .bc_boot_drive:
-    mov dl, [cs:dos_drive_num]
+    mov dl, [cs:boot_drive_num]
     inc dl
     jmp iret_nc
 .bc_true_version:
@@ -2691,7 +2695,7 @@ int21_handler:
     mov ax, 3
     jmp .cr_err
 .cr_no_slot:
-    mov ax, 4
+    mov ax, 5
     jmp .cr_err
 .cr_no_handles:
     mov ax, 4
@@ -3117,11 +3121,11 @@ int21_handler:
     or ax, [cs:si+handles+H_DIR_LBA_HI]
     je .rf_device
     call activate_drive_for_handle
-    jc .rf_err_pop
+    jc .rf_io_err_pop
     cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
     jne .rf_fat
     call cd_read_handle
-    jc .rf_err_pop
+    jc .rf_io_err_pop
     jmp .rf_done
 .rf_fat:
     mov ax, [cs:si+handles+H_POS_LO]
@@ -3171,7 +3175,7 @@ int21_handler:
     jnc .rf_cache_next
     cmp ax, [cs:kfat_eoc]
     jae .rf_done
-    jmp .rf_err_pop
+    jmp .rf_io_err_pop
 .rf_cache_next:
     mov si, ax
     inc cx
@@ -3187,7 +3191,7 @@ int21_handler:
     jnc .rf_start_next
     cmp ax, [cs:kfat_eoc]
     jae .rf_done
-    jmp .rf_err_pop
+    jmp .rf_io_err_pop
 .rf_start_next:
     mov si, ax
     inc cx
@@ -3414,6 +3418,9 @@ int21_handler:
     pop es
     pop bx
     ret
+.rf_io_err_pop:
+    INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
+    RET_ERR 5
 .rf_err_pop:
     INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
 .rf_err:

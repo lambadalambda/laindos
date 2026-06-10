@@ -177,3 +177,4 @@
 - [x] [Support .. components and large directories on the CD-ROM drive](issues/support-parent-dirs-and-large-dirs-on-cdrom.md)
 - [x] [Switch to an internal stack on INT 21h entry](issues/switch-to-internal-stack-in-int21.md)
 - [x] [Fix IOCTL set-device-info and handle drive reporting](issues/fix-ioctl-set-and-handle-drive-reporting.md)
+- [x] [Fix miscellaneous INT 21h return conventions](issues/fix-misc-int21-return-conventions.md)

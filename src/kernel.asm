@@ -731,6 +731,7 @@ init_drive_table:
     jb .floppy_boot
     call query_bios_disk_geometry
     mov byte [cs:dos_drive_num], 2
+    mov byte [cs:boot_drive_num], 2
     mov byte [cs:dos_drive_letter], 'C'
     mov byte [cs:dos_drive_count], 3
     mov byte [cs:active_drive_num], 2
@@ -752,6 +753,7 @@ init_drive_table:
     jmp .done
 .floppy_boot:
     mov byte [cs:dos_drive_num], 0
+    mov byte [cs:boot_drive_num], 0
     mov byte [cs:dos_drive_letter], 'A'
     mov byte [cs:dos_drive_count], 1
     mov byte [cs:active_drive_num], 0
@@ -1826,7 +1828,6 @@ int2f_handler:
     je .xms_installed
     cmp ax, 0x4310
     je .xms_entry
-    xor al, al
     iret
 .xms_installed:
     mov al, 0x80
@@ -1837,7 +1838,6 @@ int2f_handler:
     pop es
     jmp int2f_iret_nc
 %else
-    xor al, al
     iret
 %endif
 
@@ -3537,6 +3537,7 @@ ov_left: dw 0
 ov_left_hi: dw 0
 fat_walk_left: dw 0
 exec_env_bytes: dw 0
+boot_drive_num: db 0
 ov_dst_seg: dw 0
 ov_dst_off: dw 0
 ov_sector_offset: dw 0

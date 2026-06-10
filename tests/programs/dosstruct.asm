@@ -39,7 +39,7 @@ check_nul_name:
     mov [ret_si], si
     cmp al, 0
     jne fail_fcb_ret
-    cmp byte [fcb_buf], 3
+    cmp byte [fcb_buf], 1
     jne fail_fcb_drive
     mov si, fcb_buf + 1
     mov di, fcb_expected
@@ -153,7 +153,7 @@ fail:
     mov ax, 0x4C01
     int 0x21
 
-fcb_path: db "c:foo.bar rest", 0
+fcb_path: db "a:foo.bar rest", 0
 ret_si: dw 0
 nul_expected: db "NUL     "
 fcb_expected: db "FOO     BAR"

@@ -1,0 +1,7 @@
+[bits 16]
+[org 0x0100]
+
+start:
+    mov al, 0x77
+    mov ah, 0x00
+    int 0x21
