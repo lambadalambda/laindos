@@ -1496,6 +1496,34 @@ find_dir_free:
     stc
     ret
 
+name_buf_is_valid:
+    call name_buf_is_blank
+    jc .niv_bad
+    push cx
+    push ds
+    push si
+    push cs
+    pop ds
+    mov si, name_buf
+    mov cx, 11
+.niv_loop:
+    cmp byte [si], '?'
+    je .niv_bad_pop
+    inc si
+    loop .niv_loop
+    pop si
+    pop ds
+    pop cx
+    clc
+    ret
+.niv_bad_pop:
+    pop si
+    pop ds
+    pop cx
+.niv_bad:
+    stc
+    ret
+
 name_buf_is_blank:
     push ax
     push cx

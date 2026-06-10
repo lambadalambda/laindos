@@ -159,3 +159,4 @@
 - [x] [Unify 8.3 name truncation between lookup and create](issues/unify-83-name-truncation-between-lookup-and-create.md)
 - [x] [Preserve handle drive on alias promotion](issues/preserve-handle-drive-on-alias-promotion.md)
 - [x] [Add cycle guard and shared FAT chain walker](issues/add-fat-chain-cycle-guard.md)
+- [x] [Validate 8.3 names on create and rename](issues/validate-83-names-on-create-and-rename.md)

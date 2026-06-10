@@ -2228,7 +2228,7 @@ int21_handler:
     mov si, dx
     call parse_root_path
     jc .md_path_err
-    call name_buf_is_blank
+    call name_buf_is_valid
     jc .md_access
     mov byte [cs:ff_attr_mask], 0
     mov ax, [cs:pr_dir_cluster]
@@ -2404,6 +2404,8 @@ int21_handler:
     je .cr_access_denied
     mov si, dx
     call parse_root_path
+    jc .cr_path_err
+    call name_buf_is_valid
     jc .cr_path_err
     mov byte [cs:ff_attr_mask], 0
     mov ax, [cs:pr_dir_cluster]
@@ -4702,6 +4704,8 @@ int21_handler:
     mov ds, ax
     mov si, [cs:rn_new_off]
     call parse_root_path
+    jc .rn_path_err
+    call name_buf_is_valid
     jc .rn_path_err
     mov ax, [cs:pr_dir_cluster]
     cmp ax, [cs:rn_dir_cluster]
