@@ -594,7 +594,9 @@ mouse_invoke_callback:
     mov dx, [cs:mouse_y]
     mov si, [cs:mouse_event_dx]
     mov di, [cs:mouse_event_dy]
+    sti
     call far [cs:mouse_callback_off]
+    cli
     pop es
     pop ds
     popa
@@ -619,11 +621,18 @@ irq12_handler:
     test al, 0x20
     jz .eoi
     in al, 0x60
+    mov ah, al
+    mov al, 0x20
+    out 0xA0, al
+    out 0x20, al
+    mov al, ah
     call mouse_ps2_byte
+    jmp .done
 .eoi:
     mov al, 0x20
     out 0xA0, al
     out 0x20, al
+.done:
     pop ds
     popa
     iret
