@@ -2225,6 +2225,8 @@ int21_handler:
     push dx
     call .validate_path_drive
     jc .md_drive_err
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .md_access
     mov si, dx
     call parse_root_path
     jc .md_path_err
@@ -2320,6 +2322,8 @@ int21_handler:
     push dx
     call .validate_path_drive
     jc .rd_drive_err
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .rd_access
     mov si, dx
     call parse_root_path
     jc .rd_path_err
@@ -3506,6 +3510,11 @@ int21_handler:
     push bx
     push cx
     mov si, dx
+    call activate_drive_for_path
+    jc .df_path_err
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .df_access
+    mov si, dx
     call parse_root_path
     jc .df_path_err
     mov byte [cs:ff_attr_mask], 0
@@ -4679,6 +4688,11 @@ int21_handler:
     mov [cs:rn_new_off], di
     mov ax, es
     mov [cs:rn_new_seg], ax
+    mov si, dx
+    call activate_drive_for_path
+    jc .rn_path_err
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .rn_access
     mov si, dx
     call parse_root_path
     jc .rn_path_err

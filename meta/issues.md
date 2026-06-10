@@ -1,4 +1,3 @@
-- [ ] [Guard CD-ROM drive against FAT mutation calls](issues/guard-cdrom-drive-against-fat-mutations.md)
 - [ ] [Truncate or extend the file on AH=40h with CX=0](issues/truncate-on-zero-length-write.md)
 - [ ] [Handle bad-cluster markers in fat_free_chain](issues/handle-bad-cluster-markers-in-fat-free-chain.md)
 - [ ] [Guard colon handling in path component parsing](issues/guard-colon-path-component-parsing.md)
