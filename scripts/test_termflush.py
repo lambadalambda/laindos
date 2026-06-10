@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import os
 import struct
+
+from fatlib import FatImage, entry_cluster, entry_size, find_entry
 import subprocess
 import sys
 from testlib import build_dir, run_qemu_capture
@@ -52,66 +54,21 @@ def run_qemu():
     return output
 
 
-def get_fat12(fat, cluster):
-    off = cluster + (cluster >> 1)
-    if cluster & 1:
-        return ((fat[off] >> 4) | (fat[off + 1] << 4)) & 0xFFF
-    return (fat[off] | ((fat[off + 1] & 0x0F) << 8)) & 0xFFF
-
-
-def cluster_chain(fat, cluster):
-    chain = []
-    seen = set()
-    while 2 <= cluster < 0xFF8:
-        if cluster in seen:
-            raise RuntimeError(f"cluster loop at {cluster}")
-        seen.add(cluster)
-        chain.append(cluster)
-        cluster = get_fat12(fat, cluster)
-    return chain
-
-
-def find_root_entry(root, name):
-    for off in range(0, len(root), 32):
-        first = root[off]
-        if first == 0:
-            break
-        if first != 0xE5 and root[off:off + 11] == name:
-            return root[off:off + 32]
-    return None
-
-
 def verify_disk():
-    with open(IMG, "rb") as f:
-        image = f.read()
-    bps = struct.unpack_from("<H", image, 0x0B)[0]
-    spc = image[0x0D]
-    reserved = struct.unpack_from("<H", image, 0x0E)[0]
-    fats = image[0x10]
-    root_entries = struct.unpack_from("<H", image, 0x11)[0]
-    fat_secs = struct.unpack_from("<H", image, 0x16)[0]
-    root_start = reserved + fats * fat_secs
-    root_secs = (root_entries * 32 + bps - 1) // bps
-    data_start = root_start + root_secs
-    fat = image[reserved * bps:(reserved + fat_secs) * bps]
-    root = image[root_start * bps:(root_start + root_secs) * bps]
-    entry = find_root_entry(root, b"TERMOUT DAT")
+    img = FatImage.from_file(IMG)
+    entry = find_entry(img.root_dir(), "TERMOUT.DAT")
     if entry is None:
         print("  FAIL: TERMOUT.DAT missing")
         return False
-    cluster = struct.unpack_from("<H", entry, 26)[0]
-    size = struct.unpack_from("<I", entry, 28)[0]
+    cluster = entry_cluster(entry)
+    size = entry_size(entry)
     if size != len(PAYLOAD):
         print(f"  FAIL: TERMOUT.DAT size {size}, expected {len(PAYLOAD)}")
         return False
     if cluster < 2:
         print(f"  FAIL: TERMOUT.DAT invalid start cluster {cluster}")
         return False
-    data = bytearray()
-    for c in cluster_chain(fat, cluster):
-        off = (data_start + (c - 2) * spc) * bps
-        data.extend(image[off:off + spc * bps])
-    if bytes(data[:len(PAYLOAD)]) != PAYLOAD:
+    if img.read_chain(cluster, len(PAYLOAD)) != PAYLOAD:
         print("  FAIL: TERMOUT.DAT payload mismatch")
         return False
     print("  PASS: termination flushed written handle")

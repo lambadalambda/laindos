@@ -11,3 +11,7 @@ Nine scripts reimplement FAT chain readers (~350 duplicated lines) with divergin
 ## Acceptance Criteria
 
 - All migrated tests pass; grep shows no remaining private `fat_next`/`read_chain` definitions in scripts/; the 0xFF0 variant is gone.
+
+## Resolution
+
+Resolved 2026-06-10. scripts/fatlib.py provides FatImage (BPB parse with optional partition offset and FAT-copy index, fat_next, cluster_chain with cycle guard, read_chain, root_dir, find/read_file) plus entry helpers (name83 incl. dot entries, entry_name/attr/cluster/size, iter_dir, find_entry[_offset] accepting dotted names or raw 11-byte forms). Migrated twelve scripts (the nine listed plus test_dirextfail, test_dirextrollback, and test_termflush, which had grown the same copies): build_extras_hd, the four Norton tests, test_mi2_save (killing the wrong 0xFF0 EOC constant), test_sammax_cd_setmuse_save, test_savewrite, test_dirmut, test_highdir. grep shows no private FAT readers left in scripts/. Validated by the full suite, make extras-hd, the Norton battery, and the SETMUSE save smoke (mi2-save still blocked by its separate crash issue).

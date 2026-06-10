@@ -2,6 +2,8 @@
 import os
 import shutil
 import struct
+
+from fatlib import FatImage
 import sys
 import tempfile
 import time
@@ -40,59 +42,17 @@ SCREENSHOT = os.path.join(WORKDIR, "norton_commander_copy.ppm")
 TIMEOUT = int(os.environ.get("NC_COPY_WAIT", "18"))
 
 
-def fat_next(data, fat_off, cluster, bits):
-    if bits == 16:
-        return struct.unpack_from("<H", data, fat_off + cluster * 2)[0]
-    off = fat_off + cluster + cluster // 2
-    value = data[off] | (data[off + 1] << 8)
-    return value >> 4 if cluster & 1 else value & 0x0FFF
-
-
-def read_chain(data, bps, spc, fat_off, data_off, bits, cluster, size):
-    chunks = []
-    seen = set()
-    eoc = 0xFFF8 if bits == 16 else 0xFF8
-    while 2 <= cluster < eoc and cluster not in seen:
-        seen.add(cluster)
-        off = data_off + (cluster - 2) * bps * spc
-        chunks.append(data[off:off + bps * spc])
-        cluster = fat_next(data, fat_off, cluster, bits)
-    return b"".join(chunks)[:size]
-
-
 def root_file_contents(image, filename):
-    target = filename.upper().split(".", 1)
-    target_raw = target[0].ljust(8)[:8].encode("ascii") + (target[1] if len(target) > 1 else "").ljust(3)[:3].encode("ascii")
-    with open(image, "rb") as f:
-        data = f.read()
-    bps = struct.unpack_from("<H", data, 11)[0]
-    spc = data[13]
-    if bps == 0 or spc == 0:
+    try:
+        img = FatImage.from_file(image)
+    except (struct.error, IndexError):
         return None
-    reserved = struct.unpack_from("<H", data, 14)[0]
-    fat_count = data[16]
-    root_entries = struct.unpack_from("<H", data, 17)[0]
-    total = struct.unpack_from("<H", data, 19)[0] or struct.unpack_from("<I", data, 32)[0]
-    sectors_per_fat = struct.unpack_from("<H", data, 22)[0]
-    root_sectors = (root_entries * 32 + bps - 1) // bps
-    fat_off = reserved * bps
-    root_off = (reserved + fat_count * sectors_per_fat) * bps
-    data_off = (reserved + fat_count * sectors_per_fat + root_sectors) * bps
-    data_sectors = total - (reserved + fat_count * sectors_per_fat + root_sectors)
-    bits = 12 if data_sectors // spc < 4085 else 16
-    for off in range(root_off, root_off + root_entries * 32, 32):
-        entry = data[off:off + 32]
-        if entry[0] == 0:
-            break
-        attr = entry[11]
-        if entry[0] == 0xE5 or attr == 0x0F or attr & 0x18:
-            continue
-        if entry[:11] != target_raw:
-            continue
-        cluster = struct.unpack_from("<H", entry, 26)[0]
-        size = struct.unpack_from("<I", entry, 28)[0]
-        return read_chain(data, bps, spc, fat_off, data_off, bits, cluster, size)
-    return None
+    if img.bps == 0 or img.spc == 0:
+        return None
+    try:
+        return img.read_file(filename)
+    except FileNotFoundError:
+        return None
 
 
 def build_image():

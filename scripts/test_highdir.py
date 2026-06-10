@@ -4,6 +4,7 @@ import struct
 import subprocess
 import sys
 from testlib import build_dir, run_qemu_capture
+from fatlib import FatImage, entry_cluster, entry_size, find_entry
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -53,92 +54,41 @@ def run_qemu():
     return output
 
 
-def fat16_get(fat, cluster):
-    return struct.unpack_from("<H", fat, cluster * 2)[0]
-
-
-def cluster_chain(fat, cluster):
-    chain = []
-    seen = set()
-    while 2 <= cluster < 0xFFF8:
-        if cluster in seen:
-            raise RuntimeError(f"cluster loop at {cluster}")
-        seen.add(cluster)
-        chain.append(cluster)
-        cluster = fat16_get(fat, cluster)
-    return chain
-
-
-def read_chain(image, fat, data_start, bps, spc, cluster):
-    data = bytearray()
-    for c in cluster_chain(fat, cluster):
-        off = (data_start + (c - 2) * spc) * bps
-        data.extend(image[off:off + spc * bps])
-    return bytes(data)
-
-
-def iter_entries(directory):
-    for off in range(0, len(directory), 32):
-        entry = directory[off:off + 32]
-        if entry[0] == 0:
-            break
-        if entry[0] != 0xE5:
-            yield entry
-
-
-def find_entry(directory, name):
-    for entry in iter_entries(directory):
-        if entry[0:11] == name:
-            return entry
-    return None
-
-
 def verify_disk():
-    with open(IMG, "rb") as f:
-        image = f.read()
-    bps = struct.unpack_from("<H", image, 0x0B)[0]
-    spc = image[0x0D]
-    reserved = struct.unpack_from("<H", image, 0x0E)[0]
-    fats = image[0x10]
-    root_entries = struct.unpack_from("<H", image, 0x11)[0]
-    fat_secs = struct.unpack_from("<H", image, 0x16)[0]
-    root_start = reserved + fats * fat_secs
-    root_secs = (root_entries * 32 + bps - 1) // bps
-    data_start = root_start + root_secs
-    fat = image[reserved * bps:(reserved + fat_secs) * bps]
-    root = image[root_start * bps:(root_start + root_secs) * bps]
+    img = FatImage.from_file(IMG)
+    root = img.root_dir()
 
-    hidir = find_entry(root, b"HIDIR      ")
+    hidir = find_entry(root, "HIDIR")
     if hidir is None or hidir[11] & 0x10 == 0:
         print("  FAIL: HIDIR missing from root")
         return False
-    hidir_cluster = struct.unpack_from("<H", hidir, 26)[0]
-    hidir_lba = data_start + (hidir_cluster - 2) * spc
+    hidir_cluster = entry_cluster(hidir)
+    hidir_lba = (img.cluster_off(hidir_cluster) - img.offset) // img.bps
     if hidir_lba < HIGH_LBA_MIN:
         print(f"  FAIL: HIDIR LBA is not high: {hidir_lba}")
         return False
-    directory = read_chain(image, fat, data_start, bps, spc, hidir_cluster)
-    renamed = find_entry(directory, b"RENAMED DAT")
+    directory = img.read_chain(hidir_cluster)
+    renamed = find_entry(directory, "RENAMED.DAT")
     if renamed is None:
         print("  FAIL: RENAMED.DAT missing from high directory")
         return False
     if renamed[11] != 0x02:
         print("  FAIL: RENAMED.DAT attribute change was not flushed")
         return False
-    if struct.unpack_from("<I", renamed, 28)[0] != len(OUT):
+    if entry_size(renamed) != len(OUT):
         print("  FAIL: RENAMED.DAT size was not flushed")
         return False
-    if find_entry(directory, b"SUBTEMP    ") is not None:
+    if find_entry(directory, "SUBTEMP") is not None:
         print("  FAIL: SUBTEMP directory still active after rmdir")
         return False
-    if find_entry(directory, b"DELME   DAT") is not None:
+    if find_entry(directory, "DELME.DAT") is not None:
         print("  FAIL: DELME.DAT still active after delete")
         return False
-    out_cluster = struct.unpack_from("<H", renamed, 26)[0]
+    out_cluster = entry_cluster(renamed)
     if out_cluster < 2:
         print("  FAIL: RENAMED.DAT cluster was not flushed")
         return False
-    data = read_chain(image, fat, data_start, bps, spc, out_cluster)[:len(OUT)]
+    data = img.read_chain(out_cluster, len(OUT))
     if data != OUT:
         print("  FAIL: RENAMED.DAT contents mismatch")
         return False

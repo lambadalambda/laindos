@@ -4,6 +4,8 @@ import os
 import signal
 import socket
 import struct
+
+from fatlib import FatImage, entry_cluster, entry_size, find_entry
 import subprocess
 import sys
 import tempfile
@@ -28,65 +30,17 @@ def run(cmd):
         sys.exit(result.returncode)
 
 
-def fat12_get(fat, cluster):
-    off = cluster + (cluster >> 1)
-    if cluster & 1:
-        return ((fat[off] >> 4) | (fat[off + 1] << 4)) & 0xFFF
-    return (fat[off] | ((fat[off + 1] & 0x0F) << 8)) & 0xFFF
-
-
-def fat16_get(fat, cluster):
-    return struct.unpack_from("<H", fat, cluster * 2)[0]
-
-
-def read_cluster_chain(image, fat, fat_bits, data_start, bps, spc, cluster):
-    data = bytearray()
-    seen = set()
-    eoc = 0xFFF0 if fat_bits == 16 else 0xFF0
-    while 2 <= cluster < eoc and cluster not in seen:
-        seen.add(cluster)
-        off = (data_start + (cluster - 2) * spc) * bps
-        data.extend(image[off:off + spc * bps])
-        cluster = fat16_get(fat, cluster) if fat_bits == 16 else fat12_get(fat, cluster)
-    return bytes(data)
-
-
-def find_entry(directory, name):
-    for off in range(0, len(directory), 32):
-        first = directory[off]
-        if first == 0:
-            break
-        if first != 0xE5 and directory[off:off + 11] == name:
-            return directory[off:off + 32]
-    return None
-
-
 def read_file_from_image(path_parts):
-    with open(IMG, "rb") as f:
-        image = f.read()
-    bps = struct.unpack_from("<H", image, 0x0B)[0]
-    spc = image[0x0D]
-    reserved = struct.unpack_from("<H", image, 0x0E)[0]
-    fats = image[0x10]
-    root_entries = struct.unpack_from("<H", image, 0x11)[0]
-    fat_secs = struct.unpack_from("<H", image, 0x16)[0]
-    root_start = reserved + fats * fat_secs
-    root_secs = (root_entries * 32 + bps - 1) // bps
-    data_start = root_start + root_secs
-    fat = image[reserved * bps:(reserved + fat_secs) * bps]
-    fat_bits = 16 if image[0x36:0x3E] == b"FAT16   " else 12
-    directory = image[root_start * bps:(root_start + root_secs) * bps]
+    img = FatImage.from_file(IMG)
+    directory = img.root_dir()
     entry = None
     for index, name in enumerate(path_parts):
         entry = find_entry(directory, name)
         if entry is None:
             return None, None
-        cluster = struct.unpack_from("<H", entry, 26)[0]
-        size = struct.unpack_from("<I", entry, 28)[0]
-        data = read_cluster_chain(image, fat, fat_bits, data_start, bps, spc, cluster)
         if index == len(path_parts) - 1:
-            return entry, data[:size]
-        directory = data
+            return entry, img.read_chain(entry_cluster(entry), entry_size(entry))
+        directory = img.read_chain(entry_cluster(entry))
     return entry, b""
 
 

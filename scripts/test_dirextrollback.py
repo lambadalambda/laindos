@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import os
 import struct
+
+from fatlib import FatImage, entry_cluster, find_entry
 import sys
 from testlib import build_dir, run_cmd, run_qemu_capture
 
@@ -51,61 +53,15 @@ def run_qemu():
     return output
 
 
-def get_fat12(fat, cluster):
-    off = cluster + (cluster >> 1)
-    if cluster & 1:
-        return ((fat[off] >> 4) | (fat[off + 1] << 4)) & 0xFFF
-    return (fat[off] | ((fat[off + 1] & 0x0F) << 8)) & 0xFFF
-
-
-def cluster_chain(fat, cluster):
-    chain = []
-    seen = set()
-    while 2 <= cluster < 0xFF8:
-        if cluster in seen:
-            raise RuntimeError(f"cluster loop at {cluster}")
-        seen.add(cluster)
-        chain.append(cluster)
-        cluster = get_fat12(fat, cluster)
-    return chain
-
-
-def iter_entries(directory):
-    for off in range(0, len(directory), 32):
-        first = directory[off]
-        if first == 0:
-            break
-        if first != 0xE5:
-            yield directory[off:off + 32]
-
-
-def find_entry(directory, name):
-    for entry in iter_entries(directory):
-        if entry[0:11] == name:
-            return entry
-    return None
-
-
 def verify_disk():
-    with open(IMG, "rb") as f:
-        image = f.read()
-    bps = struct.unpack_from("<H", image, 0x0B)[0]
-    reserved = struct.unpack_from("<H", image, 0x0E)[0]
-    fats = image[0x10]
-    root_entries = struct.unpack_from("<H", image, 0x11)[0]
-    fat_secs = struct.unpack_from("<H", image, 0x16)[0]
-    root_start = reserved + fats * fat_secs
-    root_secs = (root_entries * 32 + bps - 1) // bps
-    root = image[root_start * bps:(root_start + root_secs) * bps]
-    full = find_entry(root, b"FULLDIR    ")
+    img = FatImage.from_file(IMG)
+    full = find_entry(img.root_dir(), "FULLDIR")
     if full is None or full[11] & 0x10 == 0:
         print("  FAIL: FULLDIR missing")
         return False
-    cluster = struct.unpack_from("<H", full, 26)[0]
-    for copy in range(fats):
-        start = (reserved + copy * fat_secs) * bps
-        fat = image[start:start + fat_secs * bps]
-        chain = cluster_chain(fat, cluster)
+    cluster = entry_cluster(full)
+    for copy in range(img.fat_count):
+        chain = FatImage.from_file(IMG, fat_index=copy).cluster_chain(cluster)
         if len(chain) != 1:
             print(f"  FAIL: FAT copy {copy + 1} kept failed directory extension: {chain}")
             return False

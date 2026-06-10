@@ -3,6 +3,8 @@
 import os
 import shutil
 import struct
+
+from fatlib import FatImage, entry_attr, entry_cluster, entry_name, entry_size, iter_dir
 import subprocess
 import sys
 import zipfile
@@ -41,33 +43,6 @@ def clean_dir(path):
     os.makedirs(path)
 
 
-def fat_next(data, fat_off, cluster, bits):
-    if bits == 16:
-        return struct.unpack_from("<H", data, fat_off + cluster * 2)[0]
-    off = fat_off + cluster + cluster // 2
-    value = data[off] | (data[off + 1] << 8)
-    return value >> 4 if cluster & 1 else value & 0x0FFF
-
-
-def read_chain(data, bps, spc, fat_off, data_off, bits, cluster, size=None):
-    chunks = []
-    seen = set()
-    eoc = 0xFFF8 if bits == 16 else 0xFF8
-    while 2 <= cluster < eoc and cluster not in seen:
-        seen.add(cluster)
-        off = data_off + (cluster - 2) * bps * spc
-        chunks.append(data[off:off + bps * spc])
-        cluster = fat_next(data, fat_off, cluster, bits)
-    blob = b"".join(chunks)
-    return blob if size is None else blob[:size]
-
-
-def entry_name(entry):
-    name = entry[:8].decode("ascii", errors="replace").rstrip()
-    ext = entry[8:11].decode("ascii", errors="replace").rstrip()
-    return name + (f".{ext}" if ext else "")
-
-
 def write_merged(path, data):
     if os.path.exists(path):
         with open(path, "rb") as f:
@@ -81,46 +56,25 @@ def write_merged(path, data):
         f.write(data)
 
 
-def extract_dir(data, bps, spc, fat_off, data_off, bits, dir_data, output_dir):
-    for off in range(0, len(dir_data), 32):
-        entry = dir_data[off:off + 32]
-        if len(entry) < 32 or entry[0] == 0:
-            break
-        attr = entry[11]
-        if entry[0] == 0xE5 or attr == 0x0F or attr & 0x08:
+def extract_dir(img, dir_data, output_dir):
+    for _, entry in iter_dir(dir_data):
+        attr = entry_attr(entry)
+        if attr & 0x08:
             continue
         name = entry_name(entry)
         if name in (".", ".."):
             continue
-        cluster = struct.unpack_from("<H", entry, 26)[0]
-        size = struct.unpack_from("<I", entry, 28)[0]
         path = os.path.join(output_dir, name)
         if attr & 0x10:
             os.makedirs(path, exist_ok=True)
-            child = read_chain(data, bps, spc, fat_off, data_off, bits, cluster)
-            extract_dir(data, bps, spc, fat_off, data_off, bits, child, path)
+            extract_dir(img, img.read_chain(entry_cluster(entry)), path)
         else:
-            write_merged(path, read_chain(data, bps, spc, fat_off, data_off, bits, cluster, size))
+            write_merged(path, img.read_chain(entry_cluster(entry), entry_size(entry)))
 
 
 def extract_fat_image(image_path, output_dir):
-    with open(image_path, "rb") as f:
-        data = f.read()
-    bps = struct.unpack_from("<H", data, 11)[0]
-    spc = data[13]
-    reserved = struct.unpack_from("<H", data, 14)[0]
-    fat_count = data[16]
-    root_entries = struct.unpack_from("<H", data, 17)[0]
-    total = struct.unpack_from("<H", data, 19)[0] or struct.unpack_from("<I", data, 32)[0]
-    sectors_per_fat = struct.unpack_from("<H", data, 22)[0]
-    root_sectors = (root_entries * 32 + bps - 1) // bps
-    fat_off = reserved * bps
-    root_off = (reserved + fat_count * sectors_per_fat) * bps
-    data_off = (reserved + fat_count * sectors_per_fat + root_sectors) * bps
-    data_sectors = total - (reserved + fat_count * sectors_per_fat + root_sectors)
-    bits = 12 if data_sectors // spc < 4085 else 16
-    root_data = data[root_off:root_off + root_entries * 32]
-    extract_dir(data, bps, spc, fat_off, data_off, bits, root_data, output_dir)
+    img = FatImage.from_file(image_path)
+    extract_dir(img, img.root_dir(), output_dir)
 
 
 def extract_7z(archive, output_dir):

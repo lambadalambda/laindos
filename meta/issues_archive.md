@@ -191,3 +191,4 @@
 - [x] [Make the INT 24h test exercise the critical-error path](issues/make-int24h-test-exercise-critical-error.md)
 - [x] [Point mise test at the full suite and snapshot the boot test image](issues/point-mise-test-at-full-suite.md)
 - [x] [Harden mkimage capacity checks](issues/harden-mkimage-capacity-checks.md)
+- [x] [Extract a shared FAT reader for Python scripts](issues/extract-shared-fat-reader-for-scripts.md)

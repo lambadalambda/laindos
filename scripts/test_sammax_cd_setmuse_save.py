@@ -3,6 +3,8 @@ import os
 import shlex
 import shutil
 import struct
+
+from fatlib import FatImage, entry_cluster, entry_size, find_entry
 import sys
 import tempfile
 import time
@@ -118,89 +120,16 @@ def run_qemu():
     return collect_output(stdout_chunks, stderr_chunks, threads), ready, halted
 
 
-def read_fat_entry(fat, cluster, fat_bits):
-    if fat_bits == 16:
-        return struct.unpack_from("<H", fat, cluster * 2)[0]
-    off = cluster + (cluster >> 1)
-    value = fat[off] | (fat[off + 1] << 8)
-    if cluster & 1:
-        return value >> 4
-    return value & 0x0FFF
-
-
-def parse_83(name):
-    base, _, ext = name.upper().partition(".")
-    return base.ljust(8)[:8].encode("ascii") + ext.ljust(3)[:3].encode("ascii")
-
-
-def iter_dir_entries(image, start, size):
-    end = start + size
-    off = start
-    while off + 32 <= end:
-        entry = image[off:off + 32]
-        first = entry[0]
-        if first == 0:
-            return
-        if first != 0xE5 and entry[11] != 0x0F:
-            yield entry
-        off += 32
-
-
-def find_entry(entries, name):
-    target = parse_83(name)
-    for entry in entries:
-        if entry[:11] == target:
-            return entry
-    return None
-
-
-def read_cluster_chain(image, fat, first_cluster, fat_bits, data_start, sec_per_clus, bytes_per_sec):
-    if first_cluster < 2:
-        return b""
-    eoc = 0xFFF8 if fat_bits == 16 else 0xFF8
-    cluster = first_cluster
-    chunks = []
-    for _ in range(4096):
-        off = (data_start + (cluster - 2) * sec_per_clus) * bytes_per_sec
-        chunks.append(image[off:off + sec_per_clus * bytes_per_sec])
-        nxt = read_fat_entry(fat, cluster, fat_bits)
-        if nxt >= eoc:
-            break
-        if nxt < 2:
-            break
-        cluster = nxt
-    return b"".join(chunks)
-
-
 def saved_ini_size():
-    image = IMG.read_bytes()
-    bytes_per_sec = struct.unpack_from("<H", image, 11)[0]
-    sec_per_clus = image[13]
-    rsvd = struct.unpack_from("<H", image, 14)[0]
-    fats = image[16]
-    root_entries = struct.unpack_from("<H", image, 17)[0]
-    total16 = struct.unpack_from("<H", image, 19)[0]
-    total32 = struct.unpack_from("<I", image, 32)[0]
-    fat16_sz = struct.unpack_from("<H", image, 22)[0]
-    total = total16 or total32
-    root_secs = (root_entries * 32 + bytes_per_sec - 1) // bytes_per_sec
-    data_start = rsvd + fats * fat16_sz + root_secs
-    data_secs = total - data_start
-    clusters = data_secs // sec_per_clus
-    fat_bits = 16 if clusters >= 4085 else 12
-    fat = image[rsvd * bytes_per_sec:(rsvd + fat16_sz) * bytes_per_sec]
-    root_start = (rsvd + fats * fat16_sz) * bytes_per_sec
-    root_size = root_entries * 32
-    root = list(iter_dir_entries(image, root_start, root_size))
-    samnmax_dir = find_entry(root, "SAMNMAX.CD")
+    img = FatImage.from_file(str(IMG))
+    samnmax_dir = find_entry(img.root_dir(), "SAMNMAX.CD")
     if samnmax_dir is None:
         return None
-    first_cluster = struct.unpack_from("<H", samnmax_dir, 26)[0]
-    dir_data = read_cluster_chain(image, fat, first_cluster, fat_bits, data_start, sec_per_clus, bytes_per_sec)
-    ini = find_entry(iter_dir_entries(dir_data, 0, len(dir_data)), "SETMUSE.INI")
+    dir_data = img.read_chain(entry_cluster(samnmax_dir))
+    ini = find_entry(dir_data, "SETMUSE.INI")
     if ini is None:
         return None
-    return struct.unpack_from("<I", ini, 28)[0]
+    return entry_size(ini)
 
 
 def text_screen():

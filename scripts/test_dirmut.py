@@ -4,6 +4,7 @@ import struct
 import subprocess
 import sys
 from testlib import build_dir, run_qemu_capture
+from fatlib import FatImage, entry_attr, entry_cluster, find_entry, iter_dir
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -62,56 +63,13 @@ def run_qemu():
     return output
 
 
-def get_fat12(fat, cluster):
-    off = cluster + (cluster >> 1)
-    if cluster & 1:
-        return ((fat[off] >> 4) | (fat[off + 1] << 4)) & 0xFFF
-    return (fat[off] | ((fat[off + 1] & 0x0F) << 8)) & 0xFFF
-
-
-def cluster_chain(fat, cluster):
-    chain = []
-    seen = set()
-    while 2 <= cluster < 0xFF8:
-        if cluster in seen:
-            raise RuntimeError(f"cluster loop at {cluster}")
-        seen.add(cluster)
-        chain.append(cluster)
-        cluster = get_fat12(fat, cluster)
-    return chain
-
-
-def read_cluster_chain(image, fat, data_start, bps, spc, cluster):
-    data = bytearray()
-    for c in cluster_chain(fat, cluster):
-        off = (data_start + (c - 2) * spc) * bps
-        data.extend(image[off:off + spc * bps])
-    return bytes(data)
-
-
-def iter_entries(directory):
-    for off in range(0, len(directory), 32):
-        first = directory[off]
-        if first == 0:
-            break
-        if first != 0xE5:
-            yield directory[off:off + 32]
-
-
-def find_entry(directory, name):
-    for entry in iter_entries(directory):
-        if entry[0:11] == name:
-            return entry
-    return None
-
-
 def is_dot_entry(entry):
     return entry[0:11] in (b".          ", b"..         ")
 
 
 def verify_dot_entries(directory, self_cluster, parent_cluster):
-    dot = find_entry(directory, b".          ")
-    dotdot = find_entry(directory, b"..         ")
+    dot = find_entry(directory, ".")
+    dotdot = find_entry(directory, "..")
     if dot is None or dotdot is None:
         print("  FAIL: directory missing . or .. entry")
         return False
@@ -127,88 +85,75 @@ def verify_dot_entries(directory, self_cluster, parent_cluster):
     return True
 
 
-def collect_reachable(image, fat, data_start, bps, spc, directory, clusters):
-    for entry in iter_entries(directory):
+def collect_reachable(img, directory, clusters):
+    for _, entry in iter_dir(directory):
         if is_dot_entry(entry):
             continue
-        cluster = struct.unpack_from("<H", entry, 26)[0]
+        cluster = entry_cluster(entry)
         if cluster < 2:
             continue
-        chain = cluster_chain(fat, cluster)
-        clusters.update(chain)
-        if entry[11] & 0x10:
-            data = read_cluster_chain(image, fat, data_start, bps, spc, cluster)
-            collect_reachable(image, fat, data_start, bps, spc, data, clusters)
+        clusters.update(img.cluster_chain(cluster))
+        if entry_attr(entry) & 0x10:
+            collect_reachable(img, img.read_chain(cluster), clusters)
 
 
 def verify_disk():
-    with open(IMG, "rb") as f:
-        image = f.read()
-    bps = struct.unpack_from("<H", image, 0x0B)[0]
-    spc = image[0x0D]
-    reserved = struct.unpack_from("<H", image, 0x0E)[0]
-    fats = image[0x10]
-    root_entries = struct.unpack_from("<H", image, 0x11)[0]
-    fat_secs = struct.unpack_from("<H", image, 0x16)[0]
-    total = struct.unpack_from("<H", image, 0x13)[0]
-    root_start = reserved + fats * fat_secs
-    root_secs = (root_entries * 32 + bps - 1) // bps
-    data_start = root_start + root_secs
-    fat = image[reserved * bps:(reserved + fat_secs) * bps]
-    root = image[root_start * bps:(root_start + root_secs) * bps]
+    img = FatImage.from_file(IMG)
+    root_entries = img.root_entries
+    root = img.root_dir()
 
-    visible = find_entry(root, b"VISIBLE    ")
+    visible = find_entry(root, "VISIBLE")
     if visible is None or visible[11] & 0x10 == 0:
         print("  FAIL: VISIBLE directory missing from root")
         return False
-    visible_cluster = struct.unpack_from("<H", visible, 26)[0]
-    visible_dir = read_cluster_chain(image, fat, data_start, bps, spc, visible_cluster)
+    visible_cluster = entry_cluster(visible)
+    visible_dir = img.read_chain(visible_cluster)
     if not verify_dot_entries(visible_dir, visible_cluster, 0):
         return False
-    for name in (b"EMPTY      ", b"CURDIR     ", b"NONEMPTY   ", b"PARENT     ", b"TOOFULL    "):
+    for name in ("EMPTY", "CURDIR", "NONEMPTY", "PARENT", "TOOFULL"):
         if find_entry(root, name) is not None:
             print(f"  FAIL: removed directory still active: {name!r}")
             return False
 
-    keep = find_entry(root, b"KEEP       ")
+    keep = find_entry(root, "KEEP")
     if keep is None or keep[11] & 0x10 == 0:
         print("  FAIL: KEEP directory missing from root")
         return False
-    keep_cluster = struct.unpack_from("<H", keep, 26)[0]
-    keep_dir = read_cluster_chain(image, fat, data_start, bps, spc, keep_cluster)
+    keep_cluster = entry_cluster(keep)
+    keep_dir = img.read_chain(keep_cluster)
     if not verify_dot_entries(keep_dir, keep_cluster, 0):
         return False
-    nested = find_entry(keep_dir, b"NESTED     ")
+    nested = find_entry(keep_dir, "NESTED")
     if nested is None or nested[11] & 0x10 == 0:
         print("  FAIL: KEEP/NESTED directory missing")
         return False
-    nested_cluster = struct.unpack_from("<H", nested, 26)[0]
-    nested_dir = read_cluster_chain(image, fat, data_start, bps, spc, nested_cluster)
+    nested_cluster = entry_cluster(nested)
+    nested_dir = img.read_chain(nested_cluster)
     if not verify_dot_entries(nested_dir, nested_cluster, keep_cluster):
         return False
 
-    midemo = find_entry(root, b"MIDEMO     ")
+    midemo = find_entry(root, "MIDEMO")
     if midemo is None or midemo[11] & 0x10 == 0:
         print("  FAIL: MIDEMO directory missing")
         return False
-    midemo_cluster = struct.unpack_from("<H", midemo, 26)[0]
-    midemo_dir = read_cluster_chain(image, fat, data_start, bps, spc, midemo_cluster)
-    if find_entry(midemo_dir, b"MAKEDIR    ") is not None:
+    midemo_dir = img.read_chain(entry_cluster(midemo))
+    if find_entry(midemo_dir, "MAKEDIR") is not None:
         print("  FAIL: MIDEMO/MAKEDIR still active after RD")
         return False
-    if find_entry(midemo_dir, b"SUBTEST DAT") is None:
+    if find_entry(midemo_dir, "SUBTEST.DAT") is None:
         print("  FAIL: MIDEMO/SUBTEST.DAT missing after directory mutation")
         return False
 
     reachable = set()
-    collect_reachable(image, fat, data_start, bps, spc, root, reachable)
-    active_root = sum(1 for _ in iter_entries(root))
+    collect_reachable(img, root, reachable)
+    active_root = sum(1 for _ in iter_dir(root))
     if active_root != root_entries:
         print(f"  FAIL: root directory was not filled: {active_root}/{root_entries} active entries")
         return False
 
-    max_cluster = 2 + (total - data_start) // spc
-    allocated = {c for c in range(2, max_cluster) if get_fat12(fat, c) != 0}
+    data_start_sector = (img.data_off - img.offset) // img.bps
+    max_cluster = 2 + (img.total_sectors - data_start_sector) // img.spc
+    allocated = {c for c in range(2, max_cluster) if img.fat_next(c) != 0}
     leaked = allocated - reachable
     if leaked:
         print(f"  FAIL: allocated clusters are unreachable: {sorted(leaked)[:8]}")

@@ -2,6 +2,8 @@
 import os
 import shutil
 import struct
+
+from fatlib import FatImage, entry_attr, entry_cluster, entry_name, entry_size, iter_dir
 import sys
 import tempfile
 import time
@@ -36,50 +38,15 @@ SCREENSHOT = os.path.join(WORKDIR, "norton_commander.ppm")
 TIMEOUT = int(os.environ.get("NC_SMOKE_WAIT", "12"))
 
 
-def fat12_next(data, fat_off, cluster):
-    off = fat_off + cluster + (cluster // 2)
-    value = data[off] | (data[off + 1] << 8)
-    if cluster & 1:
-        return value >> 4
-    return value & 0x0FFF
-
-
 def extract_fat12_root(image, output_dir):
-    with open(image, "rb") as f:
-        data = f.read()
-    bytes_per_sector = struct.unpack_from("<H", data, 11)[0]
-    sectors_per_cluster = data[13]
-    reserved = struct.unpack_from("<H", data, 14)[0]
-    fat_count = data[16]
-    root_entries = struct.unpack_from("<H", data, 17)[0]
-    sectors_per_fat = struct.unpack_from("<H", data, 22)[0]
-    fat_off = reserved * bytes_per_sector
-    root_off = (reserved + fat_count * sectors_per_fat) * bytes_per_sector
-    root_size = root_entries * 32
-    data_off = root_off + root_size
+    img = FatImage.from_file(image)
     extracted = []
-
-    for off in range(root_off, root_off + root_size, 32):
-        entry = data[off:off + 32]
-        if entry[0] == 0:
-            break
-        if entry[0] == 0xE5 or entry[11] & 0x18:
+    for _, entry in iter_dir(img.root_dir()):
+        if entry_attr(entry) & 0x18:
             continue
-        name = entry[:8].decode("ascii", errors="replace").rstrip()
-        ext = entry[8:11].decode("ascii", errors="replace").rstrip()
-        filename = name + (f".{ext}" if ext else "")
-        cluster = struct.unpack_from("<H", entry, 26)[0]
-        size = struct.unpack_from("<I", entry, 28)[0]
-        contents = bytearray()
-        seen = set()
-        while 2 <= cluster < 0xFF8 and cluster not in seen:
-            seen.add(cluster)
-            cluster_off = data_off + (cluster - 2) * sectors_per_cluster * bytes_per_sector
-            contents.extend(data[cluster_off:cluster_off + sectors_per_cluster * bytes_per_sector])
-            cluster = fat12_next(data, fat_off, cluster)
-        path = os.path.join(output_dir, filename)
+        path = os.path.join(output_dir, entry_name(entry))
         with open(path, "wb") as f:
-            f.write(bytes(contents[:size]))
+            f.write(img.read_chain(entry_cluster(entry), entry_size(entry)))
         extracted.append(path)
     return extracted
 

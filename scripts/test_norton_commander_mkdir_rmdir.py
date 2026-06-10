@@ -2,11 +2,12 @@
 import os
 import shutil
 import struct
+
+from fatlib import FatImage, entry_attr, entry_cluster, iter_dir, name83
 import sys
 import tempfile
 import time
 
-import test_norton_commander_copy as nccopy
 import test_norton_commander_smoke as nc
 from testlib import (
     build_dir,
@@ -41,72 +42,36 @@ SCREENSHOT_RMDIR = os.path.join(WORKDIR, "norton_commander_rmdir.ppm")
 TIMEOUT = int(os.environ.get("NC_MKDIR_RMDIR_WAIT", "18"))
 
 
-def raw_83(name):
-    if name == ".":
-        return b".       " + b"   "
-    if name == "..":
-        return b"..      " + b"   "
-    parts = name.upper().split(".", 1)
-    ext = parts[1] if len(parts) > 1 else ""
-    return parts[0].ljust(8)[:8].encode("ascii") + ext.ljust(3)[:3].encode("ascii")
-
-
-def image_layout(image):
-    with open(image, "rb") as f:
-        data = f.read()
-    bps = struct.unpack_from("<H", data, 11)[0]
-    spc = data[13]
-    if bps == 0 or spc == 0:
-        return None
-    reserved = struct.unpack_from("<H", data, 14)[0]
-    fat_count = data[16]
-    root_entries = struct.unpack_from("<H", data, 17)[0]
-    total = struct.unpack_from("<H", data, 19)[0] or struct.unpack_from("<I", data, 32)[0]
-    sectors_per_fat = struct.unpack_from("<H", data, 22)[0]
-    root_sectors = (root_entries * 32 + bps - 1) // bps
-    fat_off = reserved * bps
-    root_off = (reserved + fat_count * sectors_per_fat) * bps
-    data_off = (reserved + fat_count * sectors_per_fat + root_sectors) * bps
-    data_sectors = total - (reserved + fat_count * sectors_per_fat + root_sectors)
-    bits = 12 if data_sectors // spc < 4085 else 16
-    return data, bps, spc, fat_off, root_off, root_entries, data_off, bits
-
-
 def root_entry(image, name):
-    layout = image_layout(image)
-    if layout is None:
+    try:
+        img = FatImage.from_file(image)
+    except (struct.error, IndexError):
         return None, None
-    data, _, _, _, root_off, root_entries, _, _ = layout
-    target = raw_83(name)
-    for off in range(root_off, root_off + root_entries * 32, 32):
-        entry = data[off:off + 32]
-        if entry[0] == 0:
-            break
-        attr = entry[11]
+    if img.bps == 0 or img.spc == 0:
+        return None, None
+    raw = name83(name)
+    for _, entry in iter_dir(img.root_dir()):
         # Keep directories visible; this smoke searches for AAADIR.
-        if entry[0] == 0xE5 or attr == 0x0F or attr & 0x08:
+        if entry_attr(entry) & 0x08:
             continue
-        if entry[:11] == target:
-            return entry, layout
-    return None, layout
+        if entry[:11] == raw:
+            return entry, img
+    return None, img
 
 
 def root_dir_valid(image, name):
-    entry, layout = root_entry(image, name)
-    if entry is None or layout is None or not (entry[11] & 0x10):
+    entry, img = root_entry(image, name)
+    if entry is None or img is None or not (entry_attr(entry) & 0x10):
         return False
-    data, bps, spc, fat_off, _, _, data_off, bits = layout
-    cluster = struct.unpack_from("<H", entry, 26)[0]
-    dir_data = nccopy.read_chain(data, bps, spc, fat_off, data_off, bits, cluster, bps * spc)
+    cluster = entry_cluster(entry)
+    dir_data = img.read_chain(cluster, img.bps * img.spc)
     if len(dir_data) < 64:
         return False
     dot = dir_data[0:32]
     dotdot = dir_data[32:64]
-    dot_cluster = struct.unpack_from("<H", dot, 26)[0]
-    dotdot_cluster = struct.unpack_from("<H", dotdot, 26)[0]
     return (
-        dot[:11] == raw_83(".") and (dot[11] & 0x10) and dot_cluster == cluster and
-        dotdot[:11] == raw_83("..") and (dotdot[11] & 0x10) and dotdot_cluster == 0
+        dot[:11] == name83(".") and (dot[11] & 0x10) and entry_cluster(dot) == cluster and
+        dotdot[:11] == name83("..") and (dotdot[11] & 0x10) and entry_cluster(dotdot) == 0
     )
 
 
