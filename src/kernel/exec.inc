@@ -215,6 +215,7 @@ load_exec_program:
     call build_psp
     call exec_copy_command_tail
     jnc .loaded_done
+    call release_inherited_handles
     call free_prog_mcb
     call free_exec_environment
     mov ax, 8
@@ -1597,6 +1598,7 @@ setup_exe_dyn:
     ret
 .reloc_err_pop:
     pop cx
+    call release_inherited_handles
 .reloc_err:
     push cs
     pop ds
@@ -1604,6 +1606,7 @@ setup_exe_dyn:
     stc
     ret
 .tail_err:
+    call release_inherited_handles
     mov ax, 8
     stc
     ret

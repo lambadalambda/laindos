@@ -1,7 +1,6 @@
 - [ ] [Truncate or extend the file on AH=40h with CX=0](issues/truncate-on-zero-length-write.md)
 - [ ] [Handle bad-cluster markers in fat_free_chain](issues/handle-bad-cluster-markers-in-fat-free-chain.md)
 - [ ] [Guard colon handling in path component parsing](issues/guard-colon-path-component-parsing.md)
-- [ ] [Release inherited handle refcounts on EXEC failure](issues/release-inherited-handles-on-exec-failure.md)
 - [ ] [Keep the TSR environment block resident](issues/keep-tsr-environment-resident.md)
 - [ ] [Guard EXE header math against 16-bit overflow](issues/guard-exe-header-math-overflows.md)
 - [ ] [Grow EXEC environment capacity beyond 256 bytes](issues/grow-exec-environment-capacity.md)
