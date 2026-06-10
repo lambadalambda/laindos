@@ -12,3 +12,7 @@
 
 - Test (extend test_shell.py): a 63-char extensionless command prints the error and the shell continues working; `PASS:` markers.
 - Existing shell tests pass.
+
+## Resolution
+
+Resolved 2026-06-10. prepare_command's .copy loop now stops storing at command_name+58 and sets a command_too_long flag consumed by run_command, which prints "Bad command or file name". This became more urgent after line_buf grew to 128 bytes for installer command tails. Covered by a 62-char extensionless command probe in scripts/test_shell.py (the deliberate bad-command count is now two).

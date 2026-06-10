@@ -244,6 +244,11 @@ def send_keys(output_chunks):
     require_command_output("del", del_no_arg, ["Missing argument"])
     del_missing = send_command(sock, output_chunks, "del missing.dat")
     require_command_output("del missing.dat", del_missing, ["File error"])
+    long_name = "q" * 62
+    long_cmd = send_command(sock, output_chunks, long_name)
+    require_command_output(long_name, long_cmd, ["Bad command or file name"])
+    after_long = send_command(sock, output_chunks, "ver")
+    require_command_output("ver", after_long, ["LainDOS"])
     del_wild_setup = send_command(sock, output_chunks, "copy testfile.dat wild.dat")
     require_command_output("copy testfile.dat wild.dat", del_wild_setup, ["1 File(s) copied."])
     del_wild = send_command(sock, output_chunks, "del wild*.dat")
@@ -427,10 +432,10 @@ def main():
     else:
         print("  FAIL: expected exactly one Path not found")
         failed = True
-    if output.count("Bad command or file name") == 1:
-        print("  PASS: only deliberate bad command failed")
+    if output.count("Bad command or file name") == 2:
+        print("  PASS: only deliberate bad commands failed")
     else:
-        print("  FAIL: expected exactly one bad command")
+        print("  FAIL: expected exactly two bad commands")
         failed = True
     for marker in ["FAIL:", "EXC ", "INT 21h AH=", "Invalid MCB chain"]:
         if marker in output:

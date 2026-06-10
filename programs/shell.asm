@@ -2656,6 +2656,7 @@ prepare_command:
     pop es
     mov byte [command_has_ext], 0
     mov byte [command_has_path], 0
+    mov byte [command_too_long], 0
     mov word [command_ext_off], 0
     mov byte [tail_has_args], 0
     mov si, line_buf
@@ -2667,6 +2668,8 @@ prepare_command:
     je .end_name_space
     test al, al
     jz .end_name_zero
+    cmp di, command_name + 58
+    jae .name_overflow
     cmp al, '.'
     jne .not_dot
     mov byte [command_has_ext], 1
@@ -2685,6 +2688,14 @@ prepare_command:
 .store_char:
     stosb
     jmp .copy
+.name_overflow:
+    mov byte [command_too_long], 1
+    lodsb
+    cmp al, ' '
+    je .end_name_space
+    test al, al
+    jnz .name_overflow
+    jmp .end_name_zero
 .end_name_space:
     mov [tail_src], si
     mov byte [tail_has_args], 1
@@ -2739,6 +2750,8 @@ build_cmd_tail:
     ret
 
 run_command:
+    cmp byte [command_too_long], 0
+    jne .bad
     cmp byte [command_has_ext], 0
     jne .explicit_ext
     call run_current_command
@@ -3596,6 +3609,7 @@ command_has_path: db 0
 command_ext_off: dw 0
 tail_src: dw 0
 tail_has_args: db 0
+command_too_long: db 0
 cmd_tail: times 128 db 0
 exec_params: times 14 db 0
 path_env_name: db "PATH=", 0
