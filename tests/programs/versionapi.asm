@@ -8,9 +8,9 @@ start:
     mov ah, 0x30
     int 0x21
     jc fail_get_version
-    cmp al, 3
+    cmp al, 5
     jne fail_get_version
-    cmp ah, 30
+    cmp ah, 0
     jne fail_get_version
     cmp bx, 0
     jne fail_get_version
@@ -22,13 +22,13 @@ start:
     mov dx, 0xFFFF
     int 0x21
     jc fail_true_version
-    cmp bl, 3
+    cmp bl, 5
     jne fail_true_version
-    cmp bh, 30
+    cmp bh, 0
     jne fail_true_version
     cmp dl, 0
     jne fail_true_version
-    cmp dh, 0
+    cmp dh, 0x10
     jne fail_true_version
 
     mov ax, 0x3307

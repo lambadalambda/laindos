@@ -302,7 +302,7 @@ For interactive mouse testing, avoid `-nographic`; use a normal display, VNC, or
 
 ## Compatibility Notes
 
-- `INT 21h AH=30h` returns DOS 3.30 by default because many era games prefer 3.x semantics.
+- `INT 21h AH=30h` returns DOS 5.00. The API surface now covers the 5.0-era feature set (handle API, EXEC including load-only, allocation strategies, XMS with the kernel resident in the HMA), and several CD-era games refuse to start on anything older. The true-version call (AX=3306h) also advertises the DOS-in-HMA flag. If a specific title ever needs 3.x semantics, add a SETVER-style per-program override rather than lowering the global version.
 - LainDOS uses serial output heavily. Use `-serial stdio` or a serial log for reproducible traces.
 - If 86Box progresses but QEMU stalls, check `docs/emulator_workflows.md` and `docs/debug_log.md` before changing DOS behavior.
 - The current local QEMU workaround is saved as `docs/qemu-sahf-ccop.patch` and is committed separately in the sibling QEMU clone as `06cbfb3 target/i386: mark SAHF flags as materialized`.

@@ -1012,7 +1012,7 @@ int21_handler:
     pop ds
     jmp iret_nc
 .get_version:
-    mov ax, 0x1E03
+    mov ax, 0x0005
     mov bx, 0x0000
     mov cx, 0x0000
     jmp iret_nc
@@ -1466,8 +1466,8 @@ int21_handler:
     inc dl
     jmp iret_nc
 .bc_true_version:
-    mov bx, 0x1E03
-    xor dx, dx
+    mov bx, 0x0005
+    mov dx, 0x1000
     jmp iret_nc
 .set_verify_flag:
     and al, 1

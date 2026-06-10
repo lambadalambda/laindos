@@ -105,11 +105,11 @@ check_nul_name:
     mov ax, 0x3306
     int 0x21
     jc fail_break
-    cmp bl, 3
+    cmp bl, 5
     jne fail_break
-    cmp bh, 0x1E
+    cmp bh, 0
     jne fail_break
-    cmp dx, 0
+    cmp dx, 0x1000
     jne fail_break
 
     mov dx, pass_msg

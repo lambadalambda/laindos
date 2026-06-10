@@ -64,9 +64,9 @@ start:
     mov ax, 0x3306
     int 0x21
     jc fail_break_ver
-    cmp bx, 0x1E03
+    cmp bx, 0x0005
     jne fail_break_ver
-    cmp dx, 0
+    cmp dx, 0x1000
     jne fail_break_ver
 
     mov ah, 0x54

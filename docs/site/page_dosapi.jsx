@@ -198,10 +198,10 @@ const DOSAPI_GROUPS = [
       [456, "    cmp ah, 0x71"],
       [457, "    je .lfn_unsupported"],
       [1014, ".get_version:"],
-      [1015, "    mov ax, 0x1E03"],
+      [1015, "    mov ax, 0x0005"],
     ],
     regs: [
-      ["AX", "1E03h", "AL=03h, AH=1Eh reports DOS version 3.30"],
+      ["AX", "0005h", "AL=05h, AH=00h reports DOS version 5.00"],
       ["DL", "drive", "0=current, 1=A:, 2=B:, etc. for drive queries"],
       ["ES:BX", "vector", "AH=35h returns interrupt vector pointer"],
     ],
@@ -248,7 +248,7 @@ const DOSAPI_CALLS = [
       ["2Dh", "Set time", "supported", "Stores a DOS-visible time after range validation."],
       ["2Eh", "Set verify flag", "compat", "Stores the flag; disk writes are still explicit in LainDOS."],
       ["2Fh", "Get DTA", "supported", "Returns ES:BX for the current DTA."],
-      ["30h", "Get DOS version", "supported", "Reports DOS 3.30 style identity."],
+      ["30h", "Get DOS version", "supported", "Reports DOS 5.00 identity (true-version flags advertise DOS in the HMA)."],
       ["31h", "Terminate and stay resident", "partial", "Keeps the PSP MCB resident, frees non-resident child-owned MCBs, and reports TSR return type."],
       ["33h", "Ctrl-Break state", "partial", "Supports get/set break flag, boot drive query, and true-version query."],
       ["35h", "Get interrupt vector", "supported", "Reads an IVT entry into ES:BX."],
@@ -360,7 +360,7 @@ function DosApiPage({ go }) {
               </p>
               <div className="dosapi-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginTop: 14 }}>
                 <MiniStat k="Target" v="games + utilities" />
-                <MiniStat k="Version" v="DOS 3.30 identity" />
+                <MiniStat k="Version" v="DOS 5.00 identity" />
                 <MiniStat k="Calls" v="68 AH branches" />
               </div>
             </section>
