@@ -3485,6 +3485,7 @@ ov_size_lo: dw 0
 ov_size_hi: dw 0
 ov_skip: dw 0
 ov_left: dw 0
+ov_left_hi: dw 0
 ov_dst_seg: dw 0
 ov_dst_off: dw 0
 ov_sector_offset: dw 0

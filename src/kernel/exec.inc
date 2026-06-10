@@ -733,8 +733,8 @@ load_overlay_direct:
     je .mz
     pop ds
     mov word [cs:ov_skip], 0
-    cmp word [cs:ov_size_hi], 0
-    jne .err
+    mov ax, [cs:ov_size_hi]
+    mov [cs:ov_left_hi], ax
     mov ax, [cs:ov_size_lo]
     mov [cs:ov_left], ax
     mov ax, [cs:ov_load_seg]
@@ -769,9 +769,8 @@ load_overlay_direct:
     sub ax, [cs:ov_skip]
     sbb dx, 0
     jc .mz_bad_pop
-    test dx, dx
-    jnz .mz_bad_pop
     mov [cs:ov_left], ax
+    mov [cs:ov_left_hi], dx
     mov ax, [0x06]
     mov [cs:ov_reloc_count], ax
     mov ax, [0x18]
@@ -788,11 +787,16 @@ load_overlay_direct:
     cmp ax, [cs:ov_skip]
     ja .mz_bad_pop
     mov ax, [cs:ov_left]
+    mov dx, [cs:ov_left_hi]
     add ax, 15
+    adc dx, 0
     mov cx, 4
 .ov_img_shift:
-    shr ax, 1
+    shr dx, 1
+    rcr ax, 1
     loop .ov_img_shift
+    test dx, dx
+    jnz .mz_bad_pop
     mov [cs:ov_image_par], ax
     pop ds
     mov ax, [cs:ov_load_seg]
@@ -1099,7 +1103,7 @@ overlay_copy_range:
     mov [cs:ov_sec_in_cluster], bx
 .copy_loop:
     mov ax, [cs:ov_left]
-    test ax, ax
+    or ax, [cs:ov_left_hi]
     jz .done
     cmp si, [cs:kfat_eoc]
     jae .err_pop
@@ -1118,7 +1122,16 @@ overlay_copy_range:
     jc .err_pop
     mov cx, 512
     sub cx, [cs:ov_sector_offset]
+    cmp word [cs:ov_left_hi], 0
+    jne .clamp_dst
     mov ax, [cs:ov_left]
+    cmp cx, ax
+    jbe .clamp_dst
+    mov cx, ax
+.clamp_dst:
+    mov ax, [cs:ov_dst_off]
+    neg ax
+    jz .chunk_ok
     cmp cx, ax
     jbe .chunk_ok
     mov cx, ax
@@ -1141,6 +1154,10 @@ overlay_copy_range:
 .dst_no_wrap:
     mov ax, [cs:ov_chunk]
     sub [cs:ov_left], ax
+    sbb word [cs:ov_left_hi], 0
+    add [cs:ov_sector_offset], ax
+    cmp word [cs:ov_sector_offset], 512
+    jb .copy_loop
     mov word [cs:ov_sector_offset], 0
     inc word [cs:ov_sec_in_cluster]
     xor ch, ch
@@ -1199,7 +1216,7 @@ overlay_copy_range_cd:
     mov [cs:.lba_hi], dx
 .copy_loop:
     mov ax, [cs:ov_left]
-    test ax, ax
+    or ax, [cs:ov_left_hi]
     jz .done
     mov ax, CD_BUF
     mov es, ax
@@ -1210,7 +1227,16 @@ overlay_copy_range_cd:
     jc .err_pop
     mov cx, 2048
     sub cx, [cs:ov_sector_offset]
+    cmp word [cs:ov_left_hi], 0
+    jne .clamp_dst
     mov ax, [cs:ov_left]
+    cmp cx, ax
+    jbe .clamp_dst
+    mov cx, ax
+.clamp_dst:
+    mov ax, [cs:ov_dst_off]
+    neg ax
+    jz .chunk_ok
     cmp cx, ax
     jbe .chunk_ok
     mov cx, ax
@@ -1233,6 +1259,10 @@ overlay_copy_range_cd:
 .dst_no_wrap:
     mov ax, [cs:ov_chunk]
     sub [cs:ov_left], ax
+    sbb word [cs:ov_left_hi], 0
+    add [cs:ov_sector_offset], ax
+    cmp word [cs:ov_sector_offset], 2048
+    jb .copy_loop
     mov word [cs:ov_sector_offset], 0
     inc word [cs:.lba_lo]
     jnz .copy_loop

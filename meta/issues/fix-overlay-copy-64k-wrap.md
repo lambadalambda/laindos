@@ -16,3 +16,7 @@
 ## Notes
 
 - `load_cd_file_direct` (exec.inc:353-357) is safe because its offsets stay 2048-aligned from 0; do not "fix" it the same way without need.
+
+## Resolution
+
+The wrap was latent: `load_overlay_direct` rejected any overlay whose image exceeded 64 KiB (`test dx, dx / jnz .mz_bad_pop`), so no in-tree path could reach the wrapping copy. The fix widened `ov_left` to 32 bits (`ov_left_hi`), removed the 64 KiB rejection for both MZ and flat binary overlays, computed `ov_image_par` with 32-bit rounding, and clamped each copy chunk at the 64 KiB destination boundary in both the FAT and CD loops (partial chunks re-enter the loop on the same sector). Covered by `scripts/test_ovlbig.py`, which generates an 81,952-byte MZ overlay at runtime and verifies words at the load start, both sides of the 64 KiB boundary, and the image tail.

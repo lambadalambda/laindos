@@ -114,6 +114,7 @@ DEFAULT_TESTS = [
     "scripts/test_openattr.py",
     "scripts/test_vecrest.py",
     "scripts/test_stdread.py",
+    "scripts/test_ovlbig.py",
 ]
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124

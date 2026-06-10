@@ -1,4 +1,3 @@
-- [ ] [Fix 64K destination wrap in overlay copy](issues/fix-overlay-copy-64k-wrap.md)
 - [ ] [Unify 8.3 name truncation between lookup and create](issues/unify-83-name-truncation-between-lookup-and-create.md)
 - [ ] [Preserve handle drive on alias promotion](issues/preserve-handle-drive-on-alias-promotion.md)
 - [ ] [Add cycle guard and shared FAT chain walker](issues/add-fat-chain-cycle-guard.md)
