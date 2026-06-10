@@ -14,3 +14,9 @@ Three boot.asm robustness gaps: (a) the disk-retry counter `ret_` is a global de
 
 - Boot still fits in 512 bytes minus BPB and signature (build assert).
 - `make test` boot tests pass; a fault-injection check (Bochs or QEMU blkdebug) showing a transient error no longer aborts the whole load is a plus, otherwise reasoning documented in the commit.
+
+## Resolution
+
+All three fixes applied: the retry counter resets after every successful sector read, the FAT (FAT12 builds) and root directory reads now `jc nf` instead of continuing with garbage buffers, and the FAT16 boot path stores the full 16-bit cylinder and ORs bits 8-9 into CL per the INT 13h CHS convention. Both variants still fit 512 bytes (2 bytes spare on FAT16 after compensating size reductions: shorter fat_next encoding, fused AX=0x0201 load, and removal of a redundant ROOT_SEG reload).
+
+Fault-injection testing was attempted and abandoned: QEMU's FDC ignores blkdebug read errors entirely, and on IDE a hang-on-retry probe proved injected errors never surface as INT 13h carry to the boot code (the failure manifests through data paths instead), so neither transient-retry nor read-error behavior can be exercised deterministically on this emulator stack. Verified instead by inspection plus the standard boot ladder (test_boot, test_fat16, test_partitioned_fat16, test_boot_chain_bounds).

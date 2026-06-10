@@ -113,6 +113,7 @@ mtc:sub ax,[dsta]
     mov ax,[bpb+BPB_RSV_SEC_COUNT]
     mov cx,[bpb+BPB_SECS_PER_FAT]
     call rs
+    jc nf
 %endif
 
     mov ax,ROOT_SEG
@@ -121,9 +122,8 @@ mtc:sub ax,[dsta]
     mov ax,[rsta]
     mov cx,[rsc]
     call rs
+    jc nf
 
-    mov ax,ROOT_SEG
-    mov es,ax
     xor di,di
     mov cx,[bpb+BPB_ROOT_ENT_COUNT]
 sf: cmp byte[es:di],0
@@ -198,18 +198,15 @@ fat_next:
     push es
     mov ax,si
     mov bx,ax
-    mov cl,8
-    shr ax,cl
+    shr ax,8
     add ax,[bpb+BPB_RSV_SEC_COUNT]
     xor bh,bh
     shl bx,1
     push bx
-    mov bx,0
+    xor bx,bx
     mov cx,1
-    push ax
-    mov ax,FAT_SEG
-    mov es,ax
-    pop ax
+    push word FAT_SEG
+    pop es
     call rs
     pop bx
     jc f16e
@@ -241,15 +238,23 @@ r1: mov ax,[lb]
     xor dx,dx
     div word[bpb+BPB_NUM_HEADS]
     mov [hd],dl
+%if !FAT12
+    mov [cy],ax
+    mov ch,al
+    mov cl,ah
+    shl cl,6
+    or cl,[sc]
+%else
     mov [cy],al
-    mov ah,2
-    mov al,1
     mov ch,[cy]
     mov cl,[sc]
+%endif
+    mov ax,0x0201
     mov dh,[hd]
     mov dl,[drv]
     int 0x13
     jc rerr
+    mov byte[ret_],3
     add bx,512
     jnc rnb
     mov ax,es

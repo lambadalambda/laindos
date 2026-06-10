@@ -173,3 +173,4 @@
 - [x] [Fix INT 21h clock rollover, drift, and frozen set-time state](issues/fix-int21-clock-rollover-and-drift.md)
 - [x] [Generate INT 23h on Ctrl-C](issues/wire-ctrl-c-to-int23.md)
 - [x] [Line-buffer CON device handle reads](issues/buffer-con-handle-reads.md)
+- [x] [Harden boot sector disk reads](issues/harden-boot-sector-disk-reads.md)
