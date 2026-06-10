@@ -1782,17 +1782,40 @@ do_goto:
     ret
 
 do_if:
+    mov byte [if_negate], 0
+.check_not:
     call skip_spaces
+    push si
+    mov di, not_arg
+    call cmd_match
+    jc .got_not
+    pop si
+    jmp .check_kind
+.got_not:
+    pop ax
+    xor byte [if_negate], 1
+    jmp .check_not
+.check_kind:
+    push si
     mov di, exist_arg
     call cmd_match
-    jnc .done
+    jc .if_exist
+    pop si
+    push si
+    mov di, errorlevel_arg
+    call cmd_match
+    jc .if_errorlevel
+    pop si
+    jmp .if_compare
+.if_exist:
+    pop ax
     call skip_spaces
     mov di, if_path_buf
     xor cx, cx
 .copy_path:
     mov al, [si]
     test al, al
-    jz .done
+    jz .syntax
     cmp al, ' '
     je .path_done
     cmp al, 9
@@ -1807,15 +1830,118 @@ do_if:
 .path_done:
     xor al, al
     stosb
-    call skip_spaces
-    cmp byte [si], 0
-    je .done
     push si
     mov dx, if_path_buf
     mov ax, 0x4300
     int 0x21
     pop si
-    jc .done
+    mov al, 1
+    jnc .eval
+    xor al, al
+    jmp .eval
+.if_errorlevel:
+    pop ax
+    call skip_spaces
+    xor cx, cx
+    xor dx, dx
+.el_digit:
+    mov al, [si]
+    cmp al, '0'
+    jb .el_done
+    cmp al, '9'
+    ja .el_done
+    sub al, '0'
+    xchg ax, dx
+    mov cl, 10
+    mul cl
+    add al, dl
+    xchg ax, dx
+    inc si
+    inc ch
+    jmp .el_digit
+.el_done:
+    test ch, ch
+    jz .syntax
+    mov al, [last_errorlevel]
+    cmp al, dl
+    mov al, 1
+    jae .eval
+    xor al, al
+    jmp .eval
+.if_compare:
+    mov di, if_path_buf
+    xor cx, cx
+.cmp_copy1:
+    mov al, [si]
+    test al, al
+    jz .syntax
+    cmp al, '='
+    je .cmp_eq
+    cmp al, ' '
+    je .syntax
+    cmp al, 9
+    je .syntax
+    cmp cx, 63
+    jae .cmp_skip1
+    stosb
+    inc cx
+.cmp_skip1:
+    inc si
+    jmp .cmp_copy1
+.cmp_eq:
+    xor al, al
+    stosb
+    jcxz .syntax
+    cmp byte [si+1], '='
+    jne .syntax
+    add si, 2
+    mov di, if_cmp_buf
+    xor cx, cx
+.cmp_copy2:
+    mov al, [si]
+    test al, al
+    jz .cmp2_done
+    cmp al, ' '
+    je .cmp2_done
+    cmp al, 9
+    je .cmp2_done
+    cmp cx, 63
+    jae .cmp_skip2
+    stosb
+    inc cx
+.cmp_skip2:
+    inc si
+    jmp .cmp_copy2
+.cmp2_done:
+    xor al, al
+    stosb
+    jcxz .syntax
+    push si
+    mov si, if_path_buf
+    mov di, if_cmp_buf
+.cmp_loop:
+    mov al, [si]
+    cmp al, [di]
+    jne .cmp_diff
+    test al, al
+    jz .cmp_same
+    inc si
+    inc di
+    jmp .cmp_loop
+.cmp_same:
+    pop si
+    mov al, 1
+    jmp .eval
+.cmp_diff:
+    pop si
+    xor al, al
+.eval:
+    xor al, [if_negate]
+    test al, al
+    jz .done
+    call skip_spaces
+    cmp byte [si], 0
+    je .done
     call if_tail_is_bare_label
     jc .goto_tail
     mov di, line_buf
@@ -1830,6 +1956,10 @@ do_if:
 .goto_tail:
     call batch_seek_label
 .done:
+    ret
+.syntax:
+    mov dx, syntax_error_msg
+    call print_dollar
     ret
 
 if_tail_is_bare_label:
@@ -2672,6 +2802,7 @@ run_command:
     int 0x21
     push cs
     pop ds
+    mov [last_errorlevel], al
     ret
 .bad:
     push cs
@@ -3378,6 +3509,12 @@ command_table:
 echo_off_arg: db "OFF", 0
 echo_on_arg: db "ON", 0
 exist_arg: db "EXIST", 0
+not_arg: db "NOT", 0
+errorlevel_arg: db "ERRORLEVEL", 0
+if_negate: db 0
+last_errorlevel: db 0
+if_cmp_buf: times 64 db 0
+syntax_error_msg: db "Syntax error", 13, 10, "$"
 nul_arg: db "NUL", 0
 stdout_char: db 0
 redir_saved: dw 0

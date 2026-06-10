@@ -180,3 +180,5 @@
 - [x] [Fix miscellaneous INT 21h return conventions](issues/fix-misc-int21-return-conventions.md)
 - [x] [Implement EXEC AL=1 and DOS child-entry register conventions](issues/implement-exec-load-subfunction.md)
 - [x] [Support unaligned overlay relocation tables and cache reloc sectors](issues/support-unaligned-overlay-relocations.md)
+- [x] [Bound the shell prepare_command name copy](issues/bound-prepare-command-name-copy.md)
+- [x] [Support IF NOT, IF ERRORLEVEL, and IF a==b in the shell](issues/support-if-not-errorlevel-and-equality.md)

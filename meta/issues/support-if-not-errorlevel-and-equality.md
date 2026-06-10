@@ -18,3 +18,7 @@
 ## Notes
 
 - Coordinate with [Report missing batch labels and run bare IF tails](report-missing-batch-labels.md), which changes how the IF tail is dispatched.
+
+## Resolution
+
+Resolved 2026-06-10. do_if now parses an optional NOT prefix (toggling if_negate), then EXIST (AH=43h probe), ERRORLEVEL n (decimal parse compared against last_errorlevel, stored by run_command from AH=4Dh), or str1==str2 (case-sensitive compare). All three share the existing tail dispatch including bare-label GOTO. Malformed forms print "Syntax error". Covered by scripts/test_batchif.py.
