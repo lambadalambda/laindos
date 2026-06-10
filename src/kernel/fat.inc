@@ -1,3 +1,34 @@
+fat_walk_reset:
+    push ax
+    mov ax, [cs:kmax_cluster]
+    mov [cs:fat_walk_left], ax
+    pop ax
+    ret
+
+fat_next_checked:
+    cmp word [cs:fat_walk_left], 0
+    je .cycle
+    dec word [cs:fat_walk_left]
+    call fat_next
+    cmp ax, [cs:kfat_eoc]
+    jae .stop
+    cmp ax, [cs:kfat_reserved]
+    jae .bad
+    cmp ax, 2
+    jb .bad
+    cmp ax, [cs:kmax_cluster]
+    jae .bad
+    clc
+    ret
+.cycle:
+.bad:
+    xor ax, ax
+    stc
+    ret
+.stop:
+    stc
+    ret
+
 fat_next:
     cmp si, 2
     jb .invalid

@@ -1190,6 +1190,7 @@ find_in_dir_from_common:
     push dx
     mov [cs:rid_clus], ax
     xor cx, cx
+    call fat_walk_reset
 .rid_cluster_loop:
     mov si, [cs:rid_clus]
     cmp si, [cs:kfat_eoc]
@@ -1240,13 +1241,8 @@ find_in_dir_from_common:
     cmp al, [cs:kspc]
     jb .rid_sec_loop
     mov si, [cs:rid_clus]
-    call fat_next
-    cmp ax, [cs:kfat_eoc]
-    jae .rid_notfound_pop
-    cmp ax, [cs:kfat_reserved]
-    jae .rid_notfound_pop
-    cmp ax, 2
-    jb .rid_notfound_pop
+    call fat_next_checked
+    jc .rid_notfound_pop
     mov [cs:rid_clus], ax
     jmp .rid_cluster_loop
 .rid_found_subdir:
@@ -1370,6 +1366,7 @@ find_dir_free:
     push si
     mov [cs:rid_clus], ax
     mov word [cs:ff_entry_idx], 0
+    call fat_walk_reset
 .sd_cluster_loop:
     mov si, [cs:rid_clus]
     cmp si, [cs:kfat_eoc]
@@ -1402,13 +1399,12 @@ find_dir_free:
     cmp al, [cs:kspc]
     jb .sd_sector
     mov si, [cs:rid_clus]
-    call fat_next
+    call fat_next_checked
+    jnc .sd_next_ok
     cmp ax, [cs:kfat_eoc]
     jae .sd_extend
-    cmp ax, [cs:kfat_reserved]
-    jae .sd_full
-    cmp ax, 2
-    jb .sd_full
+    jmp .sd_full
+.sd_next_ok:
     mov [cs:rid_clus], ax
     jmp .sd_cluster_loop
 .sd_extend:
@@ -1650,6 +1646,7 @@ dir_is_empty:
     push es
     push di
     mov [cs:rd_scan_cluster], si
+    call fat_walk_reset
 .die_cluster:
     mov si, [cs:rd_scan_cluster]
     cmp si, [cs:kfat_eoc]
@@ -1685,13 +1682,12 @@ dir_is_empty:
     cmp al, [cs:kspc]
     jb .die_sector
     mov si, [cs:rd_scan_cluster]
-    call fat_next
+    call fat_next_checked
+    jnc .die_next_ok
     cmp ax, [cs:kfat_eoc]
     jae .die_empty
-    cmp ax, [cs:kfat_reserved]
-    jae .die_not_empty
-    cmp ax, 2
-    jb .die_not_empty
+    jmp .die_not_empty
+.die_next_ok:
     mov [cs:rd_scan_cluster], ax
     jmp .die_cluster
 .die_empty:
@@ -2059,6 +2055,7 @@ sanitize_dta_byte:
      ret
 
 load_file_direct:
+    call fat_walk_reset
     mov ax, [cs:kfsize]
     mov [cs:lf_left_lo], ax
     mov ax, [cs:kfsize_hi]
@@ -2142,7 +2139,7 @@ load_file_direct:
     pop cx
     dec cx
     jnz .sec_loop
-    call fat_next
+    call fat_next_checked
     mov si, ax
     jmp .load
 .done:

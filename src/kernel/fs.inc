@@ -202,6 +202,7 @@ wf_get_cluster:
     push bx
     push cx
     push dx
+    call fat_walk_reset
     mov bx, [cs:wf_hoff]
     mov si, [cs:bx+handles+H_LAST_CLUSTER]
     mov cx, [cs:bx+handles+H_LAST_INDEX]
@@ -217,16 +218,11 @@ wf_get_cluster:
     cmp cx, [cs:wf_cluster_index]
     je .found
     mov bx, si
-    call fat_next
+    call fat_next_checked
+    jnc .have_next
     cmp ax, [cs:kfat_eoc]
     jae .extend
-    cmp ax, [cs:kfat_reserved]
-    jae .err
-    cmp ax, 2
-    jb .err
-    cmp ax, [cs:kmax_cluster]
-    jae .err
-    jmp .have_next
+    jmp .err
 .extend:
     call fat_alloc_cluster
     jc .err

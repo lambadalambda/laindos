@@ -2984,27 +2984,32 @@ int21_handler:
     jbe .rf_walk_from_cache
     jmp .rf_walk_from_start
 .rf_walk_from_cache:
+    call fat_walk_reset
+.rf_walk_cache_loop:
     cmp cx, [cs:rf_cluster_index]
     je .rf_cache_cluster
-    call fat_next
+    call fat_next_checked
+    jnc .rf_cache_next
     cmp ax, [cs:kfat_eoc]
     jae .rf_done
-    cmp ax, 2
-    jb .rf_err_pop
+    jmp .rf_err_pop
+.rf_cache_next:
     mov si, ax
     inc cx
-    jmp .rf_walk_from_cache
+    jmp .rf_walk_cache_loop
 .rf_walk_from_start:
     mov si, [cs:bx+handles+H_CLUSTER]
     xor cx, cx
+    call fat_walk_reset
 .rf_cluster_walk:
     cmp cx, [cs:rf_cluster_index]
     je .rf_cache_cluster
-    call fat_next
+    call fat_next_checked
+    jnc .rf_start_next
     cmp ax, [cs:kfat_eoc]
     jae .rf_done
-    cmp ax, 2
-    jb .rf_err_pop
+    jmp .rf_err_pop
+.rf_start_next:
     mov si, ax
     inc cx
     jmp .rf_cluster_walk
@@ -3918,6 +3923,7 @@ int21_handler:
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     jmp iret_cy
 
+; @anchor: ioctl_entry
 .ioctl:
     mov [cs:ioctl_func], al
     cmp byte [cs:ioctl_func], 0
@@ -3935,14 +3941,17 @@ int21_handler:
     TRACE_END ioctl
 ; @anchor: ioctl_dispatch_get
     cmp al, 0
+; @anchor: ioctl_je_get
     je .ioctl_get
     cmp al, 1
     je .ioctl_set
     cmp al, 6
+; @anchor: ioctl_je_input_status
     je .ioctl_input_status
     cmp al, 7
     je .ioctl_output_status
     cmp al, 8
+; @anchor: ioctl_je_removable
     je .ioctl_removable_drive
     cmp al, 9
     je .ioctl_local_drive

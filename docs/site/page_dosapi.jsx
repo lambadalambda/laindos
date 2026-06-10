@@ -159,13 +159,13 @@ const DOSAPI_GROUPS = [
     ],
     codeFile: "src/kernel/int21.inc",
     code: [
-      [3921, ".ioctl:"],
+      [{a: "ioctl_entry"}, ".ioctl:"],
       [{a: "ioctl_dispatch_get"}, "    cmp al, 0"],
-      [3938, "    je .ioctl_get"],
+      [{a: "ioctl_je_get"}, "    je .ioctl_get"],
       [1299, "    cmp al, 6"],
-      [3942, "    je .ioctl_input_status"],
+      [{a: "ioctl_je_input_status"}, "    je .ioctl_input_status"],
       [502, "    cmp al, 8"],
-      [3946, "    je .ioctl_removable_drive"],
+      [{a: "ioctl_je_removable"}, "    je .ioctl_removable_drive"],
       [{a: "ioctl_stdio_info_word"}, "    mov dx, 0x80D3"],
     ],
     regs: [
