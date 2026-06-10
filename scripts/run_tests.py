@@ -116,6 +116,7 @@ DEFAULT_TESTS = [
     "scripts/test_stdread.py",
     "scripts/test_ovlbig.py",
     "scripts/test_name83.py",
+    "scripts/test_aliasdrv.py",
 ]
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124

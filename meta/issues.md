@@ -1,4 +1,3 @@
-- [ ] [Preserve handle drive on alias promotion](issues/preserve-handle-drive-on-alias-promotion.md)
 - [ ] [Add cycle guard and shared FAT chain walker](issues/add-fat-chain-cycle-guard.md)
 - [ ] [Validate 8.3 names on create and rename](issues/validate-83-names-on-create-and-rename.md)
 - [ ] [Guard CD-ROM drive against FAT mutation calls](issues/guard-cdrom-drive-against-fat-mutations.md)

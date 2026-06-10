@@ -435,6 +435,8 @@ close_handle_for_replace:
     mov [cs:di+handles+H_DATE], ax
     mov ax, [cs:si+handles+H_DIR_LBA_HI]
     mov [cs:di+handles+H_DIR_LBA_HI], ax
+    mov ax, [cs:si+handles+H_DRIVE]
+    mov [cs:di+handles+H_DRIVE], ax
     mov ax, [cs:dup_status]
     mov [cs:di+handles+H_REFCOUNT], ax
     mov word [cs:di+handles+H_ALIAS], H_ALIAS_NONE
