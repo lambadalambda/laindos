@@ -3728,7 +3728,16 @@ int21_handler:
     mov dx, SEC_BUF
     mov es, dx
     xor bx, bx
+    mov si, [cs:wf_hoff]
+    mov ax, [cs:si+handles+H_POS_LO]
+    test ax, 511
+    jnz .wf_preread
+    cmp word [cs:wf_count], 512
+    jae .wf_skip_preread
+.wf_preread:
+    mov ax, [cs:wf_sector_lba]
     call read_sector
+.wf_skip_preread:
     pop bx
     pop es
     jc .wf_file_io_pop

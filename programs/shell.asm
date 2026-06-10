@@ -3441,7 +3441,7 @@ dir_header_path_size equ 64
 dir_wide_columns equ 5
 dir_wide_width equ 15
 copy_path_size equ 80
-type_buf_size equ 128
+type_buf_size equ 8192
 batch_buf_size equ 512
 
 line_buf: times 128 db 0
