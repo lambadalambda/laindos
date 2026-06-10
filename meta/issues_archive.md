@@ -175,3 +175,4 @@
 - [x] [Line-buffer CON device handle reads](issues/buffer-con-handle-reads.md)
 - [x] [Harden boot sector disk reads](issues/harden-boot-sector-disk-reads.md)
 - [x] [Support .. components and large directories on the CD-ROM drive](issues/support-parent-dirs-and-large-dirs-on-cdrom.md)
+- [x] [Switch to an internal stack on INT 21h entry](issues/switch-to-internal-stack-in-int21.md)

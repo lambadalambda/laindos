@@ -1,6 +1,5 @@
 - [ ] [Implement EXEC AL=1 and DOS child-entry register conventions](issues/implement-exec-load-subfunction.md)
 - [ ] [Support unaligned overlay relocation tables and cache reloc sectors](issues/support-unaligned-overlay-relocations.md)
-- [ ] [Switch to an internal stack on INT 21h entry](issues/switch-to-internal-stack-in-int21.md)
 - [ ] [Fix IOCTL set-device-info and handle drive reporting](issues/fix-ioctl-set-and-handle-drive-reporting.md)
 - [ ] [Fix miscellaneous INT 21h return conventions](issues/fix-misc-int21-return-conventions.md)
 - [ ] [Bound the shell prepare_command name copy](issues/bound-prepare-command-name-copy.md)

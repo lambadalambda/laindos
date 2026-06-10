@@ -17,3 +17,10 @@
 ## Notes
 
 - The `[bp+6]` stack-flags patching offsets in the iret helpers must be revisited if frames change.
+
+## Resolution
+
+Resolved by measurement rather than by the stack switch. A measurement program filled 512 bytes below a fresh stack and ran the deep battery (open, 1024-byte read, seek, extending write with FAT update, close, mkdir, rmdir, delete, FindFirst, get-time): worst-case caller-stack usage is 0x60 (96) bytes including interrupt activity, because LainDOS keeps handler state in cs-relative statics rather than on the stack. That is comparable to the residual caller-stack footprint real MS-DOS has even with its internal stacks, so applications with period-typical tight stacks are safe without the switch.
+
+The indos-indexed internal-stack design (per-nesting 2 KiB regions carved from the HMA stack, caller SS:SP saved per region, unswitch in the iret helpers) was worked out but deliberately not landed: it is the highest-risk change in the backlog and currently buys nothing measurable. `scripts/test_stacktight.py` pins the property by running the battery on a 128-byte stack above a guard pattern; if future kernel work pushes caller-stack usage past that bound, the test fails and this issue's design should be revisited and implemented.
+
