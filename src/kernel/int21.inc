@@ -2243,6 +2243,7 @@ int21_handler:
     mov ax, [cs:exec_status]
     jmp .exec_program_err
 .exec_program_returned:
+    inc byte [cs:indos_flag]
     INT21_POP_EXEC_PROGRAM_FRAME
     xor ax, ax
     jmp iret_nc

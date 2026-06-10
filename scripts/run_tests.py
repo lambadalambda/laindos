@@ -146,6 +146,8 @@ DEFAULT_TESTS = [
     "scripts/test_shelltab.py",
     "scripts/test_badreloc.py",
     "scripts/test_ctrunc.py",
+    "scripts/test_bigrelhi.py",
+    "scripts/test_indosexec.py",
     "scripts/test_timeoutguard.py",
     "scripts/test_mkimage.py",
 ]

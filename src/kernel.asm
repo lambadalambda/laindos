@@ -400,6 +400,7 @@ kernel_entry:
     pop ds
 
     mov ax, [cs:prog_seg]
+    inc byte [cs:indos_flag]
     call exec_com_dyn
     jmp .returned
 
@@ -410,6 +411,7 @@ kernel_entry:
     call serial_print
 
     mov ax, [cs:prog_seg]
+    inc byte [cs:indos_flag]
     call setup_exe_dyn
     jc .halt
 
@@ -1741,6 +1743,53 @@ exc_noerr:
     loop .dump_bytes
     push cs
     pop ds
+    mov si, msg_crlf
+    call serial_print
+    mov si, msg_exc_stack
+    call serial_print
+    mov ax, ss
+    call serial_print_hex_word
+    mov si, msg_colon
+    call serial_print
+    lea ax, [bp+8]
+    call serial_print_hex_word
+    mov al, ' '
+    call serial_putchar
+    mov si, bp
+    add si, 8
+    mov cx, 24
+.dump_stack:
+    push ds
+    push ss
+    pop ds
+    lodsw
+    pop ds
+    call serial_print_hex_word
+    mov al, ' '
+    call serial_putchar
+    loop .dump_stack
+    mov si, msg_crlf
+    call serial_print
+    mov si, msg_exc_regs
+    call serial_print
+    mov ax, [log_ax]
+    call serial_print_hex_word
+    mov ax, [bp-8]
+    call serial_print_hex_word
+    mov ax, [bp-4]
+    call serial_print_hex_word
+    mov ax, [bp-6]
+    call serial_print_hex_word
+    mov ax, [bp-14]
+    call serial_print_hex_word
+    mov ax, [bp-16]
+    call serial_print_hex_word
+    mov ax, [bp]
+    call serial_print_hex_word
+    mov ax, [bp-18]
+    call serial_print_hex_word
+    mov ax, es
+    call serial_print_hex_word
     mov si, msg_crlf
     call serial_print
     cli
@@ -3085,6 +3134,8 @@ msg_colon:     db ":", 0
 msg_exc:       db "EXC ", 0
 msg_at:        db " at ", 0
 msg_exc_bytes: db "BYTES ", 0
+msg_exc_stack: db "STACK ", 0
+msg_exc_regs:  db "REGS AX/BX/CX/DX/SI/DI/BP/DS/ES ", 0
 msg_trace_open: db "OPEN ", 0
 msg_trace_handle: db " -> H=", 0
 msg_trace_ioctl: db "IOCTL AL=", 0
