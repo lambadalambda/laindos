@@ -1487,7 +1487,10 @@ init_environment:
     push es
     push si
     push di
+    push bx
+    mov bx, ENV_PARAS
     call alloc_exec_environment
+    pop bx
     jc .fail
     mov ax, [cs:exec_env_seg]
     mov es, ax
@@ -3507,6 +3510,7 @@ ov_skip: dw 0
 ov_left: dw 0
 ov_left_hi: dw 0
 fat_walk_left: dw 0
+exec_env_bytes: dw 0
 ov_dst_seg: dw 0
 ov_dst_off: dw 0
 ov_sector_offset: dw 0

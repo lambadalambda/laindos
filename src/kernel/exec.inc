@@ -487,12 +487,34 @@ update_exec_environment_path:
     jae .default_env
     mov [cs:exec_env_src_seg], ax
 .default_env:
+    mov bx, ENV_PARAS
+    mov ax, [cs:exec_env_src_seg]
+    test ax, ax
+    jz .env_size_ready
+    mov ds, ax
+    xor si, si
+.env_measure:
+    cmp si, 0x7E00
+    jae .env_overflow
+    lodsb
+    test al, al
+    jnz .env_measure
+    cmp byte [ds:si], 0
+    jne .env_measure
+    mov ax, si
+    add ax, 1 + 192 + 15
+    mov cl, 4
+    shr ax, cl
+    cmp ax, ENV_PARAS
+    jbe .env_size_ready
+    mov bx, ax
+.env_size_ready:
     call alloc_exec_environment
     jc .fail
     mov ax, [cs:exec_env_seg]
     mov es, ax
     xor di, di
-    mov bx, ENV_SIZE_BYTES
+    mov bx, [cs:exec_env_bytes]
     mov ax, [cs:exec_env_src_seg]
     test ax, ax
     jz .write_default_vars
@@ -643,7 +665,10 @@ alloc_exec_environment:
     push ds
     mov word [cs:exec_env_seg], 0
     mov byte [cs:exec_env_owned], 0
-    mov bx, ENV_PARAS
+    mov ax, bx
+    mov cl, 4
+    shl ax, cl
+    mov [cs:exec_env_bytes], ax
     call alloc_mem_direct
     jc .fail
     mov [cs:exec_env_seg], ax

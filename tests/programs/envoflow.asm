@@ -7,7 +7,7 @@ start:
     push cs
     pop es
 
-    mov bx, 0x0012
+    mov bx, 0x0900
     mov ah, 0x48
     int 0x21
     jc fail_alloc
@@ -16,12 +16,16 @@ start:
 
     mov es, ax
     xor di, di
-    mov si, big_var
-    mov cx, big_var_end - big_var
-    rep movsb
-    xor ax, ax
+    mov al, 'X'
     stosb
-    stosw
+    mov al, '='
+    stosb
+    mov cx, 0x8100
+    mov al, 'A'
+    rep stosb
+    xor al, al
+    stosb
+    stosb
 
     push cs
     pop ds
@@ -100,11 +104,6 @@ exec_params:
     dw cmd_tail, 0
     dw 0, 0
     dw 0, 0
-
-big_var: db "BIG="
-times 260 db 'A'
-db 0
-big_var_end:
 
 pass_msg: db "PASS: EXECENV_OVERFLOW", 13, 10, "$"
 fail_alloc_msg: db "FAIL: EXECENV_OVERFLOW ALLOC", 13, 10, "$"

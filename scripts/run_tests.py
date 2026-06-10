@@ -123,6 +123,7 @@ DEFAULT_TESTS = [
     "scripts/test_execleak.py",
     "scripts/test_tsrenv.py",
     "scripts/test_exehdr.py",
+    "scripts/test_envbig.py",
 ]
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124

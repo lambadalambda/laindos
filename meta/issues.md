@@ -1,7 +1,6 @@
 - [ ] [Truncate or extend the file on AH=40h with CX=0](issues/truncate-on-zero-length-write.md)
 - [ ] [Handle bad-cluster markers in fat_free_chain](issues/handle-bad-cluster-markers-in-fat-free-chain.md)
 - [ ] [Guard colon handling in path component parsing](issues/guard-colon-path-component-parsing.md)
-- [ ] [Grow EXEC environment capacity beyond 256 bytes](issues/grow-exec-environment-capacity.md)
 - [ ] [Implement EXEC AL=1 and DOS child-entry register conventions](issues/implement-exec-load-subfunction.md)
 - [ ] [Support unaligned overlay relocation tables and cache reloc sectors](issues/support-unaligned-overlay-relocations.md)
 - [ ] [Send EOI before invoking the mouse user callback](issues/send-eoi-before-mouse-callback.md)

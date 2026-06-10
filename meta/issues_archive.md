@@ -164,3 +164,4 @@
 - [x] [Release inherited handle refcounts on EXEC failure](issues/release-inherited-handles-on-exec-failure.md)
 - [x] [Keep the TSR environment block resident](issues/keep-tsr-environment-resident.md)
 - [x] [Guard EXE header math against 16-bit overflow](issues/guard-exe-header-math-overflows.md)
+- [x] [Grow EXEC environment capacity beyond 256 bytes](issues/grow-exec-environment-capacity.md)
