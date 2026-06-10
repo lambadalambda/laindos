@@ -3592,7 +3592,7 @@ mouse_callback_off: dw 0
 mouse_callback_seg: dw 0
 mouse_event_mask: dw 0
 mouse_ratio_x: dw 8
-mouse_ratio_y: dw 8
+mouse_ratio_y: dw 16
 mouse_scale_rem_x: dw 0
 mouse_scale_rem_y: dw 0
 mouse_event_dx: dw 0

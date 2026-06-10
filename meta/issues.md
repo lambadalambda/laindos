@@ -1,6 +1,5 @@
 - [ ] [Implement EXEC AL=1 and DOS child-entry register conventions](issues/implement-exec-load-subfunction.md)
 - [ ] [Support unaligned overlay relocation tables and cache reloc sectors](issues/support-unaligned-overlay-relocations.md)
-- [ ] [Fix INT 33h reset detection and default ratios](issues/fix-int33-reset-detection-and-default-ratios.md)
 - [ ] [Fix INT 21h clock rollover, drift, and frozen set-time state](issues/fix-int21-clock-rollover-and-drift.md)
 - [ ] [Switch to an internal stack on INT 21h entry](issues/switch-to-internal-stack-in-int21.md)
 - [ ] [Harden boot sector disk reads](issues/harden-boot-sector-disk-reads.md)

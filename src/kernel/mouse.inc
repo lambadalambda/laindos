@@ -66,13 +66,18 @@ int33_handler:
     mov word [cs:mouse_callback_seg], 0
     mov byte [cs:mouse_in_callback], 0
     mov word [cs:mouse_ratio_x], 8
-    mov word [cs:mouse_ratio_y], 8
+    mov word [cs:mouse_ratio_y], 16
     mov word [cs:mouse_scale_rem_x], 0
     mov word [cs:mouse_scale_rem_y], 0
     mov word [cs:mouse_event_dx], 0
     mov word [cs:mouse_event_dy], 0
+    cmp byte [cs:mouse_ps2_enabled], 0
+    je .reset_absent
     mov ax, 0xFFFF
     mov bx, 2
+    iret
+.reset_absent:
+    xor ax, ax
     iret
 .show:
     inc word [cs:mouse_visible_count]
@@ -326,6 +331,9 @@ mouse_apply_delta_y:
     ret
 
 mouse_init_ps2:
+%ifdef TEST_MOUSE_DISABLE_PS2
+    jmp .fail
+%endif
     mov byte [cs:mouse_ps2_stage], 1
     call ps2_flush_output
     mov byte [cs:mouse_ps2_stage], 2

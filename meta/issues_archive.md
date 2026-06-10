@@ -169,3 +169,4 @@
 - [x] [Handle bad-cluster markers in fat_free_chain](issues/handle-bad-cluster-markers-in-fat-free-chain.md)
 - [x] [Guard colon handling in path component parsing](issues/guard-colon-path-component-parsing.md)
 - [x] [Send EOI before invoking the mouse user callback](issues/send-eoi-before-mouse-callback.md)
+- [x] [Fix INT 33h reset detection and default ratios](issues/fix-int33-reset-detection-and-default-ratios.md)
