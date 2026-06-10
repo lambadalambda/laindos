@@ -3539,6 +3539,11 @@ fat_walk_left: dw 0
 exec_env_bytes: dw 0
 boot_drive_num: db 0
 exec_no_run: db 0
+ov_rel_sec_idx: dw 0
+ov_rel_clus: dw 0
+ov_rel_clus_base: dw 0
+ov_rel_stage: db 0, 0, 0, 0
+ov_rel_stage_n: dw 0
 ov_dst_seg: dw 0
 ov_dst_off: dw 0
 ov_sector_offset: dw 0

@@ -179,3 +179,4 @@
 - [x] [Fix IOCTL set-device-info and handle drive reporting](issues/fix-ioctl-set-and-handle-drive-reporting.md)
 - [x] [Fix miscellaneous INT 21h return conventions](issues/fix-misc-int21-return-conventions.md)
 - [x] [Implement EXEC AL=1 and DOS child-entry register conventions](issues/implement-exec-load-subfunction.md)
+- [x] [Support unaligned overlay relocation tables and cache reloc sectors](issues/support-unaligned-overlay-relocations.md)

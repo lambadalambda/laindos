@@ -859,24 +859,16 @@ overlay_apply_relocs:
     push ds
     push es
     push di
+    mov word [cs:ov_rel_sec_idx], 0xFFFF
+    mov word [cs:ov_rel_clus_base], 0xFFFF
     mov cx, [cs:ov_reloc_count]
     test cx, cx
     jz .done
     cmp word [cs:ov_image_par], 0
     je .err
 .loop:
-    call overlay_read_reloc_sector
+    call overlay_fetch_reloc_entry
     jc .err
-    push ds
-    mov ax, SEC_BUF
-    mov ds, ax
-    mov bx, [cs:ov_reloc_off]
-    and bx, 511
-    cmp bx, 508
-    ja .entry_crosses_sector
-    mov di, [bx]
-    mov ax, [bx+2]
-    pop ds
     cmp di, 0xFFFE
     ja .err
     cmp ax, [cs:ov_image_par]
@@ -887,7 +879,6 @@ overlay_apply_relocs:
     mov ax, [es:di]
     add ax, [cs:ov_reloc_seg]
     mov [es:di], ax
-    add word [cs:ov_reloc_off], 4
     loop .loop
 .done:
     pop di
@@ -898,8 +889,6 @@ overlay_apply_relocs:
     pop ax
     clc
     ret
-.entry_crosses_sector:
-    pop ds
 .err:
     pop di
     pop es
@@ -908,6 +897,60 @@ overlay_apply_relocs:
     pop bx
     pop ax
     stc
+    ret
+
+overlay_fetch_reloc_entry:
+    push bx
+    push cx
+    push ds
+    mov word [cs:ov_rel_stage_n], 0
+.byte_loop:
+    call overlay_load_reloc_sector
+    jc .err
+    mov bx, [cs:ov_reloc_off]
+    and bx, 511
+    mov ax, SEC_BUF
+    mov ds, ax
+    mov al, [bx]
+    mov bx, [cs:ov_rel_stage_n]
+    mov [cs:ov_rel_stage+bx], al
+    inc word [cs:ov_rel_stage_n]
+    inc word [cs:ov_reloc_off]
+    cmp word [cs:ov_rel_stage_n], 4
+    jb .byte_loop
+    mov di, [cs:ov_rel_stage]
+    mov ax, [cs:ov_rel_stage+2]
+    pop ds
+    pop cx
+    pop bx
+    clc
+    ret
+.err:
+    pop ds
+    pop cx
+    pop bx
+    stc
+    ret
+
+overlay_load_reloc_sector:
+    push ax
+    mov ax, [cs:ov_reloc_off]
+    shr ax, 9
+    cmp ax, [cs:ov_rel_sec_idx]
+    je .cached
+    mov [cs:ov_rel_sec_idx], ax
+    pop ax
+    call overlay_read_reloc_sector
+    jnc .ok
+    mov word [cs:ov_rel_sec_idx], 0xFFFF
+    stc
+    ret
+.ok:
+    clc
+    ret
+.cached:
+    pop ax
+    clc
     ret
 
 overlay_read_reloc_sector:
@@ -926,13 +969,25 @@ overlay_read_reloc_sector:
     shr ax, 1
     loop .sector_shift
     mov bx, ax
+    xor dx, dx
+    cmp word [cs:ov_rel_clus_base], 0xFFFF
+    je .walk_ready
+    cmp bx, [cs:ov_rel_clus_base]
+    jb .walk_ready
+    mov si, [cs:ov_rel_clus]
+    mov dx, [cs:ov_rel_clus_base]
+    sub bx, dx
+.walk_ready:
 .cluster_walk:
     xor ch, ch
     mov cl, [cs:kspc]
     cmp bx, cx
     jb .read_sector
     sub bx, cx
+    add dx, cx
+    push dx
     call fat_next
+    pop dx
     cmp ax, [cs:kfat_eoc]
     jae .err
     cmp ax, 2
@@ -940,6 +995,8 @@ overlay_read_reloc_sector:
     mov si, ax
     jmp .cluster_walk
 .read_sector:
+    mov [cs:ov_rel_clus], si
+    mov [cs:ov_rel_clus_base], dx
     mov ax, si
     call cluster_lba
     mov [cs:kio_lba_hi], dx
