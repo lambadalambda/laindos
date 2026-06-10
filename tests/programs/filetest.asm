@@ -105,7 +105,7 @@ image_start:
     mov al, 0x02
     int 0x21
 
-filename: db "TESTFILEDAT", 0
+filename: db "TESTFILE.DAT", 0
 subdir: db "\MIDEMO\SUBTEST.DAT", 0
 fail_open_msg: db "FAIL: OPEN$"
 fail_sub_msg: db "FAIL: SUBDIR$"

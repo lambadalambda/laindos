@@ -127,7 +127,7 @@ image_start:
     mov ax, 0x4C01
     int 0x21
 
-filename: db "READWRAPDAT", 0
+filename: db "READWRAP.DAT", 0
 pass_msg: db 13, 10, "PASS: READWRAP$"
 fail_open_msg: db "FAIL: READWRAP OPEN$"
 fail_alloc_msg: db "FAIL: READWRAP ALLOC$"

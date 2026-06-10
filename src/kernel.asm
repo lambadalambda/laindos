@@ -221,7 +221,17 @@ kernel_entry:
 %endif
 
     mov si, fname_exe
-    call resolve_path
+    push cs
+    pop es
+    mov di, name_buf
+    mov cx, 11
+    cld
+    rep movsb
+    mov ax, ROOT_CLUSTER
+    xor bx, bx
+    xor dx, dx
+    mov byte [cs:ff_attr_mask], 0
+    call find_in_dir
     jnc .rp_ok
     push cs
     pop ds

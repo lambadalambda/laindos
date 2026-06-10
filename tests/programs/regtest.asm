@@ -96,7 +96,7 @@ image_start:
     mov ax, 0x4C01
     int 0x21
 
-filename: db "TESTFILEDAT", 0
+filename: db "TESTFILE.DAT", 0
 pass_msg: db 13, 10, "PASS: REGS$"
 fail_open_msg: db "FAIL: REGS OPEN$"
 fail_read_msg: db "FAIL: REGS READ$"

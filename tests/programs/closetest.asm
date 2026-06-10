@@ -61,7 +61,7 @@ image_start:
     mov ax, 0x4C01
     int 0x21
 
-filename: db "TESTFILEDAT", 0
+filename: db "TESTFILE.DAT", 0
 pass_msg: db 13, 10, "PASS: CLOSE$"
 fail_open_msg: db "FAIL: CLOSE OPEN$"
 fail_close1_msg: db "FAIL: CLOSE FIRST$"

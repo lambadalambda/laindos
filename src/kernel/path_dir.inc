@@ -1005,6 +1005,7 @@ resolve_path:
     mov al, ' '
     rep stosb
     mov di, name_buf
+    xor bh, bh
     cld
     mov ds, [cs:rp_path_seg]
     mov si, [cs:rp_path]
@@ -1063,19 +1064,21 @@ resolve_path:
     call ascii_upper
     cmp al, '.'
     je .rp_dot
+    test bh, bh
+    jnz .rp_ext_char
+    cmp di, name_buf + 8
+    jae .rp_adv
+    stosb
+    jmp .rp_adv
+.rp_ext_char:
     cmp di, name_buf + 11
-    jae .rp_name_overflow
+    jae .rp_adv
     stosb
     jmp .rp_adv
 .rp_dot:
+    mov bh, 1
     mov di, name_buf + 8
     jmp .rp_adv
-.rp_name_overflow:
-    pop es
-    pop ds
-    stc
-    pop bx
-    ret
 .rp_adv:
     mov [cs:rp_path], si
     jmp .rp_copy
