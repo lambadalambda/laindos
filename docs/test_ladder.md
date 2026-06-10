@@ -17,13 +17,14 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `python3 scripts/test_irqmask.py`: run one focused test directly.
 - `make test-cd-bios`: run the generated-ISO BIOS CD-ROM probe.
 - `make test-cd-file`: run the generated-ISO read-only `D:` file API probe.
-- `make test-cd-subdir`: run the generated-ISO read-only `D:` subdirectory file API probe.
+- `make test-cd-subdir`: run the generated-ISO read-only `D:` subdirectory file API probe, including current-directory CD file attributes.
 - `make test-cd-find`: run the generated-ISO read-only `D:` directory enumeration probe, including explicit-subdirectory and current-directory wildcard searches.
 - `make test-cd-mscdex`: run the generated-ISO MSCDEX detection probe.
 - `make test-cd-exec`: run the generated-ISO `EXEC` and overlay-load probe for COM and EXE programs loaded from `D:`.
 - `make test-cd-86box`: run the generated-ISO read-only `D:` file probe in 86Box with an ATAPI CD-ROM attached as IDE secondary master.
 - `make test-sammax-cd-files`: with local Sam & Max media, extract the cue/bin data track and verify `D:\SAMNMAX` file reads.
 - `make test-sammax-cd-install`: with local Sam & Max media, launch root `D:\INSTALL.EXE` under QEMU `-icount shift=6` and verify the CDReader/Bestseller installer screen appears without Borland Pascal `Runtime error 200`.
+- `make test-sammax-cd-install-select`: with local Sam & Max media, drive the root installer menu to `Demo: The Dig` and verify the installer-launched shell opens `start.bat`.
 - `make test-sammax-cd-start`: with local Sam & Max media, launch `D:\SAMNMAX\SAMNMAX.EXE`, pass the sound-driver prompt, and verify an active framebuffer.
 - `make test-sammax-cd-setmuse`: with local Sam & Max media, launch `D:\SAMNMAX\SETMUSE.EXE`, open the sound-card selector, and verify the driver list appears.
 - `make test-sammax-cd-setmuse-save`: with local Sam & Max media, boot a writable C: image plus the CD as D:, configure SETMUSE for Sound Blaster 16 port 220, exit/save, and verify `C:\SAMNMAX.CD\SETMUSE.INI` is created.

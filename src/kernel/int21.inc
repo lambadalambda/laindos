@@ -3804,10 +3804,28 @@ int21_handler:
     push si
     push di
     mov si, dx
+    call activate_drive_for_path
+    jc .fa_get_nf
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .fa_get_cd
+    mov si, dx
     call resolve_path
     jc .fa_get_nf
     xor ch, ch
     mov cl, [es:di+11]
+    jmp .fa_get_store
+.fa_get_cd:
+    mov si, dx
+    call cd_open_path
+    jnc .fa_get_cd_file
+    mov si, dx
+    call cd_open_dir_path
+    jc .fa_get_nf
+    mov cx, ATTR_RDONLY | ATTR_DIR
+    jmp .fa_get_store
+.fa_get_cd_file:
+    mov cx, ATTR_RDONLY
+.fa_get_store:
     mov [cs:fa_ret_attr], cx
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     mov cx, [cs:fa_ret_attr]
@@ -3821,6 +3839,11 @@ int21_handler:
     push dx
     push si
     push di
+    mov si, dx
+    call activate_drive_for_path
+    jc .fa_set_nf
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .fa_set_cd
     mov si, dx
     call resolve_path
     jc .fa_set_nf
@@ -3836,6 +3859,14 @@ int21_handler:
     jc .fa_set_io_err
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     jmp iret_nc
+.fa_set_cd:
+    mov si, dx
+    call cd_open_path
+    jnc .fa_set_access
+    mov si, dx
+    call cd_open_dir_path
+    jc .fa_set_nf
+    jmp .fa_set_access
 .fa_get_nf:
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     RET_ERR 2

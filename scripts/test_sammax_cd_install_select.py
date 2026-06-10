@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 from testlib import (
-    qemu_binary, qemu_vga, qemu_sb16_adlib_silent_args,
+    collect_output, qemu_binary, qemu_vga, qemu_sb16_adlib_silent_args,
     start_qemu, stop_qemu, open_monitor, send_monitor_command,
     monitor_quit, run_cmd, wait_for_output, remove_if_exists,
 )
@@ -24,9 +24,11 @@ KERNEL = WORKDIR / "install_select_probe_kernel.bin"
 SHELL = WORKDIR / "shell.com"
 AUTOEXEC = WORKDIR / "autoexec_install_select_probe.bat"
 IMG = WORKDIR / "sammax_cd_install_select_probe.img"
+SERIAL = WORKDIR / "install_select_probe_serial.txt"
 MONITOR = Path(tempfile.gettempdir()) / "laindos-sammax-cd-install-select-probe.sock"
 TEXTMEM = BUILDDIR / "sammax_cd_install_select_probe_b800.bin"
 BDA_DUMP = BUILDDIR / "sammax_cd_install_select_probe_bda.bin"
+TRACE_DOS = os.environ.get("SAMMAX_CD_INSTALL_TRACE_DOS", "12000")
 ICOUNT = os.environ.get("SAMMAX_CD_PROBE_ICOUNT", "shift=6")
 TIMEOUT = int(os.environ.get("SAMMAX_CD_PROBE_TIMEOUT", "30"))
 
@@ -54,7 +56,10 @@ def build_artifacts():
     prepare_cd_image()
     AUTOEXEC.write_bytes(b"D:\r\nINSTALL\r\n")
     run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", str(BOOT)])
-    run_cmd(["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm", "-o", str(KERNEL)])
+    kernel_cmd = ["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm", "-o", str(KERNEL)]
+    if TRACE_DOS:
+        kernel_cmd.insert(1, f"-DTRACE_DOS={TRACE_DOS}")
+    run_cmd(kernel_cmd)
     run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", str(SHELL)])
     run_cmd([
         "python3", "scripts/mkimage.py", "--format=hd160m",
@@ -109,9 +114,28 @@ def highlight_row_from_screen(screen):
             return "SAM & MAX"
         if "0x17" in line and "REBEL" in line.upper():
             return "Demo: Rebel Assault"
+        if "0x17" in line and "DIG" in line.upper():
+            return "Demo: The Dig"
         if "0x17" in line and "FANTASY" in line.upper():
             return "Demo: Fantasy General"
     return None
+
+
+def output_text(chunks):
+    return b"".join(chunks).decode("latin-1", errors="replace")
+
+
+def wait_for_upper_output(chunks, marker, timeout):
+    deadline = time.monotonic() + timeout
+    marker = marker.upper()
+    while time.monotonic() < deadline:
+        output = output_text(chunks).upper()
+        if marker in output:
+            return True
+        if any(m in output for m in ("EXC ", "INT 21H AH=", "RUNTIME ERROR 200", "BAD COMMAND OR FILE NAME")):
+            return False
+        time.sleep(0.05)
+    return False
 
 
 def main():
@@ -157,13 +181,20 @@ def main():
             sys.exit(1)
         before_highlight = highlight_row_from_screen(menu_screen)
         print(f"Initial highlight row: {before_highlight}")
-        send_monitor_command(sock, "sendkey up")
+        send_monitor_command(sock, "sendkey down")
         time.sleep(0.5)
         menu_screen = text_screen_with_attrs(sock, str(TEXTMEM))
-        after_up_highlight = highlight_row_from_screen(menu_screen)
-        print(f"After Up: highlight row: {after_up_highlight}")
+        after_down_highlight = highlight_row_from_screen(menu_screen)
+        print(f"After Down: highlight row: {after_down_highlight}")
         bda = bda_keyboard_buffer(sock, bda_path)
-        print(f"BDA after Up: {bda}")
+        print(f"BDA after Down: {bda}")
+        send_monitor_command(sock, "sendkey down")
+        time.sleep(0.5)
+        menu_screen = text_screen_with_attrs(sock, str(TEXTMEM))
+        after_second_down_highlight = highlight_row_from_screen(menu_screen)
+        print(f"After second Down: highlight row: {after_second_down_highlight}")
+        bda = bda_keyboard_buffer(sock, bda_path)
+        print(f"BDA after second Down: {bda}")
         send_monitor_command(sock, "sendkey ret")
         time.sleep(1.5)
         menu_screen = text_screen_with_attrs(sock, str(TEXTMEM))
@@ -172,19 +203,26 @@ def main():
         bda = bda_keyboard_buffer(sock, bda_path)
         print(f"BDA after Enter: {bda}")
         ok = True
-        if before_highlight == after_up_highlight:
-            print("FAIL: Up did not move the highlight")
+        if before_highlight != "SAM & MAX":
+            print("FAIL: initial highlight is not on SAM & MAX")
             ok = False
-        if after_enter_highlight != "SAM & MAX":
-            print("WARN: After Enter, the highlight is not on the default SAM & MAX row.")
-        serial = b"".join(stdout_chunks).decode("latin-1", errors="replace")
+        if after_down_highlight != "Demo: Rebel Assault":
+            print("FAIL: first Down did not move to Rebel Assault")
+            ok = False
+        if after_second_down_highlight != "Demo: The Dig":
+            print("FAIL: second Down did not move to The Dig")
+            ok = False
+        if not wait_for_upper_output(stdout_chunks, "OPEN START.BAT", timeout=20):
+            print("FAIL: installer selection did not launch START.BAT")
+            ok = False
+        serial = output_text(stdout_chunks)
         for bad in ("EXC ", "INT 21h AH=", "Runtime error 200"):
             if bad in serial:
                 print(f"FAIL: serial contains '{bad}' after sendkey interactions")
                 ok = False
         if not ok:
             sys.exit(1)
-        print("\nINSTALL selection probe passed: highlight moves on Up, redraws after Enter.")
+        print("\nINSTALL selection probe passed: The Dig menu entry launches START.BAT.")
     finally:
         if sock is not None:
             try:
@@ -196,6 +234,8 @@ def main():
             except Exception:
                 pass
         stop_qemu(proc)
+        output = collect_output(stdout_chunks, stderr_chunks, threads)
+        SERIAL.write_text(output, encoding="utf-8")
         if os.path.exists(bda_path):
             os.unlink(bda_path)
 

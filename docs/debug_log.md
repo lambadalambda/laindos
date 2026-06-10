@@ -2,6 +2,29 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-10 Sam & Max INSTALL Selection Stops Before START.BAT
+
+### Symptoms
+
+- The Sam & Max CD root `INSTALL.EXE` menu accepted `Enter` and changed to the selected entry's directory, but did not shell out to the configured `start.bat` for demo entries.
+
+### Confirmed Facts
+
+- A temporary central `INT 21h` trace showed the selected action reached `AH=3Bh CHDIR`, then called `AH=43h AL=00h Get File Attributes` on relative `start.bat`, and never reached `AH=4Bh EXEC`.
+- Focused attribute tracing showed `ATTR start.bat` returned DOS error `2` even though the current directory was the selected CD subdirectory.
+- The root cause was generic: `AH=43h` used the FAT-only `resolve_path` path for get/set attributes, so read-only CD-ROM files and directories were reported as missing.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_cd_subdir.py` now covers `AH=4300h` on a current-directory relative CD file and an absolute CD directory. It failed with `FAIL: CDSUBDIR ATTR FILE` before the fix.
+- `make test-sammax-cd-install-select` now drives the installer menu from `SAM & MAX` to `Demo: The Dig` and requires the installer-launched shell to open `start.bat`; this would have caught the previous no-shell-out behavior.
+- `make test-sammax-cd-dig` still reaches `OPEN c:\lecdemos\dig\imuse.ini` through the direct DIG batch path.
+
+### Current State
+
+- `INT 21h AH=43h AL=00h` returns `ATTR_RDONLY` for CD files and `ATTR_RDONLY | ATTR_DIR` for CD directories.
+- `INT 21h AH=43h AL=01h` on an existing CD file or directory returns access denied instead of silently falling through the FAT path.
+
 ## 2026-06-09 Sam & Max DIG Demo Batch Chain
 
 ### Symptoms
