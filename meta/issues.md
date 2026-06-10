@@ -1,4 +1,3 @@
-- [ ] [Treat tab as whitespace in shell parsing](issues/treat-tab-as-whitespace-in-shell-parsing.md)
 - [ ] [Accept a filename operand in MORE](issues/accept-more-filename-operand.md)
 - [ ] [Fix FREE utility reporting](issues/fix-free-utility-reporting.md)
 - [ ] [Re-list orphaned regression tests and add suite discovery](issues/run-orphaned-regression-tests.md)

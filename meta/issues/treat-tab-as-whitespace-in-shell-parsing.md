@@ -12,3 +12,7 @@ Tab (ASCII 9) is not whitespace in the shell's core parsing: `skip_spaces` compa
 
 - Batch test with tab-indented commands and `ECHO<TAB>text` runs correctly; `PASS:` markers.
 - Existing shell/batch tests pass.
+
+## Resolution
+
+Resolved 2026-06-10. skip_spaces, cmd_match's word terminator and argument-skip loops, skip_token_chars, copy_path_token, and prepare_command's name copy (including the overflow scanner) all treat tab (ASCII 9) like space. Covered by scripts/test_shelltab.py (tab-indented batch lines, ECHO<TAB>text, tab before redirection).

@@ -1242,6 +1242,8 @@ copy_path_token:
     jz .end
     cmp al, ' '
     je .end
+    cmp al, 9
+    je .end
     test cx, cx
     jz .skip_rest
     stosb
@@ -1254,6 +1256,8 @@ copy_path_token:
     cmp byte [si], 0
     je .end
     cmp byte [si], ' '
+    je .end
+    cmp byte [si], 9
     je .end
     inc si
     jmp .skip_loop
@@ -1388,6 +1392,8 @@ skip_token_chars:
     cmp byte [si], 0
     je .done
     cmp byte [si], ' '
+    je .done
+    cmp byte [si], 9
     je .done
     inc si
     jmp .loop
@@ -2633,6 +2639,8 @@ prepare_command:
     lodsb
     cmp al, ' '
     je .end_name_space
+    cmp al, 9
+    je .end_name_space
     test al, al
     jz .end_name_zero
     cmp di, command_name + 58
@@ -2659,6 +2667,8 @@ prepare_command:
     mov byte [command_too_long], 1
     lodsb
     cmp al, ' '
+    je .end_name_space
+    cmp al, 9
     je .end_name_space
     test al, al
     jnz .name_overflow
@@ -3352,7 +3362,10 @@ print_asciiz:
 skip_spaces:
 .loop:
     cmp byte [si], ' '
+    je .skip
+    cmp byte [si], 9
     jne .done
+.skip:
     inc si
     jmp .loop
 .done:
@@ -3392,6 +3405,8 @@ cmd_match:
     jz .yes
     cmp al, ' '
     je .arg_spaces
+    cmp al, 9
+    je .arg_spaces
     cmp al, '/'
     je .yes
     cmp al, '\'
@@ -3408,6 +3423,8 @@ cmd_match:
 .arg_spaces:
     inc si
     cmp byte [si], ' '
+    je .arg_spaces
+    cmp byte [si], 9
     je .arg_spaces
 .yes:
     stc
