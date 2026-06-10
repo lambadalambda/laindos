@@ -6,7 +6,7 @@ import subprocess
 import sys
 import zipfile
 
-BUILDDIR = "build"
+BUILDDIR = os.environ.get("LAINDOS_TEST_BUILD_DIR", "build")
 VENDOR_ZIP = "vendor/wolf3dsw.zip"
 WOLFDIR = os.path.join(BUILDDIR, "wolf3d_files")
 BOOT = os.path.join(BUILDDIR, "wolf3d_boot.bin")

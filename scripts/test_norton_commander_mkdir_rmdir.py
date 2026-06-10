@@ -10,6 +10,7 @@ import time
 
 import test_norton_commander_smoke as nc
 from testlib import (
+    unique_monitor_socket, unique_vnc_arg,
     build_dir,
     check_markers,
     collect_output,
@@ -106,7 +107,7 @@ def build_image():
 
 
 def run_nc(keys, monitor_name, screenshot):
-    monitor = os.path.join(tempfile.gettempdir(), monitor_name)
+    monitor = unique_monitor_socket(monitor_name)
     remove_if_exists(monitor)
     remove_if_exists(screenshot)
     proc, stdout_chunks, stderr_chunks, threads = start_qemu([
@@ -116,7 +117,7 @@ def run_nc(keys, monitor_name, screenshot):
         "-serial", "stdio",
         "-monitor", f"unix:{monitor},server,nowait",
         "-vga", qemu_vga(),
-        "-vnc", "127.0.0.1:44",
+        "-vnc", unique_vnc_arg(),
     ])
     sock = None
     try:
@@ -144,7 +145,7 @@ def run_mkdir():
         ("key", "ctrl-y", 0.2),
         ("text", DIR_NAME, 0.1),
         ("key", "ret", 4),
-    ], "laindos-norton-commander-mkdir.sock", SCREENSHOT_MKDIR)
+    ], "norton-commander-mkdir", SCREENSHOT_MKDIR)
 
 
 def run_rmdir():
@@ -156,7 +157,7 @@ def run_rmdir():
         ("key", "tab", 0.2),
         ("key", "ret", 1),
         ("key", "ret", 4),
-    ], "laindos-norton-commander-rmdir.sock", SCREENSHOT_RMDIR)
+    ], "norton-commander-rmdir", SCREENSHOT_RMDIR)
 
 
 def check_common_output(output, label):

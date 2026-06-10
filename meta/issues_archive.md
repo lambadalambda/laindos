@@ -192,3 +192,5 @@
 - [x] [Point mise test at the full suite and snapshot the boot test image](issues/point-mise-test-at-full-suite.md)
 - [x] [Harden mkimage capacity checks](issues/harden-mkimage-capacity-checks.md)
 - [x] [Extract a shared FAT reader for Python scripts](issues/extract-shared-fat-reader-for-scripts.md)
+- [x] [Extract a Sam & Max test library](issues/extract-sammax-test-library.md)
+- [x] [Make game tests parallel-safe](issues/make-game-tests-parallel-safe.md)

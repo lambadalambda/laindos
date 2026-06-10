@@ -4,6 +4,7 @@ import sys
 import tempfile
 import time
 from testlib import (
+    unique_monitor_socket, unique_vnc_arg,
     DEFAULT_FAIL_MARKERS,
     check_markers,
     collect_output,
@@ -23,7 +24,7 @@ from testlib import (
 )
 
 IMG = "build/shell_monkey.img"
-MONITOR = os.path.join(tempfile.gettempdir(), "laindos-shell-monkey.sock")
+MONITOR = unique_monitor_socket("shell-monkey")
 SCREENSHOT = "build/shell_monkey_screen.ppm"
 TIMEOUT = int(os.environ.get("MONKEY_DEMO_SMOKE_WAIT", "18"))
 
@@ -38,7 +39,7 @@ def run_qemu():
         "-serial", "stdio",
         "-monitor", f"unix:{MONITOR},server,nowait",
         "-vga", qemu_vga(),
-        "-vnc", "127.0.0.1:32",
+        "-vnc", unique_vnc_arg(),
         *qemu_sb16_silent_args(),
     ])
     sock = None

@@ -6,6 +6,7 @@ import tempfile
 import time
 import zipfile
 from testlib import (
+    unique_monitor_socket, unique_vnc_arg,
     check_markers,
     collect_output,
     framebuffer_active,
@@ -26,7 +27,7 @@ WORKDIR = os.path.join(BUILDDIR, "shortline_smoke_files")
 BOOT = os.path.join(BUILDDIR, "shortline_smoke_boot.bin")
 KERNEL = os.path.join(BUILDDIR, "shortline_smoke_kernel.bin")
 IMG = os.path.join(BUILDDIR, "shortline_smoke.img")
-MONITOR = os.path.join(tempfile.gettempdir(), "laindos-shortline-smoke.sock")
+MONITOR = unique_monitor_socket("shortline-smoke")
 SCREENSHOT = os.path.join(BUILDDIR, "shortline_smoke_screen.ppm")
 TIMEOUT = int(os.environ.get("SHORTLINE_SMOKE_WAIT", "25"))
 
@@ -54,7 +55,7 @@ def run_qemu():
         "-serial", "stdio",
         "-monitor", f"unix:{MONITOR},server,nowait",
         "-vga", qemu_vga(),
-        "-vnc", "127.0.0.1:64",
+        "-vnc", unique_vnc_arg(),
         "-icount", "shift=6,align=off,sleep=off",
     ])
     sock = None

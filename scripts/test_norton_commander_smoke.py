@@ -9,6 +9,7 @@ import tempfile
 import time
 
 from testlib import (
+    unique_monitor_socket, unique_vnc_arg,
     build_dir,
     check_markers,
     collect_output,
@@ -33,7 +34,7 @@ FILES_DIR = os.path.join(WORKDIR, "files")
 BOOT = os.path.join(WORKDIR, "boot.bin")
 KERNEL = os.path.join(WORKDIR, "kernel.bin")
 IMG = os.path.join(WORKDIR, "norton_commander.img")
-MONITOR = os.path.join(tempfile.gettempdir(), "laindos-norton-commander-smoke.sock")
+MONITOR = unique_monitor_socket("norton-commander-smoke")
 SCREENSHOT = os.path.join(WORKDIR, "norton_commander.ppm")
 TIMEOUT = int(os.environ.get("NC_SMOKE_WAIT", "12"))
 
@@ -79,7 +80,7 @@ def run_qemu():
         "-serial", "stdio",
         "-monitor", f"unix:{MONITOR},server,nowait",
         "-vga", qemu_vga(),
-        "-vnc", "127.0.0.1:33",
+        "-vnc", unique_vnc_arg(),
     ])
     sock = None
     try:

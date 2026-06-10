@@ -10,6 +10,7 @@ import time
 
 import test_norton_commander_smoke as nc
 from testlib import (
+    unique_monitor_socket, unique_vnc_arg,
     build_dir,
     check_markers,
     collect_output,
@@ -37,7 +38,7 @@ BOOT = os.path.join(WORKDIR, "boot.bin")
 KERNEL = os.path.join(WORKDIR, "kernel.bin")
 HELLO = os.path.join(WORKDIR, "hello.com")
 IMG = os.path.join(WORKDIR, "norton_commander_copy.img")
-MONITOR = os.path.join(tempfile.gettempdir(), "laindos-norton-commander-copy.sock")
+MONITOR = unique_monitor_socket("norton-commander-copy")
 SCREENSHOT = os.path.join(WORKDIR, "norton_commander_copy.ppm")
 TIMEOUT = int(os.environ.get("NC_COPY_WAIT", "18"))
 
@@ -88,7 +89,7 @@ def run_qemu():
         "-serial", "stdio",
         "-monitor", f"unix:{MONITOR},server,nowait",
         "-vga", qemu_vga(),
-        "-vnc", "127.0.0.1:42",
+        "-vnc", unique_vnc_arg(),
     ])
     sock = None
     try:

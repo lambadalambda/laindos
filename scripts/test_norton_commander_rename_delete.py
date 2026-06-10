@@ -8,6 +8,7 @@ import time
 import test_norton_commander_copy as nccopy
 import test_norton_commander_smoke as nc
 from testlib import (
+    unique_monitor_socket, unique_vnc_arg,
     build_dir,
     check_markers,
     collect_output,
@@ -64,7 +65,7 @@ def build_image():
 
 
 def run_nc(keys, monitor_name, screenshot):
-    monitor = os.path.join(tempfile.gettempdir(), monitor_name)
+    monitor = unique_monitor_socket(monitor_name)
     remove_if_exists(monitor)
     remove_if_exists(screenshot)
     proc, stdout_chunks, stderr_chunks, threads = start_qemu([
@@ -74,7 +75,7 @@ def run_nc(keys, monitor_name, screenshot):
         "-serial", "stdio",
         "-monitor", f"unix:{monitor},server,nowait",
         "-vga", qemu_vga(),
-        "-vnc", "127.0.0.1:43",
+        "-vnc", unique_vnc_arg(),
     ])
     sock = None
     try:
@@ -102,7 +103,7 @@ def run_rename():
         ("key", "ctrl-y", 0.2),
         ("text", "HELLO3.COM", 0.1),
         ("key", "ret", 4),
-    ], "laindos-norton-commander-rename.sock", SCREENSHOT_RENAME)
+    ], "norton-commander-rename", SCREENSHOT_RENAME)
 
 
 def run_delete():
@@ -110,7 +111,7 @@ def run_delete():
     return run_nc([
         ("key", "f8", 1),
         ("key", "ret", 4),
-    ], "laindos-norton-commander-delete.sock", SCREENSHOT_DELETE)
+    ], "norton-commander-delete", SCREENSHOT_DELETE)
 
 
 def check_common_output(output, label):

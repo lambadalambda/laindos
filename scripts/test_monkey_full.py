@@ -4,6 +4,7 @@ import sys
 import tempfile
 import time
 from testlib import (
+    unique_monitor_socket, unique_vnc_arg,
     check_markers,
     collect_output,
     framebuffer_active,
@@ -18,7 +19,7 @@ from testlib import (
 
 IMG = "build/monkey_full.img"
 TIMEOUT = 25
-MONITOR = os.path.join(tempfile.gettempdir(), "laindos-monkey-full.sock")
+MONITOR = unique_monitor_socket("monkey-full")
 SCREENSHOT = "build/monkey_full_screen.ppm"
 
 
@@ -31,7 +32,7 @@ def run_qemu():
         "-boot", "order=c",
         "-serial", "stdio",
         "-monitor", f"unix:{MONITOR},server,nowait",
-        "-vnc", "127.0.0.1:29",
+        "-vnc", unique_vnc_arg(),
     ])
     sock = None
     try:

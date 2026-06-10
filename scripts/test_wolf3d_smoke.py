@@ -4,6 +4,8 @@ import sys
 import tempfile
 import time
 from testlib import (
+    build_dir,
+    unique_monitor_socket, unique_vnc_arg,
     check_markers,
     collect_output,
     framebuffer_active,
@@ -18,9 +20,9 @@ from testlib import (
     stop_qemu,
 )
 
-IMG = "build/wolf3d.img"
-MONITOR = os.path.join(tempfile.gettempdir(), "laindos-wolf3d-smoke.sock")
-SCREENSHOT = "build/wolf3d_smoke_screen.ppm"
+IMG = os.path.join(build_dir(), "wolf3d.img")
+MONITOR = unique_monitor_socket("wolf3d-smoke")
+SCREENSHOT = os.path.join(build_dir(), "wolf3d_smoke_screen.ppm")
 TIMEOUT = int(os.environ.get("WOLF3D_SMOKE_WAIT", "25"))
 
 
@@ -34,7 +36,7 @@ def run_qemu():
         "-serial", "stdio",
         "-monitor", f"unix:{MONITOR},server,nowait",
         "-vga", qemu_vga(),
-        "-vnc", "127.0.0.1:30",
+        "-vnc", unique_vnc_arg(),
         *qemu_sb16_adlib_silent_args(),
     ])
     sock = None

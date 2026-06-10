@@ -11,10 +11,10 @@ import sys
 import tempfile
 import threading
 import time
-from testlib import qemu_binary
+from testlib import unique_monitor_socket, unique_vnc_arg, qemu_binary
 
 IMG = os.environ.get("LAINDOS_MI2_SAVE_IMG", "build/games_hd_all.img")
-MONITOR = os.path.join(tempfile.gettempdir(), "laindos-mi2-save.sock")
+MONITOR = unique_monitor_socket("mi2-save")
 SCREEN_DIALOG = "build/mi2_save_dialog.ppm"
 SCREEN_AFTER_OK = "build/mi2_save_after_ok.ppm"
 MIN_SAVE_SIZE = 1024
@@ -96,7 +96,7 @@ def run_qemu_save_attempt():
             "-boot", "order=c",
             "-serial", "stdio",
             "-monitor", f"unix:{MONITOR},server,nowait",
-            "-vnc", "127.0.0.1:50",
+            "-vnc", unique_vnc_arg(),
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
