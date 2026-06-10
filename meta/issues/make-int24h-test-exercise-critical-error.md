@@ -11,3 +11,7 @@
 ## Acceptance Criteria
 
 - The test fails if the `int 0x24` invocation in `sector_io_loop` (src/kernel/disk.inc:58) is removed, and passes on current code; `PASS:` markers.
+
+## Resolution
+
+Resolved 2026-06-10. tests/programs/int24h.asm installs a handler via AX=2524h, then creates a file on a floppy QEMU exposes with readonly=on -- the INT 13h write fails, sector_io_loop retries, and INT 24h fires with the kernel's contract (AL=op 3 for write, AH=BIOS drive). The handler answers retry (AL=1) once, then fail (AL=3), and the program asserts the create errored, the handler ran at least twice, and the recorded op/drive match. Verified that stubbing out the `int 0x24` invocation in sector_io_loop makes the test fail. blkdebug fault injection remains unusable for this (see the earlier investigation note); the write-protected floppy supplies a genuine INT 13h error instead.

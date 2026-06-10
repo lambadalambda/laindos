@@ -4,7 +4,6 @@ from testlib import build_dir, run_simple_serial_test
 
 
 BUILDDIR = build_dir()
-TESTFILE = os.path.join(BUILDDIR, "intfile.dat")
 
 
 def main():
@@ -15,7 +14,8 @@ def main():
         [("tests/programs/int24h.asm", "int24h.com")],
         required=("PASS: INT24H", "Program exited, code=00", "HALT"),
         forbidden=("FAIL:", "EXC ", "INT 21h AH="),
-        pass_message="INT 24h wiring test passed.",
+        drive_opts="if=floppy,readonly=on",
+        pass_message="INT 24h critical-error test passed.",
     )
 
 
