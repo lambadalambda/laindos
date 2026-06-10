@@ -138,6 +138,7 @@ DEFAULT_TESTS = [
     "scripts/test_misc21.py",
     "scripts/test_execload.py",
     "scripts/test_ovlrel.py",
+    "scripts/test_switchar.py",
 ]
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124

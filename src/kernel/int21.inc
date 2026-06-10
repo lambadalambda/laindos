@@ -415,6 +415,8 @@ int21_handler:
     je .get_vector
     cmp ah, 0x36
     je .get_disk_free
+    cmp ah, 0x37
+    je .switch_char
     cmp ah, 0x38
     je .country_info
     cmp ah, 0x4E
@@ -1015,6 +1017,18 @@ int21_handler:
     mov ax, 0x0005
     mov bx, 0x0000
     mov cx, 0x0000
+    jmp iret_nc
+.switch_char:
+    cmp al, 0x01
+    ja .sc_bad
+    je .sc_set
+    mov dl, [cs:switch_char]
+    jmp iret_nc
+.sc_set:
+    mov [cs:switch_char], dl
+    jmp iret_nc
+.sc_bad:
+    mov al, 0xFF
     jmp iret_nc
 .get_vector:
     push ax
