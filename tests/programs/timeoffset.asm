@@ -19,7 +19,7 @@
 %if BASE_MIN < 0 || BASE_MIN > 59
 %error "BASE_MIN must be 0..59"
 %endif
-%assign BASE_TICKS ((BASE_HOUR * 0xFFF0) + (BASE_MIN * 0x0444))
+%assign BASE_TICKS ((BASE_HOUR * 0x10007) + (BASE_MIN * 0x0444))
 
 start:
     push cs

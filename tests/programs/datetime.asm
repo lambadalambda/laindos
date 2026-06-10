@@ -92,24 +92,24 @@ start:
     cmp dx, 0
     jne fail_get_time
 
-    mov ch, 23
-    mov cl, 59
-    mov dh, 59
-    mov dl, 99
+    mov ch, 11
+    mov cl, 22
+    mov dh, 33
+    mov dl, 44
     mov ah, 0x2D
     int 0x21
     cmp al, 0
     jne fail_set_time
     mov ah, 0x2C
     int 0x21
-    cmp ch, 23
+    cmp ch, 11
     jne fail_get_time
-    cmp cl, 59
+    cmp cl, 22
     jne fail_get_time
-    cmp dh, 59
+    cmp dh, 33
     jne fail_get_time
-    cmp dl, 99
-    jne fail_get_time
+    cmp dl, 39
+    jb fail_get_time
 
     mov ch, 24
     mov cl, 0
@@ -152,13 +152,9 @@ expect_bad_time_preserves:
     jne .bad
     mov ah, 0x2C
     int 0x21
-    cmp ch, 23
+    cmp ch, 11
     jne .bad
-    cmp cl, 59
-    jne .bad
-    cmp dh, 59
-    jne .bad
-    cmp dl, 99
+    cmp cl, 22
     jne .bad
     clc
     ret

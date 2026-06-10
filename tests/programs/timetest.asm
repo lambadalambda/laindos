@@ -41,7 +41,7 @@ start:
     mov [cs:orig_tick_lo], ax
     mov ax, [0x006E]
     mov [cs:orig_tick_hi], ax
-    mov word [0x006C], 0x0000
+    mov word [0x006C], 0x0010
     mov word [0x006E], 0x0001
     pop ds
 

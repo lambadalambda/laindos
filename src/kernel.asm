@@ -3315,6 +3315,13 @@ time_hour: db 0
 time_min: db 0
 time_sec: db 0
 time_hund: db 0
+time_offset_lo: dw 0
+time_offset_hi: dw 0
+ct_hm: dw 0
+ct_sh: dw 0
+ct_t_lo: dw 0
+ct_t_hi: dw 0
+month_lengths: db 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 
 rf_count:      dw 0
 rf_read:       dw 0

@@ -183,6 +183,127 @@
     pop bx
 %endmacro
 
+dos_clock_ticks:
+    push ax
+    xor ah, ah
+    int 0x1A
+    test al, al
+    jz .no_roll
+    call advance_date_days
+.no_roll:
+    cmp byte [cs:time_set], 0
+    je .done
+    add dx, [cs:time_offset_lo]
+    adc cx, [cs:time_offset_hi]
+.fold:
+    cmp cx, 0x0018
+    jb .done
+    ja .fold_sub
+    cmp dx, 0x00B0
+    jb .done
+.fold_sub:
+    sub dx, 0x00B0
+    sbb cx, 0x0018
+    mov al, 1
+    call advance_date_days
+    mov ax, [cs:time_offset_lo]
+    sub ax, 0x00B0
+    mov [cs:time_offset_lo], ax
+    mov ax, [cs:time_offset_hi]
+    sbb ax, 0x0018
+    mov [cs:time_offset_hi], ax
+    jmp .fold
+.done:
+    pop ax
+    ret
+
+time_components_to_ticks:
+    push cx
+    push dx
+    push si
+    mov al, [cs:ct_hm+1]
+    xor ah, ah
+    mov bx, ax
+    mov si, ax
+    shl si, 3
+    sub si, ax
+    mov ax, si
+    push ax
+    mov al, [cs:ct_hm]
+    xor ah, ah
+    mov si, 1092
+    mul si
+    mov si, ax
+    pop ax
+    add ax, si
+    adc bx, 0
+    push ax
+    mov al, [cs:ct_sh+1]
+    xor ah, ah
+    mov si, 100
+    mul si
+    mov si, ax
+    mov al, [cs:ct_sh]
+    xor ah, ah
+    add si, ax
+    mov ax, si
+    mov si, 1092
+    mul si
+    mov si, 6000
+    div si
+    mov si, ax
+    pop ax
+    add ax, si
+    adc bx, 0
+    pop si
+    pop dx
+    pop cx
+    ret
+
+advance_date_days:
+    push ax
+    push bx
+    push cx
+.day_loop:
+    test al, al
+    jz .done
+    dec al
+    mov ah, [cs:date_weekday]
+    inc ah
+    cmp ah, 7
+    jb .wd_ok
+    xor ah, ah
+.wd_ok:
+    mov [cs:date_weekday], ah
+    mov bl, [cs:date_month]
+    xor bh, bh
+    mov cl, [cs:month_lengths+bx-1]
+    cmp bl, 2
+    jne .len_ok
+    test word [cs:date_year], 3
+    jnz .len_ok
+    inc cl
+.len_ok:
+    mov ch, [cs:date_day]
+    cmp ch, cl
+    jb .day_inc
+    mov byte [cs:date_day], 1
+    inc byte [cs:date_month]
+    cmp byte [cs:date_month], 13
+    jb .day_loop
+    mov byte [cs:date_month], 1
+    inc word [cs:date_year]
+    jmp .day_loop
+.day_inc:
+    inc byte [cs:date_day]
+    jmp .day_loop
+.done:
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+
 int21_handler:
     cld
     cmp byte [cs:mouse_in_callback], 0
@@ -1789,6 +1910,11 @@ int21_handler:
     INT21_POP_FRAME_DS_SI_ES_DI_DX_CX
     jmp iret_cy
 .get_date:
+    push cx
+    push dx
+    call dos_clock_ticks
+    pop dx
+    pop cx
     mov al, [cs:date_weekday]
     mov cx, [cs:date_year]
     mov dh, [cs:date_month]
@@ -1881,22 +2007,20 @@ int21_handler:
     mov al, dl
     ret
 .get_time:
-    cmp byte [cs:time_set], 0
-    jne .gt_stored
     push ax
     push bx
     push si
-    xor ah, ah
-    int 0x1A
+    call dos_clock_ticks
     xor si, si
 .gt_hour_loop:
-    cmp cx, 0
-    jne .gt_sub_hour
-    cmp dx, 0xFFF0
+    cmp cx, 1
+    jb .gt_hour_done
+    ja .gt_sub_hour
+    cmp dx, 0x0007
     jb .gt_hour_done
 .gt_sub_hour:
-    sub dx, 0xFFF0
-    sbb cx, 0
+    sub dx, 0x0007
+    sbb cx, 1
     inc si
     cmp si, 24
     jb .gt_hour_loop
@@ -1958,12 +2082,6 @@ int21_handler:
     pop bx
     pop ax
     jmp iret_nc
-.gt_stored:
-    mov ch, [cs:time_hour]
-    mov cl, [cs:time_min]
-    mov dh, [cs:time_sec]
-    mov dl, [cs:time_hund]
-    jmp iret_nc
 .set_time:
     cmp ch, 24
     jae .st_bad
@@ -1977,7 +2095,32 @@ int21_handler:
     mov [cs:time_min], cl
     mov [cs:time_sec], dh
     mov [cs:time_hund], dl
+    push bx
+    push cx
+    push dx
+    push si
+    mov [cs:ct_hm], cx
+    mov [cs:ct_sh], dx
+    call time_components_to_ticks
+    mov [cs:ct_t_lo], ax
+    mov [cs:ct_t_hi], bx
+    xor ah, ah
+    int 0x1A
+    test al, al
+    jz .st_no_roll
+    call advance_date_days
+.st_no_roll:
+    mov ax, [cs:ct_t_lo]
+    sub ax, dx
+    mov [cs:time_offset_lo], ax
+    mov ax, [cs:ct_t_hi]
+    sbb ax, cx
+    mov [cs:time_offset_hi], ax
     mov byte [cs:time_set], 1
+    pop si
+    pop dx
+    pop cx
+    pop bx
     xor al, al
     jmp iret_nc
 .st_bad:
