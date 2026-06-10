@@ -537,8 +537,14 @@ int21_handler:
     push bx
     push cx
     push dx
+.rce_retry:
     call console_read_char
     jc .read_char_echo_no_echo
+    cmp al, 3
+    jne .rce_ok
+    call dos_invoke_int23
+    jmp .rce_retry
+.rce_ok:
     mov dl, al
     call console_putchar
 .read_char_echo_no_echo:
@@ -589,7 +595,13 @@ int21_handler:
     push bx
     push cx
     push dx
+.rcn_retry:
     call console_read_char
+    cmp al, 3
+    jne .rcn_ok
+    call dos_invoke_int23
+    jmp .rcn_retry
+.rcn_ok:
     mov ah, 0x08
     pop dx
     pop cx
@@ -618,6 +630,11 @@ int21_handler:
     int 0x16
     test al, al
     jz .rl_loop
+    cmp al, 3
+    jne .rl_not_break
+    call dos_invoke_int23
+    jmp .rl_loop
+.rl_not_break:
     cmp al, 13
     je .rl_enter
     cmp al, 8
@@ -660,9 +677,22 @@ int21_handler:
     push bx
     push cx
     push dx
+.ss_retry:
     call console_input_status
     test al, al
     jz .stdin_empty
+    push ax
+    mov ah, 0x01
+    int 0x16
+    pop ax
+    jz .stdin_have
+    cmp al, 3
+    jne .stdin_have
+    xor ah, ah
+    int 0x16
+    call dos_invoke_int23
+    jmp .ss_retry
+.stdin_have:
     mov ax, 0x0BFF
     jmp .stdin_done
 .stdin_empty:
@@ -3315,7 +3345,13 @@ int21_handler:
     mov ax, [cs:rf_buf_seg]
     mov es, ax
     mov di, [cs:rf_buf_off]
+.rf_con_retry:
     call console_read_char
+    cmp al, 3
+    jne .rf_con_store
+    call dos_invoke_int23
+    jmp .rf_con_retry
+.rf_con_store:
     stosb
     inc word [cs:rf_read]
     mov bx, [cs:rf_hoff]

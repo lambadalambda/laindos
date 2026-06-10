@@ -13,3 +13,7 @@ Ctrl-C/Ctrl-Break are never acted on: `console_read_char`/`console_input_status`
 
 - Test: child program loops on AH=01h; injected ^C (QEMU sendkey) terminates it and the parent observes the termination; with a custom INT 23h that returns carry-clear, execution continues; `PASS:` markers.
 - Existing console/keyboard tests pass.
+
+## Resolution
+
+^C now invokes INT 23h from AH=01h/08h/0Ah console reads, AH=0Bh status checks, and CON handle reads, echoing `^C` first. The default INT 23h handler terminates the program through the AH=4Ch path; a handler that IRETs resumes the interrupted call (which then retries, matching DOS). The shell installs a benign IRET handler so ^C at the prompt does not kill it. Extended `break_flag` per-call checking remains future work and is tracked by the AH=33h notes in fix-misc-int21-return-conventions.

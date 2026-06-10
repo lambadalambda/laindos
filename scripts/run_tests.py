@@ -130,6 +130,7 @@ DEFAULT_TESTS = [
     "scripts/test_mouseeoi.py",
     "scripts/test_mouserst.py",
     "scripts/test_clock.py",
+    "scripts/test_ctrlc.py",
 ]
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124

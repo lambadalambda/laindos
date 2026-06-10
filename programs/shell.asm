@@ -11,6 +11,9 @@ start:
     mov ss, ax
     mov sp, shell_stack_top
     sti
+    mov ax, 0x2523
+    mov dx, shell_int23
+    int 0x21
     push cs
     pop es
     mov bx, shell_resident_paras
@@ -2967,6 +2970,9 @@ break_cmd: db "BREAK", 0
 mode_cmd: db "MODE", 0
 more_cmd: db "MORE", 0
 parent_arg: db "..", 0
+shell_int23:
+    iret
+
 command_table:
     dw exit_cmd, exit_shell
     dw ver_cmd, do_ver

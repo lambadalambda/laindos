@@ -2,7 +2,6 @@
 - [ ] [Support unaligned overlay relocation tables and cache reloc sectors](issues/support-unaligned-overlay-relocations.md)
 - [ ] [Switch to an internal stack on INT 21h entry](issues/switch-to-internal-stack-in-int21.md)
 - [ ] [Harden boot sector disk reads](issues/harden-boot-sector-disk-reads.md)
-- [ ] [Generate INT 23h on Ctrl-C](issues/wire-ctrl-c-to-int23.md)
 - [ ] [Support .. components and large directories on the CD-ROM drive](issues/support-parent-dirs-and-large-dirs-on-cdrom.md)
 - [ ] [Line-buffer CON device handle reads](issues/buffer-con-handle-reads.md)
 - [ ] [Fix IOCTL set-device-info and handle drive reporting](issues/fix-ioctl-set-and-handle-drive-reporting.md)

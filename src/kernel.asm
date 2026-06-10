@@ -1751,7 +1751,26 @@ exc_noerr:
 %include "src/kernel/int21.inc"
 
 int23_handler:
-    iret
+    mov byte [cs:ret_code], 0
+    mov byte [cs:ret_type], 0
+    dec byte [cs:indos_flag]
+    jmp do_terminate
+
+dos_invoke_int23:
+    push ax
+    push dx
+    mov al, '^'
+    call console_putchar
+    mov al, 'C'
+    call console_putchar
+    mov al, 13
+    call console_putchar
+    mov al, 10
+    call console_putchar
+    int 0x23
+    pop dx
+    pop ax
+    ret
 
 int24_handler:
     mov al, 3
