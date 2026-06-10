@@ -1828,6 +1828,8 @@ int2f_handler:
     je .xms_installed
     cmp ax, 0x4310
     je .xms_entry
+    cmp ax, 0x43E0
+    je .xms_pool_size
     iret
 .xms_installed:
     mov al, 0x80
@@ -1836,6 +1838,10 @@ int2f_handler:
     mov bx, xms_entry
     push cs
     pop es
+    jmp int2f_iret_nc
+.xms_pool_size:
+    mov dx, [cs:xms_total_kb]
+    mov al, 0x80
     jmp int2f_iret_nc
 %else
     iret

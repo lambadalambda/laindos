@@ -62,6 +62,8 @@ collect_mcb:
     mov ax, si
     inc ax
     add ax, [block_size]
+    cmp ax, si
+    jbe .bad
     mov si, ax
     jmp .walk
 .done:
@@ -87,6 +89,14 @@ query_xms:
     call far [xms_entry]
     mov [xms_total_kb], dx
     mov [xms_free_kb], dx
+    xor dx, dx
+    mov ax, 0x43E0
+    int 0x2F
+    cmp al, 0x80
+    jne .done
+    cmp dx, [xms_free_kb]
+    jb .done
+    mov [xms_total_kb], dx
 .done:
     ret
 
@@ -432,6 +442,8 @@ dec_hi: dw 0
 dec_started: db 0
 
 pow10_table:
+    dd 1000000000
+    dd 100000000
     dd 10000000
     dd 1000000
     dd 100000
@@ -440,7 +452,7 @@ pow10_table:
     dd 100
     dd 10
     dd 1
-pow10_count equ 8
+pow10_count equ 10
 
 pow10_word_table: dw 10000, 1000, 100, 10, 1
 

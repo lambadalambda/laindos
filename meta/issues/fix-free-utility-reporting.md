@@ -13,3 +13,7 @@ Three bugs in `programs/free.asm`. (a) XMS function 08h returns AX=largest free 
 ## Acceptance Criteria
 
 - FREE output shows distinct, plausible total/free/used XMS under QEMU; values >= 10^8 print correctly (unit-style check via a crafted EMS page count or direct call); `PASS:` markers in a small test script.
+
+## Resolution
+
+Resolved 2026-06-10. (a) FREE keeps DX as free XMS and asks the new private INT 2Fh AX=43E0h subfunction for the kernel pool size, so Total/Used/Free are distinct (verified by a 2048K-holding TSR scenario in test_free.py). (b) pow10_table now reaches 10^9. (c) collect_mcb bails to the bad-chain path when a block fails to advance the walk (size=0xFFFF wraps).

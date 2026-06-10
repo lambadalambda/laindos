@@ -22,6 +22,10 @@ def run(cmd):
         sys.exit(result.returncode)
 
 
+HOLD_IMG = os.path.join(BUILDDIR, "freehold.img")
+HOLD_KERNEL = os.path.join(BUILDDIR, "freehold_kernel.bin")
+
+
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
     boot = os.path.join(BUILDDIR, "boot.bin")
@@ -35,10 +39,26 @@ def build_image():
     run(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, free_com])
 
 
-def run_qemu():
+def build_hold_image():
+    boot = os.path.join(BUILDDIR, "boot.bin")
+    free_com = os.path.join(BUILDDIR, "free.com")
+    shell = os.path.join(BUILDDIR, "shell.com")
+    xmshold = os.path.join(BUILDDIR, "xmshold.com")
+    autoexec = os.path.join(BUILDDIR, "autoexec_freehold.bat")
+    run(["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
+         "-o", HOLD_KERNEL])
+    run(["nasm", "-f", "bin", "programs/shell.asm", "-o", shell])
+    run(["nasm", "-f", "bin", "tests/programs/xmshold.asm", "-o", xmshold])
+    with open(autoexec, "wb") as f:
+        f.write(b"xmshold\r\nfree\r\nexit\r\n")
+    run(["python3", "scripts/mkimage.py", boot, HOLD_KERNEL, HOLD_IMG,
+         shell, xmshold, free_com, autoexec])
+
+
+def run_qemu(img=None):
     output, _ = run_qemu_capture([
         QEMU,
-        "-drive", f"file={IMG},format=raw,if=floppy",
+        "-drive", f"file={img or IMG},format=raw,if=floppy",
         "-boot", "order=a",
         "-serial", "stdio",
         "-monitor", "none",
@@ -162,6 +182,26 @@ def main():
         failed = True
     elif not failed:
         print("  PASS: memory report numbers are consistent")
+    build_hold_image()
+    hold_output = run_qemu(HOLD_IMG)
+    if "XMSHOLD OK" not in hold_output:
+        print("  FAIL: xmshold TSR did not start")
+        failed = True
+    else:
+        hold_row = memory_row(hold_output, "Extended (XMS)")
+        if hold_row is None:
+            print("  FAIL: missing XMS row in held run")
+            failed = True
+        else:
+            total_kb, used_kb, free_kb = hold_row
+            if used_kb < 2048:
+                print(f"  FAIL: XMS used should reflect the held 2048K, got {used_kb}K")
+                failed = True
+            elif total_kb != used_kb + free_kb:
+                print(f"  FAIL: held XMS row mismatch total={total_kb}K used={used_kb}K free={free_kb}K")
+                failed = True
+            else:
+                print(f"  PASS: held XMS row distinct (total={total_kb}K used={used_kb}K free={free_kb}K)")
     if failed:
         print("\n--- QEMU serial output ---")
         print(output)
