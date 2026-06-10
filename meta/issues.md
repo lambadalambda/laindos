@@ -1,4 +1,3 @@
-- [ ] [Enforce attribute and access-mode checks on file open](issues/enforce-open-attribute-and-access-checks.md)
 - [ ] [Restore INT 22h/23h/24h vectors on process exit](issues/restore-termination-vectors-on-process-exit.md)
 - [ ] [Support standard handles in read and seek](issues/support-std-handle-read-and-seek.md)
 - [ ] [Fix 64K destination wrap in overlay copy](issues/fix-overlay-copy-64k-wrap.md)

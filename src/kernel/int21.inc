@@ -2672,8 +2672,9 @@ int21_handler:
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     RET_ERR 2
 .of_cd:
-    cmp byte [cs:of_mode], 0
-    jne .of_cd_access
+    mov al, [cs:of_mode]
+    and al, 7
+    jnz .of_cd_access
     mov si, dx
     call cd_open_path
     jc .of_not_found
@@ -2707,6 +2708,14 @@ int21_handler:
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     RET_ERR 5
 .of_found:
+    test byte [es:di+11], ATTR_DIR
+    jnz .of_cd_access
+    mov al, [cs:of_mode]
+    and al, 7
+    jz .of_attr_ok
+    test byte [es:di+11], ATTR_RDONLY
+    jnz .of_cd_access
+.of_attr_ok:
     call alloc_handle
     jc .of_no_handles
     push ax
@@ -3198,8 +3207,9 @@ int21_handler:
     je .wf_device
     call activate_drive_for_handle
     jc .wf_file_invalid_pop
-    cmp byte [cs:si+handles+H_MODE], 0
-    je .wf_file_access_pop
+    mov al, [cs:si+handles+H_MODE]
+    and al, 7
+    jz .wf_file_access_pop
     mov ax, [cs:si+handles+H_POS_HI]
     cmp ax, [cs:si+handles+H_SIZE_HI]
     ja .wf_gap_start

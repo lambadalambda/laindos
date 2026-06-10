@@ -152,3 +152,4 @@
 - [x] [Move the kernel to the High Memory Area](issues/move-kernel-to-hma.md)
 - [x] [Detect FAT bitness from cluster count](issues/detect-fat-bitness-from-cluster-count.md)
 - [x] [Bound volume buffers against BPB geometry](issues/bound-volume-buffers-against-bpb-geometry.md)
+- [x] [Enforce attribute and access-mode checks on file open](issues/enforce-open-attribute-and-access-checks.md)

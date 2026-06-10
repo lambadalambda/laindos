@@ -111,6 +111,7 @@ DEFAULT_TESTS = [
     "scripts/test_mouseindos.py",
     "scripts/test_hma.py",
     "scripts/test_fat16_label.py",
+    "scripts/test_openattr.py",
 ]
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124
