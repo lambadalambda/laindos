@@ -2475,12 +2475,19 @@ do_terminate_tsr:
     mov byte [cs:console_ext_pending], 0
     mov word [cs:tsr_parent], 0
     mov word [cs:tsr_psp_mcb], 0
+    mov word [cs:tsr_env_mcb], 0
     mov ax, [cs:cur_psp]
     test ax, ax
     jz .return_to_parent
     mov ds, ax
     mov bx, [0x16]
     mov [cs:tsr_parent], bx
+    mov bx, [0x2C]
+    test bx, bx
+    jz .no_env_mcb
+    dec bx
+    mov [cs:tsr_env_mcb], bx
+.no_env_mcb:
     mov si, ax
     dec si
     mov [cs:tsr_psp_mcb], si
@@ -2550,6 +2557,8 @@ tsr_free_owned_extra:
     cmp [ds:1], ax
     jne .merge_if_free
     cmp si, [cs:tsr_psp_mcb]
+    je .next
+    cmp si, [cs:tsr_env_mcb]
     je .next
     mov word [ds:1], 0
 .merge_if_free:
@@ -3127,6 +3136,7 @@ running:   dw 0
 tsr_keep_par: dw 0
 tsr_parent: dw 0
 tsr_psp_mcb: dw 0
+tsr_env_mcb: dw 0
 saved_ss:  dw 0
 saved_sp:  dw 0
 com_stack_top: dw 0
