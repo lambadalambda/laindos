@@ -1,4 +1,3 @@
-- [ ] [Report missing batch labels and run bare IF tails](issues/report-missing-batch-labels.md)
 - [ ] [Treat tab as whitespace in shell parsing](issues/treat-tab-as-whitespace-in-shell-parsing.md)
 - [ ] [Accept a filename operand in MORE](issues/accept-more-filename-operand.md)
 - [ ] [Fix FREE utility reporting](issues/fix-free-utility-reporting.md)

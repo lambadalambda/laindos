@@ -67,12 +67,17 @@ def build_image():
             b":gotdir\r\n"
             b"echo IF_GOTO_DONE\r\n"
             b"if exist TESTDIR barelabel\r\n"
-            b"echo IF_BARE_LABEL_FAILED\r\n"
+            b"echo IF_TAIL_RAN\r\n"
             b":barelabel\r\n"
             b"echo IF_BARE_LABEL_DONE\r\n"
             b"if exist MISSING goto missing\r\n"
             b"echo IF_MISSING_SKIPPED\r\n"
             b":missing\r\n"
+        )
+    with open(os.path.join(BUILDDIR, "labmiss.bat"), "wb") as f:
+        f.write(
+            b"goto nowhere\r\n"
+            b"echo AFTER_MISSING_LABEL\r\n"
         )
     with open(os.path.join(BUILDDIR, "casebat.bat"), "wb") as f:
         f.write(b"echo mixedCaseToken\r\n")
@@ -91,6 +96,7 @@ def build_image():
         os.path.join(BUILDDIR, "inner.bat"),
         os.path.join(BUILDDIR, "outer.bat"),
         os.path.join(BUILDDIR, "ifgoto.bat"),
+        os.path.join(BUILDDIR, "labmiss.bat"),
         os.path.join(BUILDDIR, "casebat.bat"),
     ])
 
@@ -352,17 +358,24 @@ def test_nested_batch_file(sock, output_chunks):
 
 def test_if_goto_labels(sock, output_chunks):
     output = send_command(sock, output_chunks, "ifgoto", timeout=12)
-    expected = (b"IF_GOTO_DONE", b"IF_BARE_LABEL_DONE", b"IF_MISSING_SKIPPED")
+    expected = (b"IF_GOTO_DONE", b"Bad command", b"IF_TAIL_RAN", b"IF_BARE_LABEL_DONE", b"IF_MISSING_SKIPPED")
     for marker in expected:
         if marker not in output:
             print(f"  FAIL: ifgoto output missing {marker.decode()}")
             return False
-    unexpected = (b"IF_GOTO_FAILED", b"IF_BARE_LABEL_FAILED", b"Bad command")
+    unexpected = (b"IF_GOTO_FAILED",)
     for marker in unexpected:
         if marker in output:
             print(f"  FAIL: ifgoto output unexpectedly contained {marker.decode()}")
             return False
-    print("  PASS: IF EXIST, GOTO, labels, and bare-label branch worked")
+    output = send_command(sock, output_chunks, "labmiss", timeout=12)
+    if b"Label not found" not in output:
+        print("  FAIL: GOTO to a missing label did not report an error")
+        return False
+    if b"AFTER_MISSING_LABEL" in output:
+        print("  FAIL: batch continued past a missing GOTO label")
+        return False
+    print("  PASS: IF EXIST, GOTO, labels, and missing-label handling worked")
     return True
 
 

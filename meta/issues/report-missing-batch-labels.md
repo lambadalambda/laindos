@@ -13,3 +13,7 @@ Two related batch-flow problems. (a) `GOTO` to a nonexistent label: `batch_seek_
 
 - Batch tests: `GOTO NOWHERE` prints the error; `IF EXIST FOO.TXT PAUSE`-style tails run the command; update test_shell_batch_builtins.py expectations accordingly; `PASS:` markers.
 - DIG demo and Sam & Max batch launch tests still pass (they motivated the current behavior).
+
+## Resolution
+
+Resolved 2026-06-10. batch_seek_label now prints "Label not found" when the scan reaches EOF (the batch then ends at EOF, matching MS-DOS aborting the batch), and do_if executes its tail as a command unconditionally -- if_tail_is_bare_label is gone. The bare-label shorthand existed for DIG.BAT's vendor typo (`if exist C:\LECDEMOS\DIG skipmkdir`, missing GOTO), which on real DOS prints "Bad command or file name" and falls through to harmless mkdirs; the DIG smoke still passes with MS-DOS semantics because the fresh-install path never takes that branch. Covered by the updated ifgoto.bat and the new labmiss.bat in scripts/test_shell_batch_builtins.py.

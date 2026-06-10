@@ -1942,8 +1942,6 @@ do_if:
     call skip_spaces
     cmp byte [si], 0
     je .done
-    call if_tail_is_bare_label
-    jc .goto_tail
     mov di, line_buf
 .copy_tail:
     lodsb
@@ -1953,46 +1951,11 @@ do_if:
     mov si, line_buf
     call execute_line
     ret
-.goto_tail:
-    call batch_seek_label
 .done:
     ret
 .syntax:
     mov dx, syntax_error_msg
     call print_dollar
-    ret
-
-if_tail_is_bare_label:
-    cmp byte [batch_active], 0
-    je .no
-    push si
-    mov di, goto_cmd
-    call cmd_match
-    pop si
-    jc .no
-    push si
-    xor cx, cx
-.scan:
-    mov al, [si]
-    test al, al
-    jz .end
-    cmp al, ' '
-    je .no_pop
-    cmp al, 9
-    je .no_pop
-    inc cx
-    inc si
-    jmp .scan
-.end:
-    pop si
-    cmp cx, 0
-    je .no
-    stc
-    ret
-.no_pop:
-    pop si
-.no:
-    clc
     ret
 
 batch_seek_label:
@@ -2016,7 +1979,7 @@ batch_seek_label:
     mov word [batch_buf_len], 0
 .scan:
     call batch_read_line
-    jc .done
+    jc .not_found
     mov si, line_buf
     call skip_spaces
     cmp byte [si], ':'
@@ -2025,6 +1988,10 @@ batch_seek_label:
     mov di, batch_label_buf
     call batch_label_match
     jnc .scan
+    jmp .done
+.not_found:
+    mov dx, label_not_found_msg
+    call print_dollar
 .done:
     pop di
     pop si
@@ -3528,6 +3495,7 @@ if_negate: db 0
 last_errorlevel: db 0
 if_cmp_buf: times 64 db 0
 syntax_error_msg: db "Syntax error", 13, 10, "$"
+label_not_found_msg: db "Label not found", 13, 10, "$"
 nul_arg: db "NUL", 0
 stdout_char: db 0
 redir_saved: dw 0
