@@ -22,11 +22,10 @@ start:
     jc resize_failed
     push cs
     pop ds
-    mov dx, banner
-    mov ah, 0x09
-    int 0x21
     call run_command_tail
     jc exit_shell
+    mov dx, banner
+    call print_dollar
     call run_autoexec
 
 prompt:
@@ -36,6 +35,10 @@ prompt:
     jmp prompt
 
 execute_line:
+    cmp byte [line_buf], 0
+    je .skip
+    call redir_setup
+    push ax
     cmp byte [line_buf], 0
     je .done
     mov si, line_buf
@@ -57,11 +60,159 @@ execute_line:
     add bx, 4
     jmp .builtin_loop
 .builtin_found:
-    jmp word [bx+2]
+    call [bx+2]
+    jmp .done
 .external:
     call prepare_command
     call run_command
 .done:
+    pop ax
+    test al, al
+    jz .skip
+    call redir_restore
+.skip:
+    ret
+
+redir_setup:
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    mov si, line_buf
+.scan:
+    mov al, [si]
+    test al, al
+    jz .none
+    cmp al, '>'
+    je .found
+    inc si
+    jmp .scan
+.none:
+    xor al, al
+.out:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    ret
+.found:
+    mov di, si
+    inc si
+    mov byte [redir_append], 0
+    cmp byte [si], '>'
+    jne .skip_ws
+    inc si
+    mov byte [redir_append], 1
+.skip_ws:
+    cmp byte [si], ' '
+    je .ws_next
+    cmp byte [si], 9
+    jne .copy_target
+.ws_next:
+    inc si
+    jmp .skip_ws
+.copy_target:
+    mov bx, redir_path
+.tgt_loop:
+    mov al, [si]
+    test al, al
+    jz .tgt_done
+    cmp al, ' '
+    je .tgt_done
+    cmp al, 9
+    je .tgt_done
+    cmp al, '<'
+    je .tgt_done
+    cmp al, '>'
+    je .tgt_done
+    cmp al, '|'
+    je .tgt_done
+    mov [bx], al
+    inc bx
+    inc si
+    cmp bx, redir_path + 63
+    jb .tgt_loop
+.tgt_done:
+    mov byte [bx], 0
+.strip:
+    mov al, [si]
+    mov [di], al
+    inc si
+    inc di
+    test al, al
+    jnz .strip
+    cmp byte [redir_path], 0
+    je .none
+    mov byte [redir_to_nul], 0
+    mov al, [redir_path]
+    and al, 0xDF
+    cmp al, 'N'
+    jne .not_nul
+    mov al, [redir_path+1]
+    and al, 0xDF
+    cmp al, 'U'
+    jne .not_nul
+    mov al, [redir_path+2]
+    and al, 0xDF
+    cmp al, 'L'
+    jne .not_nul
+    cmp byte [redir_path+3], 0
+    jne .not_nul
+    mov byte [redir_to_nul], 1
+.not_nul:
+    mov bx, 1
+    mov ah, 0x45
+    int 0x21
+    jc .none
+    mov [redir_saved], ax
+    mov dx, redir_path
+    cmp byte [redir_append], 0
+    je .create
+    mov ax, 0x3D01
+    int 0x21
+    jc .create
+    mov bx, ax
+    xor cx, cx
+    xor dx, dx
+    mov ax, 0x4202
+    int 0x21
+    jmp .have_handle
+.create:
+    xor cx, cx
+    mov ah, 0x3C
+    int 0x21
+    jc .fail_close_saved
+    mov bx, ax
+.have_handle:
+    mov cx, 1
+    mov ah, 0x46
+    int 0x21
+    mov ah, 0x3E
+    int 0x21
+    mov al, 1
+    jmp .out
+.fail_close_saved:
+    mov bx, [redir_saved]
+    mov ah, 0x3E
+    int 0x21
+    jmp .none
+
+redir_restore:
+    push ax
+    push bx
+    push cx
+    mov bx, [redir_saved]
+    mov cx, 1
+    mov ah, 0x46
+    int 0x21
+    mov ah, 0x3E
+    int 0x21
+    mov byte [redir_to_nul], 0
+    pop cx
+    pop bx
+    pop ax
     ret
 
 exit_shell:
@@ -70,15 +221,13 @@ exit_shell:
 
 resize_failed:
     mov dx, resize_fail_msg
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     mov ax, 0x4C01
     int 0x21
 
 do_ver:
     mov dx, ver_msg
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     ret
 
 do_dir:
@@ -809,8 +958,7 @@ print_fixed_chars:
 .loop:
     lodsb
     mov dl, al
-    mov ah, 0x02
-    int 0x21
+    call print_char_dl
     loop .loop
     pop si
     pop dx
@@ -825,8 +973,7 @@ print_current_drive_letter:
     int 0x21
     add al, 'A'
     mov dl, al
-    mov ah, 0x02
-    int 0x21
+    call print_char_dl
     pop dx
     pop ax
     ret
@@ -855,25 +1002,107 @@ dir_count_line:
 
 print_dollar:
     push ax
-    mov ah, 0x09
+    push bx
+    push cx
+    push si
+    mov si, dx
+.find_end:
+    cmp byte [si], '$'
+    je .got_end
+    inc si
+    jmp .find_end
+.got_end:
+    mov cx, si
+    sub cx, dx
+    jz .empty
+    mov bx, 1
+    mov ah, 0x40
     int 0x21
+.empty:
+    pop si
+    pop cx
+    pop bx
     pop ax
     ret
 
 print_char_al:
-    push ax
     push dx
     mov dl, al
-    mov ah, 0x02
-    int 0x21
+    call print_char_dl
     pop dx
+    ret
+
+print_char_dl:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push cs
+    pop ds
+    mov [stdout_char], dl
+    mov dx, stdout_char
+    mov cx, 1
+    mov bx, 1
+    mov ah, 0x40
+    int 0x21
+    pop ds
+    pop dx
+    pop cx
+    pop bx
     pop ax
     ret
 
 do_copy:
     call parse_copy_args
-    cmp byte [copy_arg_count], 2
-    jne .missing
+    cmp byte [copy_arg_count], 0
+    je .missing
+    mov si, copy_src_path
+.wild_scan:
+    mov al, [si]
+    test al, al
+    jz copy_one_file
+    cmp al, '*'
+    je .wildcard
+    cmp al, '?'
+    je .wildcard
+    inc si
+    jmp .wild_scan
+.wildcard:
+    call copy_src_basename_ptr
+    mov [copy_src_base], si
+    mov dx, copy_dta
+    mov ah, 0x1A
+    int 0x21
+    mov dx, copy_src_path
+    xor cx, cx
+    mov ah, 0x4E
+    int 0x21
+    jc .open_error
+.wild_next:
+    mov si, copy_dta + 0x1E
+    mov di, [copy_src_base]
+.splice:
+    lodsb
+    mov [di], al
+    inc di
+    test al, al
+    jnz .splice
+    call copy_one_file
+    mov ah, 0x4F
+    int 0x21
+    jnc .wild_next
+    ret
+.open_error:
+    mov dx, file_not_found_msg
+    call print_dollar
+    ret
+.missing:
+    mov dx, missing_arg_msg
+    call print_dollar
+    ret
+
+copy_one_file:
     call build_copy_destination
     jc .file_error
     mov dx, copy_src_path
@@ -946,14 +1175,11 @@ do_copy:
     mov dx, file_not_found_msg
     call print_dollar
     ret
-.missing:
-    mov dx, missing_arg_msg
-    call print_dollar
-    ret
 
 parse_copy_args:
     mov byte [copy_yes], 0
     mov byte [copy_arg_count], 0
+    mov byte [copy_dst_path], 0
 .loop:
     call skip_spaces
     cmp byte [si], 0
@@ -1039,6 +1265,8 @@ build_copy_destination:
     mov di, copy_dst_final
     mov cx, copy_path_size - 1
     call copy_asciiz_bounded
+    cmp byte [copy_dst_path], 0
+    je append_copy_basename
     mov dx, copy_dst_path
     xor al, al
     mov ah, 0x43
@@ -1180,13 +1408,11 @@ do_cd:
     call print_asciiz
 .show_crlf:
     mov dx, crlf
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     ret
 .err:
     mov dx, path_not_found_msg
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     ret
 
 do_cd_parent:
@@ -1203,13 +1429,11 @@ do_md:
     ret
 .err:
     mov dx, path_not_found_msg
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     ret
 .missing:
     mov dx, missing_arg_msg
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     ret
 
 do_rd:
@@ -1222,13 +1446,11 @@ do_rd:
     ret
 .err:
     mov dx, path_not_found_msg
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     ret
 .missing:
     mov dx, missing_arg_msg
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     ret
 
 do_del:
@@ -1475,24 +1697,20 @@ do_type:
     mov ah, 0x3E
     int 0x21
     mov dx, file_error_msg
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     ret
 .open_err:
     mov dx, file_not_found_msg
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     ret
 .missing:
     mov dx, missing_arg_msg
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     ret
 
 do_cls:
     mov dl, 12
-    mov ah, 0x02
-    int 0x21
+    call print_char_dl
     ret
 
 do_echo:
@@ -1511,8 +1729,7 @@ do_echo:
     jc .done
     call print_asciiz
     mov dx, crlf
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
 .done:
     ret
 
@@ -1766,7 +1983,8 @@ do_more:
     ret
 
 parse_pause_args:
-    mov byte [pause_quiet], 0
+    mov al, [redir_to_nul]
+    mov [pause_quiet], al
     mov si, line_buf
     call skip_command_prefix
     call skip_spaces
@@ -1803,7 +2021,8 @@ parse_pause_scan:
 
 parse_mode_args:
     mov byte [mode_co80], 0
-    mov byte [mode_quiet], 0
+    mov al, [redir_to_nul]
+    mov [mode_quiet], al
     mov si, line_buf
     call skip_command_prefix
     call skip_spaces
@@ -1849,7 +2068,8 @@ parse_mode_scan:
 
 parse_more_args:
     mov byte [more_has_file], 0
-    mov byte [more_quiet], 0
+    mov al, [redir_to_nul]
+    mov [more_quiet], al
     mov si, line_buf
     call skip_command_prefix
     call skip_spaces
@@ -2025,8 +2245,7 @@ more_pump:
     cmp al, 10
     je .emit_lf_current
     mov dl, al
-    mov ah, 0x02
-    int 0x21
+    call print_char_dl
     inc si
     inc bx
     dec cx
@@ -2036,8 +2255,7 @@ more_pump:
     inc bx
     dec cx
     mov dl, 13
-    mov ah, 0x02
-    int 0x21
+    call print_char_dl
     jmp .more_line_check_lf
 .more_line_check_lf:
     cmp cx, 0
@@ -2055,8 +2273,7 @@ more_pump:
     dec cx
 .emit_lf:
     mov dl, 10
-    mov ah, 0x02
-    int 0x21
+    call print_char_dl
     jmp .count_line
 .emit_cr_line:
 .count_line:
@@ -2165,8 +2382,7 @@ change_drive_command:
     cmp dl, al
     jb .handled
     mov dx, path_not_found_msg
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
 .handled:
     pop si
     pop dx
@@ -2193,8 +2409,7 @@ print_prompt:
     call print_asciiz
 .end:
     mov dx, prompt_end
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     ret
 
 print_drive_root:
@@ -2202,11 +2417,9 @@ print_drive_root:
     int 0x21
     add al, 'A'
     mov dl, al
-    mov ah, 0x02
-    int 0x21
+    call print_char_dl
     mov dx, prompt_drive
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     ret
 
 read_line:
@@ -2230,9 +2443,9 @@ run_command_tail:
     mov cl, [0x80]
     test cl, cl
     jz .none
-    cmp cl, 63
+    cmp cl, 127
     jbe .copy_len_ok
-    mov cl, 63
+    mov cl, 127
 .copy_len_ok:
     xor ch, ch
     mov si, 0x81
@@ -2427,8 +2640,7 @@ run_command:
     push cs
     pop ds
     mov dx, bad_cmd_msg
-    mov ah, 0x09
-    int 0x21
+    call print_dollar
     ret
 
 command_ext_is_bat:
@@ -2761,7 +2973,7 @@ batch_read_line:
     mov di, line_buf
     xor cx, cx
 .copy:
-    cmp cx, 63
+    cmp cx, 127
     jae .read_next
     stosb
     inc cx
@@ -2857,8 +3069,7 @@ print_asciiz:
     test al, al
     jz .done
     mov dl, al
-    mov ah, 0x02
-    int 0x21
+    call print_char_dl
     jmp .loop
 .done:
     ret
@@ -3004,6 +3215,13 @@ echo_off_arg: db "OFF", 0
 echo_on_arg: db "ON", 0
 exist_arg: db "EXIST", 0
 nul_arg: db "NUL", 0
+stdout_char: db 0
+redir_saved: dw 0
+redir_to_nul: db 0
+redir_append: db 0
+redir_path: times 64 db 0
+copy_src_base: dw 0
+copy_dta: times 64 db 0
 co80_arg: db "CO80", 0
 pause_msg: db "Press any key to continue . . .", 13, 10, "$"
 mode_status_msg: db " is the current mode", 13, 10, 0
@@ -3064,7 +3282,7 @@ copy_path_size equ 80
 type_buf_size equ 128
 batch_buf_size equ 512
 
-line_buf: times 64 db 0
+line_buf: times 128 db 0
 line_input: db 64, 0
 times 64 db 0
 cwd_buf: times 64 db 0
