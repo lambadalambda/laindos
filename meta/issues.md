@@ -1,4 +1,3 @@
-- [ ] [Guard colon handling in path component parsing](issues/guard-colon-path-component-parsing.md)
 - [ ] [Implement EXEC AL=1 and DOS child-entry register conventions](issues/implement-exec-load-subfunction.md)
 - [ ] [Support unaligned overlay relocation tables and cache reloc sectors](issues/support-unaligned-overlay-relocations.md)
 - [ ] [Send EOI before invoking the mouse user callback](issues/send-eoi-before-mouse-callback.md)

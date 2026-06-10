@@ -984,9 +984,15 @@ resolve_path:
     cmp byte [ds:si], ':'
     jne .rp_parse_name
     inc si
+    cmp byte [ds:si], 0
+    je .rp_colon_bad
     inc si
     mov [cs:rp_path], si
     jmp .rp_skip_sep
+.rp_colon_bad:
+    stc
+    pop bx
+    ret
 .rp_empty:
     cmp word [cs:rp_cluster], ROOT_CLUSTER
     je .rp_empty_root
