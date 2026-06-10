@@ -13,7 +13,7 @@ start:
 
     mov bx, exec_params
     mov dx, child_path
-    mov ax, 0x4B01
+    mov ax, 0x4B7F
     int 0x21
     jnc fail_badfunc
     cmp ax, 1

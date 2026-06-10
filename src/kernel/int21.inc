@@ -2163,6 +2163,8 @@ int21_handler:
 .exec:
     cmp al, 0
     je .exec_program
+    cmp al, 1
+    je near .exec_load
     cmp al, 3
     je .exec_overlay
     RET_ERR 1
@@ -2210,6 +2212,80 @@ int21_handler:
 .exec_program_err:
     mov [cs:exec_status], ax
     INT21_POP_EXEC_PROGRAM_FRAME
+    RET_ERR_STATUS exec_status
+.exec_load:
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov [cs:exec_param_off], bx
+    mov [cs:exec_param_seg], es
+    mov [cs:exec_path_off], dx
+    mov [cs:exec_path_seg], ds
+    call load_exec_program
+    jc .exec_load_err
+    cmp byte [cs:exec_is_exe], 0
+    jne .exec_load_exe
+    mov ax, [cs:prog_seg]
+    dec ax
+    mov ds, ax
+    mov ax, [ds:3]
+    cmp ax, 0x1000
+    jb .exec_load_small
+    mov ax, 0xFFFE
+    jmp .exec_load_stk
+.exec_load_small:
+    mov cx, 4
+.exec_load_shift:
+    shl ax, 1
+    loop .exec_load_shift
+    sub ax, 2
+.exec_load_stk:
+    sub ax, 2
+    mov bx, ax
+    mov es, [cs:prog_seg]
+    mov di, bx
+    mov word [es:di], 0
+    mov es, [cs:exec_param_seg]
+    mov di, [cs:exec_param_off]
+    mov [es:di+0x0E], bx
+    mov ax, [cs:prog_seg]
+    mov [es:di+0x10], ax
+    mov word [es:di+0x12], 0x0100
+    mov [es:di+0x14], ax
+    jmp .exec_load_done
+.exec_load_exe:
+    mov byte [cs:exec_no_run], 1
+    call setup_exe_dyn
+    mov byte [cs:exec_no_run], 0
+    jc .exec_load_setup_err
+    mov es, [cs:exec_param_seg]
+    mov di, [cs:exec_param_off]
+    mov ax, [cs:exe_sp]
+    mov [es:di+0x0E], ax
+    mov ax, [cs:exe_load_seg]
+    add ax, [cs:exe_ss]
+    mov [es:di+0x10], ax
+    mov ax, [cs:exe_ip]
+    mov [es:di+0x12], ax
+    mov ax, [cs:exe_load_seg]
+    add ax, [cs:exe_cs]
+    mov [es:di+0x14], ax
+.exec_load_done:
+    INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
+    xor ax, ax
+    jmp iret_nc
+.exec_load_setup_err:
+    mov [cs:exec_status], ax
+    call free_prog_mcb
+    call free_exec_environment
+    mov ax, [cs:exec_status]
+.exec_load_err:
+    mov [cs:exec_status], ax
+    INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
     RET_ERR_STATUS exec_status
 .exec_overlay:
     push bx

@@ -75,9 +75,9 @@ const DOSAPI_GROUPS = [
       [427, "    je .get_psp"],
       [2163, ".exec:"],
       [1153, "    cmp al, 0"],
-      [2192, "    call load_exec_program"],
-      [2196, "    call exec_com_dyn"],
-      [2199, "    call setup_exe_dyn"],
+      [2194, "    call load_exec_program"],
+      [2198, "    call exec_com_dyn"],
+      [2201, "    call setup_exe_dyn"],
     ],
     regs: [
       ["AH", "4Bh", "EXEC"],

@@ -136,6 +136,7 @@ DEFAULT_TESTS = [
     "scripts/test_stacktight.py",
     "scripts/test_ioctl2.py",
     "scripts/test_misc21.py",
+    "scripts/test_execload.py",
 ]
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124
