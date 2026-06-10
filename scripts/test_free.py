@@ -3,23 +3,13 @@ import os
 import re
 import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import run_cmd, build_dir, run_qemu_capture
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
 IMG = os.path.join(BUILDDIR, "freetest.img")
 KERNEL = os.path.join(BUILDDIR, "freetest_kernel.bin")
 TIMEOUT = 10
-
-
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
 
 
 HOLD_IMG = os.path.join(BUILDDIR, "freehold.img")
@@ -30,13 +20,13 @@ def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
     boot = os.path.join(BUILDDIR, "boot.bin")
     free_com = os.path.join(BUILDDIR, "free.com")
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
+    run_cmd([
         "nasm", '-DBOOT_FILE="FREE    COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "programs/free.asm", "-o", free_com])
-    run(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, free_com])
+    run_cmd(["nasm", "-f", "bin", "programs/free.asm", "-o", free_com])
+    run_cmd(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, free_com])
 
 
 def build_hold_image():
@@ -45,13 +35,13 @@ def build_hold_image():
     shell = os.path.join(BUILDDIR, "shell.com")
     xmshold = os.path.join(BUILDDIR, "xmshold.com")
     autoexec = os.path.join(BUILDDIR, "autoexec_freehold.bat")
-    run(["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
+    run_cmd(["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
          "-o", HOLD_KERNEL])
-    run(["nasm", "-f", "bin", "programs/shell.asm", "-o", shell])
-    run(["nasm", "-f", "bin", "tests/programs/xmshold.asm", "-o", xmshold])
+    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", shell])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/xmshold.asm", "-o", xmshold])
     with open(autoexec, "wb") as f:
         f.write(b"xmshold\r\nfree\r\nexit\r\n")
-    run(["python3", "scripts/mkimage.py", boot, HOLD_KERNEL, HOLD_IMG,
+    run_cmd(["python3", "scripts/mkimage.py", boot, HOLD_KERNEL, HOLD_IMG,
          shell, xmshold, free_com, autoexec])
 
 

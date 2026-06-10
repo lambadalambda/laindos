@@ -3,7 +3,7 @@ import os
 import struct
 import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import run_cmd, build_dir, run_qemu_capture
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -15,16 +15,6 @@ FAT16_RESERVED = 0xFFF0
 GOOD = b"root-ok-after-bad-fat"
 
 
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-
-
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
     boot = os.path.join(BUILDDIR, "badfat_boot.bin")
@@ -32,16 +22,16 @@ def build_image():
     badchain = os.path.join(BUILDDIR, "badchain.dat")
     firstbad = os.path.join(BUILDDIR, "firstbad.dat")
     good = os.path.join(BUILDDIR, "good.dat")
-    run(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot])
-    run(["nasm", '-DBOOT_FILE="BADFAT  COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    run(["nasm", "-f", "bin", "tests/programs/badfat.asm", "-o", badfat])
+    run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot])
+    run_cmd(["nasm", '-DBOOT_FILE="BADFAT  COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/badfat.asm", "-o", badfat])
     with open(badchain, "wb") as f:
         f.write(b"B" * 4608)
     with open(firstbad, "wb") as f:
         f.write(b"first-cluster-is-bad")
     with open(good, "wb") as f:
         f.write(GOOD)
-    run(["python3", "scripts/mkimage.py", "--format=hd96m", boot, KERNEL, IMG, badfat, badchain, firstbad, good])
+    run_cmd(["python3", "scripts/mkimage.py", "--format=hd96m", boot, KERNEL, IMG, badfat, badchain, firstbad, good])
     corrupt_badchain()
 
 

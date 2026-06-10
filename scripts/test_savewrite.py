@@ -3,7 +3,7 @@ import os
 import struct
 import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import run_serial_image, run_cmd, build_dir, run_qemu_capture
 from fatlib import FatImage, entry_cluster, entry_size, find_entry, find_entry_offset
 
 QEMU = "qemu-system-i386"
@@ -14,32 +14,22 @@ TIMEOUT = 8
 FILLER_COUNT = 29
 
 
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-
-
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run_cmd([
         "nasm", '-DBOOT_FILE="SAVEWR  COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "tests/programs/savewr.asm", "-o", os.path.join(BUILDDIR, "savewr.com")])
-    run(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/savewr.asm", "-o", os.path.join(BUILDDIR, "savewr.com")])
+    run_cmd(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
     filler_files = []
     for i in range(FILLER_COUNT):
         path = os.path.join(BUILDDIR, f"fill{i:02d}.dat")
         with open(path, "wb") as f:
             f.write(f"filler {i:02d}\n".encode("ascii"))
         filler_files.append(path)
-    run([
+    run_cmd([
         "python3", "scripts/mkimage.py",
         "--format=2880k",
         os.path.join(BUILDDIR, "boot.bin"),
@@ -52,15 +42,7 @@ def build_image():
 
 
 def run_qemu():
-    output, _ = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
-    return output
+    return run_serial_image(IMG, TIMEOUT)
 
 
 def verify_disk_file():

@@ -2,7 +2,7 @@
 import os
 import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import run_cmd, build_dir, run_qemu_capture
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -10,25 +10,15 @@ IMG = os.path.join(BUILDDIR, "highmcb.img")
 KERNEL = os.path.join(BUILDDIR, "highmcb_kernel.bin")
 
 
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-
-
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run_cmd([
         "nasm", '-DBOOT_FILE="HIGHMCB COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "tests/programs/highmcb.asm", "-o", os.path.join(BUILDDIR, "highmcb.com")])
-    run([
+    run_cmd(["nasm", "-f", "bin", "tests/programs/highmcb.asm", "-o", os.path.join(BUILDDIR, "highmcb.com")])
+    run_cmd([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
         KERNEL,

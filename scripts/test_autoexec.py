@@ -4,7 +4,7 @@ import socket
 import subprocess
 import sys
 import time
-from testlib import build_dir, finish_qemu, start_qemu, wait_for_output
+from testlib import run_cmd, build_dir, finish_qemu, start_qemu, wait_for_output
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -13,25 +13,15 @@ KERNEL = os.path.join(BUILDDIR, "autoexec_kernel.bin")
 MONITOR = os.path.join(BUILDDIR, "autoexec.sock")
 
 
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-
-
 def build_image(with_autoexec):
     os.makedirs(BUILDDIR, exist_ok=True)
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run_cmd([
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "programs/shell.asm", "-o", os.path.join(BUILDDIR, "shell.com")])
-    run(["nasm", "-f", "bin", "tests/programs/hello.asm", "-o", os.path.join(BUILDDIR, "hello.com")])
+    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", os.path.join(BUILDDIR, "shell.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/hello.asm", "-o", os.path.join(BUILDDIR, "hello.com")])
     files = [
         os.path.join(BUILDDIR, "shell.com"),
         os.path.join(BUILDDIR, "hello.com"),
@@ -51,7 +41,7 @@ def build_image(with_autoexec):
                 b"echo autoexec done\r\n"
             )
         files.append(os.path.join(BUILDDIR, "autoexec.bat"))
-    run([
+    run_cmd([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
         KERNEL,

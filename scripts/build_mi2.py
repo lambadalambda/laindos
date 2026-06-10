@@ -3,6 +3,8 @@
 import os
 import subprocess
 import sys
+
+from testlib import run_cmd
 import zipfile
 
 BUILDDIR = "build"
@@ -10,16 +12,6 @@ MI2DIR = os.path.join(BUILDDIR, "mi2demo")
 MI2_ZIP = "vendor/mi2demo.zip"
 MI2_KERNEL = f"{BUILDDIR}/mi2_kernel.bin"
 MI2_IMG = f"{BUILDDIR}/mi2.img"
-
-
-def run(cmd):
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.stdout:
-        print(r.stdout, end="")
-    if r.stderr:
-        print(r.stderr, end="", file=sys.stderr)
-    if r.returncode != 0:
-        sys.exit(r.returncode)
 
 
 def main():
@@ -42,7 +34,7 @@ def main():
             cmd.insert(1, '-DBOOT_FILE="MI2DEMO EXE"')
         elif src == "src/boot.asm":
             cmd.insert(1, "-DFAT12=1")
-        run(cmd)
+        run_cmd(cmd)
 
     mi2_files = [
         "MI2DEMO.EXE",
@@ -61,7 +53,7 @@ def main():
             sys.exit(1)
         paths.append(path)
 
-    run([
+    run_cmd([
         "python3", "scripts/mkimage.py", "--format=2880k",
         f"{BUILDDIR}/boot.bin",
         MI2_KERNEL,

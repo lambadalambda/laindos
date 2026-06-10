@@ -3,7 +3,7 @@ import os
 import struct
 import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import run_cmd, build_dir, run_qemu_capture
 from fatlib import FatImage, entry_cluster, entry_size, find_entry
 
 QEMU = "qemu-system-i386"
@@ -16,30 +16,20 @@ OUT = b"high-lba-dir-write"
 HIGH_LBA_MIN = 0x10000
 
 
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-
-
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
     boot = os.path.join(BUILDDIR, "highdir_boot.bin")
     highdir = os.path.join(BUILDDIR, "highdir.com")
     filler = os.path.join(BUILDDIR, "highdir_fill.dat")
     seed = os.path.join(BUILDDIR, "seed.dat")
-    run(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot])
-    run(["nasm", '-DBOOT_FILE="HIGHDIR COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    run(["nasm", "-f", "bin", "tests/programs/highdir.asm", "-o", highdir])
+    run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot])
+    run_cmd(["nasm", '-DBOOT_FILE="HIGHDIR COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/highdir.asm", "-o", highdir])
     with open(filler, "wb") as f:
         f.truncate(34 * 1024 * 1024)
     with open(seed, "wb") as f:
         f.write(SEED)
-    run(["python3", "scripts/mkimage.py", "--format=hd96m", boot, KERNEL, IMG, highdir, filler, f"HIDIR:{seed}"])
+    run_cmd(["python3", "scripts/mkimage.py", "--format=hd96m", boot, KERNEL, IMG, highdir, filler, f"HIDIR:{seed}"])
 
 
 def run_qemu():

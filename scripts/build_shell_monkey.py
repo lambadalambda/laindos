@@ -4,6 +4,8 @@ import os
 import subprocess
 import sys
 
+from testlib import run_cmd
+
 BUILDDIR = "build"
 BOOT = f"{BUILDDIR}/shell_monkey_boot.bin"
 KERNEL = f"{BUILDDIR}/shell_monkey_kernel.bin"
@@ -13,17 +15,6 @@ TIME = os.path.join(SHELLDIR, "time.com")
 IMG = f"{BUILDDIR}/shell_monkey.img"
 
 
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        print(f"Command failed: {' '.join(cmd)}", file=sys.stderr)
-        sys.exit(result.returncode)
-
-
 def main():
     if not os.path.exists("src/boot.asm"):
         print("Run this script from the LainDOS project root.", file=sys.stderr)
@@ -31,13 +22,13 @@ def main():
 
     os.makedirs(BUILDDIR, exist_ok=True)
     os.makedirs(SHELLDIR, exist_ok=True)
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run_cmd([
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
-    run(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
+    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
+    run_cmd(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
 
     game_files = [
         "vendor/midemo.exe",
@@ -56,7 +47,7 @@ def main():
             print(f"  {path}", file=sys.stderr)
         sys.exit(1)
 
-    run([
+    run_cmd([
         "python3", "scripts/mkimage.py", "--format=1440k",
         BOOT,
         KERNEL,

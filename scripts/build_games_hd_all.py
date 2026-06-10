@@ -4,6 +4,8 @@ import os
 import shutil
 import subprocess
 import sys
+
+from testlib import run_cmd
 import zipfile
 
 BUILDDIR = "build"
@@ -45,17 +47,6 @@ WOLF3D_REQUIRED = {
     "VSWAP.WL1",
     "WOLF3D.EXE",
 }
-
-
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        print(f"Command failed: {' '.join(cmd)}", file=sys.stderr)
-        sys.exit(result.returncode)
 
 
 def safe_extract(zip_path, output_dir):
@@ -228,15 +219,15 @@ def main():
     wolf3d_files = extract_required_flat(WOLF3D_ZIP, WOLF3D_DIR, WOLF3D_REQUIRED, "Wolf3D")
     install_ascendancy_cd_cob()
 
-    run(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
-    run([
+    run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run_cmd([
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
-    run(["nasm", "-f", "bin", "programs/free.asm", "-o", FREE])
-    run(["nasm", "-f", "bin", "programs/free.asm", "-o", MEM])
-    run(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
+    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
+    run_cmd(["nasm", "-f", "bin", "programs/free.asm", "-o", FREE])
+    run_cmd(["nasm", "-f", "bin", "programs/free.asm", "-o", MEM])
+    run_cmd(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
 
     m1_demo = [
         "vendor/midemo.exe",
@@ -276,7 +267,7 @@ def main():
     cmd.extend(f"SIMON:{path}" for path in files_in(SIMON_DEMO_DIR))
     cmd.extend(f"ASCEND:{path}" for path in ascendancy_files)
     cmd.extend(f"WOLF3D:{path}" for path in wolf3d_files)
-    run(cmd)
+    run_cmd(cmd)
 
 
 if __name__ == "__main__":

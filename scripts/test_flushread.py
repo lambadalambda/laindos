@@ -4,7 +4,7 @@ import socket
 import subprocess
 import sys
 import time
-from testlib import build_dir, chunks_contain, finish_qemu, start_qemu, wait_for_output
+from testlib import run_cmd, build_dir, chunks_contain, finish_qemu, start_qemu, wait_for_output
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -13,25 +13,15 @@ KERNEL = os.path.join(BUILDDIR, "flushread_kernel.bin")
 MONITOR = os.path.join(BUILDDIR, "flushread.sock")
 
 
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-
-
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run_cmd([
         "nasm", '-DBOOT_FILE="FLUSHR  COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "tests/programs/flushread.asm", "-o", os.path.join(BUILDDIR, "flushr.com")])
-    run([
+    run_cmd(["nasm", "-f", "bin", "tests/programs/flushread.asm", "-o", os.path.join(BUILDDIR, "flushr.com")])
+    run_cmd([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
         KERNEL,

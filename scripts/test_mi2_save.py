@@ -11,23 +11,13 @@ import sys
 import tempfile
 import threading
 import time
-from testlib import unique_monitor_socket, unique_vnc_arg, qemu_binary
+from testlib import run_cmd, unique_monitor_socket, unique_vnc_arg, qemu_binary
 
 IMG = os.environ.get("LAINDOS_MI2_SAVE_IMG", "build/games_hd_all.img")
 MONITOR = unique_monitor_socket("mi2-save")
 SCREEN_DIALOG = "build/mi2_save_dialog.ppm"
 SCREEN_AFTER_OK = "build/mi2_save_after_ok.ppm"
 MIN_SAVE_SIZE = 1024
-
-
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
 
 
 def read_file_from_image(path_parts):
@@ -200,7 +190,7 @@ def main():
         print("Missing vendor/Monkey_Island_2_-_LeChucks_Revenge_1991.zip", file=sys.stderr)
         sys.exit(1)
     if not os.environ.get("LAINDOS_MI2_SAVE_SKIP_BUILD"):
-        run(["python3", "scripts/build_games_hd_all.py"])
+        run_cmd(["python3", "scripts/build_games_hd_all.py"])
     before_entry, _ = read_file_from_image([b"MI2        ", b"SAVEGAME002"])
     if before_entry is not None:
         print("  FAIL: SAVEGAME.002 unexpectedly exists before save attempt")

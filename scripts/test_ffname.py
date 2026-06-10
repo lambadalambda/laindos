@@ -2,23 +2,13 @@
 import os
 import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import run_cmd, build_dir, run_qemu_capture
 
 
 BUILDDIR = build_dir()
 IMG = os.path.join(BUILDDIR, "ffname.img")
 KERNEL = os.path.join(BUILDDIR, "ffname_kernel.bin")
 TIMEOUT = 8
-
-
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
 
 
 def set_root_entry_bytes(image_path, dos_name, new_bytes, attr):
@@ -47,19 +37,19 @@ def set_root_entry_bytes(image_path, dos_name, new_bytes, attr):
 
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run_cmd([
         "nasm", '-DBOOT_FILE="FFNAME  COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "tests/programs/ffname.asm", "-o", os.path.join(BUILDDIR, "ffname.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/ffname.asm", "-o", os.path.join(BUILDDIR, "ffname.com")])
     e5_path = os.path.join(BUILDDIR, "normal.txt")
     with open(e5_path, "wb") as f:
         f.write(b"e5 test\n")
     nul_path = os.path.join(BUILDDIR, "nulfile.txt")
     with open(nul_path, "wb") as f:
         f.write(b"nul test\n")
-    run([
+    run_cmd([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
         KERNEL,

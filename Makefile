@@ -241,8 +241,8 @@ test-monkey-demo: $(MONKEY_DEMO_FILES)
 test-shell-batch-builtins:
 	$(RUN_TEST) $(PYTHON) scripts/test_shell_batch_builtins.py
 
-test-attached-hd-shell: $(MONKEY_DEMO_FILES)
-	$(RUN_TEST) $(PYTHON) scripts/test_attached_hd_shell.py
+test-attached-hd-shell: $(MONKEY_DEMO_FILES) extras-hd
+	$(RUN_TEST) $(PYTHON) scripts/test_attached_hd_shell.py $(BUILDDIR)/extras_hd.img
 
 test-cd-bios:
 	$(RUN_TEST) $(PYTHON) scripts/test_cd_bios.py

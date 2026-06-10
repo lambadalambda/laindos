@@ -4,6 +4,7 @@ import os
 import shutil
 import struct
 
+from testlib import run_cmd
 from fatlib import FatImage, entry_attr, entry_cluster, entry_name, entry_size, iter_dir
 import subprocess
 import sys
@@ -83,7 +84,7 @@ def extract_7z(archive, output_dir):
         print(f"Missing bsdtar needed to extract {archive}", file=sys.stderr)
         sys.exit(1)
     clean_dir(output_dir)
-    games.run(["bsdtar", "-xf", archive, "-C", output_dir])
+    run_cmd(["bsdtar", "-xf", archive, "-C", output_dir])
 
 
 def extract_norton():
@@ -159,12 +160,12 @@ def main():
     extract_stunt_source()
     write_readme()
 
-    games.run(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
-    games.run(["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    games.run(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
-    games.run(["nasm", "-f", "bin", "programs/free.asm", "-o", FREE])
-    games.run(["nasm", "-f", "bin", "programs/free.asm", "-o", MEM])
-    games.run(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
+    run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run_cmd(["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
+    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
+    run_cmd(["nasm", "-f", "bin", "programs/free.asm", "-o", FREE])
+    run_cmd(["nasm", "-f", "bin", "programs/free.asm", "-o", MEM])
+    run_cmd(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
 
     m1_demo = [
         "vendor/midemo.exe",
@@ -205,7 +206,7 @@ def main():
         host_dir = os.path.join(STUNT_FILES_DIR, dirname)
         if os.path.isdir(host_dir):
             add_dir(cmd, dirname, host_dir)
-    games.run(cmd)
+    run_cmd(cmd)
 
 
 if __name__ == "__main__":

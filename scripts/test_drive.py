@@ -2,7 +2,7 @@
 import os
 import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import run_cmd, build_dir, run_qemu_capture
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -14,24 +14,14 @@ DRIVE_COM = os.path.join(BUILDDIR, "drive.com")
 TIMEOUT = 10
 
 
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-
-
 def build_artifacts():
     os.makedirs(BUILDDIR, exist_ok=True)
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run_cmd([
         "nasm", '-DBOOT_FILE="DRIVE   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "tests/programs/drivetest.asm", "-o", DRIVE_COM])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/drivetest.asm", "-o", DRIVE_COM])
 
 
 def build_image(output_path, fmt=None):
@@ -39,7 +29,7 @@ def build_image(output_path, fmt=None):
     if fmt:
         cmd.append(f"--format={fmt}")
     cmd.extend([BOOT, KERNEL, output_path, DRIVE_COM])
-    run(cmd)
+    run_cmd(cmd)
 
 
 def run_qemu(image_path, hard_disk):

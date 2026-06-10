@@ -16,3 +16,7 @@ Roughly 3,000 lines (~20% of scripts/) are copy-pasted boilerplate that testlib 
 ## Notes
 
 - Continuation of the archived continue-qemu-test-harness-consolidation / standardize-serial-qemu-test-boilerplate work; coordinate with [Fail tests on QEMU timeout by default](fail-tests-on-qemu-timeout.md) so migration picks up the new default.
+
+## Resolution (batch 1, 2026-06-10)
+
+Removed all 41 byte-identical test-script `run(cmd)` copies and the 7 near-identical copies in the build scripts (testlib.run_cmd now also prints "Command failed: <cmd>" on error, matching the richer variant); run_monkey_full_bochs.py keeps its genuinely different non-capturing runner. 23 tests with the exact canonical floppy QEMU block now call run_serial_image (picking up the fail-on-timeout default). Net -650 lines. Also fixed the broken `make test-attached-hd-shell` target found along the way (it never passed the image path; now depends on extras-hd and passes it). Remaining work for later batches: tests with custom drive_opts/extra QEMU args, and the inline marker-check loops that could move to check_markers.

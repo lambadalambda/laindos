@@ -4,6 +4,8 @@ import os
 import shutil
 import subprocess
 import sys
+
+from testlib import run_cmd
 import zipfile
 
 BUILDDIR = "build"
@@ -12,17 +14,6 @@ FULLDIR = os.path.join(BUILDDIR, "monkey_full_files")
 BOOT = os.path.join(BUILDDIR, "monkey_full_boot.bin")
 KERNEL = os.path.join(BUILDDIR, "monkey_full_kernel.bin")
 IMG = os.path.join(BUILDDIR, "monkey_full.img")
-
-
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        print(f"Command failed: {' '.join(cmd)}", file=sys.stderr)
-        sys.exit(result.returncode)
 
 
 def extract_game_files():
@@ -57,12 +48,12 @@ def main():
         print("Full Monkey archive does not contain MONKEY.EXE", file=sys.stderr)
         sys.exit(1)
 
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run_cmd([
         "nasm", '-DBOOT_FILE="MONKEY  EXE"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run([
+    run_cmd([
         "python3", "scripts/mkimage.py", "--format=hd10m",
         BOOT,
         KERNEL,

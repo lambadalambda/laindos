@@ -2,7 +2,7 @@
 import os
 import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import run_cmd, build_dir, run_qemu_capture
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -14,31 +14,21 @@ SEEK_START = 0x00000123
 SEEK_STEP = 0x00020000
 
 
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-
-
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
     boot = os.path.join(BUILDDIR, "fat16seek_boot.bin")
     fatseek = os.path.join(BUILDDIR, "fatseek.com")
     bigdat = os.path.join(BUILDDIR, "seekbig.dat")
-    run(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot])
-    run(["nasm", '-DBOOT_FILE="FATSEEK COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    run(["nasm", "-f", "bin", "tests/programs/fatseek.asm", "-o", fatseek])
+    run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot])
+    run_cmd(["nasm", '-DBOOT_FILE="FATSEEK COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/fatseek.asm", "-o", fatseek])
     size = SEEK_START + SEEK_STEP * (SEEK_COUNT - 1) + 1
     with open(bigdat, "wb") as f:
         f.truncate(size)
         for i in range(SEEK_COUNT):
             f.seek(SEEK_START + SEEK_STEP * i)
             f.write(bytes([(i + 1) & 0xFF]))
-    run(["python3", "scripts/mkimage.py", "--format=hd96m", boot, KERNEL, IMG, fatseek, bigdat])
+    run_cmd(["python3", "scripts/mkimage.py", "--format=hd96m", boot, KERNEL, IMG, fatseek, bigdat])
 
 
 def run_qemu():

@@ -5,23 +5,13 @@ import struct
 from fatlib import FatImage, entry_cluster, find_entry
 import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import run_serial_image, run_cmd, build_dir, run_qemu_capture
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
 IMG = os.path.join(BUILDDIR, "dirextfail.img")
 KERNEL = os.path.join(BUILDDIR, "dirextfail_kernel.bin")
 TIMEOUT = 8
-
-
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
 
 
 def write_fixture(name, data):
@@ -33,16 +23,16 @@ def write_fixture(name, data):
 
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run_cmd([
         "nasm", "-DTEST_DIR_EXT_ZERO_FAIL", '-DBOOT_FILE="DIREXTFACOM"',
         "-f", "bin", "src/kernel.asm", "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "tests/programs/dirextfail.asm", "-o", os.path.join(BUILDDIR, "dirextfa.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/dirextfail.asm", "-o", os.path.join(BUILDDIR, "dirextfa.com")])
     fillers = []
     for i in range(14):
         fillers.append(write_fixture(f"dfill{i:02d}.dat", f"filler {i:02d}\n".encode("ascii")))
-    run([
+    run_cmd([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
         KERNEL,
@@ -53,15 +43,7 @@ def build_image():
 
 
 def run_qemu():
-    output, _ = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
-    return output
+    return run_serial_image(IMG, TIMEOUT)
 
 
 def verify_disk():

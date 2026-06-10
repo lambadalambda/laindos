@@ -64,6 +64,7 @@ def run_cmd(cmd):
     if result.stderr:
         print(result.stderr, end="", file=sys.stderr)
     if result.returncode != 0:
+        print(f"Command failed: {' '.join(str(c) for c in cmd)}", file=sys.stderr)
         sys.exit(result.returncode)
 
 

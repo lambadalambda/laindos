@@ -2,23 +2,13 @@
 import os
 import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import run_serial_image, run_cmd, build_dir, run_qemu_capture
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
 IMG = os.path.join(BUILDDIR, "ems.img")
 KERNEL = os.path.join(BUILDDIR, "ems_kernel.bin")
 TIMEOUT = 10
-
-
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
 
 
 def build_image():
@@ -29,25 +19,17 @@ def build_image():
     frame_seg = os.environ.get("LAINDOS_EMS_FRAME_SEG")
     if frame_seg:
         kernel_defines.append(f"-DEMS_FRAME_SEG={frame_seg}")
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
+    run_cmd([
         "nasm", *kernel_defines, "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "tests/programs/emstest.asm", "-o", test_com])
-    run(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, test_com])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/emstest.asm", "-o", test_com])
+    run_cmd(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, test_com])
 
 
 def run_qemu():
-    output, _ = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
-    return output
+    return run_serial_image(IMG, TIMEOUT)
 
 
 def main():

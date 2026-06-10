@@ -4,6 +4,8 @@ import os
 import shutil
 import subprocess
 import sys
+
+from testlib import run_cmd
 import zipfile
 
 BUILDDIR = "build"
@@ -15,17 +17,6 @@ SHELLDIR = f"{BUILDDIR}/shell_mi2_files"
 SHELL = os.path.join(SHELLDIR, "shell.com")
 TIME = os.path.join(SHELLDIR, "time.com")
 IMG = f"{BUILDDIR}/shell_mi2.img"
-
-
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        print(f"Command failed: {' '.join(cmd)}", file=sys.stderr)
-        sys.exit(result.returncode)
 
 
 def safe_extract(zip_path, output_dir):
@@ -53,13 +44,13 @@ def main():
     safe_extract(MI2_ZIP, MI2DIR)
     os.makedirs(SHELLDIR, exist_ok=True)
 
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
+    run_cmd([
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
-    run(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
+    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
+    run_cmd(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
 
     mi2_files = [
         "MI2DEMO.EXE",
@@ -77,7 +68,7 @@ def main():
             sys.exit(1)
         paths.append(path)
 
-    run([
+    run_cmd([
         "python3", "scripts/mkimage.py", "--format=2880k",
         BOOT,
         KERNEL,

@@ -5,7 +5,7 @@ import socket
 import subprocess
 import sys
 import time
-from testlib import build_dir, finish_qemu, start_qemu, wait_for_output
+from testlib import run_cmd, build_dir, finish_qemu, start_qemu, wait_for_output
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -18,45 +18,35 @@ PROMPT_RE = re.compile(rb"A:\\[^>\r\n]*>")
 KEYMAP = {" ": "spc", "\\": "backslash", ".": "dot", "/": "slash", "-": "minus", "_": "shift-minus", ":": "shift-semicolon", "*": "shift-8"}
 
 
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-
-
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run_cmd([
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "programs/shell.asm", "-o", os.path.join(BUILDDIR, "shell.com")])
-    run(["nasm", "-f", "bin", "tests/programs/hello.asm", "-o", os.path.join(BUILDDIR, "hello.com")])
-    run(["nasm", "-f", "bin", "tests/programs/helloexe.asm", "-o", os.path.join(BUILDDIR, "helloexe.exe")])
-    run(["nasm", "-f", "bin", "tests/programs/exectest.asm", "-o", os.path.join(BUILDDIR, "exectest.com")])
-    run(["nasm", "-f", "bin", "tests/programs/psptest.asm", "-o", os.path.join(BUILDDIR, "psptest.com")])
-    run(["nasm", "-f", "bin", "tests/programs/pspchild.asm", "-o", os.path.join(BUILDDIR, "pspchild.com")])
-    run(["nasm", "-f", "bin", "tests/programs/keytest.asm", "-o", os.path.join(BUILDDIR, "keytest.com")])
-    run(["nasm", "-f", "bin", "tests/programs/extkey.asm", "-o", os.path.join(BUILDDIR, "extkey.com")])
-    run(["nasm", "-f", "bin", "tests/programs/timetest.asm", "-o", os.path.join(BUILDDIR, "timetest.com")])
-    run(["nasm", "-f", "bin", "programs/time.asm", "-o", os.path.join(BUILDDIR, "time.com")])
-    run(["nasm", "-f", "bin", "tests/programs/argtest.asm", "-o", os.path.join(BUILDDIR, "argtest.com")])
-    run(["nasm", "-f", "bin", "tests/programs/argexe.asm", "-o", os.path.join(BUILDDIR, "argexe.exe")])
-    run(["nasm", "-f", "bin", "tests/programs/exemax.asm", "-o", os.path.join(BUILDDIR, "exemax.exe")])
-    run(["nasm", "-f", "bin", "tests/programs/memreg.asm", "-o", os.path.join(BUILDDIR, "memreg.com")])
-    run(["nasm", "-f", "bin", "tests/programs/packseg.asm", "-o", os.path.join(BUILDDIR, "packseg.exe")])
-    run(["nasm", "-f", "bin", "programs/free.asm", "-o", os.path.join(BUILDDIR, "free.com")])
-    run(["nasm", "-f", "bin", "programs/free.asm", "-o", os.path.join(BUILDDIR, "mem.com")])
-    run(["python3", "scripts/mktestfile.py", os.path.join(BUILDDIR, "testfile.dat")])
-    run(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
+    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", os.path.join(BUILDDIR, "shell.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/hello.asm", "-o", os.path.join(BUILDDIR, "hello.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/helloexe.asm", "-o", os.path.join(BUILDDIR, "helloexe.exe")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/exectest.asm", "-o", os.path.join(BUILDDIR, "exectest.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/psptest.asm", "-o", os.path.join(BUILDDIR, "psptest.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/pspchild.asm", "-o", os.path.join(BUILDDIR, "pspchild.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/keytest.asm", "-o", os.path.join(BUILDDIR, "keytest.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/extkey.asm", "-o", os.path.join(BUILDDIR, "extkey.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/timetest.asm", "-o", os.path.join(BUILDDIR, "timetest.com")])
+    run_cmd(["nasm", "-f", "bin", "programs/time.asm", "-o", os.path.join(BUILDDIR, "time.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/argtest.asm", "-o", os.path.join(BUILDDIR, "argtest.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/argexe.asm", "-o", os.path.join(BUILDDIR, "argexe.exe")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/exemax.asm", "-o", os.path.join(BUILDDIR, "exemax.exe")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/memreg.asm", "-o", os.path.join(BUILDDIR, "memreg.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/packseg.asm", "-o", os.path.join(BUILDDIR, "packseg.exe")])
+    run_cmd(["nasm", "-f", "bin", "programs/free.asm", "-o", os.path.join(BUILDDIR, "free.com")])
+    run_cmd(["nasm", "-f", "bin", "programs/free.asm", "-o", os.path.join(BUILDDIR, "mem.com")])
+    run_cmd(["python3", "scripts/mktestfile.py", os.path.join(BUILDDIR, "testfile.dat")])
+    run_cmd(["python3", "scripts/mksubtest.py", os.path.join(BUILDDIR, "subtest.dat")])
     with open(os.path.join(BUILDDIR, "testbat.bat"), "wb") as f:
         f.write(b"Echo off\r\nargtest GDEMO /3\r\nargexe GDEMO /3\r\nEcho on\r\n")
-    run([
+    run_cmd([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
         KERNEL,

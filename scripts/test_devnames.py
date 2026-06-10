@@ -4,7 +4,7 @@ import socket
 import subprocess
 import sys
 import time
-from testlib import build_dir, finish_qemu, start_qemu, wait_for_output
+from testlib import run_cmd, build_dir, finish_qemu, start_qemu, wait_for_output
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -13,29 +13,19 @@ KERNEL = os.path.join(BUILDDIR, "devnames_kernel.bin")
 MONITOR = os.path.join(BUILDDIR, "devnames.sock")
 
 
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-
-
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
-    run(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
-    run([
+    run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", os.path.join(BUILDDIR, "boot.bin")])
+    run_cmd([
         "nasm", '-DBOOT_FILE="DEVNAMESCOM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run(["nasm", "-f", "bin", "tests/programs/devnames.asm", "-o", os.path.join(BUILDDIR, "devnames.com")])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/devnames.asm", "-o", os.path.join(BUILDDIR, "devnames.com")])
     with open(os.path.join(BUILDDIR, "nulfile.dat"), "wb") as f:
         f.write(b"REAL")
     with open(os.path.join(BUILDDIR, "console.dat"), "wb") as f:
         f.write(b"LONG")
-    run([
+    run_cmd([
         "python3", "scripts/mkimage.py",
         os.path.join(BUILDDIR, "boot.bin"),
         KERNEL,

@@ -4,7 +4,7 @@ import shutil
 import struct
 import subprocess
 import sys
-from testlib import build_dir, run_qemu_capture
+from testlib import run_cmd, build_dir, run_qemu_capture
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -16,16 +16,6 @@ SECTOR_SIZE = 512
 HEADS = 16
 SPT = 63
 TIMEOUT = 10
-
-
-def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
 
 
 def chs(lba):
@@ -75,11 +65,11 @@ def build_image():
     mbr = os.path.join(BUILDDIR, "mbr.bin")
     boot = os.path.join(BUILDDIR, "fat16part_boot.bin")
     memtest = os.path.join(BUILDDIR, "memtest.exe")
-    run(["nasm", "-f", "bin", "tests/programs/mbr.asm", "-o", mbr])
-    run(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot])
-    run(["nasm", "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    run(["nasm", "-f", "bin", "tests/programs/memtest.asm", "-o", memtest])
-    run(["python3", "scripts/mkimage.py", "--format=hd32m", boot, KERNEL, RAW_IMG, memtest])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/mbr.asm", "-o", mbr])
+    run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot])
+    run_cmd(["nasm", "-f", "bin", "src/kernel.asm", "-o", KERNEL])
+    run_cmd(["nasm", "-f", "bin", "tests/programs/memtest.asm", "-o", memtest])
+    run_cmd(["python3", "scripts/mkimage.py", "--format=hd32m", boot, KERNEL, RAW_IMG, memtest])
     build_partitioned_image(mbr)
 
 
