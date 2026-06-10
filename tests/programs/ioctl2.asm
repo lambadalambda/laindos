@@ -60,6 +60,44 @@ start:
     mov ah, 0x09
     int 0x21
 
+    mov bx, 1
+    mov ax, 0x4400
+    int 0x21
+    jc fail_devinfo
+    cmp dx, 0x80D3
+    jne fail_devinfo
+    mov ax, 0x3D02
+    mov dx, nuldev
+    int 0x21
+    jc fail_devinfo
+    mov bx, ax
+    push bx
+    mov ax, 0x4400
+    int 0x21
+    pop bx
+    jc fail_devinfo
+    cmp dx, 0x80C4
+    jne fail_devinfo
+    mov ah, 0x3E
+    int 0x21
+    mov ax, 0x3D02
+    mov dx, condev
+    int 0x21
+    jc fail_devinfo
+    mov bx, ax
+    push bx
+    mov ax, 0x4400
+    int 0x21
+    pop bx
+    jc fail_devinfo
+    cmp dx, 0x80D3
+    jne fail_devinfo
+    mov ah, 0x3E
+    int 0x21
+    mov dx, msg_devinfo
+    mov ah, 0x09
+    int 0x21
+
     mov ax, 0x4C00
     int 0x21
 
@@ -74,6 +112,9 @@ fail_set:
     jmp fail
 fail_setfile:
     mov dx, msg_fail_setfile
+    jmp fail
+fail_devinfo:
+    mov dx, msg_fail_devinfo
 fail:
     mov ah, 0x09
     int 0x21
@@ -90,3 +131,7 @@ msg_fail_setup:   db "FAIL: IOCTL2 SETUP", 13, 10, '$'
 msg_fail_drive:   db "FAIL: IOCTL2 DRIVE", 13, 10, '$'
 msg_fail_set:     db "FAIL: IOCTL2 SET", 13, 10, '$'
 msg_fail_setfile: db "FAIL: IOCTL2 SETFILE", 13, 10, '$'
+nuldev: db "NUL", 0
+condev: db "CON", 0
+msg_devinfo:      db "PASS: IOCTL2 DEVINFO", 13, 10, '$'
+msg_fail_devinfo: db "FAIL: IOCTL2 DEVINFO", 13, 10, '$'

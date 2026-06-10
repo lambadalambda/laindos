@@ -189,10 +189,15 @@ redir_setup:
     mov cx, 1
     mov ah, 0x46
     int 0x21
+    jc .fail_close_both
     mov ah, 0x3E
     int 0x21
     mov al, 1
     jmp .out
+.fail_close_both:
+    mov ah, 0x3E
+    int 0x21
+    jmp .fail_close_saved
 .fail_close_saved:
     mov bx, [redir_saved]
     mov ah, 0x3E

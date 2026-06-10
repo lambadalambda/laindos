@@ -27,6 +27,8 @@ def build_image():
                 b"copy RD.TXT RD2.TXT >NUL\r\n"
                 b"type RD2.TXT\r\n"
                 b"shell /C echo NESTED\r\n"
+                b"shell /C copy RD.TXT RD3.TXT >NUL\r\n"
+                b"echo NESTDONE\r\n"
                 b"echo REDIRDONE\r\n"
                 b"exit\r\n")
     run_cmd(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, shell, autoexec])
@@ -35,7 +37,7 @@ def build_image():
 def main():
     build_image()
     output = run_serial_image(IMG, TIMEOUT)
-    required = ("REDIRSTART", "FILED", "APPENDED", "NESTED", "REDIRDONE", "HALT")
+    required = ("REDIRSTART", "FILED", "APPENDED", "NESTED", "NESTDONE", "REDIRDONE", "HALT")
     forbidden = ("HIDDENWORD", "File(s) copied", "Overwrite")
     if not check_markers(output, required=required, forbidden=forbidden):
         sys.exit(1)

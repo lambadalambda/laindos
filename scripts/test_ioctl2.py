@@ -43,7 +43,7 @@ def main():
     ], TIMEOUT)
     passed = check_markers(
         output,
-        required=("PASS: IOCTL2 DRIVE", "PASS: IOCTL2 SET", "PASS: IOCTL2 SETFILE",
+        required=("PASS: IOCTL2 DRIVE", "PASS: IOCTL2 SET", "PASS: IOCTL2 SETFILE", "PASS: IOCTL2 DEVINFO",
                   "Program exited, code=00", "HALT"),
         forbidden=("FAIL:", "EXC ", "INT 21h AH="),
         output_label="ioctl2 QEMU serial output")

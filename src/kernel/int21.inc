@@ -4482,11 +4482,16 @@ int21_handler:
     pop bx
     jmp iret_nc
 .ioctl_get_dev_pop:
+    cmp word [cs:si+handles+H_DIR_OFF], DEV_NUL
     pop si
     pop cx
     pop ax
     pop bx
+    je .ioctl_nul
     jmp .ioctl_stdio
+.ioctl_nul:
+    mov dx, 0x80C4
+    jmp iret_nc
 .ioctl_stdio:
 ; @anchor: ioctl_stdio_info_word
     mov dx, 0x80D3
