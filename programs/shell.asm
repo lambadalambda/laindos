@@ -1323,9 +1323,11 @@ append_copy_basename:
     ret
 
 copy_src_basename_ptr:
+    mov si, copy_src_path
+
+path_basename_ptr:
     push ax
     push bx
-    mov si, copy_src_path
     mov bx, si
 .scan:
     lodsb
@@ -1459,6 +1461,44 @@ do_del:
     je .missing
     call del_path_has_wildcard
     jc .wildcard
+    call del_one_file
+    ret
+.wildcard:
+    mov si, del_path
+    call path_basename_ptr
+    mov [del_base], si
+    mov dx, copy_dta
+    mov ah, 0x1A
+    int 0x21
+    mov dx, del_path
+    xor cx, cx
+    mov ah, 0x4E
+    int 0x21
+    jc .not_found
+.wild_next:
+    mov si, copy_dta + 0x1E
+    mov di, [del_base]
+.splice:
+    lodsb
+    mov [di], al
+    inc di
+    test al, al
+    jnz .splice
+    call del_one_file
+    mov ah, 0x4F
+    int 0x21
+    jnc .wild_next
+    ret
+.not_found:
+    mov dx, file_not_found_msg
+    call print_dollar
+    ret
+.missing:
+    mov dx, missing_arg_msg
+    call print_dollar
+    ret
+
+del_one_file:
     call confirm_del_prompt
     jc .cancel
     mov dx, del_path
@@ -1472,14 +1512,6 @@ do_del:
     ret
 .err:
     mov dx, file_error_msg
-    call print_dollar
-    ret
-.wildcard:
-    mov dx, wildcard_not_supported_msg
-    call print_dollar
-    ret
-.missing:
-    mov dx, missing_arg_msg
     call print_dollar
     ret
 
@@ -2699,6 +2731,7 @@ run_batch:
 run_autoexec:
     push cs
     pop ds
+    mov byte [cmd_tail], 0
     mov dx, autoexec_name
     call run_batch_named
     push cs
@@ -2717,6 +2750,7 @@ run_batch_named:
     call batch_sync_position
     jc .sync_err
 .start:
+    call batch_snapshot_args
     inc byte [batch_active]
     push word [batch_handle]
     xor al, al
@@ -2731,6 +2765,7 @@ run_batch_named:
 .next:
     call batch_read_line
     jc .done
+    call batch_expand_params
     cmp byte [line_buf], 0
     je .next
     call execute_line
@@ -2956,6 +2991,130 @@ build_path_candidate:
 run_candidate_exec:
     mov dx, path_command_name
     call run_exec_name
+    ret
+
+batch_snapshot_args:
+    push ax
+    push cx
+    push si
+    push di
+    mov si, cmd_tail + 1
+    xor cx, cx
+    mov cl, [cmd_tail]
+    mov di, batch_args
+.copy:
+    jcxz .done
+    lodsb
+    cmp al, 13
+    je .done
+    stosb
+    dec cx
+    jmp .copy
+.done:
+    xor al, al
+    stosb
+    pop di
+    pop si
+    pop cx
+    pop ax
+    ret
+
+batch_expand_params:
+    push ax
+    push bx
+    push cx
+    push si
+    push di
+    mov si, line_buf
+.scan:
+    lodsb
+    test al, al
+    jz .out
+    cmp al, '%'
+    jne .scan
+    mov si, line_buf
+    mov di, batch_raw
+    mov cx, 128
+    rep movsb
+    mov si, batch_raw
+    mov di, line_buf
+.loop:
+    lodsb
+    test al, al
+    jz .done
+    cmp al, '%'
+    jne .emit
+    mov al, [si]
+    cmp al, '%'
+    je .pct
+    cmp al, '0'
+    jb .lit
+    cmp al, '9'
+    ja .lit
+    inc si
+    sub al, '0'
+    call batch_emit_arg
+    jmp .loop
+.pct:
+    inc si
+    mov al, '%'
+    jmp .emit
+.lit:
+    mov al, '%'
+.emit:
+    cmp di, line_buf + 127
+    jae .done
+    stosb
+    jmp .loop
+.done:
+    xor al, al
+    stosb
+.out:
+    pop di
+    pop si
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+batch_emit_arg:
+    push si
+    test al, al
+    jz .end
+    mov bl, al
+    mov si, batch_args
+.next_word:
+    cmp byte [si], ' '
+    jne .word_start
+    inc si
+    jmp .next_word
+.word_start:
+    cmp byte [si], 0
+    je .end
+    dec bl
+    jz .copy_word
+.skip_word:
+    mov al, [si]
+    test al, al
+    jz .end
+    cmp al, ' '
+    je .next_word
+    inc si
+    jmp .skip_word
+.copy_word:
+    mov al, [si]
+    test al, al
+    jz .end
+    cmp al, ' '
+    je .end
+    cmp di, line_buf + 127
+    jae .end
+    mov [di], al
+    inc di
+    inc si
+    jmp .copy_word
+.end:
+    pop si
     ret
 
 batch_read_line:
@@ -3221,7 +3380,10 @@ redir_to_nul: db 0
 redir_append: db 0
 redir_path: times 64 db 0
 copy_src_base: dw 0
+del_base: dw 0
 copy_dta: times 64 db 0
+batch_args: times 128 db 0
+batch_raw: times 128 db 0
 co80_arg: db "CO80", 0
 pause_msg: db "Press any key to continue . . .", 13, 10, "$"
 mode_status_msg: db " is the current mode", 13, 10, 0

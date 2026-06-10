@@ -30,6 +30,10 @@ def build_image():
                 b"copy \\A2.TXT >NUL\r\n"
                 b"type A2.TXT\r\n"
                 b"cd \\\r\n"
+                b"del SUB\\A*.TXT\r\n"
+                b"if exist SUB\\A1.TXT echo DELFAIL\r\n"
+                b"if exist SUB\\A2.TXT echo DELFAIL\r\n"
+                b"echo DELCHECK\r\n"
                 b"echo COPYDONE\r\n"
                 b"exit\r\n")
     run_cmd(["python3", "scripts/mkimage.py", boot, KERNEL, IMG, shell, autoexec])
@@ -38,8 +42,8 @@ def build_image():
 def main():
     build_image()
     output = run_serial_image(IMG, TIMEOUT)
-    required = ("AAA", "BBB", "COPYDONE", "HALT")
-    forbidden = ("File not found", "Missing argument", "FAIL")
+    required = ("AAA", "BBB", "DELCHECK", "COPYDONE", "HALT")
+    forbidden = ("File not found", "Missing argument", "Wildcard not supported", "DELFAIL")
     if not check_markers(output, required=required, forbidden=forbidden):
         sys.exit(1)
     print("\nShell copy test passed.")

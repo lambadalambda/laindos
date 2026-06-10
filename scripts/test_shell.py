@@ -247,9 +247,10 @@ def send_keys(output_chunks):
     del_wild_setup = send_command(sock, output_chunks, "copy testfile.dat wild.dat")
     require_command_output("copy testfile.dat wild.dat", del_wild_setup, ["1 File(s) copied."])
     del_wild = send_command(sock, output_chunks, "del wild*.dat")
-    require_command_output("del wild*.dat", del_wild, ["Wildcard not supported"])
     del_wild_type = send_command(sock, output_chunks, "type wild.dat")
-    require_command_output("type wild.dat", del_wild_type, ["Hello from TESTFILE.DAT!"])
+    require_command_output("type wild.dat", del_wild_type, ["File not found"])
+    del_wild_missing = send_command(sock, output_chunks, "del wild*.dat")
+    require_command_output("del wild*.dat", del_wild_missing, ["File not found"])
 
     ren_setup = send_command(sock, output_chunks, "copy testfile.dat renold.dat")
     require_command_output("copy testfile.dat renold.dat", ren_setup, ["1 File(s) copied."])

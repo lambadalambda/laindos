@@ -141,6 +141,7 @@ DEFAULT_TESTS = [
     "scripts/test_switchar.py",
     "scripts/test_shellredir.py",
     "scripts/test_shellcopy.py",
+    "scripts/test_batchparm.py",
 ]
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124
