@@ -124,6 +124,7 @@ DEFAULT_TESTS = [
     "scripts/test_tsrenv.py",
     "scripts/test_exehdr.py",
     "scripts/test_envbig.py",
+    "scripts/test_trunc0.py",
 ]
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124

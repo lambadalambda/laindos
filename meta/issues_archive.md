@@ -165,3 +165,4 @@
 - [x] [Keep the TSR environment block resident](issues/keep-tsr-environment-resident.md)
 - [x] [Guard EXE header math against 16-bit overflow](issues/guard-exe-header-math-overflows.md)
 - [x] [Grow EXEC environment capacity beyond 256 bytes](issues/grow-exec-environment-capacity.md)
+- [x] [Truncate or extend the file on AH=40h with CX=0](issues/truncate-on-zero-length-write.md)

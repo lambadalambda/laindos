@@ -3336,7 +3336,11 @@ int21_handler:
     jmp .wf_gap_loop
 .wf_file_loop:
     cmp word [cs:wf_count], 0
-    je .wf_file_done
+    jne .wf_have_data
+    cmp word [cs:wf_req], 0
+    je .wf_truncate
+    jmp .wf_file_done
+.wf_have_data:
     mov si, [cs:wf_hoff]
     cmp word [cs:si+handles+H_CLUSTER], 0
     jne .wf_have_start
@@ -3435,6 +3439,75 @@ int21_handler:
     sub [cs:wf_count], cx
     add [cs:wf_written], cx
     jmp .wf_file_loop
+.wf_truncate:
+    mov si, [cs:wf_hoff]
+    mov ax, [cs:si+handles+H_POS_HI]
+    cmp ax, [cs:si+handles+H_SIZE_HI]
+    jb .wf_do_trunc
+    ja .wf_file_done
+    mov ax, [cs:si+handles+H_POS_LO]
+    cmp ax, [cs:si+handles+H_SIZE_LO]
+    jae .wf_file_done
+.wf_do_trunc:
+    mov ax, [cs:si+handles+H_POS_LO]
+    mov [cs:si+handles+H_SIZE_LO], ax
+    mov dx, [cs:si+handles+H_POS_HI]
+    mov [cs:si+handles+H_SIZE_HI], dx
+    or ax, dx
+    jz .wf_trunc_all
+    mov ax, [cs:si+handles+H_POS_LO]
+    mov dx, [cs:si+handles+H_POS_HI]
+    sub ax, 1
+    sbb dx, 0
+    mov cx, 9
+.wf_trunc_shift:
+    shr dx, 1
+    rcr ax, 1
+    loop .wf_trunc_shift
+    xor dx, dx
+    xor ch, ch
+    mov cl, [cs:kspc]
+    div cx
+    mov cx, ax
+    mov si, [cs:si+handles+H_CLUSTER]
+    cmp si, 2
+    jb .wf_trunc_fixup
+    call fat_walk_reset
+.wf_trunc_walk:
+    test cx, cx
+    jz .wf_trunc_at_last
+    call fat_next_checked
+    jc .wf_trunc_fixup
+    mov si, ax
+    dec cx
+    jmp .wf_trunc_walk
+.wf_trunc_at_last:
+    push si
+    call fat_next_checked
+    pop si
+    jc .wf_trunc_fixup
+    push ax
+    mov ax, [cs:kfat_eoc_value]
+    call fat_set
+    pop ax
+    mov si, ax
+    call fat_free_chain
+.wf_trunc_fixup:
+    mov si, [cs:wf_hoff]
+    mov ax, [cs:si+handles+H_CLUSTER]
+    mov [cs:si+handles+H_LAST_CLUSTER], ax
+    mov word [cs:si+handles+H_LAST_INDEX], 0
+    jmp .wf_file_done
+.wf_trunc_all:
+    mov ax, [cs:si+handles+H_CLUSTER]
+    mov word [cs:si+handles+H_CLUSTER], 0
+    mov word [cs:si+handles+H_LAST_CLUSTER], 0
+    mov word [cs:si+handles+H_LAST_INDEX], 0
+    cmp ax, 2
+    jb .wf_file_done
+    mov si, ax
+    call fat_free_chain
+    jmp .wf_file_done
 .wf_file_done:
     mov ax, [cs:wf_written]
     INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
