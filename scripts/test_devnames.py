@@ -65,6 +65,8 @@ def send_key_after_ready(output_chunks):
     sock.recv(4096)
     if wait_for_output(output_chunks, "READY: DEVREAD"):
         send_monitor_key(sock, "z")
+        time.sleep(0.1)
+        send_monitor_key(sock, "ret")
     sock.close()
 
 

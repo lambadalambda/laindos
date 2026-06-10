@@ -3342,27 +3342,78 @@ int21_handler:
 .rf_con:
     cmp word [cs:rf_count], 0
     je .rf_done
-    mov ax, [cs:rf_buf_seg]
-    mov es, ax
-    mov di, [cs:rf_buf_off]
-.rf_con_retry:
+.rf_con_loop:
     call console_read_char
+    jc .rf_con_loop
     cmp al, 3
-    jne .rf_con_store
+    jne .rf_con_not_break
     call dos_invoke_int23
-    jmp .rf_con_retry
-.rf_con_store:
+    jmp .rf_con_loop
+.rf_con_not_break:
+    cmp al, 13
+    je .rf_con_enter
+    cmp al, 8
+    je .rf_con_backspace
+    cmp word [cs:rf_count], 0
+    je .rf_con_loop
+    call console_putchar
+    call .rf_con_store_al
+    jmp .rf_con_loop
+.rf_con_backspace:
+    cmp word [cs:rf_read], 0
+    je .rf_con_loop
+    dec word [cs:rf_read]
+    mov bx, [cs:rf_hoff]
+    sub word [cs:bx+handles+H_POS_LO], 1
+    sbb word [cs:bx+handles+H_POS_HI], 0
+    sub word [cs:rf_buf_off], 1
+    jnc .rf_con_bs_nowrap
+    sub word [cs:rf_buf_seg], 0x1000
+.rf_con_bs_nowrap:
+    inc word [cs:rf_count]
+    mov al, 8
+    call console_putchar
+    mov al, ' '
+    call console_putchar
+    mov al, 8
+    call console_putchar
+    jmp .rf_con_loop
+.rf_con_enter:
+    mov al, 13
+    call console_putchar
+    mov al, 10
+    call console_putchar
+    cmp word [cs:rf_count], 0
+    je .rf_con_eol_done
+    mov al, 13
+    call .rf_con_store_al
+    cmp word [cs:rf_count], 0
+    je .rf_con_eol_done
+    mov al, 10
+    call .rf_con_store_al
+.rf_con_eol_done:
+    jmp .rf_done
+.rf_con_store_al:
+    push bx
+    push es
+    push di
+    mov bx, [cs:rf_buf_seg]
+    mov es, bx
+    mov di, [cs:rf_buf_off]
     stosb
     inc word [cs:rf_read]
     mov bx, [cs:rf_hoff]
     add word [cs:bx+handles+H_POS_LO], 1
     adc word [cs:bx+handles+H_POS_HI], 0
     add word [cs:rf_buf_off], 1
-    jnc .rf_con_no_wrap
+    jnc .rf_con_store_nowrap
     add word [cs:rf_buf_seg], 0x1000
-.rf_con_no_wrap:
+.rf_con_store_nowrap:
     sub word [cs:rf_count], 1
-    jmp .rf_con
+    pop di
+    pop es
+    pop bx
+    ret
 .rf_err_pop:
     INT21_POP_FRAME_BX_CX_DX_DS_ES_SI_DI
 .rf_err:

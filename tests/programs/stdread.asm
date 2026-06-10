@@ -45,8 +45,9 @@ start:
     mov ax, 0x0040
     mov es, ax
     mov word [es:0x1A], 0x001E
-    mov word [es:0x1C], 0x0020
+    mov word [es:0x1C], 0x0022
     mov word [es:0x001E], 0x1E61
+    mov word [es:0x0020], 0x1C0D
     sti
 
     xor bx, bx

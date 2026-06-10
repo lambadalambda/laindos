@@ -172,3 +172,4 @@
 - [x] [Fix INT 33h reset detection and default ratios](issues/fix-int33-reset-detection-and-default-ratios.md)
 - [x] [Fix INT 21h clock rollover, drift, and frozen set-time state](issues/fix-int21-clock-rollover-and-drift.md)
 - [x] [Generate INT 23h on Ctrl-C](issues/wire-ctrl-c-to-int23.md)
+- [x] [Line-buffer CON device handle reads](issues/buffer-con-handle-reads.md)
