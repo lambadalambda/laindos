@@ -2248,6 +2248,12 @@ parse_more_scan:
     mov byte [more_quiet], 1
     jmp .more_done
 .more_scan_advance:
+    cmp byte [more_has_file], 0
+    jne .more_scan_skip
+    call copy_more_filename
+    mov byte [more_has_file], 1
+    jmp .more_scan_loop
+.more_scan_skip:
     inc si
     jmp .more_scan_loop
 .more_done:

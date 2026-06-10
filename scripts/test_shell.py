@@ -244,6 +244,10 @@ def send_keys(output_chunks):
     require_command_output("del", del_no_arg, ["Missing argument"])
     del_missing = send_command(sock, output_chunks, "del missing.dat")
     require_command_output("del missing.dat", del_missing, ["File error"])
+    more_file = send_command(sock, output_chunks, "more testfile.dat")
+    require_command_output("more testfile.dat", more_file, ["Hello from TESTFILE.DAT!"])
+    more_missing = send_command(sock, output_chunks, "more missing.txt")
+    require_command_output("more missing.txt", more_missing, ["File not found"])
     long_name = "q" * 62
     long_cmd = send_command(sock, output_chunks, long_name)
     require_command_output(long_name, long_cmd, ["Bad command or file name"])

@@ -184,3 +184,5 @@
 - [x] [Support IF NOT, IF ERRORLEVEL, and IF a==b in the shell](issues/support-if-not-errorlevel-and-equality.md)
 - [x] [Report missing batch labels and run bare IF tails](issues/report-missing-batch-labels.md)
 - [x] [Treat tab as whitespace in shell parsing](issues/treat-tab-as-whitespace-in-shell-parsing.md)
+- [x] [Accept a filename operand in MORE](issues/accept-more-filename-operand.md)
+- [x] [Fix FREE utility reporting](issues/fix-free-utility-reporting.md)

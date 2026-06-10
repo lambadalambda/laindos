@@ -12,3 +12,7 @@
 
 - Shell test: `MORE FOO.TXT` pages the file; `MORE MISSING.TXT` prints an error; `PASS:` markers.
 - Existing shell tests pass.
+
+## Resolution
+
+Resolved 2026-06-10. parse_more_scan treats the first bare token as the input file (same as `MORE < FILE`); a missing file reports the existing "File not found" open error. Covered in scripts/test_shell.py (more testfile.dat / more missing.txt).

@@ -1,5 +1,3 @@
-- [ ] [Accept a filename operand in MORE](issues/accept-more-filename-operand.md)
-- [ ] [Fix FREE utility reporting](issues/fix-free-utility-reporting.md)
 - [ ] [Re-list orphaned regression tests and add suite discovery](issues/run-orphaned-regression-tests.md)
 - [ ] [Fail tests on QEMU timeout by default](issues/fail-tests-on-qemu-timeout.md)
 - [ ] [Make the INT 24h test exercise the critical-error path](issues/make-int24h-test-exercise-critical-error.md)
