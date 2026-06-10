@@ -16,3 +16,7 @@
 ## Notes
 
 - `test_mi2_save.py` also has a hand-rolled QEMU pipe race (double-reading proc fds, scripts/test_mi2_save.py:155-237) — migrate it to testlib helpers when re-enabling.
+
+## Resolution
+
+Resolved 2026-06-10. test_badreloc.py and test_ctrunc.py are back in DEFAULT_TESTS (both pass). test_mi2_save.py got a vendor-gated `make test-mi2-save` target; running it surfaced a real EXC 06 crash in the MI2 save dialog, filed separately as fix-mi2-save-dialog-crash.md. run_tests.py now asserts at startup that every scripts/test_*.py is either in DEFAULT_TESTS or in the documented EXTERNAL_TESTS exclusion set (and that no listed script is missing); unknown or missing entries abort the suite with exit 2.

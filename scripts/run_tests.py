@@ -144,7 +144,36 @@ DEFAULT_TESTS = [
     "scripts/test_batchparm.py",
     "scripts/test_batchif.py",
     "scripts/test_shelltab.py",
+    "scripts/test_badreloc.py",
+    "scripts/test_ctrunc.py",
 ]
+
+# Tests that run outside `make test`: vendor-media game tests and emulator
+# integrations with dedicated Makefile targets. Every scripts/test_*.py file
+# must appear either in DEFAULT_TESTS or here, or the suite refuses to run.
+EXTERNAL_TESTS = {
+    "test_ascendancy_smoke.py",        # vendor Ascendancy zip (make test-ascendancy-smoke)
+    "test_attached_hd_shell.py",       # monkey demo files (make test-attached-hd-shell)
+    "test_cd_86box.py",                # needs a local 86Box install (make test-cd-86box)
+    "test_mi2_save.py",                # vendor MI2 zip (make test-mi2-save)
+    "test_monkey_full.py",             # vendor monkey_full zip (make test-monkey-full)
+    "test_normality_install.py",       # Sam & Max CD image (make test-normality-install)
+    "test_norton_commander_copy.py",   # vendor Norton 7z (make test-norton-commander-copy)
+    "test_norton_commander_launch.py",  # vendor Norton 7z (make test-norton-commander-launch)
+    "test_norton_commander_mkdir_rmdir.py",  # vendor Norton 7z (make test-norton-commander-mkdir-rmdir)
+    "test_norton_commander_rename_delete.py",  # vendor Norton 7z (make test-norton-commander-rename-delete)
+    "test_norton_commander_smoke.py",  # vendor Norton 7z (make test-norton-commander-smoke)
+    "test_sammax_cd_dig.py",           # Sam & Max CD image (make test-sammax-cd-dig)
+    "test_sammax_cd_files.py",         # Sam & Max CD image (make test-sammax-cd-files)
+    "test_sammax_cd_install.py",       # Sam & Max CD image (make test-sammax-cd-install)
+    "test_sammax_cd_install_select.py",  # Sam & Max CD image (make test-sammax-cd-install-select)
+    "test_sammax_cd_setmuse.py",       # Sam & Max CD image (make test-sammax-cd-setmuse)
+    "test_sammax_cd_setmuse_save.py",  # Sam & Max CD image (make test-sammax-cd-setmuse-save)
+    "test_sammax_cd_start.py",         # Sam & Max CD image (make test-sammax-cd-start)
+    "test_shell_monkey.py",            # monkey demo files (make test-shell-monkey)
+    "test_shortline_smoke.py",         # vendor SHRTLINE zip (make test-shortline-smoke)
+    "test_wolf3d_smoke.py",            # vendor wolf3dsw zip (make test-wolf3d-smoke)
+}
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124
 
@@ -269,6 +298,25 @@ def parse_args():
     return parser.parse_args()
 
 
+def check_test_discovery(root):
+    known = {Path(t).name for t in DEFAULT_TESTS} | EXTERNAL_TESTS
+    present = {p.name for p in (root / "scripts").glob("test_*.py")}
+    unknown = sorted(present - known)
+    missing = sorted(known - present)
+    ok = True
+    if unknown:
+        print("ERROR: test scripts not in DEFAULT_TESTS or EXTERNAL_TESTS:")
+        for name in unknown:
+            print(f"  scripts/{name}")
+        ok = False
+    if missing:
+        print("ERROR: listed test scripts that do not exist:")
+        for name in missing:
+            print(f"  scripts/{name}")
+        ok = False
+    return ok
+
+
 def main():
     args = parse_args()
     if args.jobs < 1:
@@ -279,6 +327,8 @@ def main():
         return 2
 
     root = repo_root()
+    if not check_test_discovery(root):
+        return 2
     build_root = Path(args.build_root)
     if not build_root.is_absolute():
         build_root = root / build_root
