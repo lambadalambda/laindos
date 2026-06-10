@@ -2367,10 +2367,39 @@ ems_copy_16k:
     ret
 %endif
 
+restore_psp_vectors:
+    push ax
+    push ds
+    push es
+    mov ax, [cs:cur_psp]
+    test ax, ax
+    jz .done
+    mov ds, ax
+    xor ax, ax
+    mov es, ax
+    mov ax, [ds:0x0A]
+    mov [es:0x22*4], ax
+    mov ax, [ds:0x0C]
+    mov [es:0x22*4+2], ax
+    mov ax, [ds:0x0E]
+    mov [es:0x23*4], ax
+    mov ax, [ds:0x10]
+    mov [es:0x23*4+2], ax
+    mov ax, [ds:0x12]
+    mov [es:0x24*4], ax
+    mov ax, [ds:0x14]
+    mov [es:0x24*4+2], ax
+.done:
+    pop es
+    pop ds
+    pop ax
+    ret
+
 do_terminate:
     push ds
     push si
     push ax
+    call restore_psp_vectors
     call restore_irq1_null_mask
     mov word [cs:mouse_callback_mask], 0
     mov word [cs:mouse_callback_off], 0
@@ -2429,6 +2458,7 @@ do_terminate:
     jmp exec_com.back
 
 do_terminate_tsr:
+    call restore_psp_vectors
     call restore_irq1_null_mask
     call release_inherited_handles
     call close_owned_handles

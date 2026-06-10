@@ -112,6 +112,7 @@ DEFAULT_TESTS = [
     "scripts/test_hma.py",
     "scripts/test_fat16_label.py",
     "scripts/test_openattr.py",
+    "scripts/test_vecrest.py",
 ]
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124
