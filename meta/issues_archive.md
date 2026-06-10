@@ -166,3 +166,4 @@
 - [x] [Guard EXE header math against 16-bit overflow](issues/guard-exe-header-math-overflows.md)
 - [x] [Grow EXEC environment capacity beyond 256 bytes](issues/grow-exec-environment-capacity.md)
 - [x] [Truncate or extend the file on AH=40h with CX=0](issues/truncate-on-zero-length-write.md)
+- [x] [Handle bad-cluster markers in fat_free_chain](issues/handle-bad-cluster-markers-in-fat-free-chain.md)

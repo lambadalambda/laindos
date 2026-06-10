@@ -293,6 +293,8 @@ fat_free_chain:
     pop ax
     cmp ax, [cs:kfat_eoc]
     jae .done
+    cmp ax, [cs:kfat_reserved]
+    jae .done
     cmp ax, 2
     jb .done
     mov si, ax
