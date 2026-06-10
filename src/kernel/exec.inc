@@ -85,9 +85,13 @@ load_exec_program:
     loop .exe_min_shift
     test dx, dx
     jnz .exe_too_large
+    cmp ax, [0x08]
+    jb .exe_bad_header
     sub ax, [0x08]
     add ax, [0x0A]
+    jc .exe_too_large
     add ax, 0x10
+    jc .exe_too_large
     mov [cs:exe_min_par], ax
     mov ax, [cs:kfsize]
     mov dx, [cs:kfsize_hi]
@@ -110,6 +114,11 @@ load_exec_program:
 .exe_too_large:
     call free_exec_environment
     mov ax, 8
+    stc
+    ret
+.exe_bad_header:
+    call free_exec_environment
+    mov ax, 11
     stc
     ret
 .exe_size_ok:
@@ -195,6 +204,7 @@ load_exec_program:
     cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
     je .load_cd
     mov si, [cs:exec_cluster]
+; @anchor: exec_load_fat_file
     call load_file_direct
     jmp .load_done
 .load_cd:
@@ -521,6 +531,7 @@ update_exec_environment_path:
 .tail_drive_ready:
     cmp di, bx
     jae .env_overflow
+; @anchor: env_path_first_byte
     stosb
     mov al, ':'
     cmp di, bx
@@ -696,6 +707,7 @@ assign_exec_environment_owner:
     jne .done
 .assign:
     mov ax, [cs:cur_psp]
+; @anchor: env_owner_store
     mov [ds:1], ax
 .done:
     pop ds
@@ -744,6 +756,8 @@ load_overlay_direct:
     call overlay_copy_range
     ret
 .mz:
+    cmp word [0x08], 0x1000
+    jae .mz_bad_pop
     mov ax, [0x08]
     mov cx, 4
 .hdr_shift:
@@ -1423,6 +1437,7 @@ build_psp:
     mov word [cs:dta_off], 0x0080
     mov [cs:cur_psp], ax
     call assign_exec_environment_owner
+; @anchor: build_psp_copy_fcbs
     call exec_copy_default_fcbs
     ret
 
@@ -1674,6 +1689,7 @@ exec_com_dyn:
     push word 0x0000
     push ax
     push word 0x0100
+; @anchor: exec_com_entry_jump
     retf
 
 reset_keyboard_buffer:

@@ -163,3 +163,4 @@
 - [x] [Guard CD-ROM drive against FAT mutation calls](issues/guard-cdrom-drive-against-fat-mutations.md)
 - [x] [Release inherited handle refcounts on EXEC failure](issues/release-inherited-handles-on-exec-failure.md)
 - [x] [Keep the TSR environment block resident](issues/keep-tsr-environment-resident.md)
+- [x] [Guard EXE header math against 16-bit overflow](issues/guard-exe-header-math-overflows.md)
