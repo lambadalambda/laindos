@@ -11,6 +11,7 @@ VGA_ROWS equ 25
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x0060
+FAT_BUF_SECS equ ((CD_BUF - FAT_SEG) / 32)
 ROOT_SEG  equ 0x0240
 PSP_SEG   equ 0x3000
 
@@ -200,6 +201,12 @@ kernel_entry:
 
 %ifdef TEST_BAD_BPB_SEC_PER_CLUS
     mov byte [bpb_copy+0x0D], 0
+%endif
+%ifdef TEST_BAD_BPB_ROOT_ENTRIES
+    mov word [bpb_copy+BPB_ROOT_ENT_COUNT], 1024
+%endif
+%ifdef TEST_BAD_BPB_FAT_SECS
+    mov word [bpb_copy+BPB_SECS_PER_FAT], 32
 %endif
     call init_bpb_geometry
     jnc .bpb_ok
@@ -573,7 +580,7 @@ parse_bpb_geometry:
     jz .bad
     test ax, 0x000F
     jnz .bad
-    cmp ax, 2032
+    cmp ax, ROOT_MAX_ENTRIES
     ja .bad
     cmp word [bx+BPB_SECS_PER_FAT], 0
     je .bad
@@ -667,7 +674,11 @@ parse_bpb_geometry:
     mov word [cs:kfat_eoc], FAT16_EOC
     mov word [cs:kfat_eoc_value], FAT16_EOC_VALUE
     mov word [cs:kfat_reserved], FAT16_RESERVED
+    jmp .fat_fit_ok
 .fat_type_done:
+    cmp word [cs:kfat_secs], FAT_BUF_SECS
+    ja .bad
+.fat_fit_ok:
 
     pop bx
     pop ds
@@ -1965,6 +1976,7 @@ xms_entry:
     mov si, xms_gdt
     push cs
     pop es
+; @anchor: xms_move_bios_call
     int 0x15
     jc .move_failed
     test ah, ah
@@ -2275,6 +2287,7 @@ int67_handler:
     iret
 
 ems_clear_map:
+; @anchor: ems_clear_map_fill
     mov word [cs:ems_map_pages], 0xFFFF
     mov word [cs:ems_map_pages+2], 0xFFFF
     mov word [cs:ems_map_pages+4], 0xFFFF
@@ -2397,6 +2410,7 @@ do_terminate:
     jz .dt_parent_done
     mov ds, ax
     mov ax, [0x16]
+; @anchor: do_terminate_restore_parent_psp
     mov [cs:cur_psp], ax
 .dt_parent_done:
     pop ax
@@ -2411,6 +2425,7 @@ do_terminate:
     mov ss, ax
     mov sp, [cs:saved_sp]
     sti
+; @anchor: do_terminate_return_to_parent
     jmp exec_com.back
 
 do_terminate_tsr:
@@ -3672,5 +3687,6 @@ kernel_end:
 %error "EMS frame must be 16K-aligned"
 %endif
 %if ENABLE_XMS && XMS_MAX_KB > 15360
+; @anchor: xms_backing_limit_error
 %error "XMS BIOS move backing must remain below 16 MiB"
 %endif
