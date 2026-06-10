@@ -1,5 +1,4 @@
 - [ ] [Fix the Monkey Island 2 save dialog crash](issues/fix-mi2-save-dialog-crash.md)
-- [ ] [Fail tests on QEMU timeout by default](issues/fail-tests-on-qemu-timeout.md)
 - [ ] [Make the INT 24h test exercise the critical-error path](issues/make-int24h-test-exercise-critical-error.md)
 - [ ] [Point mise test at the full suite and snapshot the boot test image](issues/point-mise-test-at-full-suite.md)
 - [ ] [Harden mkimage capacity checks](issues/harden-mkimage-capacity-checks.md)

@@ -110,7 +110,7 @@ def build_simple_test_image(label, boot_file, programs, builddir=None, extra_fil
 def run_simple_serial_test(label, boot_file, programs, required=(),
                            forbidden=DEFAULT_FAIL_MARKERS, extra_files=(),
                            kernel_defines=(), timeout=10, drive_opts="if=floppy",
-                           pass_message=None, builddir=None):
+                           pass_message=None, builddir=None, allow_timeout=False):
     """Build a test image, run it in QEMU over serial, and verify markers.
 
     Convenience wrapper around `build_simple_test_image` + `run_serial_image`
@@ -120,7 +120,8 @@ def run_simple_serial_test(label, boot_file, programs, required=(),
     img = build_simple_test_image(label, boot_file, programs,
                                  builddir=builddir, extra_files=extra_files,
                                  kernel_defines=kernel_defines)
-    output = run_serial_image(img, timeout=timeout, drive_opts=drive_opts)
+    output = run_serial_image(img, timeout=timeout, drive_opts=drive_opts,
+                              allow_timeout=allow_timeout)
     passed = check_markers(output, required=required, forbidden=forbidden,
                            output_label=f"{label} QEMU serial output")
     if not passed:
@@ -128,8 +129,9 @@ def run_simple_serial_test(label, boot_file, programs, required=(),
     print(f"\n{pass_message or (label + ' test passed.')}")
 
 
-def run_serial_image(img, timeout=10, qemu="qemu-system-i386", drive_opts="if=floppy"):
-    output, _ = run_qemu_capture([
+def run_serial_image(img, timeout=10, qemu="qemu-system-i386", drive_opts="if=floppy",
+                     allow_timeout=False):
+    output, timed_out = run_qemu_capture([
         qemu,
         "-drive", f"file={img},format=raw,{drive_opts}",
         "-boot", "order=a",
@@ -137,6 +139,12 @@ def run_serial_image(img, timeout=10, qemu="qemu-system-i386", drive_opts="if=fl
         "-monitor", "none",
         "-nographic",
     ], timeout)
+    if timed_out and not allow_timeout:
+        print(f"FAIL: QEMU ran for {timeout}s without reaching a stop marker (hang?)")
+        print("--- QEMU serial output ---")
+        print(output)
+        print("--- end ---")
+        sys.exit(1)
     return output
 
 

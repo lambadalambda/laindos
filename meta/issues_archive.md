@@ -187,3 +187,4 @@
 - [x] [Accept a filename operand in MORE](issues/accept-more-filename-operand.md)
 - [x] [Fix FREE utility reporting](issues/fix-free-utility-reporting.md)
 - [x] [Re-list orphaned regression tests and add suite discovery](issues/run-orphaned-regression-tests.md)
+- [x] [Fail tests on QEMU timeout by default](issues/fail-tests-on-qemu-timeout.md)
