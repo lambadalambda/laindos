@@ -11,7 +11,7 @@ LainDOS is a tiny single-tasking DOS implementation targeting x86 real mode. Its
 ### Test-Driven Development (TDD)
 
 - Write tests first whenever possible. LainDOS targets x86 real mode and tests run under QEMU emulation; the code is written to be hardware-compatible. "Tests" means: small 16-bit DOS programs compiled with Open Watcom that exercise one DOS API surface at a time, plus automated QEMU launch-and-check scripts.
-- Before implementing a new `INT 21h` function, write a tiny test program that calls it and asserts expected behavior.
+- Before implementing a new `INT 21h` function, write a tiny test program that calls it and asserts expected behavior. Start new test programs from `tests/programs/common.inc` (COM_START, PRINT_DOLLAR, PASS_WITH/FAIL_WITH, EXIT_CODE, MZ_HEADER) instead of repeating the prologue/exit boilerplate.
 - Run the test ladder (tiny programs → simple utilities → Monkey Island) after every change.
 
 ### Get reviews before committing

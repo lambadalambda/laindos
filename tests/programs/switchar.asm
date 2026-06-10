@@ -1,10 +1,6 @@
-[bits 16]
-[org 0x0100]
+%include "tests/programs/common.inc"
 
-start:
-    push cs
-    pop ds
-
+COM_START
     mov ax, 0x3700
     mov dx, 0xFFFF
     int 0x21
@@ -34,25 +30,14 @@ start:
     cmp al, 0xFF
     jne fail_bad_subfunc
 
-    mov dx, pass_msg
-    mov ah, 0x09
-    int 0x21
-    mov ax, 0x4C00
-    int 0x21
+    PASS_WITH pass_msg
 
 fail_get:
-    mov dx, fail_get_msg
-    jmp fail
+    FAIL_WITH fail_get_msg
 fail_set:
-    mov dx, fail_set_msg
-    jmp fail
+    FAIL_WITH fail_set_msg
 fail_bad_subfunc:
-    mov dx, fail_bad_subfunc_msg
-fail:
-    mov ah, 0x09
-    int 0x21
-    mov ax, 0x4C01
-    int 0x21
+    FAIL_WITH fail_bad_subfunc_msg
 
 pass_msg: db "PASS: SWITCHAR", 13, 10, "$"
 fail_get_msg: db "FAIL: SWITCHAR GET", 13, 10, "$"

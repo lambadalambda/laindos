@@ -1,6 +1,5 @@
 - [ ] [Fix the Monkey Island 2 save dialog crash](issues/fix-mi2-save-dialog-crash.md)
 - [ ] [Migrate long-hand tests to testlib helpers](issues/migrate-tests-to-testlib-helpers.md)
-- [ ] [Add a common include for DOS test programs](issues/add-test-program-common-include.md)
 - [ ] [Unify boot-time and EXEC loader sizing logic](issues/unify-boot-and-exec-loader-sizing.md)
 - [ ] [Consolidate MCB allocation and walk paths](issues/consolidate-mcb-allocation-paths.md)
 - [ ] [Deduplicate CD-ROM driver paths](issues/dedupe-cdrom-driver-paths.md)

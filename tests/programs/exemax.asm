@@ -1,24 +1,6 @@
-[bits 16]
+%include "tests/programs/common.inc"
 
-hdr_size equ 4
-
-mz_header:
-    dw 0x5A4D
-    dw (file_end - mz_header) % 512
-    dw ((file_end - mz_header) + 511) / 512
-    dw 0
-    dw hdr_size
-    dw 0x0010
-    dw 0xFFFF
-    dw 0x0000
-    dw 0xFFFE
-    dw 0x0000
-    dw 0x0000
-    dw 0x0000
-    dw 0x001C
-    dw 0x0000
-
-    times (hdr_size * 16) - ($ - mz_header) db 0
+MZ_HEADER
 
 image_start:
     mov ax, ds

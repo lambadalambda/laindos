@@ -1,12 +1,7 @@
-[bits 16]
-[org 0x0100]
+%include "tests/programs/common.inc"
 
-start:
-    push cs
-    pop ds
-    mov dx, msg
-    mov ah, 0x09
-    int 0x21
+COM_START
+    PRINT_DOLLAR msg
 .hang:
     jmp .hang
 

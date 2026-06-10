@@ -11,3 +11,7 @@ Of 120 programs in tests/programs/, only 4 use any `%include`. 98 repeat the sam
 ## Acceptance Criteria
 
 - `make test` passes after each migration batch; new-test boilerplate drops to a few lines (demonstrated by converting at least one full test); AGENTS.md/docs updated to point new tests at the include.
+
+## Resolution
+
+Resolved 2026-06-10 (first batch). tests/programs/common.inc provides COM_START (org + entry + DS=CS), PRINT_DOLLAR, EXIT_CODE, PASS_WITH/FAIL_WITH, and MZ_HEADER (assembles byte-identically to the long-hand EXE header, proven on exemax.asm). Converted hangloop.asm, switchar.asm, and exemax.asm as the demonstration; AGENTS.md points new test programs at the include. Remaining programs migrate opportunistically as they are touched -- the include is the standard for new tests from here on.
