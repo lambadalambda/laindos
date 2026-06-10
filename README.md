@@ -18,7 +18,7 @@ This is not a general-purpose FreeDOS replacement. It implements the DOS subset 
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
 - Provides vendor-gated `make test-sammax-cd-files`, `make test-sammax-cd-start`, `make test-sammax-cd-setmuse`, `make test-sammax-cd-setmuse-save`, `make test-sammax-cd-install`, `make test-sammax-cd-install-select`, and `make test-sammax-cd-dig` smokes for the Sam & Max Hit the Road CD data track from its cue/bin archive.
-- `make test` currently runs the automated QEMU regression ladder and passes `97/97` tests.
+- `make test` currently runs the automated QEMU regression ladder and passes `98/98` tests.
 
 ## Scope
 
@@ -53,20 +53,20 @@ Current important segment layout:
 0040:0000  BIOS Data Area
 0060:0000  FAT scratch buffer
 0180:0000  CD-ROM scratch buffer
-0200:0000  relocated kernel
-0B00:0000  sector buffer
-0B20:0000  read cache buffer
-0B40:0000  root directory buffer
-0200:DC00  kernel stack top (physical 0FC00)
-1000:0000  start of MCB-managed program and environment memory
+0200:0000  sector buffer
+0220:0000  read cache buffer
+0240:0000  root directory buffer
+0640:0000  start of MCB-managed program and environment memory
 A000:0000  VGA graphics memory
+FFFF:0010  relocated kernel in the HMA (A20 enabled at boot)
+FFFF:FFF0  kernel stack top
 ```
 
 Disk I/O delegates to BIOS `INT 13h`. Filesystem and DOS API layers are intentionally small and case-insensitive for 8.3 names.
 
 When built with `ENABLE_EMS=1`, the experimental EMS frame uses `9000:0000`. That frame is writable and backed, but it is not carved out of the DOS MCB arena; reserving 64 KiB there drops Wolfenstein 3D below its conventional-memory threshold, while leaving it unreserved can corrupt programs that also allocate that range. Default builds therefore hide EMS.
 
-The low-memory layout is tight. See `src/memory.inc` and the compile-time assertions near the end of `src/kernel.asm` before moving buffers or adding large kernel features.
+The kernel image and stack live in the High Memory Area (FFFF:0010), so low memory holds only the disk buffers and the DOS arena starts at 0640:0000 (~614 KiB free conventional memory). The kernel enables the A20 line at boot and its XMS shim reports A20 as permanently enabled. See `src/memory.inc` and the compile-time assertions near the end of `src/kernel.asm` before moving buffers or adding large kernel features.
 
 ## CPU Target
 

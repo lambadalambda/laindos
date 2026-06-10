@@ -1,5 +1,5 @@
 [bits 16]
-[org 0x0000]
+[org 0x0010]
 
 COM1_PORT equ 0x3F8
 VGA_TEXT_SEG equ 0xB800
@@ -11,7 +11,7 @@ VGA_ROWS equ 25
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x0060
-ROOT_SEG  equ 0x0B40
+ROOT_SEG  equ 0x0240
 PSP_SEG   equ 0x3000
 
 HANDLE_SIZE equ 34
@@ -37,8 +37,8 @@ H_ALIAS_NONE equ 0xFFFF
 MAX_HANDLES equ 20
 SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
-KERNEL_STACK_TOP equ 0xDC00
-STACK_ROOT_GUARD_PARAS equ 0x80
+KERNEL_STACK_TOP equ 0xFFF0
+KERNEL_STACK_GUARD_BYTES equ 0x0800
 %ifndef XMS_MAX_KB
 %define XMS_MAX_KB 15360
 %endif
@@ -119,7 +119,7 @@ DEV_EMM equ 5
 
 kernel_entry:
     mov ax, cs
-    cmp ax, RELOC_SEG
+    cmp ax, HMA_SEG
     je .relocated
     cli
     push ax
@@ -133,14 +133,22 @@ kernel_entry:
     cld
     rep movsb
     mov ds, ax
-    mov ax, RELOC_SEG
+    call enable_a20
+    jnc .a20_ok
+    mov si, msg_a20fail
+    call serial_print
+.a20_hang:
+    hlt
+    jmp .a20_hang
+.a20_ok:
+    mov ax, HMA_SEG
     mov es, ax
-    xor si, si
-    xor di, di
-    mov cx, kernel_end
+    mov si, kernel_entry
+    mov di, kernel_entry
+    mov cx, kernel_end - kernel_entry
     cld
     rep movsb
-    jmp RELOC_SEG:.relocated
+    jmp HMA_SEG:.relocated
 .relocated:
     mov ax, cs
     mov ds, ax
@@ -458,6 +466,78 @@ iret_cy_no_indos:
 ; and not MS-DOS 4.00 return-flag fidelity. Do not remove without a
 ; Stunt Island retest or an equivalent compatibility decision.
 ; See docs/debug_log.md for the original investigation.
+
+enable_a20:
+    call a20_test
+    jnz .enabled
+    mov ax, 0x2401
+    int 0x15
+    call a20_test
+    jnz .enabled
+    call kbc_enable_a20
+    call a20_test
+    jnz .enabled
+    in al, 0x92
+    or al, 0x02
+    and al, 0xFE
+    out 0x92, al
+    call a20_test
+    jnz .enabled
+    stc
+    ret
+.enabled:
+    clc
+    ret
+
+a20_test:
+    push ds
+    push es
+    push si
+    push di
+    push cx
+    xor ax, ax
+    mov ds, ax
+    mov ax, HMA_SEG
+    mov es, ax
+    xor si, si
+    mov di, HMA_OFF
+    mov cx, 16
+    cld
+    repe cmpsb
+    pop cx
+    pop di
+    pop si
+    pop es
+    pop ds
+    ret
+
+kbc_enable_a20:
+    call .wait_input
+    jc .done
+    mov al, 0xD1
+    out 0x64, al
+    call .wait_input
+    jc .done
+    mov al, 0xDF
+    out 0x60, al
+    call .wait_input
+.done:
+    ret
+.wait_input:
+    push cx
+    xor cx, cx
+.wait_loop:
+    in al, 0x64
+    test al, 0x02
+    jz .wait_ok
+    loop .wait_loop
+    pop cx
+    stc
+    ret
+.wait_ok:
+    pop cx
+    clc
+    ret
 
 init_bpb_geometry:
     call parse_bpb_geometry
@@ -1502,6 +1582,14 @@ init_interrupts:
     mov [es:0x21*4+2], cs
     mov [es:0x2F*4], word int2f_handler
     mov [es:0x2F*4+2], cs
+%if ENABLE_XMS
+    mov ax, [es:0x15*4]
+    mov [cs:old_int15], ax
+    mov ax, [es:0x15*4+2]
+    mov [cs:old_int15+2], ax
+    mov [es:0x15*4], word int15_handler
+    mov [es:0x15*4+2], cs
+%endif
     mov ax, kernel_entry
     mov [es:0x22*4], ax
     mov [es:0x22*4+2], cs
@@ -1651,16 +1739,33 @@ init_xms_size:
     mov ah, 0x88
     int 0x15
     jc .done
-    test ax, ax
-    jz .done
-    cmp ax, XMS_MAX_KB
+    cmp ax, 64
+    jbe .done
+    sub ax, 64
+    cmp ax, XMS_MAX_KB - 64
     jbe .store
-    mov ax, XMS_MAX_KB
+    mov ax, XMS_MAX_KB - 64
 .store:
     mov [cs:xms_total_kb], ax
 .done:
     pop ax
     ret
+%endif
+
+%if ENABLE_XMS
+int15_handler:
+    cmp ah, 0x88
+    je .ext_size
+    jmp far [cs:old_int15]
+.ext_size:
+    push bp
+    mov bp, sp
+    and word [bp+6], ~CF
+    pop bp
+    xor ax, ax
+    iret
+
+old_int15: dw 0, 0
 %endif
 
 int2f_handler:
@@ -1696,6 +1801,20 @@ int2f_handler:
 xms_entry:
     cmp ah, 0x00
     je .version
+    cmp ah, 0x01
+    je .hma_request
+    cmp ah, 0x02
+    je .hma_release
+    cmp ah, 0x03
+    je .a20_on
+    cmp ah, 0x04
+    je .a20_off
+    cmp ah, 0x05
+    je .a20_on
+    cmp ah, 0x06
+    je .a20_off
+    cmp ah, 0x07
+    je .a20_query
     cmp ah, 0x08
     je .query
     cmp ah, 0x09
@@ -1716,7 +1835,27 @@ xms_entry:
 .version:
     mov ax, 0x0200
     xor bx, bx
-    xor dx, dx
+    mov dx, 1
+    retf
+.hma_request:
+    xor ax, ax
+    mov bl, 0x91
+    retf
+.hma_release:
+    xor ax, ax
+    mov bl, 0x93
+    retf
+.a20_on:
+    mov ax, 1
+    xor bl, bl
+    retf
+.a20_off:
+    mov ax, 1
+    mov bl, 0x94
+    retf
+.a20_query:
+    mov ax, 1
+    xor bl, bl
     retf
 .query:
     mov ax, [cs:xms_total_kb]
@@ -1881,7 +2020,7 @@ xms_entry:
     je .bad_handle
     mov ax, 1
     xor bx, bx
-    mov dx, 0x0010
+    mov dx, 0x0011
     retf
 .unlock:
     cmp dx, 1
@@ -1943,7 +2082,7 @@ xms_current_endpoint_phys:
     jz .ok
     cmp bx, 1
     jne .bad
-    add dx, 0x0010
+    add dx, 0x0011
 .ok:
     clc
     ret
@@ -2826,6 +2965,7 @@ msg_mem:      db "Conventional memory: ", 0
 msg_kib:      db " KB", 13, 10, 0
 msg_ints:     db "INT 20h/21h installed", 13, 10, 0
 msg_badbpb:   db "Invalid BPB", 13, 10, 0
+msg_a20fail:  db "A20 enable failed", 13, 10, 0
 msg_nofile:   db "File not found", 13, 10, 0
 msg_com_load: db "COM loaded", 13, 10, 0
 msg_exe_load: db "EXE loaded", 13, 10, 0
@@ -3494,14 +3634,17 @@ kernel_end:
 %error "mouse callback far pointer layout changed"
 %endif
 
-%if LOAD_SEG <= RELOC_SEG
-%error "LOAD_SEG must be above RELOC_SEG"
+%if (HMA_OFF + (kernel_end - kernel_entry)) > (KERNEL_STACK_TOP - KERNEL_STACK_GUARD_BYTES)
+%error "kernel leaves too little HMA stack guard"
 %endif
-%if (kernel_end - kernel_entry) > ((LOAD_SEG - RELOC_SEG) * 16)
-%error "kernel exceeds boot relocation gap"
+%if (kernel_end - kernel_entry) > ((MEM_TOP - LOAD_SEG) * 16)
+%error "kernel exceeds boot load area"
 %endif
-%if (kernel_end - kernel_entry) > ((SEC_BUF - RELOC_SEG) * 16)
-%error "kernel overlaps SEC_BUF"
+%if (FAT_SEG + 0x120) > CD_BUF
+%error "FAT buffer overlaps CD_BUF"
+%endif
+%if (CD_BUF + CD_BUF_PARAS) > SEC_BUF
+%error "CD_BUF overlaps SEC_BUF"
 %endif
 %if (SEC_BUF + SECTOR_BUF_PARAS) > READ_CACHE_BUF
 %error "SEC_BUF overlaps READ_CACHE_BUF"
@@ -3509,23 +3652,11 @@ kernel_end:
 %if (READ_CACHE_BUF + SECTOR_BUF_PARAS) > ROOT_SEG
 %error "READ_CACHE_BUF overlaps ROOT_SEG"
 %endif
-%if (ROOT_SEG + ROOT_BUF_PARAS) > (RELOC_SEG + (KERNEL_STACK_TOP / 16))
-%error "ROOT buffer overlaps kernel stack"
-%endif
-%if (ROOT_SEG + ROOT_BUF_PARAS + STACK_ROOT_GUARD_PARAS) > (RELOC_SEG + (KERNEL_STACK_TOP / 16))
-%error "ROOT buffer leaves too little kernel stack guard"
-%endif
-%if (CD_BUF + CD_BUF_PARAS) > SEC_BUF
-%error "CD_BUF overlaps SEC_BUF"
-%endif
-%if (CD_BUF + CD_BUF_PARAS) > RELOC_SEG
-%error "CD_BUF overlaps relocated kernel"
-%endif
-%if (RELOC_SEG + (KERNEL_STACK_TOP / 16)) > MCB_START
-%error "kernel stack overlaps MCB arena"
-%endif
 %if (ROOT_SEG + ROOT_BUF_PARAS) > MCB_START
 %error "ROOT_SEG overlaps MCB arena"
+%endif
+%if MCB_START >= MEM_TOP
+%error "MCB arena is empty"
 %endif
 %if ENABLE_EMS && EMS_FRAME_SEG <= MCB_START
 %error "EMS frame must be inside conventional arena"

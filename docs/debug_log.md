@@ -2,6 +2,29 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-10 HMA Kernel Relocation: DOS/4GW GDT Corruption At 1 MiB
+
+### Symptoms
+
+- After relocating the kernel to FFFF:0010, `make test-sammax-cd-start` crashed with `EXC 06 at FFFF:02B0` before the DOS/4GW banner; the dumped bytes (`FF FF 00 00 0E 92 00 00` repeating) did not match the kernel image at that offset.
+- Re-running after fixing the XMS EMB base in `xms_current_endpoint_phys` (+0x0010 -> +0x0011) and shrinking `xms_total_kb` by 64 KiB did not change the crash signature.
+
+### Confirmed Facts
+
+- The dumped bytes decode as GDT descriptors (access byte 0x92, base 0x0E0000-style), so the DOS extender was building its protected-mode world at linear 0x100000 — on top of the HMA-resident kernel.
+- XMS function 0Ch (lock handle) still returned DX:BX = 0010:0000 = linear 1 MiB; DOS/4GW locks its EMB and uses the returned linear base directly. Fixing the lock return to 0011:0000 made `test-sammax-cd-start` pass with an active framebuffer.
+- `tests/programs/hma.asm` now snapshots 16 bytes at FFFF:0010, performs an XMS move into EMB offset 0, and fails if the kernel image changed — this catches any future EMB/HMA overlap regression.
+
+### Failed Hypotheses
+
+- "DOS/4GW disables A20 and the wrap kills the kernel": the exception handler printed coherently from FFFF:xxxx, so A20 was on; the corruption was a direct linear write through the stale lock address.
+- "Raw INT 15h AH=88h allocation": hooking INT 15h to report 0 KiB extended memory (HIMEM-style, kernel now owns it via XMS) was kept as correct defensive behavior but did not change the crash; the actual writer was the locked-EMB path.
+
+### Tests And Probes Run
+
+- `python3 scripts/test_hma.py` (VEC/A20/MEM/XMS markers), `make test` (98/98), `make test-sammax-cd-start`, `make test-monkey-demo`, Bochs boot smoke via a temporary bochsrc with `com1: mode=file`.
+- `xxd -s 0x2a0 -l 16 build/sammax_cd/sammax_start_kernel.bin` to prove the on-disk image differed from the crashed RAM contents.
+
 ## 2026-06-10 Sam & Max INSTALL Selection Stops Before START.BAT
 
 ### Symptoms

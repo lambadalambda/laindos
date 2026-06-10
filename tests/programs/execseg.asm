@@ -39,7 +39,7 @@ start:
 
     push cs
     pop es
-    mov word [exec_params+0], 0x0340
+    mov word [exec_params+0], 0xFFFF
     mov bx, exec_params
     mov dx, child_path
     mov ax, 0x4B00
@@ -50,7 +50,7 @@ start:
 
     push cs
     pop es
-    mov word [exec_params+0], 0x0FFF
+    mov word [exec_params+0], 0x063F
     mov bx, exec_params
     mov dx, child_path
     mov ax, 0x4B00

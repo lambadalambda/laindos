@@ -171,8 +171,8 @@ ld: cmp si,FAT_EOC
 ldk:
     mov dl,[drv]
     db 0xEA
-    dw 0
-    dw LOAD_SEG
+    dw HMA_OFF
+    dw ENTRY_SEG
 
 %if FAT12
 fat_next:

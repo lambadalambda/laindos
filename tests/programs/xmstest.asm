@@ -1,8 +1,8 @@
 [bits 16]
 [org 0x0100]
 
-XMS_TEST_KB equ 15360
-XMS_TEST_BAD_OFF equ 0x00EFFFF0
+XMS_TEST_KB equ 15296
+XMS_TEST_BAD_OFF equ 0x00EEFFF0
 XMS_TEST_64K_OFF equ 0x00030000
 CONV_TEST_SEG equ 0x8000
 
@@ -332,7 +332,7 @@ bios_copy_xms_expected_head:
     mov di, bios_gdt + 0x10
     mov ax, 31
     xor bx, bx
-    mov dx, 0x0013
+    mov dx, 0x0014
     call set_bios_desc
     mov di, bios_gdt + 0x18
     mov ax, dst_data

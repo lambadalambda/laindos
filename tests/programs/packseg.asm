@@ -23,7 +23,7 @@ mz_header:
 image_start:
     mov ax, ds
     add ax, 0x10
-    cmp ax, 0x1000
+    cmp ax, 0x0640
     jae pass
 
 fail:
