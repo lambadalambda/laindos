@@ -2920,6 +2920,17 @@ int21_handler:
     mov [cs:rf_start_buf_off], dx
     mov [cs:rf_start_buf_seg], ds
     mov word [cs:rf_read], 0
+    cmp bx, 5
+    jae .rf_resolve
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    cmp byte [cs:si+handles+H_USED], 0
+    jne .rf_resolve
+    mov [cs:rf_hoff], si
+    jmp .rf_con
+.rf_resolve:
     call resolve_handle_for_use
     jc .rf_err_pop
     mov [cs:rf_hoff], si
@@ -3536,6 +3547,21 @@ int21_handler:
     mov [cs:sf_origin], al
     mov [cs:sf_req_lo], dx
     mov [cs:sf_req_hi], cx
+    cmp bx, 5
+    jae .sf_resolve
+    push cx
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov si, ax
+    pop cx
+    cmp byte [cs:si+handles+H_USED], 0
+    jne .sf_resolve
+    pop si
+    xor ax, ax
+    xor dx, dx
+    jmp iret_nc
+.sf_resolve:
     call resolve_handle_for_use
     jc .sf_bad_handle_saved
     cmp byte [cs:sf_origin], 0
@@ -3907,6 +3933,7 @@ int21_handler:
     mov ax, bx
     call serial_print_hex_word
     TRACE_END ioctl
+; @anchor: ioctl_dispatch_get
     cmp al, 0
     je .ioctl_get
     cmp al, 1
@@ -3961,6 +3988,7 @@ int21_handler:
     mov dl, [cs:dos_drive_num]
     jmp iret_nc
 .ioctl_stdio:
+; @anchor: ioctl_stdio_info_word
     mov dx, 0x80D3
     jmp iret_nc
 .ioctl_get_bad_pop:
@@ -4573,6 +4601,7 @@ int21_handler:
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     RET_ERR 2
 .ff_found:
+; @anchor: find_first_store_dta
     call store_find_dta
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     jmp iret_nc
@@ -4624,6 +4653,7 @@ int21_handler:
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     RET_ERR 2
 .fn_found:
+; @anchor: find_next_store_dta
     call store_find_dta
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     jmp iret_nc
