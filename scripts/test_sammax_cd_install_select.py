@@ -7,7 +7,10 @@ import zipfile
 import tempfile
 from pathlib import Path
 
+from sammaxlib import output_text, prepare_cd_image, wait_for_upper_output
 from testlib import (
+    unique_monitor_socket, unique_vnc_arg,
+    monitor_text_screen_attrs,
     collect_output, qemu_binary, qemu_vga, qemu_sb16_adlib_silent_args,
     start_qemu, stop_qemu, open_monitor, send_monitor_command,
     monitor_quit, run_cmd, wait_for_output, remove_if_exists,
@@ -25,7 +28,7 @@ SHELL = WORKDIR / "shell.com"
 AUTOEXEC = WORKDIR / "autoexec_install_select_probe.bat"
 IMG = WORKDIR / "sammax_cd_install_select_probe.img"
 SERIAL = WORKDIR / "install_select_probe_serial.txt"
-MONITOR = Path(tempfile.gettempdir()) / "laindos-sammax-cd-install-select-probe.sock"
+MONITOR = Path(unique_monitor_socket("sammax-cd-install-select-probe"))
 TEXTMEM = BUILDDIR / "sammax_cd_install_select_probe_b800.bin"
 BDA_DUMP = BUILDDIR / "sammax_cd_install_select_probe_bda.bin"
 TRACE_DOS = os.environ.get("SAMMAX_CD_INSTALL_TRACE_DOS", "12000")
@@ -33,27 +36,8 @@ ICOUNT = os.environ.get("SAMMAX_CD_PROBE_ICOUNT", "shift=6")
 TIMEOUT = int(os.environ.get("SAMMAX_CD_PROBE_TIMEOUT", "30"))
 
 
-def extract_member(archive, name, output):
-    info = archive.getinfo(name)
-    if output.exists() and output.stat().st_size == info.file_size:
-        return
-    with archive.open(info) as src, open(output, "wb") as dst:
-        shutil.copyfileobj(src, dst)
-
-
-def prepare_cd_image():
-    if not os.path.exists(ARCHIVE):
-        print(f"Missing {ARCHIVE}", file=sys.stderr)
-        sys.exit(1)
-    WORKDIR.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(ARCHIVE) as archive:
-        extract_member(archive, "BG GOLD 3.cue", CUE)
-        extract_member(archive, "BG GOLD 3.bin", BIN)
-    run_cmd(["python3", "scripts/extract_mode1_2352.py", str(CUE), str(ISO)])
-
-
 def build_artifacts():
-    prepare_cd_image()
+    prepare_cd_image(WORKDIR)
     AUTOEXEC.write_bytes(b"D:\r\nINSTALL\r\n")
     run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", str(BOOT)])
     kernel_cmd = ["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm", "-o", str(KERNEL)]
@@ -65,35 +49,6 @@ def build_artifacts():
         "python3", "scripts/mkimage.py", "--format=hd160m",
         str(BOOT), str(KERNEL), str(IMG), str(SHELL), str(AUTOEXEC),
     ])
-
-
-def text_screen_with_attrs(sock, path):
-    send_monitor_command(sock, f"pmemsave 0xb8000 4000 {path}", delay=0.3)
-    if not os.path.exists(path):
-        return ""
-    data = Path(path).read_bytes()
-    lines = []
-    for row in range(25):
-        chars = []
-        for col in range(80):
-            ch = data[(row * 80 + col) * 2]
-            at = data[(row * 80 + col) * 2 + 1]
-            chars.append(chr(ch) if 32 <= ch < 127 else " ")
-        attr_runs = []
-        prev_at = None
-        run_start = 0
-        for col in range(80):
-            at = data[(row * 80 + col) * 2 + 1]
-            if at != prev_at:
-                if prev_at is not None:
-                    attr_runs.append((run_start, col, prev_at))
-                prev_at = at
-                run_start = col
-        if prev_at is not None:
-            attr_runs.append((run_start, 80, prev_at))
-        runs = " ".join(f"[{s}-{e}:0x{a:02x}]" for s, e, a in attr_runs)
-        lines.append(f"R{row:02d} {runs} |{''.join(chars).rstrip()}|")
-    return "\n".join(lines)
 
 
 def bda_keyboard_buffer(sock, path):
@@ -121,23 +76,6 @@ def highlight_row_from_screen(screen):
     return None
 
 
-def output_text(chunks):
-    return b"".join(chunks).decode("latin-1", errors="replace")
-
-
-def wait_for_upper_output(chunks, marker, timeout):
-    deadline = time.monotonic() + timeout
-    marker = marker.upper()
-    while time.monotonic() < deadline:
-        output = output_text(chunks).upper()
-        if marker in output:
-            return True
-        if any(m in output for m in ("EXC ", "INT 21H AH=", "RUNTIME ERROR 200", "BAD COMMAND OR FILE NAME")):
-            return False
-        time.sleep(0.05)
-    return False
-
-
 def main():
     build_artifacts()
     remove_if_exists(str(MONITOR))
@@ -155,7 +93,7 @@ def main():
         "-serial", "stdio",
         "-monitor", f"unix:{MONITOR},server,nowait",
         "-vga", qemu_vga(),
-        "-vnc", "127.0.0.1:61",
+        "-vnc", unique_vnc_arg(),
         *qemu_sb16_adlib_silent_args(),
     ])
     proc, stdout_chunks, stderr_chunks, threads = start_qemu(cmd)
@@ -170,7 +108,7 @@ def main():
         deadline = time.monotonic() + TIMEOUT
         menu_screen = ""
         while time.monotonic() < deadline:
-            menu_screen = text_screen_with_attrs(sock, str(TEXTMEM))
+            menu_screen = monitor_text_screen_attrs(sock, str(TEXTMEM))
             if "CDReader" in menu_screen and "BESTSELLER GAMES GOLD 3" in menu_screen:
                 break
             if any(m.encode() in b"".join(stdout_chunks) for m in ("EXC ", "INT 21h AH=", "Runtime error 200")):
@@ -183,21 +121,21 @@ def main():
         print(f"Initial highlight row: {before_highlight}")
         send_monitor_command(sock, "sendkey down")
         time.sleep(0.5)
-        menu_screen = text_screen_with_attrs(sock, str(TEXTMEM))
+        menu_screen = monitor_text_screen_attrs(sock, str(TEXTMEM))
         after_down_highlight = highlight_row_from_screen(menu_screen)
         print(f"After Down: highlight row: {after_down_highlight}")
         bda = bda_keyboard_buffer(sock, bda_path)
         print(f"BDA after Down: {bda}")
         send_monitor_command(sock, "sendkey down")
         time.sleep(0.5)
-        menu_screen = text_screen_with_attrs(sock, str(TEXTMEM))
+        menu_screen = monitor_text_screen_attrs(sock, str(TEXTMEM))
         after_second_down_highlight = highlight_row_from_screen(menu_screen)
         print(f"After second Down: highlight row: {after_second_down_highlight}")
         bda = bda_keyboard_buffer(sock, bda_path)
         print(f"BDA after second Down: {bda}")
         send_monitor_command(sock, "sendkey ret")
         time.sleep(1.5)
-        menu_screen = text_screen_with_attrs(sock, str(TEXTMEM))
+        menu_screen = monitor_text_screen_attrs(sock, str(TEXTMEM))
         after_enter_highlight = highlight_row_from_screen(menu_screen)
         print(f"After Enter: highlight row: {after_enter_highlight}")
         bda = bda_keyboard_buffer(sock, bda_path)

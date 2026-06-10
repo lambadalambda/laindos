@@ -8,6 +8,7 @@ import sys
 import zipfile
 from pathlib import Path
 
+from sammaxlib import prepare_cd_image
 from testlib import qemu_binary, qemu_vga, run_cmd
 
 ARCHIVE = Path(os.environ.get("LAINDOS_SAMMAX_ARCHIVE", "vendor/Bestseller Games Gold 3 - Sam & Max Hit the Road.zip"))
@@ -25,25 +26,6 @@ TIME = WORKDIR / "time.com"
 README = WORKDIR / "readme.txt"
 C_IMG = Path(os.environ.get("LAINDOS_SAMMAX_C_IMG", str(WORKDIR / "sammax_c.img")))
 C_FORMAT = os.environ.get("LAINDOS_SAMMAX_C_FORMAT", "hd160m")
-
-
-def extract_member(archive, name, output):
-    info = archive.getinfo(name)
-    if output.exists() and output.stat().st_size == info.file_size:
-        return
-    with archive.open(info) as src, open(output, "wb") as dst:
-        shutil.copyfileobj(src, dst)
-
-
-def prepare_cd_image():
-    if not ARCHIVE.exists():
-        print(f"Missing {ARCHIVE}", file=sys.stderr)
-        sys.exit(1)
-    WORKDIR.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(ARCHIVE) as archive:
-        extract_member(archive, "BG GOLD 3.cue", CUE)
-        extract_member(archive, "BG GOLD 3.bin", BIN)
-    run_cmd(["python3", "scripts/extract_mode1_2352.py", str(CUE), str(ISO)])
 
 
 def write_readme():
@@ -94,7 +76,7 @@ def main():
         print("Run this script from the LainDOS project root.", file=sys.stderr)
         sys.exit(1)
 
-    prepare_cd_image()
+    prepare_cd_image(WORKDIR, ARCHIVE)
     if os.environ.get("LAINDOS_SAMMAX_REBUILD_C", "1") != "0" or not C_IMG.exists():
         build_c_image()
     cmd = qemu_command()

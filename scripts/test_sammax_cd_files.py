@@ -3,6 +3,7 @@ import os
 import shutil
 import sys
 import zipfile
+from sammaxlib import prepare_cd_image
 from testlib import build_dir, check_markers, run_cmd, run_qemu_capture
 
 ARCHIVE = "vendor/Bestseller Games Gold 3 - Sam & Max Hit the Road.zip"
@@ -18,27 +19,8 @@ IMG = os.path.join(WORKDIR, "sammax_cd_files.img")
 TIMEOUT = 15
 
 
-def extract_member(archive, name, output):
-    info = archive.getinfo(name)
-    if os.path.exists(output) and os.path.getsize(output) == info.file_size:
-        return
-    with archive.open(info) as src, open(output, "wb") as dst:
-        shutil.copyfileobj(src, dst)
-
-
-def prepare_cd_image():
-    if not os.path.exists(ARCHIVE):
-        print(f"Missing {ARCHIVE}", file=sys.stderr)
-        sys.exit(1)
-    os.makedirs(WORKDIR, exist_ok=True)
-    with zipfile.ZipFile(ARCHIVE) as archive:
-        extract_member(archive, "BG GOLD 3.cue", CUE)
-        extract_member(archive, "BG GOLD 3.bin", BIN)
-    run_cmd(["python3", "scripts/extract_mode1_2352.py", CUE, ISO])
-
-
 def build_artifacts():
-    prepare_cd_image()
+    prepare_cd_image(WORKDIR)
     run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
     run_cmd(["nasm", '-DBOOT_FILE="SAMMAXCDCOM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
     run_cmd(["nasm", "-f", "bin", "tests/programs/sammaxcd.asm", "-o", PROGRAM])

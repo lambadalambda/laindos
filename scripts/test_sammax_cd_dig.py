@@ -7,7 +7,9 @@ import time
 import zipfile
 from pathlib import Path
 
+from sammaxlib import output_text, prepare_cd_image
 from testlib import (
+    unique_monitor_socket, unique_vnc_arg,
     collect_output, monitor_quit, open_monitor, qemu_binary, qemu_sb16_adlib_silent_args,
     qemu_vga, remove_if_exists, run_cmd, send_monitor_command, start_qemu, stop_qemu,
 )
@@ -24,33 +26,14 @@ SHELL = WORKDIR / "shell.com"
 AUTOEXEC = WORKDIR / "autoexec.bat"
 IMG = WORKDIR / "sammax_cd_dig_probe.img"
 SERIAL = WORKDIR / "dig_probe_serial.txt"
-MONITOR = Path(tempfile.gettempdir()) / "laindos-sammax-cd-dig-probe.sock"
+MONITOR = Path(unique_monitor_socket("sammax-cd-dig-probe"))
 TRACE_DOS = os.environ.get("SAMMAX_CD_DIG_TRACE_DOS", "8000")
 ICOUNT = os.environ.get("SAMMAX_CD_DIG_ICOUNT", "shift=6")
 TIMEOUT = int(os.environ.get("SAMMAX_CD_DIG_TIMEOUT", "90"))
 
 
-def extract_member(archive, name, output):
-    info = archive.getinfo(name)
-    if output.exists() and output.stat().st_size == info.file_size:
-        return
-    with archive.open(info) as src, open(output, "wb") as dst:
-        shutil.copyfileobj(src, dst)
-
-
-def prepare_cd_image():
-    if not os.path.exists(ARCHIVE):
-        print(f"Missing {ARCHIVE}", file=sys.stderr)
-        sys.exit(1)
-    WORKDIR.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(ARCHIVE) as archive:
-        extract_member(archive, "BG GOLD 3.cue", CUE)
-        extract_member(archive, "BG GOLD 3.bin", BIN)
-    run_cmd(["python3", "scripts/extract_mode1_2352.py", str(CUE), str(ISO)])
-
-
 def build_artifacts():
-    prepare_cd_image()
+    prepare_cd_image(WORKDIR)
     AUTOEXEC.write_bytes(b"D:\r\nCD \\DEMOS\\DIG\r\nSTART\r\n")
     run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", str(BOOT)])
     kernel_cmd = ["nasm", '-DBOOT_FILE="SHELL   COM"']
@@ -63,10 +46,6 @@ def build_artifacts():
         "python3", "scripts/mkimage.py", "--format=hd160m",
         str(BOOT), str(KERNEL), str(IMG), str(SHELL), str(AUTOEXEC),
     ])
-
-
-def output_text(chunks):
-    return b"".join(chunks).decode("utf-8", errors="replace")
 
 
 def wait_for_count(chunks, marker, count, timeout):
@@ -113,7 +92,7 @@ def main():
         "-serial", "stdio",
         "-monitor", f"unix:{MONITOR},server,nowait",
         "-vga", qemu_vga(),
-        "-vnc", "127.0.0.1:62",
+        "-vnc", unique_vnc_arg(),
         *qemu_sb16_adlib_silent_args(),
     ])
     proc, stdout_chunks, stderr_chunks, threads = start_qemu(cmd)

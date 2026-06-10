@@ -6,7 +6,9 @@ import tempfile
 import time
 import zipfile
 from pathlib import Path
+from sammaxlib import prepare_cd_image
 from testlib import (
+    unique_monitor_socket, unique_vnc_arg,
     check_markers,
     collect_output,
     framebuffer_active,
@@ -34,32 +36,13 @@ KERNEL = WORKDIR / "sammax_start_kernel.bin"
 SHELL = WORKDIR / "shell.com"
 AUTOEXEC = WORKDIR / "autoexec.bat"
 IMG = WORKDIR / "sammax_cd_start.img"
-MONITOR = Path(tempfile.gettempdir()) / "laindos-sammax-cd-start.sock"
+MONITOR = Path(unique_monitor_socket("sammax-cd-start"))
 SCREENSHOT = BUILDDIR / "sammax_cd_start_screen.ppm"
 TIMEOUT = int(os.environ.get("SAMMAX_CD_START_TIMEOUT", "50"))
 
 
-def extract_member(archive, name, output):
-    info = archive.getinfo(name)
-    if output.exists() and output.stat().st_size == info.file_size:
-        return
-    with archive.open(info) as src, open(output, "wb") as dst:
-        shutil.copyfileobj(src, dst)
-
-
-def prepare_cd_image():
-    if not os.path.exists(ARCHIVE):
-        print(f"Missing {ARCHIVE}", file=sys.stderr)
-        sys.exit(1)
-    WORKDIR.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(ARCHIVE) as archive:
-        extract_member(archive, "BG GOLD 3.cue", CUE)
-        extract_member(archive, "BG GOLD 3.bin", BIN)
-    run_cmd(["python3", "scripts/extract_mode1_2352.py", str(CUE), str(ISO)])
-
-
 def build_artifacts():
-    prepare_cd_image()
+    prepare_cd_image(WORKDIR)
     AUTOEXEC.write_bytes(b"D:\r\nCD \\SAMNMAX\r\nSAMNMAX\r\nEXIT\r\n")
     run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", str(BOOT)])
     run_cmd(["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm", "-o", str(KERNEL)])
@@ -78,7 +61,7 @@ def run_qemu():
         "-serial", "stdio",
         "-monitor", f"unix:{MONITOR},server,nowait",
         "-vga", qemu_vga(),
-        "-vnc", "127.0.0.1:59",
+        "-vnc", unique_vnc_arg(),
         *qemu_sb16_silent_args(),
     ])
     sock = None

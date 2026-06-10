@@ -11,3 +11,7 @@ All 8 Sam & Max scripts (1,284 lines: 7 `test_sammax_cd_*.py` + `run_sammax_cd.p
 ## Acceptance Criteria
 
 - All sammax Makefile targets pass; grep shows one definition each of `extract_member`/`prepare_cd_image`/`text_screen_with_attrs` under scripts/.
+
+## Resolution
+
+Resolved 2026-06-10. scripts/sammaxlib.py owns the vendor-archive constants, extract_member, prepare_cd_image (returns the ISO path, honors LAINDOS_SAMMAX_ARCHIVE), output_text, and wait_for_upper_output; the B800 screen scrapers moved into testlib as parse_text_screen/read_text_screen/monitor_text_screen/monitor_text_screen_attrs so the Norton tests can adopt them too. Migrated all nine CD scripts (the eight listed plus test_normality_install.py, which had cloned the same helpers). grep shows one definition each; every sammax Makefile target plus test-normality-install passes.

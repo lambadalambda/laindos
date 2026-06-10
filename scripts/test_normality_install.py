@@ -16,7 +16,10 @@ import zipfile
 import tempfile
 from pathlib import Path
 
+from sammaxlib import output_text, prepare_cd_image
 from testlib import (
+    unique_monitor_socket, unique_vnc_arg,
+    monitor_text_screen,
     collect_output, framebuffer_active, qemu_binary, qemu_vga,
     qemu_sb16_adlib_silent_args, start_qemu, stop_qemu, open_monitor,
     send_monitor_command, monitor_quit, monitor_screendump, run_cmd,
@@ -35,7 +38,7 @@ SHELL = WORKDIR / "shell.com"
 AUTOEXEC = WORKDIR / "autoexec_normality_install.bat"
 IMG = WORKDIR / "normality_install.img"
 SERIAL = WORKDIR / "normality_install_serial.txt"
-MONITOR = Path(tempfile.gettempdir()) / "laindos-normality-install.sock"
+MONITOR = Path(unique_monitor_socket("normality-install"))
 TEXTMEM = BUILDDIR / "normality_install_b800.bin"
 SCREENSHOT = BUILDDIR / "normality_install_screen.ppm"
 TRACE_DOS = os.environ.get("NORMALITY_INSTALL_TRACE_DOS", "60000")
@@ -44,27 +47,8 @@ TIMEOUT = int(os.environ.get("NORMALITY_INSTALL_TIMEOUT", "1500"))
 PROMPT_RE = re.compile(r"[A-Z]:\\[^|]*>")
 
 
-def extract_member(archive, name, output):
-    info = archive.getinfo(name)
-    if output.exists() and output.stat().st_size == info.file_size:
-        return
-    with archive.open(info) as src, open(output, "wb") as dst:
-        shutil.copyfileobj(src, dst)
-
-
-def prepare_cd_image():
-    if not os.path.exists(ARCHIVE):
-        print(f"Missing {ARCHIVE}", file=sys.stderr)
-        sys.exit(1)
-    WORKDIR.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(ARCHIVE) as archive:
-        extract_member(archive, "BG GOLD 3.cue", CUE)
-        extract_member(archive, "BG GOLD 3.bin", BIN)
-    run_cmd(["python3", "scripts/extract_mode1_2352.py", str(CUE), str(ISO)])
-
-
 def build_artifacts():
-    prepare_cd_image()
+    prepare_cd_image(WORKDIR)
     AUTOEXEC.write_bytes(b"D:\r\nINSTALL\r\n")
     run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", str(BOOT)])
     kernel_cmd = ["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm", "-o", str(KERNEL)]
@@ -76,23 +60,6 @@ def build_artifacts():
         "python3", "scripts/mkimage.py", "--format=hd160m",
         str(BOOT), str(KERNEL), str(IMG), str(SHELL), str(AUTOEXEC),
     ])
-
-
-def text_screen(sock, path):
-    if os.path.exists(path):
-        os.unlink(path)
-    send_monitor_command(sock, f"pmemsave 0xb8000 4000 {path}", delay=0.3)
-    if not os.path.exists(path):
-        return ""
-    data = Path(path).read_bytes()
-    lines = []
-    for row in range(25):
-        chars = []
-        for col in range(80):
-            ch = data[(row * 80 + col) * 2]
-            chars.append(chr(ch) if 32 <= ch < 127 else " ")
-        lines.append("".join(chars).rstrip())
-    return "\n".join(lines)
 
 
 def screen_has_highlighted_normality(sock, path):
@@ -108,10 +75,6 @@ def screen_has_highlighted_normality(sock, path):
         if "NORMALITY" in text.upper() and 0x17 in attrs:
             return True
     return False
-
-
-def output_text(chunks):
-    return b"".join(chunks).decode("latin-1", errors="replace")
 
 
 def status_line(screen):
@@ -143,7 +106,7 @@ def main():
         "-serial", "stdio",
         "-monitor", f"unix:{MONITOR},server,nowait",
         "-vga", qemu_vga(),
-        "-vnc", "127.0.0.1:62",
+        "-vnc", unique_vnc_arg(),
         *qemu_sb16_adlib_silent_args(),
     ])
     proc, stdout_chunks, stderr_chunks, threads = start_qemu(cmd)
@@ -157,7 +120,7 @@ def main():
             sys.exit(1)
         deadline = time.monotonic() + 60
         while time.monotonic() < deadline:
-            screen = text_screen(sock, str(TEXTMEM))
+            screen = monitor_text_screen(sock, str(TEXTMEM))
             if "CDReader" in screen and "BESTSELLER GAMES GOLD 3" in screen:
                 break
             time.sleep(0.5)
@@ -185,7 +148,7 @@ def main():
         last_screen = ""
         deadline = time.monotonic() + TIMEOUT
         while time.monotonic() < deadline:
-            screen = text_screen(sock, str(TEXTMEM))
+            screen = monitor_text_screen(sock, str(TEXTMEM))
             if screen != last_screen:
                 last_screen = screen
                 last_change = time.monotonic()

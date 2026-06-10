@@ -6,6 +6,7 @@ import socket
 import subprocess
 import sys
 import threading
+import tempfile
 import time
 
 
@@ -365,3 +366,77 @@ def finish_qemu(proc, stdout_chunks, stderr_chunks, threads, timeout=10, stop_ma
 def run_qemu_capture(args, timeout=10, stop_markers=DEFAULT_STOP_MARKERS, fail_markers=DEFAULT_FAIL_MARKERS):
     proc, stdout_chunks, stderr_chunks, threads = start_qemu(args)
     return finish_qemu(proc, stdout_chunks, stderr_chunks, threads, timeout, stop_markers, fail_markers)
+
+def parse_text_screen(data):
+    """Parse a 4000-byte B800 text-memory dump into 25 stripped rows."""
+    rows = []
+    for row in range(25):
+        chars = []
+        for col in range(80):
+            ch = data[(row * 80 + col) * 2]
+            chars.append(chr(ch) if 32 <= ch < 127 else " ")
+        rows.append("".join(chars).rstrip())
+    return rows
+
+
+def read_text_screen(path):
+    """Rows of a saved B800 dump joined by newlines ("" if missing)."""
+    if not os.path.exists(path):
+        return ""
+    with open(path, "rb") as f:
+        data = f.read()
+    if len(data) < 4000:
+        return ""
+    return "\n".join(parse_text_screen(data))
+
+
+def monitor_text_screen(sock, path, delay=0.3):
+    """pmemsave the B800 text screen through the QEMU monitor and parse it."""
+    remove_if_exists(path)
+    send_monitor_command(sock, f"pmemsave 0xb8000 4000 {path}", delay=delay)
+    return read_text_screen(path)
+
+
+def monitor_text_screen_attrs(sock, path, delay=0.3):
+    """Like monitor_text_screen but with per-row attribute runs for
+    highlight detection ("Rnn [start-end:0xattr] ... |text|")."""
+    remove_if_exists(path)
+    send_monitor_command(sock, f"pmemsave 0xb8000 4000 {path}", delay=delay)
+    if not os.path.exists(path):
+        return ""
+    with open(path, "rb") as f:
+        data = f.read()
+    if len(data) < 4000:
+        return ""
+    lines = []
+    text_rows = parse_text_screen(data)
+    for row in range(25):
+        attr_runs = []
+        prev_at = None
+        run_start = 0
+        for col in range(80):
+            at = data[(row * 80 + col) * 2 + 1]
+            if at != prev_at:
+                if prev_at is not None:
+                    attr_runs.append((run_start, col, prev_at))
+                prev_at = at
+                run_start = col
+        if prev_at is not None:
+            attr_runs.append((run_start, 80, prev_at))
+        runs = " ".join(f"[{s}-{e}:0x{a:02x}]" for s, e, a in attr_runs)
+        lines.append(f"R{row:02d} {runs} |{text_rows[row]}|")
+    return "\n".join(lines)
+
+def unique_vnc_display():
+    """A VNC display number unlikely to collide between concurrent runs."""
+    return 100 + (os.getpid() % 800)
+
+
+def unique_vnc_arg():
+    return f"127.0.0.1:{unique_vnc_display()}"
+
+
+def unique_monitor_socket(name):
+    """A per-process QEMU monitor socket path for game/CD tests."""
+    return os.path.join(tempfile.gettempdir(),
+                        f"laindos-{name}-{os.getpid()}.sock")
