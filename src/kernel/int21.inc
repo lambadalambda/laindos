@@ -4273,7 +4273,49 @@ int21_handler:
     je .ioctl_local_handle
     RET_ERR 1
 .ioctl_set:
-    jmp .ioctl_get
+    cmp bx, MAX_HANDLES
+    jae .ioctl_bad_handle
+    test dh, dh
+    jnz .ioctl_set_badfunc
+    cmp bx, 5
+    jae .ioctl_set_table
+    push bx
+    push ax
+    push cx
+    push dx
+    mov ax, bx
+    mov cx, HANDLE_SIZE
+    mul cx
+    mov bx, ax
+    cmp byte [cs:bx+handles+H_USED], 0
+    pop dx
+    pop cx
+    pop ax
+    pop bx
+    je .ioctl_set_ok
+.ioctl_set_table:
+    push bx
+    push ax
+    push cx
+    push si
+    call resolve_handle_for_use
+    jc .ioctl_set_bad_pop
+    mov ax, [cs:si+handles+H_DIR_LBA]
+    or ax, [cs:si+handles+H_DIR_LBA_HI]
+    pop si
+    pop cx
+    pop ax
+    pop bx
+.ioctl_set_ok:
+    jmp iret_nc
+.ioctl_set_badfunc:
+    RET_ERR 1
+.ioctl_set_bad_pop:
+    pop si
+    pop cx
+    pop ax
+    pop bx
+    jmp .ioctl_bad_handle
 .ioctl_get:
     cmp bx, MAX_HANDLES
     jae .ioctl_bad_handle
@@ -4302,14 +4344,20 @@ int21_handler:
     jc .ioctl_get_bad_pop
     mov dx, [cs:si+handles+H_DIR_LBA]
     or dx, [cs:si+handles+H_DIR_LBA_HI]
+    jz .ioctl_get_dev_pop
+    mov dl, [cs:si+handles+H_DRIVE]
+    xor dh, dh
     pop si
     pop cx
     pop ax
     pop bx
-    je .ioctl_stdio
-    xor dh, dh
-    mov dl, [cs:dos_drive_num]
     jmp iret_nc
+.ioctl_get_dev_pop:
+    pop si
+    pop cx
+    pop ax
+    pop bx
+    jmp .ioctl_stdio
 .ioctl_stdio:
 ; @anchor: ioctl_stdio_info_word
     mov dx, 0x80D3
