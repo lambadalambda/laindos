@@ -3098,7 +3098,8 @@ msg_trace_alloc: db "ALLOC ", 0
 msg_trace_strategy: db " STRAT=", 0
 msg_trace_strategy_call: db "STRATEGY AX=", 0
 msg_trace_resize: db "RESIZE ", 0
-msg_trace_stdin: db "STDIN ", 0
+msg_trace_exec: db "EXEC ", 0
+msg_trace_tail: db " TAIL=", 0
 msg_trace_setvec: db "SETVEC ", 0
 msg_trace_getvec: db "GETVEC ", 0
 msg_trace_eq: db " = ", 0

@@ -702,11 +702,6 @@ int21_handler:
 .stdin_empty:
     mov ax, 0x0B00
 .stdin_done:
-    TRACE_BEGIN stdin
-    mov si, msg_trace_stdin
-    call serial_print
-    call serial_print_hex_word
-    TRACE_END stdin
     pop dx
     pop cx
     pop bx
@@ -2205,6 +2200,34 @@ int21_handler:
     mov [cs:exec_param_seg], es
     mov [cs:exec_path_off], dx
     mov [cs:exec_path_seg], ds
+    TRACE_BEGIN exec
+    push es
+    mov si, msg_trace_exec
+    call serial_print
+    mov ds, [cs:exec_path_seg]
+    mov si, [cs:exec_path_off]
+    call serial_print
+    push cs
+    pop ds
+    mov si, msg_trace_tail
+    call serial_print
+    mov es, [cs:exec_param_seg]
+    mov bx, [cs:exec_param_off]
+    mov si, [es:bx+2]
+    mov ds, [es:bx+4]
+    xor cx, cx
+    mov cl, [si]
+    inc si
+    jcxz .exec_trace_done
+.exec_trace_char:
+    lodsb
+    call serial_putchar
+    loop .exec_trace_char
+.exec_trace_done:
+    push cs
+    pop ds
+    pop es
+    TRACE_END exec
     call load_exec_program
     jc .exec_program_err
     cmp byte [cs:exec_is_exe], 0
