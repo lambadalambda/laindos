@@ -174,3 +174,4 @@
 - [x] [Generate INT 23h on Ctrl-C](issues/wire-ctrl-c-to-int23.md)
 - [x] [Line-buffer CON device handle reads](issues/buffer-con-handle-reads.md)
 - [x] [Harden boot sector disk reads](issues/harden-boot-sector-disk-reads.md)
+- [x] [Support .. components and large directories on the CD-ROM drive](issues/support-parent-dirs-and-large-dirs-on-cdrom.md)

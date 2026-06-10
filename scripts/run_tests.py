@@ -132,6 +132,7 @@ DEFAULT_TESTS = [
     "scripts/test_clock.py",
     "scripts/test_ctrlc.py",
     "scripts/test_conread.py",
+    "scripts/test_cddots.py",
 ]
 BOOT_TESTS = {"test_boot.py"}
 TIMEOUT_EXIT_CODE = 124

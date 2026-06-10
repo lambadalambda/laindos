@@ -613,6 +613,51 @@ cd_prepare_path:
     stc
     ret
 
+cd_load_parent_dir:
+    push ax
+    push bx
+    push dx
+    push es
+    push ds
+    push si
+    mov ax, CD_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, [cs:cd_dir_lba_lo]
+    mov dx, [cs:cd_dir_lba_hi]
+    call cd_read_sector_current
+    jc .err
+    mov ax, CD_BUF
+    mov ds, ax
+    xor si, si
+    mov al, [si]
+    test al, al
+    jz .err
+    xor ah, ah
+    mov si, ax
+    cmp byte [si], 0
+    je .err
+    mov ax, [si+2]
+    mov [cs:cd_dir_lba_lo], ax
+    mov ax, [si+4]
+    mov [cs:cd_dir_lba_hi], ax
+    mov ax, [si+10]
+    mov [cs:cd_dir_size_lo], ax
+    mov ax, [si+12]
+    mov [cs:cd_dir_size_hi], ax
+    clc
+    jmp .done
+.err:
+    stc
+.done:
+    pop si
+    pop ds
+    pop es
+    pop dx
+    pop bx
+    pop ax
+    ret
+
 cd_parse_next_component:
     push ax
     push bx
@@ -641,7 +686,20 @@ cd_parse_next_component:
     cmp al, '\'
     je .skip_dot_component
     cmp al, '/'
+    je .skip_dot_component
+    cmp al, '.'
     jne .start_name
+    mov al, [ds:si+2]
+    cmp al, '\'
+    je .dotdot_component
+    cmp al, '/'
+    jne .start_name
+.dotdot_component:
+    add si, 3
+    mov [cs:cd_path_off], si
+    call cd_load_parent_dir
+    jc .err
+    jmp .skip_sep
 .skip_dot_component:
     add si, 2
     mov [cs:cd_path_off], si
@@ -844,15 +902,17 @@ cd_scan_current_dir:
     push cx
     push dx
     push es
-    cmp word [cs:cd_dir_size_hi], 0
-    jne .err
     mov ax, [cs:cd_dir_size_lo]
+    mov dx, [cs:cd_dir_size_hi]
     add ax, 2047
-    jc .err
+    adc dx, 0
     mov cx, 11
 .sector_count_shift:
-    shr ax, 1
+    shr dx, 1
+    rcr ax, 1
     loop .sector_count_shift
+    test dx, dx
+    jnz .err
     test ax, ax
     jz .err
     mov [cs:cd_scan_sectors], ax
@@ -1053,15 +1113,17 @@ cd_find_from:
     push di
     mov [cs:cd_find_start], bx
     mov word [cs:fid_idx], 0
-    cmp word [cs:cd_dir_size_hi], 0
-    jne .err
     mov ax, [cs:cd_dir_size_lo]
+    mov dx, [cs:cd_dir_size_hi]
     add ax, 2047
-    jc .err
+    adc dx, 0
     mov cx, 11
 .sector_count_shift:
-    shr ax, 1
+    shr dx, 1
+    rcr ax, 1
     loop .sector_count_shift
+    test dx, dx
+    jnz .err
     test ax, ax
     jz .err
     mov [cs:cd_scan_sectors], ax

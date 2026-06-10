@@ -121,16 +121,45 @@ def build_path_table(dirs):
     return b"".join(path_table_entry(directory) for directory in dirs)
 
 
-def build_dir_sector(directory):
-    parent = directory["parent"] if directory["parent"] is not None else directory
-    data = bytearray()
-    data.extend(record(directory["lba"], SECTOR, 2, b"\x00"))
-    data.extend(record(parent["lba"], SECTOR, 2, b"\x01"))
+def dir_record_lengths(directory):
+    lengths = [len(record(0, 0, 2, b"\x00")), len(record(0, 0, 2, b"\x01"))]
     for child in directory["dirs"].values():
-        data.extend(record(child["lba"], SECTOR, 2, child["name"]))
+        lengths.append(len(record(0, 0, 2, child["name"])))
     for entry in directory["files"]:
-        data.extend(record(entry["lba"], len(entry["data"]), 0, entry["ident"]))
-    return pad_sector(bytes(data))
+        lengths.append(len(record(0, 0, 0, entry["ident"])))
+    return lengths
+
+
+def compute_dir_size(directory):
+    pos = 0
+    for rec_len in dir_record_lengths(directory):
+        rem = SECTOR - (pos % SECTOR)
+        if rec_len > rem:
+            pos += rem
+        pos += rec_len
+    sectors = max(1, (pos + SECTOR - 1) // SECTOR)
+    directory["sectors"] = sectors
+    directory["size"] = sectors * SECTOR
+
+
+def build_dir_data(directory):
+    parent = directory["parent"] if directory["parent"] is not None else directory
+    recs = [record(directory["lba"], directory["size"], 2, b"\x00"),
+            record(parent["lba"], parent["size"], 2, b"\x01")]
+    for child in directory["dirs"].values():
+        recs.append(record(child["lba"], child["size"], 2, child["name"]))
+    for entry in directory["files"]:
+        recs.append(record(entry["lba"], len(entry["data"]), 0, entry["ident"]))
+    data = bytearray()
+    for rec in recs:
+        rem = SECTOR - (len(data) % SECTOR)
+        if len(rec) > rem:
+            data.extend(bytes(rem))
+        data.extend(rec)
+    total = directory["sectors"] * SECTOR
+    if len(data) > total:
+        raise RuntimeError("directory data exceeded computed size")
+    return bytes(data) + bytes(total - len(data))
 
 
 def build_iso(output, files):
@@ -139,13 +168,17 @@ def build_iso(output, files):
         add_file(root, iso_path, host_path)
 
     dirs = collect_dirs(root)
+    for directory in dirs:
+        compute_dir_size(directory)
+    if root["sectors"] != 1:
+        raise RuntimeError("root directory must fit one sector")
     root["lba"] = ROOT_LBA
     next_lba = FIRST_DATA_LBA
     for idx, directory in enumerate(dirs, 1):
         directory["path_index"] = idx
         if directory is not root:
             directory["lba"] = next_lba
-            next_lba += 1
+            next_lba += directory["sectors"]
 
     file_count = 0
     for directory in dirs:
@@ -163,7 +196,8 @@ def build_iso(output, files):
     image = bytearray(SECTOR * total_sectors)
 
     for directory in dirs:
-        image[directory["lba"] * SECTOR:(directory["lba"] + 1) * SECTOR] = build_dir_sector(directory)
+        data = build_dir_data(directory)
+        image[directory["lba"] * SECTOR:directory["lba"] * SECTOR + len(data)] = data
 
     for directory in dirs:
         for entry in directory["files"]:
@@ -182,7 +216,7 @@ def build_iso(output, files):
     pvd[128:132] = both16(SECTOR)
     pvd[132:140] = both32(len(path_table))
     pvd[140:144] = struct.pack("<I", PATH_TABLE_LBA)
-    pvd[156:190] = record(ROOT_LBA, SECTOR, 2, b"\x00")[:34]
+    pvd[156:190] = record(ROOT_LBA, root["size"], 2, b"\x00")[:34]
     image[PVD_LBA * SECTOR:(PVD_LBA + 1) * SECTOR] = pvd
 
     vdt = bytearray(SECTOR)

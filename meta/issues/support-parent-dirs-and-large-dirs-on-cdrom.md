@@ -13,3 +13,7 @@ CD path resolution rejects `..`: `cd_parse_next_component` special-cases only `.
 
 - Test ISO with nested directories and one directory >64 KiB: `CD D:\A\B`, `CD ..`, and find-first in the large directory all succeed; `PASS:` markers.
 - Existing cd_subdir/cd_find/cd_file tests pass.
+
+## Resolution
+
+`cd_parse_next_component` resolves mid-path `..` via a new `cd_load_parent_dir` that reads the directory's ISO9660 parent record (index 1); textual `CD ..` was already handled by `cur_dir_path_parent`. Trailing `..` in an explicit path remains unsupported (errors cleanly, as before). Both directory scanners now compute the sector count from the full 32-bit directory size, so directories up to 128 MiB scan correctly. `scripts/mkiso.py` gained multi-sector directory support (records padded at sector boundaries per ISO9660) to make the 1500-entry test directory possible.
