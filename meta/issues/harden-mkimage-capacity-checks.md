@@ -11,3 +11,7 @@ Three defects in `scripts/mkimage.py`. (a) Root-directory overflow is unchecked:
 ## Acceptance Criteria
 
 - Python-level tests (or assertions exercised by a small script) cover: root overflow raises, last cluster is allocatable, one-past raises; image builds in `make` are byte-identical to before for current content.
+
+## Resolution
+
+Resolved 2026-06-10. (a) add_root_entry guards every root-directory append against ROOT_ENT_CNT and raises "root directory full". (b) The dead finalize method (NameError on main()'s boot_path local) is deleted. (c) Cluster allocation checks the allocated cluster against max_cluster(), which also bounds by FAT capacity (entries derivable from FAT size and bit width), fixing the off-by-one that rejected the last valid cluster. build/disk.img is byte-identical before and after. Covered by the pure-Python scripts/test_mkimage.py.

@@ -163,24 +163,35 @@ class Fat12Image:
         self.root_entries = []
         self.subdirs = {}
 
+    def max_cluster(self):
+        data_limit = (TOTAL_SECTORS - DATA_START) // SEC_PER_CLUS + 1
+        bits = fmt['fat_bits']
+        fat_entries = (len(self.fat) * 8) // bits
+        fat_limit = fat_entries - 1
+        return min(data_limit, fat_limit)
+
     def alloc_cluster(self):
         c = self.next_cluster
-        self.next_cluster += 1
-        max_cluster = (TOTAL_SECTORS - DATA_START) // SEC_PER_CLUS + 1
-        if self.next_cluster > max_cluster:
+        if c > self.max_cluster():
             raise RuntimeError("disk image is full")
+        self.next_cluster += 1
         return c
 
     def alloc_clusters(self, count):
         first = self.next_cluster
-        self.next_cluster += count
-        max_cluster = (TOTAL_SECTORS - DATA_START) // SEC_PER_CLUS + 1
-        if self.next_cluster > max_cluster:
+        if first + count - 1 > self.max_cluster():
             raise RuntimeError("disk image is full")
+        self.next_cluster += count
         for i in range(count):
             nxt = first + i + 1 if i < count - 1 else fat_eoc()
             set_fat_entry(self.fat, first + i, nxt)
         return first
+
+    def add_root_entry(self, entry):
+        if len(self.root_entries) >= ROOT_ENT_CNT:
+            raise RuntimeError(
+                f"root directory full ({ROOT_ENT_CNT} entries)")
+        self.root_entries.append(entry)
 
     def add_file_to_root(self, name, ext, data, attr=0x20):
         cluster_bytes = BYTES_PER_SEC * SEC_PER_CLUS
@@ -191,13 +202,13 @@ class Fat12Image:
             off = i * BYTES_PER_SEC * SEC_PER_CLUS
             write_cluster_data(self.image, c, data, off)
         entry = make_root_entry(name, ext, first, len(data), attr)
-        self.root_entries.append(entry)
+        self.add_root_entry(entry)
 
     def add_subdir(self, dirname):
         first_cluster = self.alloc_cluster()
         set_fat_entry(self.fat, first_cluster, fat_eoc())
         entry = make_root_entry(dirname, "   ", first_cluster, 0, DIR_ATTR)
-        self.root_entries.append(entry)
+        self.add_root_entry(entry)
         self.subdirs[dirname] = {
             'cluster': first_cluster,
             'entries': [],
@@ -229,21 +240,6 @@ class Fat12Image:
             write_cluster_data(self.image, c, data, off)
         entry = make_root_entry(name, ext, first, len(data))
         sd['entries'].append(entry)
-
-    def finalize(self):
-        self.image[0:SECTOR_SIZE] = self._read_file(boot_path)
-
-        root_offset = ROOT_START * SECTOR_SIZE
-        for entry in self.root_entries:
-            self.image[root_offset:root_offset + 32] = entry
-            root_offset += 32
-
-        self.write_subdirs()
-
-        fat1_offset = FAT_START * SECTOR_SIZE
-        self.image[fat1_offset:fat1_offset + len(self.fat)] = self.fat
-        fat2_offset = (FAT_START + FAT_SZ) * SECTOR_SIZE
-        self.image[fat2_offset:fat2_offset + len(self.fat)] = self.fat
 
     def write_subdirs(self):
         for dirname, sd in self.subdirs.items():

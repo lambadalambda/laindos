@@ -147,6 +147,7 @@ DEFAULT_TESTS = [
     "scripts/test_badreloc.py",
     "scripts/test_ctrunc.py",
     "scripts/test_timeoutguard.py",
+    "scripts/test_mkimage.py",
 ]
 
 # Tests that run outside `make test`: vendor-media game tests and emulator
