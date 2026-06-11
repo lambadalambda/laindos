@@ -2,9 +2,9 @@
 
 A tiny single-tasking DOS, written from scratch in real-mode x86 NASM assembly, whose mission in life is booting period games.
 
-![The Secret of Monkey Island demo running on LainDOS in QEMU](docs/monkey_demo.png)
+![LainDOS booting to its shell, running DIR, and launching the Monkey Island demo in QEMU](docs/monkey_demo.gif)
 
-That is the bundled Monkey Island demo (VGA, 1990) running on the LainDOS kernel in QEMU: boot the floppy, type `midemo`, play.
+That is LainDOS in QEMU: boot the floppy to the shell, `DIR` the disk, type `midemo`, and the bundled Monkey Island demo (VGA, 1990) plays.
 
 ## What it is
 
