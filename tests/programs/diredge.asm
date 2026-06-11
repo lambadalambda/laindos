@@ -102,6 +102,26 @@ start:
     int 0x21
     jc fail_cd_root
 
+    mov dx, base_dir_slash
+    mov ah, 0x3B
+    int 0x21
+    jc fail_cd_trailing
+    mov si, expected_base
+    call check_curdir_default
+    jc fail_cd_trailing
+
+    mov dx, file_slash
+    mov ah, 0x3B
+    int 0x21
+    jnc fail_cd_file_trailing
+    cmp ax, 3
+    jne fail_cd_file_trailing
+
+    mov dx, root_path
+    mov ah, 0x3B
+    int 0x21
+    jc fail_cd_root
+
     mov dx, base_dir
     mov ah, 0x3A
     int 0x21
@@ -187,6 +207,12 @@ fail_getcwd_drive:
 fail_cd_root:
     mov dx, fail_cd_root_msg
     jmp fail
+fail_cd_trailing:
+    mov dx, fail_cd_trailing_msg
+    jmp fail
+fail_cd_file_trailing:
+    mov dx, fail_cd_file_trailing_msg
+    jmp fail
 fail_rmdir_base:
     mov dx, fail_rmdir_base_msg
 
@@ -203,6 +229,8 @@ bad_drive_mkdir: db "Z:\BADMK", 0
 bad_drive_rmdir: db "Z:\BADRD", 0
 empty_path: db 0
 root_path: db "\", 0
+base_dir_slash: db "EDGEBASE\", 0
+file_slash: db "\DIREDGE.COM\", 0
 expected_base: db "EDGEBASE", 0
 pass_msg: db "PASS: DIREDGE", 13, 10, "$"
 fail_mkdir_base_msg: db "FAIL: DIREDGE MKDIR BASE", 13, 10, "$"
@@ -218,6 +246,8 @@ fail_rmdir_empty_msg: db "FAIL: DIREDGE RMDIR EMPTY", 13, 10, "$"
 fail_rmdir_drive_msg: db "FAIL: DIREDGE RMDIR DRIVE", 13, 10, "$"
 fail_getcwd_drive_msg: db "FAIL: DIREDGE GETCWD DRIVE", 13, 10, "$"
 fail_cd_root_msg: db "FAIL: DIREDGE CD ROOT", 13, 10, "$"
+fail_cd_trailing_msg: db "FAIL: DIREDGE CD TRAILING", 13, 10, "$"
+fail_cd_file_trailing_msg: db "FAIL: DIREDGE CD FILE TRAILING", 13, 10, "$"
 fail_rmdir_base_msg: db "FAIL: DIREDGE RMDIR BASE", 13, 10, "$"
 expected_ptr: dw 0
 curdir_buf: times 64 db 0

@@ -13,7 +13,6 @@ BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x0060
 FAT_BUF_SECS equ ((CD_BUF - FAT_SEG) / 32)
 ROOT_SEG  equ 0x0240
-PSP_SEG   equ 0x3000
 
 HANDLE_SIZE equ 34
 H_USED      equ 0
@@ -2558,7 +2557,7 @@ do_terminate:
     mov [cs:kstack_base], ax
     sti
 ; @anchor: do_terminate_return_to_parent
-    jmp exec_com.back
+    jmp exec_resume_parent
 
 do_terminate_tsr:
     call restore_psp_vectors
@@ -2637,7 +2636,7 @@ do_terminate_tsr:
     mov ax, [cs:saved_kbase]
     mov [cs:kstack_base], ax
     sti
-    jmp exec_com.back
+    jmp exec_resume_parent
 
 tsr_free_owned_extra:
     mov si, [cs:mcb_first]
@@ -3221,7 +3220,6 @@ msg_x_tick: db " TICK=", 0
 msg_x_pic: db " PIC=", 0
 %endif
 
-fname_hello:  db "HELLO   COM", 0
 %ifndef BOOT_FILE
 %define BOOT_FILE "MEMTEST EXE"
 %endif
@@ -3257,9 +3255,6 @@ vga_row:   dw 0
 vga_col:   dw 0
 console_ext_pending: db 0
 
-load_name: dw 0
-load_seg:  dw 0
-load_off:  dw 0
 
 krsta: dw 0
 krsc:  dw 0
@@ -3583,8 +3578,6 @@ rid_lba: dw 0
 rid_lba_hi: dw 0
 rid_sec_idx: db 0
 dir_ext_cluster: dw 0
-
-find_di: dw 0
 
 mcb_first: dw 0
 cur_psp: dw 0

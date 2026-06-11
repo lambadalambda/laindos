@@ -994,12 +994,6 @@ resolve_path:
     pop bx
     ret
 .rp_empty:
-    cmp word [cs:rp_cluster], ROOT_CLUSTER
-    je .rp_empty_root
-    stc
-    pop bx
-    ret
-.rp_empty_root:
     stc
     pop bx
     ret
@@ -1092,6 +1086,18 @@ resolve_path:
     jmp .rp_copy
 .rp_copy_sep:
     mov [cs:rp_path], si
+.rp_sep_peek:
+    cmp byte [ds:si], '\'
+    je .rp_sep_peek_next
+    cmp byte [ds:si], '/'
+    je .rp_sep_peek_next
+    cmp byte [ds:si], 0
+    je .rp_trailing_final
+    jmp .rp_descend
+.rp_sep_peek_next:
+    inc si
+    jmp .rp_sep_peek
+.rp_descend:
     pop es
     pop ds
     mov ax, [cs:rp_cluster]
@@ -1105,6 +1111,19 @@ resolve_path:
     mov ax, [es:di+26]
     mov [cs:rp_cluster], ax
     jmp .rp_next
+.rp_trailing_final:
+    pop es
+    pop ds
+    mov ax, [cs:rp_cluster]
+    xor bx, bx
+    xor dx, dx
+    mov byte [cs:ff_attr_mask], 0
+    call find_in_dir
+    jc .rp_notfound
+    test byte [es:di+11], ATTR_DIR
+    jz .rp_notadir
+    pop bx
+    ret
 .rp_notadir:
     stc
     pop bx
@@ -2193,53 +2212,3 @@ load_file_direct:
 .sec_num: dw 0
 .sec_num_hi: dw 0
 
-load_file:
-    mov [cs:load_name], si
-    mov [cs:load_seg], ax
-    mov [cs:load_off], bx
-
-    push cs
-    pop ds
-    mov si, [cs:load_name]
-    call resolve_path
-    jc .notfound
-    mov ax, [es:di+26]
-    mov [cs:kclus], ax
-    mov ax, [es:di+28]
-    mov [cs:kfsize], ax
-
-    mov ax, [cs:load_seg]
-    mov es, ax
-    mov bx, [cs:load_off]
-    mov si, [cs:kclus]
-.load:
-    cmp si, [cs:kfat_eoc]
-    jae .done
-    cmp si, 2
-    jb .notfound
-    push si
-    mov ax, si
-    push bx
-    xor bx, bx
-    call cluster_lba
-    mov [cs:kio_lba_hi], dx
-    pop bx
-    mov cx, 1
-    call read_sector
-    pop si
-    jc .notfound
-    call fat_next
-    mov si, ax
-    jmp .load
-.done:
-    push cs
-    pop ds
-    xor ax, ax
-    ret
-.notfound:
-    push cs
-    pop ds
-    mov si, msg_nofile
-    call serial_print
-    mov ax, 1
-    ret

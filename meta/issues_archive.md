@@ -197,3 +197,4 @@
 - [x] [Add a common include for DOS test programs](issues/add-test-program-common-include.md)
 - [x] [Fix the Monkey Island 2 save dialog crash](issues/fix-mi2-save-dialog-crash.md)
 - [x] [Retune the MI2 save test choreography](issues/retune-mi2-save-test.md)
+- [x] [Remove dead kernel code](issues/remove-dead-kernel-code.md)

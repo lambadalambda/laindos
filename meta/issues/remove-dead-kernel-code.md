@@ -11,3 +11,24 @@ Dead or broken-if-used code found in the 2026-06-10 whole-repo review: (a) `exec
 ## Acceptance Criteria
 
 - Full test ladder passes; a new shell/test case covers `CD FOO\` per the chosen semantics; grep shows no references to the removed symbols.
+
+## Resolution (2026-06-11)
+
+- (a) Deleted the dead `exec_com` body (and the now-unreferenced
+  `PSP_SEG` constant). The terminate trampoline is now an honest
+  standalone `exec_resume_parent: ret`, and the duplicated launch
+  prologue lives in one `exec_begin_child` helper (saved_sp records the
+  caller-frame SP, +2 over the helper's own frame).
+- (b) Deleted `load_file` and its private `load_name`/`load_seg`/
+  `load_off` variables (no callers; broken for kspc > 1).
+- (c) Deleted `fname_hello` and `find_di`.
+- (d) Implemented MS-DOS trailing-separator semantics in
+  `resolve_path`: a component followed only by separators is treated as
+  the final component and must be a directory, so `CD FOO\` works and
+  `CD FILE.EXT\` fails; the vacuous `.rp_empty_root` branch is gone.
+  TDD: `tests/programs/diredge.asm` gained CD-trailing cases that fail
+  on the old kernel.
+- Two pre-existing stale excerpts in page_filesystem.jsx (pointing into
+  the deleted `load_file` while narrating `find_in_dir`/`find_dir_free`)
+  were re-pointed to the real `fat_next_checked` call sites.
+- Suite passes 139/139; kernel shrank 39085 -> 38926 bytes.

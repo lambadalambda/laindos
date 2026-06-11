@@ -1389,27 +1389,26 @@ overlay_copy_range_cd:
 .lba_lo: dw 0
 .lba_hi: dw 0
 
-exec_com:
+; Terminate lands here after restoring saved_ss:saved_sp; the ret pops
+; the suspended exec caller's return address (the INT 21h EXEC handler
+; or the boot launcher), resuming it as if exec_*_dyn just returned.
+exec_resume_parent:
+    ret
+
+; Shared child-launch prologue for exec_exe_dyn/exec_com_dyn. saved_sp
+; must record the SP at the exec_*_dyn entry (so exec_resume_parent's
+; ret returns to its caller), hence the +2 over this helper's frame.
+exec_begin_child:
     mov byte [cs:ret_code], 0
     mov word [cs:running], 1
     push ss
     pop ax
     mov [cs:saved_ss], ax
-    mov [cs:saved_sp], sp
+    mov ax, sp
+    add ax, 2
+    mov [cs:saved_sp], ax
     call reset_keyboard_buffer
     fninit
-
-    mov ax, PSP_SEG
-    mov ds, ax
-    mov es, ax
-    mov ss, ax
-    mov sp, 0xFFFE
-    push word 0x0000
-    db 0xEA
-    dw 0x0100
-    dw PSP_SEG
-
-.back:
     ret
 
 build_psp:
@@ -1714,14 +1713,7 @@ setup_exe_dyn:
     ret
 
 exec_exe_dyn:
-    mov byte [cs:ret_code], 0
-    mov word [cs:running], 1
-    push ss
-    pop ax
-    mov [cs:saved_ss], ax
-    mov [cs:saved_sp], sp
-    call reset_keyboard_buffer
-    fninit
+    call exec_begin_child
 %if TRACE_EXEC_STATE
     call trace_exec_state
 %endif
@@ -1750,14 +1742,7 @@ exec_exe_dyn:
     retf
 
 exec_com_dyn:
-    mov byte [cs:ret_code], 0
-    mov word [cs:running], 1
-    push ss
-    pop ax
-    mov [cs:saved_ss], ax
-    mov [cs:saved_sp], sp
-    call reset_keyboard_buffer
-    fninit
+    call exec_begin_child
 
     mov ax, [cs:prog_seg]
     dec ax
