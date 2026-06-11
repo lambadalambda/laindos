@@ -61,17 +61,18 @@ cd_read_sector_current:
     pop ax
     jmp cd_read_sector_drive
 
-atapi_select_current:
+; SI -> {base dw, ctrl dw, devsel db} ATAPI port description.
+atapi_select_via:
     push ax
     push dx
-    mov dx, [cs:atapi_ctrl]
+    mov dx, [cs:si+2]
     mov al, 2
     out dx, al
-    mov dx, [cs:atapi_base]
+    mov dx, [cs:si]
     add dx, 6
-    mov al, [cs:atapi_devsel]
+    mov al, [cs:si+4]
     out dx, al
-    mov dx, [cs:atapi_ctrl]
+    mov dx, [cs:si+2]
     in al, dx
     in al, dx
     in al, dx
@@ -80,23 +81,18 @@ atapi_select_current:
     pop ax
     ret
 
+atapi_select_current:
+    push si
+    mov si, atapi_base
+    call atapi_select_via
+    pop si
+    ret
+
 atapi_select_scan:
-    push ax
-    push dx
-    mov dx, [cs:atapi_scan_ctrl]
-    mov al, 2
-    out dx, al
-    mov dx, [cs:atapi_scan_base]
-    add dx, 6
-    mov al, [cs:atapi_scan_devsel]
-    out dx, al
-    mov dx, [cs:atapi_scan_ctrl]
-    in al, dx
-    in al, dx
-    in al, dx
-    in al, dx
-    pop dx
-    pop ax
+    push si
+    mov si, atapi_scan_base
+    call atapi_select_via
+    pop si
     ret
 
 atapi_wait_not_busy:
@@ -326,6 +322,52 @@ atapi_read_sector:
     stc
     ret
 
+; CD_BUF holds sector 16. Validate the ISO9660 "CD001" PVD signature
+; and pull the root directory extent and size. CF set on mismatch;
+; leaves DS = CD_BUF. Clobbers AX and SI.
+cd_validate_pvd:
+    mov ax, CD_BUF
+    mov ds, ax
+    cmp byte [1], 'C'
+    jne .bad
+    cmp byte [2], 'D'
+    jne .bad
+    cmp byte [3], '0'
+    jne .bad
+    cmp byte [4], '0'
+    jne .bad
+    cmp byte [5], '1'
+    jne .bad
+    mov si, 156
+    mov ax, [si+2]
+    mov [cs:cd_root_lba_lo], ax
+    mov ax, [si+4]
+    mov [cs:cd_root_lba_hi], ax
+    mov ax, [si+10]
+    mov [cs:cd_root_size_lo], ax
+    mov ax, [si+12]
+    mov [cs:cd_root_size_hi], ax
+    clc
+    ret
+.bad:
+    stc
+    ret
+
+; Register drive 3 (D:) as the mounted CD-ROM and reset its CWD.
+; Clobbers AX, CX, DI, ES.
+cd_register_drive:
+    mov byte [cs:drive_type+3], DRIVE_TYPE_CDROM
+    mov byte [cs:drive_present+3], 1
+    mov byte [cs:cd_present], 1
+    mov word [cs:drive_cur_clusters+3*2], ROOT_CLUSTER
+    push cs
+    pop es
+    mov di, drive_cur_paths + 3*64
+    mov cx, 64
+    xor ax, ax
+    rep stosb
+    ret
+
 mount_bios_cdrom_d:
     push ax
     push bx
@@ -358,40 +400,12 @@ mount_bios_cdrom_d:
     xor dx, dx
     call cd_read_sector_drive
     jc .next
-    mov ax, CD_BUF
-    mov ds, ax
-    cmp byte [1], 'C'
-    jne .next
-    cmp byte [2], 'D'
-    jne .next
-    cmp byte [3], '0'
-    jne .next
-    cmp byte [4], '0'
-    jne .next
-    cmp byte [5], '1'
-    jne .next
-    mov si, 156
-    mov ax, [si+2]
-    mov [cs:cd_root_lba_lo], ax
-    mov ax, [si+4]
-    mov [cs:cd_root_lba_hi], ax
-    mov ax, [si+10]
-    mov [cs:cd_root_size_lo], ax
-    mov ax, [si+12]
-    mov [cs:cd_root_size_hi], ax
+    call cd_validate_pvd
+    jc .next
     mov al, [cs:cd_probe_drive]
     mov [cs:cd_bios_drive], al
     mov [cs:drive_bios+3], al
-    mov byte [cs:drive_type+3], DRIVE_TYPE_CDROM
-    mov byte [cs:drive_present+3], 1
-    mov byte [cs:cd_present], 1
-    mov word [cs:drive_cur_clusters+3*2], ROOT_CLUSTER
-    push cs
-    pop es
-    mov di, drive_cur_paths + 3*64
-    mov cx, 64
-    xor ax, ax
-    rep stosb
+    call cd_register_drive
     clc
     jmp .done
 .next:
@@ -431,40 +445,12 @@ mount_atapi_cdrom_d:
     xor dx, dx
     call atapi_read_sector
     jc .err
-    mov ax, CD_BUF
-    mov ds, ax
-    cmp byte [1], 'C'
-    jne .err
-    cmp byte [2], 'D'
-    jne .err
-    cmp byte [3], '0'
-    jne .err
-    cmp byte [4], '0'
-    jne .err
-    cmp byte [5], '1'
-    jne .err
-    mov si, 156
-    mov ax, [si+2]
-    mov [cs:cd_root_lba_lo], ax
-    mov ax, [si+4]
-    mov [cs:cd_root_lba_hi], ax
-    mov ax, [si+10]
-    mov [cs:cd_root_size_lo], ax
-    mov ax, [si+12]
-    mov [cs:cd_root_size_hi], ax
+    call cd_validate_pvd
+    jc .err
     mov byte [cs:cd_read_method], CD_READ_METHOD_ATAPI
     mov byte [cs:cd_bios_drive], 0xE0
     mov byte [cs:drive_bios+3], 0xE0
-    mov byte [cs:drive_type+3], DRIVE_TYPE_CDROM
-    mov byte [cs:drive_present+3], 1
-    mov byte [cs:cd_present], 1
-    mov word [cs:drive_cur_clusters+3*2], ROOT_CLUSTER
-    push cs
-    pop es
-    mov di, drive_cur_paths + 3*64
-    mov cx, 64
-    xor ax, ax
-    rep stosb
+    call cd_register_drive
     clc
     jmp .done
 .err:
@@ -896,12 +882,11 @@ cd_copy_full_path_to_cwd:
     pop ax
     ret
 
-cd_scan_current_dir:
-    push ax
-    push bx
-    push cx
-    push dx
-    push es
+; Walk the current CD directory extent sector by sector, loading each
+; into CD_BUF and invoking the callback at [cs:cd_scan_handler] until
+; it returns CF clear. CF set when the extent is exhausted, oversized,
+; or a read fails. Clobbers AX, BX, CX, DX, ES.
+cd_scan_extent:
     mov ax, [cs:cd_dir_size_lo]
     mov dx, [cs:cd_dir_size_hi]
     add ax, 2047
@@ -930,20 +915,26 @@ cd_scan_current_dir:
     mov dx, [cs:cd_scan_lba_hi]
     call cd_read_sector_current
     jc .err
-    call cd_scan_sector
+    call word [cs:cd_scan_handler]
     jnc .ok
-    inc word [cs:cd_scan_lba_lo]
-    jnz .lba_ok
-    inc word [cs:cd_scan_lba_hi]
-.lba_ok:
+    INC_DWORD_CS cd_scan_lba_lo, cd_scan_lba_hi
     dec word [cs:cd_scan_sectors]
     jmp .sector_loop
 .ok:
     clc
-    jmp .done
+    ret
 .err:
     stc
-.done:
+    ret
+
+cd_scan_current_dir:
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+    mov word [cs:cd_scan_handler], cd_scan_sector
+    call cd_scan_extent
     pop es
     pop dx
     pop cx
@@ -1113,48 +1104,8 @@ cd_find_from:
     push di
     mov [cs:cd_find_start], bx
     mov word [cs:fid_idx], 0
-    mov ax, [cs:cd_dir_size_lo]
-    mov dx, [cs:cd_dir_size_hi]
-    add ax, 2047
-    adc dx, 0
-    mov cx, 11
-.sector_count_shift:
-    shr dx, 1
-    rcr ax, 1
-    loop .sector_count_shift
-    test dx, dx
-    jnz .err
-    test ax, ax
-    jz .err
-    mov [cs:cd_scan_sectors], ax
-    mov ax, [cs:cd_dir_lba_lo]
-    mov [cs:cd_scan_lba_lo], ax
-    mov ax, [cs:cd_dir_lba_hi]
-    mov [cs:cd_scan_lba_hi], ax
-.sector_loop:
-    cmp word [cs:cd_scan_sectors], 0
-    je .err
-    mov ax, CD_BUF
-    mov es, ax
-    xor bx, bx
-    mov ax, [cs:cd_scan_lba_lo]
-    mov dx, [cs:cd_scan_lba_hi]
-    call cd_read_sector_current
-    jc .err
-    call cd_find_scan_sector
-    jnc .ok
-    inc word [cs:cd_scan_lba_lo]
-    jnz .lba_ok
-    inc word [cs:cd_scan_lba_hi]
-.lba_ok:
-    dec word [cs:cd_scan_sectors]
-    jmp .sector_loop
-.ok:
-    clc
-    jmp .done
-.err:
-    stc
-.done:
+    mov word [cs:cd_scan_handler], cd_find_scan_sector
+    call cd_scan_extent
     pop di
     pop si
     pop es

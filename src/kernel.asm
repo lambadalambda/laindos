@@ -3229,6 +3229,7 @@ atapi_devsel: db 0
 atapi_scan_base: dw 0
 atapi_scan_ctrl: dw 0
 atapi_scan_devsel: db 0
+cd_scan_handler: dw 0
 atapi_count: dw 0
 atapi_cdb: times 12 db 0
 cd_cmp_name: times 11 db 0

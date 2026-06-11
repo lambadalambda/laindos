@@ -293,12 +293,12 @@ load_exec_program:
     clc
     ret
 
-exec_read_first_sector:
+; AX = first cluster. Read its first sector into SEC_BUF.
+read_first_cluster_sector:
     push bx
     push cx
     push dx
     push es
-    mov ax, [cs:exec_cluster]
     cmp ax, 2
     jb .err
     xor bx, bx
@@ -323,8 +323,12 @@ exec_read_first_sector:
     stc
     ret
 
-exec_read_first_sector_cd:
-    push ax
+exec_read_first_sector:
+    mov ax, [cs:exec_cluster]
+    jmp read_first_cluster_sector
+
+; AX/DX = CD LBA low/high. Read the sector into SEC_BUF via CD_BUF.
+read_first_sector_cd:
     push bx
     push cx
     push dx
@@ -332,11 +336,11 @@ exec_read_first_sector_cd:
     push es
     push si
     push di
+    mov si, ax
     mov ax, CD_BUF
     mov es, ax
     xor bx, bx
-    mov ax, [cs:exec_cluster]
-    mov dx, [cs:exec_cd_lba_hi]
+    mov ax, si
     call cd_read_sector_current
     jc .err
     mov ax, CD_BUF
@@ -354,7 +358,6 @@ exec_read_first_sector_cd:
     pop dx
     pop cx
     pop bx
-    pop ax
     clc
     ret
 .err:
@@ -365,9 +368,13 @@ exec_read_first_sector_cd:
     pop dx
     pop cx
     pop bx
-    pop ax
     stc
     ret
+
+exec_read_first_sector_cd:
+    mov ax, [cs:exec_cluster]
+    mov dx, [cs:exec_cd_lba_hi]
+    jmp read_first_sector_cd
 
 load_cd_file_direct:
     mov ax, [cs:kfsize]
@@ -1123,81 +1130,13 @@ overlay_read_reloc_sector_cd:
 
 overlay_read_first_sector:
     cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
-    je overlay_read_first_sector_cd
-    push bx
-    push cx
-    push dx
-    push es
+    je .cd
     mov ax, [cs:ov_cluster]
-    cmp ax, 2
-    jb .err
-    xor bx, bx
-    call cluster_lba
-    mov [cs:kio_lba_hi], dx
-    mov dx, SEC_BUF
-    mov es, dx
-    xor bx, bx
-    call read_sector
-    jc .err
-    pop es
-    pop dx
-    pop cx
-    pop bx
-    clc
-    ret
-.err:
-    pop es
-    pop dx
-    pop cx
-    pop bx
-    stc
-    ret
-
-overlay_read_first_sector_cd:
-    push ax
-    push bx
-    push cx
-    push dx
-    push ds
-    push es
-    push si
-    push di
-    mov ax, CD_BUF
-    mov es, ax
-    xor bx, bx
+    jmp read_first_cluster_sector
+.cd:
     mov ax, [cs:ov_cluster]
     mov dx, [cs:ov_cd_lba_hi]
-    call cd_read_sector_current
-    jc .err
-    mov ax, CD_BUF
-    mov ds, ax
-    mov ax, SEC_BUF
-    mov es, ax
-    xor si, si
-    xor di, di
-    mov cx, 256
-    rep movsw
-    pop di
-    pop si
-    pop es
-    pop ds
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    clc
-    ret
-.err:
-    pop di
-    pop si
-    pop es
-    pop ds
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    stc
-    ret
+    jmp read_first_sector_cd
 
 overlay_copy_range:
     cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM

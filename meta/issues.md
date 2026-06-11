@@ -1,3 +1,2 @@
-- [ ] [Deduplicate CD-ROM driver paths](issues/dedupe-cdrom-driver-paths.md)
 - [ ] [Deduplicate shell parsing helpers](issues/dedupe-shell-parsing-helpers.md)
 - [ ] [Tidy script utility rough edges](issues/tidy-script-utility-rough-edges.md)
