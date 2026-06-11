@@ -171,11 +171,12 @@ def read_stream(stream, chunks):
         return
 
 
-def start_qemu(args):
+def start_qemu(args, env=None):
     proc = subprocess.Popen(
         qemu_args(args),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=env,
     )
     stdout_chunks = []
     stderr_chunks = []

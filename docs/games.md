@@ -113,7 +113,11 @@ The vendor-gated smoke verifies both halves — the bare launch fails with the e
 make test-civ-smoke
 ```
 
-Under QEMU the game later stalls at a MicroProse presentation card (or exits with `R6003 integer divide by 0`): its `INT 08` hook leaves the BIOS tick at a third rate, and the same behavior reproduces under FreeDOS on the same QEMU, so it is an emulator-timing interaction rather than a LainDOS issue (see `meta/issues.md`).
+Under QEMU the game later stalls at a MicroProse presentation card (or exits with `R6003 integer divide by 0`): its `INT 08` hook leaves the BIOS tick at a third rate, and the same behavior reproduces under FreeDOS on the same QEMU, so it is an emulator-timing interaction rather than a LainDOS issue. Under the headless 86Box build (`docs/emulator_workflows.md`) the same image runs through the intro to the title menu; that cross-check is automated:
+
+```sh
+make test-civ-86box
+```
 
 ## External Hard-Disk Images
 

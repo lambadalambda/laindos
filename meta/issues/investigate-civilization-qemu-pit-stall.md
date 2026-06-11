@@ -39,3 +39,19 @@ Evidence gathered on 2026-06-11:
 - The stall has a pinned root cause class with an emulator comparison,
   and either a workaround documented in docs/games.md or a QEMU patch
   recorded like docs/qemu-sahf-ccop.patch.
+
+## Resolution (2026-06-11)
+
+- The 86Box cross-check is conclusive: on the headless RPC build
+  (docs/86box-rpc.patch, SDL frontend, dummy video) with the same
+  generated image and the same `LOADFIX CIV` launch, the game runs
+  through the menus and intro to the interactive title menu ("Start a
+  New Game / Load a Saved Game / EARTH / ..."), held stable with no
+  R6003. The stall class is pinned: a QEMU PIT/INT 08 delivery
+  interaction, not LainDOS and not the game per se.
+- The workaround is documented in docs/games.md (run Civilization
+  under the headless 86Box; `make test-civ-86box` automates the
+  cross-check). A QEMU-side fix in the SAHF-patch style remains
+  possible future work, with the MI2 tick-batching notes in
+  docs/debug_log.md as the starting point, but is not needed for the
+  game library.

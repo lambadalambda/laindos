@@ -1,0 +1,390 @@
+From 1aab34f5326656d021beed7529725a3587e7bb90 Mon Sep 17 00:00:00 2001
+From: Lain Soykaf <lain@lain.com>
+Date: Thu, 11 Jun 2026 23:31:20 +0400
+Subject: [PATCH 1/2] sdl: opt-in localhost HTTP RPC via 86BOX_RPC_PORT
+
+/status, /key?scan=[&down=], /screenshot, /monitor?cmd=, /exit.
+Extracted from the local PC-98 work branch with the PC-98-specific
+endpoints removed so it applies to stock PC builds.
+---
+ src/unix/sdl_monitor.c | 270 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 270 insertions(+)
+
+diff --git a/src/unix/sdl_monitor.c b/src/unix/sdl_monitor.c
+index 8747fd852..4ecae4d96 100644
+--- a/src/unix/sdl_monitor.c
++++ b/src/unix/sdl_monitor.c
+@@ -3,12 +3,19 @@
+ #include <stdint.h>
+ #include <stdbool.h>
+ #include <string.h>
++#include <errno.h>
+ #include <limits.h>
+ #include <unistd.h>
++#include <arpa/inet.h>
++#include <netinet/in.h>
++#include <sys/socket.h>
+ 
+ #include <86box/86box.h>
++#include <86box/keyboard.h>
++#include <86box/machine.h>
+ #include <86box/plat.h>
+ #include <86box/plat_dynld.h>
++#include <86box/thread.h>
+ #include <86box/cdrom.h>
+ #include <86box/version.h>
+ #include <86box/video.h>
+@@ -34,9 +41,248 @@ static dllimp_t libedit_imports[] = {
+ extern int exit_event, fullscreen_pending;
+ extern bool fast_forward;
+ 
++static volatile int rpc_running = 0;
++static int          rpc_fd      = -1;
++static int          rpc_port    = 0;
++static thread_t    *rpc_thread  = NULL;
++
++static int
++rpc_hexval(char c)
++{
++    if ((c >= '0') && (c <= '9'))
++        return c - '0';
++    if ((c >= 'a') && (c <= 'f'))
++        return c - 'a' + 10;
++    if ((c >= 'A') && (c <= 'F'))
++        return c - 'A' + 10;
++    return -1;
++}
++
++static void
++rpc_url_decode(char *dst, size_t dst_len, const char *src)
++{
++    size_t pos = 0;
++
++    if (dst_len == 0)
++        return;
++
++    while (*src && (pos + 1 < dst_len)) {
++        if ((src[0] == '%') && src[1] && src[2]) {
++            const int hi = rpc_hexval(src[1]);
++            const int lo = rpc_hexval(src[2]);
++
++            if ((hi >= 0) && (lo >= 0)) {
++                dst[pos++] = (char) ((hi << 4) | lo);
++                src += 3;
++                continue;
++            }
++        }
++
++        dst[pos++] = (*src == '+') ? ' ' : *src;
++        src++;
++    }
++
++    dst[pos] = '\0';
++}
++
++static int
++rpc_query_value(const char *query, const char *name, char *out, size_t out_len)
++{
++    const size_t name_len = strlen(name);
++
++    if ((query == NULL) || (out_len == 0))
++        return 0;
++
++    while (*query) {
++        const char *next = strchr(query, '&');
++        const char *eq   = strchr(query, '=');
++        size_t      len;
++
++        if ((eq != NULL) && ((next == NULL) || (eq < next)) &&
++            (((size_t) (eq - query)) == name_len) && !strncmp(query, name, name_len)) {
++            len = (next != NULL) ? (size_t) (next - eq - 1) : strlen(eq + 1);
++            if (len >= out_len)
++                len = out_len - 1;
++            memcpy(out, eq + 1, len);
++            out[len] = '\0';
++            return 1;
++        }
++
++        if (next == NULL)
++            break;
++        query = next + 1;
++    }
++
++    return 0;
++}
++
++static int
++rpc_query_uint(const char *query, const char *name, unsigned int *out)
++{
++    char        value[64];
++    char       *end = NULL;
++    unsigned long val;
++
++    if (!rpc_query_value(query, name, value, sizeof(value)))
++        return 0;
++
++    val = strtoul(value, &end, 0);
++    if ((end == value) || (*end != '\0'))
++        return 0;
++
++    *out = (unsigned int) val;
++    return 1;
++}
++
++static void
++rpc_send_response(int fd, int status, const char *reason, const char *body)
++{
++    const size_t len = strlen(body);
++
++    dprintf(fd,
++            "HTTP/1.1 %d %s\r\n"
++            "Content-Type: text/plain\r\n"
++            "Content-Length: %zu\r\n"
++            "Connection: close\r\n"
++            "\r\n"
++            "%s",
++            status, reason, len, body);
++}
++
++static void
++rpc_handle_client(int fd)
++{
++    char  req[2048];
++    char  method[16];
++    char  target[1024];
++    char *query;
++    int   len;
++
++    len = (int) recv(fd, req, sizeof(req) - 1, 0);
++    if (len <= 0)
++        return;
++    req[len] = '\0';
++
++    if (sscanf(req, "%15s %1023s", method, target) != 2) {
++        rpc_send_response(fd, 400, "Bad Request", "bad request\n");
++        return;
++    }
++
++    if (strcmp(method, "GET") && strcmp(method, "POST")) {
++        rpc_send_response(fd, 405, "Method Not Allowed", "method not allowed\n");
++        return;
++    }
++
++    query = strchr(target, '?');
++    if (query != NULL)
++        *query++ = '\0';
++    else
++        query = "";
++
++    if (!strcmp(target, "/status")) {
++        rpc_send_response(fd, 200, "OK", "ok\n");
++    } else if (!strcmp(target, "/key")) {
++        unsigned int scan;
++        unsigned int down;
++
++        if (!rpc_query_uint(query, "scan", &scan) || (scan > 0x1ff)) {
++            rpc_send_response(fd, 400, "Bad Request", "missing or invalid scan\n");
++            return;
++        }
++
++        if (rpc_query_uint(query, "down", &down)) {
++            keyboard_input(down ? 1 : 0, (uint16_t) scan);
++        } else {
++            keyboard_input(1, (uint16_t) scan);
++            keyboard_input(0, (uint16_t) scan);
++        }
++
++        rpc_send_response(fd, 200, "OK", "ok\n");
++    } else if (!strcmp(target, "/screenshot")) {
++        monitor_execute_line("screenshot");
++        rpc_send_response(fd, 200, "OK", "ok\n");
++    } else if (!strcmp(target, "/monitor")) {
++        char encoded[1024];
++        char decoded[1024];
++
++        if (!rpc_query_value(query, "cmd", encoded, sizeof(encoded))) {
++            rpc_send_response(fd, 400, "Bad Request", "missing cmd\n");
++            return;
++        }
++
++        rpc_url_decode(decoded, sizeof(decoded), encoded);
++        monitor_execute_line(decoded);
++        rpc_send_response(fd, 200, "OK", "ok\n");
++    } else if (!strcmp(target, "/exit")) {
++        exit_event = 1;
++        rpc_send_response(fd, 200, "OK", "ok\n");
++    } else {
++        rpc_send_response(fd, 404, "Not Found", "not found\n");
++    }
++}
++
++static void
++rpc_server_thread(UNUSED(void *param))
++{
++    struct sockaddr_in addr;
++    int                opt = 1;
++
++    rpc_fd = socket(AF_INET, SOCK_STREAM, 0);
++    if (rpc_fd < 0) {
++        perror("86Box RPC socket");
++        rpc_running = 0;
++        return;
++    }
++
++    setsockopt(rpc_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
++
++    memset(&addr, 0, sizeof(addr));
++    addr.sin_family      = AF_INET;
++    addr.sin_port        = htons((uint16_t) rpc_port);
++    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
++
++    if (bind(rpc_fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
++        perror("86Box RPC bind");
++        close(rpc_fd);
++        rpc_fd      = -1;
++        rpc_running = 0;
++        return;
++    }
++
++    if (listen(rpc_fd, 4) < 0) {
++        perror("86Box RPC listen");
++        close(rpc_fd);
++        rpc_fd      = -1;
++        rpc_running = 0;
++        return;
++    }
++
++    printf(EMU_NAME " RPC listening on http://127.0.0.1:%d\n", rpc_port);
++
++    while (rpc_running) {
++        const int client = accept(rpc_fd, NULL, NULL);
++
++        if (client < 0) {
++            if (rpc_running && (errno != EBADF) && (errno != EINTR))
++                perror("86Box RPC accept");
++            continue;
++        }
++
++        rpc_handle_client(client);
++        close(client);
++    }
++
++    if (rpc_fd >= 0) {
++        close(rpc_fd);
++        rpc_fd = -1;
++    }
++}
++
+ void
+ monitor_init(void)
+ {
++    const char *port = getenv("86BOX_RPC_PORT");
++
+ #if ENABLE_READLINE
+     libedit_handle = dynld_module(LIBEDIT_LIBRARY, libedit_imports);
+ 
+@@ -48,11 +294,35 @@ monitor_init(void)
+         fprintf(stderr, "sdl_monitor: couldn't load " LIBEDIT_LIBRARY ", line editing will be limited.\n");
+     }
+ #endif
++
++    if ((port != NULL) && *port) {
++        rpc_port = atoi(port);
++        if (rpc_port == 1)
++            rpc_port = 8686;
++
++        if ((rpc_port > 0) && (rpc_port <= 65535)) {
++            rpc_running = 1;
++            rpc_thread  = thread_create(rpc_server_thread, NULL);
++        }
++    }
+ }
+ 
+ void
+ monitor_close(void)
+ {
++    if (rpc_running) {
++        rpc_running = 0;
++        if (rpc_fd >= 0) {
++            shutdown(rpc_fd, SHUT_RDWR);
++            close(rpc_fd);
++            rpc_fd = -1;
++        }
++        if (rpc_thread != NULL) {
++            thread_wait(rpc_thread);
++            rpc_thread = NULL;
++        }
++    }
++
+ #if ENABLE_READLINE
+     if (f_rl_callback_handler_remove)
+         f_rl_callback_handler_remove();
+-- 
+2.50.1 (Apple Git-155)
+
+
+From 305c7c3fbfb3a70b05e50e7e4bd47ab615135b75 Mon Sep 17 00:00:00 2001
+From: Lain Soykaf <lain@lain.com>
+Date: Thu, 11 Jun 2026 23:32:14 +0400
+Subject: [PATCH 2/2] sound: portable OpenAL include fallback for macOS
+ framework headers
+
+---
+ src/sound/openal.c | 36 ++++++++++++++++++++++++++++++++----
+ 1 file changed, 32 insertions(+), 4 deletions(-)
+
+diff --git a/src/sound/openal.c b/src/sound/openal.c
+index f6f26e3ae..9d3b3f9ff 100644
+--- a/src/sound/openal.c
++++ b/src/sound/openal.c
+@@ -25,9 +25,37 @@
+ #define AL_LIBTYPE_STATIC
+ #define ALC_LIBTYPE_STATIC
+ 
+-#include "AL/al.h"
+-#include "AL/alc.h"
+-#include "AL/alext.h"
++#if defined(__has_include)
++#    if __has_include(<AL/al.h>)
++#        include <AL/al.h>
++#        include <AL/alc.h>
++#        if __has_include(<AL/alext.h>)
++#            include <AL/alext.h>
++#        endif
++#    elif __has_include(<OpenAL/al.h>)
++#        include <OpenAL/al.h>
++#        include <OpenAL/alc.h>
++#        if __has_include(<OpenAL/alext.h>)
++#            include <OpenAL/alext.h>
++#        endif
++#    else
++#        include "AL/al.h"
++#        include "AL/alc.h"
++#        include "AL/alext.h"
++#    endif
++#else
++#    include "AL/al.h"
++#    include "AL/alc.h"
++#    include "AL/alext.h"
++#endif
++
++#ifndef ALC_ALL_DEVICES_SPECIFIER
++#    define ALC_ALL_DEVICES_SPECIFIER 0x1013
++#endif
++
++#ifndef AL_FORMAT_STEREO_FLOAT32
++#    define AL_FORMAT_STEREO_FLOAT32 0x10011
++#endif
+ #include <86box/86box.h>
+ #include <86box/midi.h>
+ #include <86box/sound.h>
+@@ -398,4 +426,4 @@ void
+ givealbuffer_hdd(const void *buf, const uint32_t size)
+ {
+     givealbuffer_common(buf, I_HDD, (int) size, FREQ);
+-}
+\ No newline at end of file
++}
+-- 
+2.50.1 (Apple Git-155)
+

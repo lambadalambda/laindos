@@ -187,3 +187,48 @@ Use these heuristics:
 - The root cause was QEMU i386 TCG `SAHF` lazy condition-code handling: `SAHF` updated `cpu_cc_src` but did not materialize `CC_OP_EFLAGS`, so the following `JNP` used stale parity state.
 - The one-line fix is saved as `docs/qemu-sahf-ccop.patch` and committed in the sibling QEMU clone as `06cbfb3 target/i386: mark SAHF flags as materialized`.
 - With that patched QEMU, Ascendancy reaches gameplay under LainDOS.
+
+## Headless 86Box For Automated Tests
+
+A headless, scriptable 86Box comes from the local 86Box checkout plus
+`docs/86box-rpc.patch`, which adds an opt-in localhost HTTP RPC to the
+SDL (non-Qt) frontend: `/status`, `/key?scan=<at-set-1>[&down=0|1]`,
+`/screenshot`, `/monitor?cmd=<urlencoded>`, and `/exit`, enabled by the
+`86BOX_RPC_PORT` environment variable (the patch also carries a
+portable OpenAL include fix for macOS framework headers). Build it
+with:
+
+```sh
+git clone --shared /path/to/86box build/86box
+cd build/86box
+git checkout -b laindos-rpc
+git am ../../docs/86box-rpc.patch
+cmake -B build-headless -DQT=OFF -DCMAKE_BUILD_TYPE=Release -DRTMIDI=OFF -DFLUIDSYNTH=OFF -DMUNT=OFF -DDISCORD=OFF
+cmake --build build-headless -j 10
+```
+
+`scripts/box86lib.py` wraps the rest: it launches the binary with
+`SDL_VIDEODRIVER=dummy` (no window) through `testlib.start_qemu`, so
+serial output lands in the usual chunk readers, and provides RPC typing
+helpers (AT set-1 scancodes), screenshot retrieval, and a pure-stdlib
+PNG stats reader matching `ppm_stats`. The binary is found at
+`build/86box/build-headless/src/86Box.app/Contents/MacOS/86Box` or via
+`LAINDOS_86BOX_HEADLESS`; ROMs default to the installed app's set at
+`~/Library/Application Support/net.86box.86Box/roms` or
+`LAINDOS_86BOX_ROMS`.
+
+Profile gotchas learned the hard way:
+
+- With `serial1_device = stdio` the profile MUST also contain
+  `[Virtual Console (COM) #1]` with `mode = 0`. Without it the char
+  device defaults to its pseudoterminal mode, and the first guest
+  serial byte spins forever in `char_stdio_write` against the
+  reader-less PTY -- inside the emulator's timer processing, which
+  holds the blit mutex, so the whole emulator (and the RPC
+  `/screenshot` path behind `startblit()`) wedges.
+- A fresh profile stops at the Award "CMOS checksum error / Press F1"
+  prompt on first boot; send `/key?scan=0x3b` (F1) until the shell
+  prompt appears (`box86lib` test flows do this in their boot loop).
+- `make test-civ-86box` is the first consumer: it verifies Civilization
+  reaches its title menu under 86Box -- the screen QEMU never reaches
+  because of its PIT interaction with the game's INT 08 hook.
