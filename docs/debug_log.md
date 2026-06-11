@@ -2,6 +2,33 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-11 MI2 Save Crash: Tick Batching Into iMUSE's Non-Reentrant INT 08 Hook
+
+### Symptoms
+
+- Monkey Island 2 crashed during the save-dialog flow on ~40-50% of runs since the HMA kernel relocation (2b88c89); the pre-HMA revision b28cfad completed save/reload 6/6.
+- The kernel printed `EXC 06 at 0674:FF0C` with plausible-looking faulting bytes.
+
+### Confirmed Facts
+
+- The EXC report was garbage: QEMU `-d int,cpu` shows the only real #UD at CS=FFFF EIP=0x0D86, mid-instruction *inside exc06_handler itself*. Wandering execution fell into the handler body and `.real_invalid` printed stack residue as the frame. Breakpoints on the reported address can never fire.
+- The failure is nondeterministic, so every single-run experiment verdict is void. Multi-run (N>=6) series exonerated: A20 state, XMS advertisement, INT 15h 88h hook, PS/2 mouse, EXE loader/relocations (byte-exact in-guest image verifier passed 6/6 at the failing placement), pool size, forced-IF removal alone, InDOS fix alone.
+- QEMU int log shows hardware INT 08 delivered twice in a row with the CPU at exactly 2A4A:0767 -- the entry of the game's iMUSE timer handler (inside the loaded SPEAKER.IMS block) -- with IF=1.
+- Removing the `.IMS` iMUSE drivers from the image (game silent, hook never installed) eliminates the crash: 0/6 vs ~40-50% baseline.
+- Mechanism: LainDOS ran whole INT 21h calls with IF=0 and forced IF=1 on the saved FLAGS at IRET, so pending ticks burst in right after each DOS call returns -- at game-code instruction boundaries -- instead of draining inside the call as on real DOS. A burst landing at the non-reentrant iMUSE handler entry re-enters it. The HMA relocation only shifted INT 21h timing enough to move the burst onto the vulnerable window.
+
+### Fix
+
+- Adopted the faithful interrupt model prescribed by the 2026-06-01 entry: `STI` in the INT 21h body after the register frame save, forced-IF ORs removed from all IRET helpers (caller IF preserved), and `STI` before EXEC child entry so programs start with IF=1 like real DOS.
+- `scripts/test_findedge.py` now asserts IF preservation (clear after a CLI'd FindFirst, set across an STI'd FindNext) instead of forced IF=1.
+- En route, fixed for real: EXEC children now run with InDOS=0 (88a36ba) and the kernel exception dump includes stack and registers.
+
+### Next Probes
+
+- Rerun Stunt Island manually (`scripts/run_stunt_island.py`); it was the original beneficiary of the forced-IF shim and must still pass its post-intro timer wait under the faithful model.
+- The save-flow choreography in `scripts/test_mi2_save.py` still does not complete on current kernels even in non-crashing runs (timing-keyed keystrokes); retune it and consider promoting it to the registered suite.
+- Known fidelity gap: MS-DOS executes `STI` only after switching to a DOS-owned stack; LainDOS still runs INT 21h on the caller's stack, so interrupts serviced mid-call now consume caller stack on top of the DOS frame. If a game with a tight stack overflows, add internal dispatcher stacks before weakening the STI.
+
 ## 2026-06-10 HMA Kernel Relocation: DOS/4GW GDT Corruption At 1 MiB
 
 ### Symptoms

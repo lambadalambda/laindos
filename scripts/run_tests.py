@@ -148,6 +148,7 @@ DEFAULT_TESTS = [
     "scripts/test_ctrunc.py",
     "scripts/test_bigrelhi.py",
     "scripts/test_indosexec.py",
+    "scripts/test_tickspin.py",
     "scripts/test_timeoutguard.py",
     "scripts/test_mkimage.py",
 ]

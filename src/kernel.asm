@@ -436,7 +436,6 @@ iret_nc:
     push bp
     mov bp, sp
     and word [bp+6], ~CF
-    or word [bp+6], IFLAG
     dec byte [cs:indos_flag]
     pop bp
     iret
@@ -444,7 +443,7 @@ iret_nc:
 iret_cy:
     push bp
     mov bp, sp
-    or word [bp+6], CF | IFLAG
+    or word [bp+6], CF
     dec byte [cs:indos_flag]
     pop bp
     iret
@@ -453,7 +452,7 @@ iret_nc_zf:
     push bp
     mov bp, sp
     and word [bp+6], ~CF
-    or word [bp+6], ZF | IFLAG
+    or word [bp+6], ZF
     dec byte [cs:indos_flag]
     pop bp
     iret
@@ -462,7 +461,6 @@ iret_nc_nz:
     push bp
     mov bp, sp
     and word [bp+6], ~(CF | ZF)
-    or word [bp+6], IFLAG
     dec byte [cs:indos_flag]
     pop bp
     iret
@@ -470,7 +468,7 @@ iret_nc_nz:
 iret_cy_no_indos:
     push bp
     mov bp, sp
-    or word [bp+6], CF | IFLAG
+    or word [bp+6], CF
     pop bp
     iret
 
@@ -3788,7 +3786,6 @@ int2f_iret_nc:
     push bp
     mov bp, sp
     and word [bp+6], ~CF
-    or word [bp+6], IFLAG
     pop bp
     iret
 

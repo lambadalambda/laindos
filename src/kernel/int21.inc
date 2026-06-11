@@ -309,6 +309,7 @@ int21_handler:
     cmp byte [cs:mouse_in_callback], 0
     jne .reject_reentry
     inc byte [cs:indos_flag]
+    sti
     cmp ah, 0x4C
     je .terminate
     cmp ah, 0x09

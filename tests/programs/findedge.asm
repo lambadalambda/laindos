@@ -51,10 +51,9 @@ start:
     int 0x21
     pushf
     pop bx
-    test bx, 0x0200
-    jnz .find_first_if_ok
     sti
-    jmp fail_find_if
+    test bx, 0x0200
+    jnz fail_find_if
 .find_first_if_ok:
     test bx, 0x0001
     jnz fail_drive_root
@@ -65,9 +64,13 @@ start:
 
     mov ah, 0x4F
     int 0x21
+    pushf
+    pop bx
     jnc fail_next_exhaust
     cmp ax, 2
     jne fail_next_exhaust
+    test bx, 0x0200
+    jz fail_find_if
 
     mov dx, pass_msg
     mov ah, 0x09

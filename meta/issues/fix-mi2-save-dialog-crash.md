@@ -89,3 +89,32 @@ Key discoveries:
    model (STI inside the DOS body, preserve caller IF on return) as the
    eventual replacement for the IF-force shim; a staged patch exists at
    /tmp/faithful_if_patch.py but is unproven against this bug.
+
+## Root cause identified (2026-06-11)
+
+Two experiments closed the case:
+
+1. **iMUSE driver removal**: stripping the `.IMS` sound drivers from the
+   image (game runs silent, never installs its INT 08 hook at 2A4A:0767)
+   eliminates the crash completely -- 0/6 vs ~40-50% baseline. The game's
+   iMUSE timer hook is a *required ingredient*; the kernel does not corrupt
+   anything on its own.
+2. **Tick batching**: the old kernel ran entire INT 21h calls with IF=0 and
+   then forced IF=1 on the saved FLAGS at IRET (the Stunt Island shim).
+   Pending timer ticks therefore could not be serviced *during* DOS calls and
+   instead burst in immediately after IRET -- right at the game-code
+   instruction boundary following each DOS call. Real MS-DOS does the
+   opposite: STI inside the dispatcher after the stack switch, so ticks drain
+   while the caller is parked safely inside DOS. iMUSE's INT 08 handler is
+   non-reentrant and makes DOS calls; a burst landing at its entry (observed
+   in the QEMU int log: two INT 08 deliveries in a row at 2A4A:0767 with
+   IF=1) re-enters it and execution wanders into garbage. The HMA relocation
+   did not introduce the defect -- it shifted INT 21h timing enough to move
+   the burst window onto iMUSE's vulnerable entry in ~40% of boots.
+
+Fix: adopt the faithful interrupt model -- `STI` in the INT 21h body after
+the register frame is saved, remove all forced-IF `IRET` paths so the
+caller's IF is preserved, and `STI` before jumping to EXEC child entry so
+programs start with interrupts enabled like real DOS.
+`scripts/test_findedge.py` expectations updated to assert IF *preservation*
+(clear after CLI'd call, set across an STI'd call) instead of forced IF=1.

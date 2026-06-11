@@ -1741,6 +1741,7 @@ exec_exe_dyn:
     push word [cs:exe_ip]
     dec byte [cs:indos_flag]
     xor ax, ax
+    sti
     retf
 
 exec_com_dyn:
@@ -1780,6 +1781,7 @@ exec_com_dyn:
     push word 0x0100
     dec byte [cs:indos_flag]
     xor ax, ax
+    sti
 ; @anchor: exec_com_entry_jump
     retf
 
