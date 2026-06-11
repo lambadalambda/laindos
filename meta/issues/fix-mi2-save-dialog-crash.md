@@ -157,3 +157,31 @@ clean; sequencer counters advancing), packed-EXE unpacker placement bug
 (EXE is not packed). The "Overlay Alloc failed" box, the wandering EXC,
 and the silent clean exit are all manifestations downstream of one
 startup failure around the intro-music sync point.
+
+## Resolution (2026-06-11, final)
+
+Root cause: the HMA relocation set MCB_START=0x0640, loading programs at
+PSP 0x0664 -- below the ~0x0B00 floor that real MS-DOS systems ever
+produced (DOS itself plus buffers consumed the first ~45-80 KB). Era
+software was never tested with load segments that low, and MONKEY2.EXE
+reliably corrupts itself there: 0/13 unattended boots at PSP 0x0664
+(wandering EXC, "Overlay Alloc failed" box, or silent exit -- all one
+death), 13/13 clean boots at PSP 0x0B24+ on the same kernel. A delayed-
+launch control ruled out tick-phase timing; pmemsave diffs ruled out
+kernel-side corruption; a byte-exact in-guest verifier ruled out the
+loader. The exact defect inside SPUTM/iMUSE segment arithmetic is not
+pinned and does not need to be.
+
+Fix: MCB_START raised to 0x0B00 (the lowest placement real DOS could
+produce), tsrtest's hardcoded base updated, docs updated. Suite passes
+139/139 and MI2 reaches gameplay (campfire intro) with the original
+save-test choreography on the fully faithful kernel.
+
+Kernel improvements landed during the investigation, kept on their own
+merits: InDOS=0 for EXEC children (88a36ba), faithful INT 21h interrupt
+semantics (15c8f37), kernel-owned dispatcher stack (5d3e651), exception
+dumps with stack/registers, and the EXC-frame-spoofing discovery.
+
+Follow-up filed separately: retune scripts/test_mi2_save.py with
+state-driven choreography (its blind delays now point mid-intro), then
+verify full save/reload parity with the pre-HMA baseline.

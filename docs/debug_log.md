@@ -33,11 +33,18 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Statistical EIP sampling during the stall shows 74% of wall time inside BIOS INT 16h AH=01 via the kernel's keyboard-status path: the game is in a poll loop pumping AH=0Bh while waiting for iMUSE state that never advances.
 - Serial tracing slows DOS calls enough to kill the game at the same file position (POS=003E6B66 in MONKEY2.001, the music sync point) on BOTH kernels -- trace runs cannot discriminate kernel behavior there.
 
-### Next Probes
+### Resolution: Program Placement Below Real-DOS Floor
 
-- The open question is what the iMUSE game-side callback needs in order to advance past the music sync point: it runs at 291 Hz but defers when InDOS=1, and under LainDOS the game's poll loop spends ~99% of wall time inside INT 21h. Reducing the in-DOS duty cycle of the AH=0Bh/read paths (or understanding the callback's catch-up logic via RE of the MONKEY2.EXE iMUSE core) is the next lever.
-- Rerun Stunt Island manually (`scripts/run_stunt_island.py`); it was the original beneficiary of the forced-IF shim. Per project decision the shim stays removed even if Stunt Island regresses -- debug that separately if so.
-- The save-flow choreography in `scripts/test_mi2_save.py` diverges from current boot timing long before the save dialog (blind fixed delays); retune with state detection once the game runs again.
+- The decisive variable was the game's load segment, not interrupt semantics. Unattended outcome distributions: PSP 0x0664 (arena base 0x0640) fails 0/13 (wandering EXC, "Overlay Alloc failed" box, or silent clean exit -- all the same death); PSP 0x0B24+ (arena base 0x0B00, or a working 0x4C0-paragraph resident pad on the 0x0640 base) boots 13/13 to the copy-protection screen and the campfire intro, on the full faithful kernel.
+- Confounders eliminated on the way: launch-phase timing (delayed-launch 4/4 on the good layout), heap-claim size thresholds, MEM_TOP, arena size, XMS HMA/A20, A20 transients, EXE image corruption (byte-exact verifier), driver-overlay memory corruption (pmemsave diffs clean, sequencer counters advancing), packed-EXE placement bugs (image is not packed), writes below the PSP (low-region diffs clean). A first pad attempt silently held only 0x143 paragraphs because AH=31h cannot grow a COM allocation beyond its block (COM_EXTRA_PAR) -- padding the COM image itself fixed the experiment.
+- Root cause: real MS-DOS systems never produced program PSPs below roughly 0x0B00 (IO.SYS, MSDOS.SYS, buffers, and stacks consumed the first ~45-80 KB), so era software was never tested at lower segments. The HMA relocation set MCB_START=0x0640 and handed MONKEY2.EXE a load placement no period machine could produce; something in SPUTM/iMUSE segment arithmetic breaks there. The exact in-game defect is not pinned (it would take engine RE) and does not need to be.
+- Fix: MCB_START raised to 0x0B00 -- the lowest placement real DOS could produce -- keeping roughly half the HMA relocation's conventional-memory gain. `tests/programs/tsrtest.asm` had the old base hardcoded and was updated. Suite passes 139/139; MI2 reaches gameplay with the original choreography.
+- The interrupt-semantics work this investigation produced (faithful IF, dispatcher stack, InDOS for children) stands on its own merits and stays.
+
+### Remaining Follow-Ups
+
+- `scripts/test_mi2_save.py` choreography diverges from current boot timing (blind fixed delays; its "save dialog" screendump now lands mid-intro). Retune with state detection (screendump-based) and consider registering it.
+- Rerun Stunt Island manually (`scripts/run_stunt_island.py`). Per project decision the forced-IF shim stays removed even if Stunt Island regresses -- debug separately if so.
 
 ## 2026-06-10 HMA Kernel Relocation: DOS/4GW GDT Corruption At 1 MiB
 

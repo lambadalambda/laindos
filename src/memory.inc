@@ -9,7 +9,14 @@ CD_BUF_PARAS equ 0x80
 CD_BUF equ 0x0180
 SEC_BUF equ 0x0200
 READ_CACHE_BUF equ (SEC_BUF + SECTOR_BUF_PARAS)
-MCB_START equ 0x0640
+; Real DOS systems never hand out program memory this low: IO.SYS,
+; MSDOS.SYS, buffers, and stacks consumed the first ~45-80 KB, so the
+; first PSP on period machines sat at roughly 0x0B00 or above. Era
+; software was never tested with lower load segments -- MONKEY2.EXE
+; reliably corrupts itself when loaded at 0x0664 and runs clean at
+; 0x0B24+ (see meta/issues/fix-mi2-save-dialog-crash.md). Keep the
+; arena base at the lowest placement real DOS could produce.
+MCB_START equ 0x0B00
 MEM_TOP equ 0xA000
 ENV_PARAS equ 16
 ENV_SIZE_BYTES equ (ENV_PARAS * 16)

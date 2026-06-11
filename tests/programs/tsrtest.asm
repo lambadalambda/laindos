@@ -1,7 +1,7 @@
 [bits 16]
 [org 0x0100]
 
-MCB_START equ 0x0640
+MCB_START equ 0x0B00
 MEM_TOP equ 0xA000
 TSR_KEEP equ 0x0030
 

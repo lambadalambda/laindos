@@ -56,7 +56,7 @@ Current important segment layout:
 0200:0000  sector buffer
 0220:0000  read cache buffer
 0240:0000  root directory buffer
-0640:0000  start of MCB-managed program and environment memory
+0B00:0000  start of MCB-managed program and environment memory
 A000:0000  VGA graphics memory
 FFFF:0010  relocated kernel in the HMA (A20 enabled at boot)
 FFFF:FFF0  kernel stack top
@@ -66,7 +66,7 @@ Disk I/O delegates to BIOS `INT 13h`. Filesystem and DOS API layers are intentio
 
 When built with `ENABLE_EMS=1`, the experimental EMS frame uses `9000:0000`. That frame is writable and backed, but it is not carved out of the DOS MCB arena; reserving 64 KiB there drops Wolfenstein 3D below its conventional-memory threshold, while leaving it unreserved can corrupt programs that also allocate that range. Default builds therefore hide EMS.
 
-The kernel image and stack live in the High Memory Area (FFFF:0010), so low memory holds only the disk buffers and the DOS arena starts at 0640:0000 (~614 KiB free conventional memory). The kernel enables the A20 line at boot and its XMS shim reports A20 as permanently enabled. See `src/memory.inc` and the compile-time assertions near the end of `src/kernel.asm` before moving buffers or adding large kernel features.
+The kernel image and stack live in the High Memory Area (FFFF:0010), so low memory holds only the disk buffers and the DOS arena starts at 0B00:0000 (~595 KiB free conventional memory; the base matches the lowest program placement real DOS produced, since era software breaks below it). The kernel enables the A20 line at boot and its XMS shim reports A20 as permanently enabled. See `src/memory.inc` and the compile-time assertions near the end of `src/kernel.asm` before moving buffers or adding large kernel features.
 
 ## CPU Target
 

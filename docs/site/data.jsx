@@ -44,7 +44,7 @@ const NAV = [
 const MEMMAP = [
   { seg: "FFFF", name: "Relocated kernel (HMA)", note: "HMA_SEG:0010 — stack top at FFF0h, A20 kept on", key: "kernel" },
   { seg: "A000", name: "VGA graphics memory", note: "MEM_TOP — mode 13h framebuffer", key: "vga" },
-  { seg: "0640", name: "Program + environment arena", note: "MCB_START — where games live", key: "arena", grow: true },
+  { seg: "0B00", name: "Program + environment arena", note: "MCB_START — where games live", key: "arena", grow: true },
   { seg: "0240", name: "Root directory buffer", note: "ROOT_SEG", key: "root" },
   { seg: "0220", name: "Read cache buffer", note: "READ_CACHE_BUF", key: "cache" },
   { seg: "0200", name: "Sector buffer", note: "SEC_BUF", key: "sec" },
@@ -152,7 +152,7 @@ const STAGES = [
     title: "The kernel relocates itself into the HMA",
     prose: [
       "The kernel is assembled with `org 0x10` and was staged at physical 0x10000, but it wants conventional memory free for programs — so it lives in the High Memory Area, the 64 KiB minus 16 bytes at FFFF:0010 that real mode can address once the A20 gate is open. Its first act is to enable A20 (INT 15h AX=2401h, then the keyboard controller, then port 92h, verified each time by a wraparound compare), copy itself up to HMA_SEG, and far-jump into the copy.",
-      "The entry point is re-entrant by design: it compares CS against HMA_SEG and only relocates if it isn't already there. After the jump it points every segment register at 0xFFFF, installs the stack at 0xFFF0 — the top of the HMA — and resets the FPU. Low memory keeps only the disk buffers, so the DOS arena can start at 0640h.",
+      "The entry point is re-entrant by design: it compares CS against HMA_SEG and only relocates if it isn't already there. After the jump it points every segment register at 0xFFFF, installs the stack at 0xFFF0 — the top of the HMA — and resets the FPU. Low memory keeps only the disk buffers; the DOS arena starts at 0B00h, the lowest program placement real DOS systems ever produced — era software was never tested with load segments below that.",
     ],
     code: [
       [121, "kernel_entry:"],

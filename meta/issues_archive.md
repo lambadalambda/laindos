@@ -195,3 +195,4 @@
 - [x] [Extract a Sam & Max test library](issues/extract-sammax-test-library.md)
 - [x] [Make game tests parallel-safe](issues/make-game-tests-parallel-safe.md)
 - [x] [Add a common include for DOS test programs](issues/add-test-program-common-include.md)
+- [x] [Fix the Monkey Island 2 save dialog crash](issues/fix-mi2-save-dialog-crash.md)
