@@ -13,12 +13,17 @@ SOURCE_EXCERPT_DOCS = [
 ]
 PATH_REF_DOCS = [
     ROOT / "README.md",
+    ROOT / "docs/architecture.md",
+    ROOT / "docs/building.md",
+    ROOT / "docs/games.md",
+    ROOT / "docs/status.md",
     ROOT / "docs/test_ladder.md",
     ROOT / "docs/site/README.md",
     *sorted((ROOT / "docs/site").glob("*.jsx")),
 ]
 TEST_COUNT_DOCS = [
     ROOT / "README.md",
+    ROOT / "docs/status.md",
     ROOT / "docs/site/shell.jsx",
 ]
 ALLOW_MISSING_PATHS = {
