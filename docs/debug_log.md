@@ -2852,3 +2852,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - A caveat for history-based mapping: contiguous excerpt runs can keep stale keys "valid" by accident, so an off-by-one survives the subset test — data.jsx s1/s2 needed manual nudges after the mechanical pass.
 - `scripts/check_docs_sync.py` now checks every numeric `hi:` value and numeric annotation key against its own code block's excerpt lines (and hi anchors against the block's anchor entries), verified by a deliberate-bad-key negative test; this drift class now fails `make test`.
 - FAT-type false positive worth remembering: the docs say "fewer than 4085 clusters means FAT12" while the kernel compares `kmax_cluster` with 4087 — `kmax_cluster` is cluster count + 2, so both state the same spec boundary.
+
+## 2026-06-11 Stunt Island Scripted Smoke
+
+- `scripts/build_stunt_hd.py` now rebuilds the bootable installer-media image from `vendor/002514_stunt_island.7z` (six floppy images extracted through the FAT reader, files at the root plus `RES`/`SETS`/`VAULT`), and `scripts/test_stunt_island_smoke.py` drives the full pipeline headlessly under QEMU `-snapshot`.
+- Installer choreography via `0xB8000` text-screen polling: Welcome ("Press ENTER to continue"), Setup with default Mouse/PC Speaker configuration, Destination Path `C:\STUNTISL`, a copy phase that completes in under 15 seconds, and "Installation Complete".
+- The installer exits with the DOS current directory left at `C:\STUNTISL` (single-tasking global CWD, faithful behavior), so the smoke launches with an absolute `CD \STUNTISL`.
+- Launch timeline under the faithful kernel: VGA intro frames from ~30s (~56-97 colors), the interactive competition prompt by ~120s with stable framebuffer stats `(208, 217732)`, BIOS tick advancing throughout. The smoke asserts a prompt-class screen (>=150 colors, >=100k nonblack pixels) within 240s plus an advancing tick — the frozen-tick black screen was the historical IF-on-IRET failure mode, so the tick check guards the faithful interrupt semantics.

@@ -14,7 +14,7 @@ What LainDOS implements today, and the compatibility decisions behind it.
 - Builds and runs the bundled shell-boot Monkey Island demo floppy.
 - Runs the full VGA Monkey Island image when `vendor/monkey_full.zip` is present.
 - Runs the full Monkey Island 2: LeChuck's Revenge with working in-game save and load, verified end to end by the vendor-gated `make test-mi2-save` smoke.
-- Installs Stunt Island from its source media through the in-game installer and boots the installed game to its interactive startup prompts under QEMU.
+- Installs Stunt Island from its source media through the in-game installer and boots the installed game to its interactive startup prompts under QEMU, verified by the vendor-gated `make test-stunt-island-smoke`.
 - Runs Norton Commander 5.5 with startup, child-launch, file-copy, rename/delete, and mkdir/rmdir smokes, and Shortline to an active game screen, when the local archives are present.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.

@@ -66,13 +66,31 @@ The task extracts `vendor/Bestseller Games Gold 3 - Sam & Max Hit the Road.zip` 
 
 ## Stunt Island
 
-If the local generated Stunt Island image exists at `build/stunt_xmsfix_hd.img`, boot it in a normal visible QEMU window and launch `STUNT` using:
+Build the bootable installer-media image from `vendor/002514_stunt_island.7z`:
+
+```sh
+python3 scripts/build_stunt_hd.py
+```
+
+The generated `build/stunt_hd.img` boots to the LainDOS shell with the six installer floppies' contents laid out for the Disney installer. Install once with writes persisting (run `INSTALL` at the prompt and press ENTER through the defaults; it produces `C:\STUNTISL`):
+
+```sh
+python3 scripts/run_stunt_island.py --no-launch --no-snapshot --no-current-kernel
+```
+
+After that, boot the installed image in a normal visible QEMU window and launch `STUNT` with:
 
 ```sh
 mise run run-stunt-island
 ```
 
 Set `LAINDOS_STUNT_IMAGE=/path/to/image.img` to use a different local Stunt image. The task rebuilds a shell-boot `KERNEL.SYS` from current source and patches it into `build/run_stunt_island_current.img`, leaving the source image unchanged; set `LAINDOS_STUNT_CURRENT_KERNEL=0` to boot the image as-is. The task uses QEMU `-snapshot` by default; set `LAINDOS_STUNT_SNAPSHOT=0` if you intentionally want writes to persist to the disposable runtime image. Set `LAINDOS_STUNT_VNC=127.0.0.1:58` only if you also want a VNC endpoint.
+
+The vendor-gated smoke runs the whole pipeline headlessly — rebuild the installer image, drive the installer through its defaults, launch `STUNT`, and verify the game reaches its interactive startup prompt with the BIOS tick advancing:
+
+```sh
+make test-stunt-island-smoke
+```
 
 ## External Hard-Disk Images
 

@@ -177,6 +177,7 @@ EXTERNAL_TESTS = {
     "test_sammax_cd_start.py",         # Sam & Max CD image (make test-sammax-cd-start)
     "test_shell_monkey.py",            # monkey demo files (make test-shell-monkey)
     "test_shortline_smoke.py",         # vendor SHRTLINE zip (make test-shortline-smoke)
+    "test_stunt_island_smoke.py",      # vendor Stunt Island 7z (make test-stunt-island-smoke)
     "test_wolf3d_smoke.py",            # vendor wolf3dsw zip (make test-wolf3d-smoke)
 }
 BOOT_TESTS = {"test_boot.py"}

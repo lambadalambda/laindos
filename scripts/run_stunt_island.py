@@ -12,7 +12,7 @@ from testlib import open_monitor, qemu_binary, qemu_vga, send_monitor_key, send_
 
 
 MONITOR = os.path.join("build", "run_stunt_island.sock")
-DEFAULT_IMAGE = "build/stunt_xmsfix_hd.img"
+DEFAULT_IMAGE = "build/stunt_hd.img"
 CURRENT_IMAGE = "build/run_stunt_island_current.img"
 CURRENT_KERNEL = "build/run_stunt_island_kernel.bin"
 
@@ -156,7 +156,7 @@ def main():
     image = os.path.abspath(args.image)
     if not os.path.isfile(image):
         print(f"Missing Stunt Island image: {image}", file=sys.stderr)
-        print("Set LAINDOS_STUNT_IMAGE or rebuild the local generated Stunt image first.", file=sys.stderr)
+        print("Set LAINDOS_STUNT_IMAGE or build one with scripts/build_stunt_hd.py first.", file=sys.stderr)
         return 1
 
     os.makedirs("build", exist_ok=True)
