@@ -329,38 +329,13 @@ parse_dir_args:
     ret
 
 copy_dir_operand:
-    push ax
     push cx
     push di
     mov di, dir_pattern
     mov cx, dir_pattern_size - 1
-.copy:
-    mov al, [si]
-    test al, al
-    jz .end
-    cmp al, ' '
-    je .end
-    test cx, cx
-    jz .skip_rest
-    stosb
-    dec cx
-    inc si
-    jmp .copy
-.skip_rest:
-    inc si
-.skip_rest_loop:
-    cmp byte [si], 0
-    je .end
-    cmp byte [si], ' '
-    je .end
-    inc si
-    jmp .skip_rest_loop
-.end:
-    xor al, al
-    stosb
+    call copy_path_token
     pop di
     pop cx
-    pop ax
     ret
 
 finish_dir_pattern:
@@ -759,6 +734,11 @@ print_dir_summary:
     mov dx, dir_bytes_msg
     call print_dollar
     call dir_line_end
+    mov ax, [dir_dir_count]
+    xor dx, dx
+    call print_dword_dec_width10
+    mov dx, dir_dir_count_msg
+    call print_dollar
     call get_dir_free_bytes
     mov ax, [dir_free_lo]
     mov dx, [dir_free_hi]
@@ -1110,6 +1090,22 @@ do_copy:
 copy_one_file:
     call build_copy_destination
     jc .file_error
+    push si
+    push di
+    mov si, copy_src_path
+    mov di, copy_dst_final
+    call fold_match_token
+    jne .not_self
+    cmp byte [si], 0
+    jne .not_self
+    pop di
+    pop si
+    mov dx, copy_self_msg
+    call print_dollar
+    ret
+.not_self:
+    pop di
+    pop si
     mov dx, copy_src_path
     xor al, al
     mov ah, 0x3D
@@ -1201,11 +1197,13 @@ parse_copy_args:
     jmp .loop
 .src:
     mov di, copy_src_path
+    mov cx, copy_path_size - 1
     call copy_path_token
     inc byte [copy_arg_count]
     jmp .loop
 .dst:
     mov di, copy_dst_path
+    mov cx, copy_path_size - 1
     call copy_path_token
     inc byte [copy_arg_count]
     jmp .loop
@@ -1231,11 +1229,13 @@ parse_copy_args:
 .done:
     ret
 
+; SI = input, DI = destination, CX = capacity minus the terminator.
+; Copy a token up to blank, tab, or end of line; NUL-terminate; leave
+; SI past the token (skipping an over-long tail).
 copy_path_token:
     push ax
     push cx
     push di
-    mov cx, copy_path_size - 1
 .copy:
     mov al, [si]
     test al, al
@@ -1357,19 +1357,12 @@ path_basename_ptr:
     pop ax
     ret
 
-confirm_copy_overwrite:
-    cmp byte [copy_yes], 0
-    jne .yes
-    mov dx, copy_dst_final
-    xor al, al
-    mov ah, 0x43
-    int 0x21
-    jc .yes
-    mov dx, copy_overwrite_msg
+; DX = leading message, SI = path to echo. Prints "<msg><path>? (Y/N)",
+; reads one key, and returns CF clear when the answer is Y.
+confirm_yn_prompt:
     call print_dollar
-    mov si, copy_dst_final
     call print_asciiz
-    mov dx, copy_overwrite_suffix
+    mov dx, confirm_suffix
     call print_dollar
     mov ah, 0x08
     int 0x21
@@ -1383,6 +1376,21 @@ confirm_copy_overwrite:
     je .yes
     stc
     ret
+.yes:
+    clc
+    ret
+
+confirm_copy_overwrite:
+    cmp byte [copy_yes], 0
+    jne .yes
+    mov dx, copy_dst_final
+    xor al, al
+    mov ah, 0x43
+    int 0x21
+    jc .yes
+    mov dx, copy_overwrite_msg
+    mov si, copy_dst_final
+    jmp confirm_yn_prompt
 .yes:
     clc
     ret
@@ -1538,6 +1546,7 @@ parse_del_args:
     cmp byte [del_has_arg], 0
     jne .skip_token
     mov di, del_path
+    mov cx, copy_path_size - 1
     call copy_path_token
     mov byte [del_has_arg], 1
     jmp .loop
@@ -1568,23 +1577,8 @@ confirm_del_prompt:
     cmp byte [del_prompt], 0
     je .yes
     mov dx, del_confirm_msg
-    call print_dollar
     mov si, del_path
-    call print_asciiz
-    mov dx, del_confirm_suffix
-    call print_dollar
-    mov ah, 0x08
-    int 0x21
-    push ax
-    mov dx, crlf
-    call print_dollar
-    pop ax
-    cmp al, 'Y'
-    je .yes
-    cmp al, 'y'
-    je .yes
-    stc
-    ret
+    jmp confirm_yn_prompt
 .yes:
     clc
     ret
@@ -1663,11 +1657,13 @@ parse_ren_args:
     jmp .loop
 .src:
     mov di, ren_src_path
+    mov cx, copy_path_size - 1
     call copy_path_token
     inc byte [ren_arg_count]
     jmp .loop
 .dst:
     mov di, ren_dst_path
+    mov cx, copy_path_size - 1
     call copy_path_token
     inc byte [ren_arg_count]
     jmp .loop
@@ -2043,30 +2039,38 @@ copy_batch_label:
     stc
     ret
 
-batch_label_match:
+; Case-insensitive compare of the line at SI against the NUL-terminated
+; token at DI. Returns ZF set with SI just past the match; ZF clear on
+; the first mismatch. Clobbers AX.
+fold_match_token:
 .loop:
     mov al, [di]
     test al, al
-    jz .end_label
+    jz .done
     mov ah, [si]
     cmp al, 'a'
-    jb .target_case_ok
+    jb .target_ok
     cmp al, 'z'
-    ja .target_case_ok
+    ja .target_ok
     sub al, 32
-.target_case_ok:
+.target_ok:
     cmp ah, 'a'
-    jb .line_case_ok
+    jb .line_ok
     cmp ah, 'z'
-    ja .line_case_ok
+    ja .line_ok
     sub ah, 32
-.line_case_ok:
+.line_ok:
     cmp ah, al
-    jne .no
+    jne .done
     inc si
     inc di
     jmp .loop
-.end_label:
+.done:
+    ret
+
+batch_label_match:
+    call fold_match_token
+    jne .no
     mov al, [si]
     test al, al
     jz .yes
@@ -2131,33 +2135,43 @@ parse_pause_args:
     call skip_shell_word
     jmp parse_pause_scan
 
-parse_pause_scan:
-.pause_scan_loop:
-    call skip_spaces
-    mov al, [si]
-    test al, al
-    jz .pause_done
-    cmp al, 13
-    je .pause_done
-    cmp al, 10
-    je .pause_done
-    cmp al, '>'
-    jne .pause_scan_advance
-    inc si
+; SI just past '>'. CF set when the redirect target is NUL.
+match_nul_redirect:
     call skip_spaces
     push si
     mov di, nul_arg
     call cmd_match
     pop si
-    jc .pause_set_quiet
-    jmp .pause_done
-.pause_scan_advance:
-    inc si
-    jmp .pause_scan_loop
-.pause_set_quiet:
-    mov byte [pause_quiet], 1
-.pause_done:
     ret
+
+; BX = quiet flag to set when a ">NUL" redirect appears before the end
+; of the line. Stops at the first '>' either way.
+scan_for_nul_redirect:
+.loop:
+    call skip_spaces
+    mov al, [si]
+    test al, al
+    jz .done
+    cmp al, 13
+    je .done
+    cmp al, 10
+    je .done
+    cmp al, '>'
+    jne .advance
+    inc si
+    call match_nul_redirect
+    jnc .done
+    mov byte [bx], 1
+    ret
+.advance:
+    inc si
+    jmp .loop
+.done:
+    ret
+
+parse_pause_scan:
+    mov bx, pause_quiet
+    jmp scan_for_nul_redirect
 
 parse_mode_args:
     mov byte [mode_co80], 0
@@ -2182,11 +2196,7 @@ parse_mode_scan:
     cmp al, '>'
     jne .mode_scan_advance
     inc si
-    call skip_spaces
-    push si
-    mov di, nul_arg
-    call cmd_match
-    pop si
+    call match_nul_redirect
     jc .mode_set_quiet
     jmp .mode_done
 .mode_scan_advance:
@@ -2237,11 +2247,7 @@ parse_more_scan:
     cmp al, '>'
     jne .more_scan_advance
     inc si
-    call skip_spaces
-    push si
-    mov di, nul_arg
-    call cmd_match
-    pop si
+    call match_nul_redirect
     jc .more_scan_set_quiet
     jmp .more_done
 .more_scan_set_quiet:
@@ -2559,11 +2565,7 @@ print_prompt:
     ret
 
 print_drive_root:
-    mov ah, 0x19
-    int 0x21
-    add al, 'A'
-    mov dl, al
-    call print_char_dl
+    call print_current_drive_letter
     mov dx, prompt_drive
     call print_dollar
     ret
@@ -3389,23 +3391,8 @@ skip_command_prefix:
 cmd_match:
     push ax
     call skip_command_prefix
-.loop:
-    mov al, [di]
-    test al, al
-    jz .end_cmd
-    mov ah, [si]
-    cmp ah, 'a'
-    jb .cmp_char
-    cmp ah, 'z'
-    ja .cmp_char
-    sub ah, 32
-.cmp_char:
-    cmp ah, al
+    call fold_match_token
     jne .no
-    inc si
-    inc di
-    jmp .loop
-.end_cmd:
     mov al, [si]
     test al, al
     jz .yes
@@ -3557,15 +3544,16 @@ dir_no_label_msg: db " has no label", "$"
 dir_of_msg: db " Directory of ", "$"
 dir_dir_field: db "     <DIR>", "$"
 dir_file_count_msg: db " File(s) ", "$"
+dir_dir_count_msg: db " Dir(s) ", "$"
 dir_bytes_msg: db " bytes", "$"
 dir_free_msg: db " bytes free", "$"
 dir_pause_msg: db "Press any key to continue . . .", "$"
 copy_success_msg: db "        1 File(s) copied.", 13, 10, "$"
+copy_self_msg: db "File cannot be copied onto itself", 13, 10, "$"
 copy_not_copied_msg: db "File not copied.", 13, 10, "$"
 copy_overwrite_msg: db "Overwrite ", "$"
-copy_overwrite_suffix: db "? (Y/N)", "$"
+confirm_suffix: db "? (Y/N)", "$"
 del_confirm_msg: db "Delete ", "$"
-del_confirm_suffix: db "? (Y/N)", "$"
 del_not_deleted_msg: db "File not deleted.", 13, 10, "$"
 invalid_dst_msg: db "Invalid destination", 13, 10, "$"
 too_many_args_msg: db "Too many arguments", 13, 10, "$"

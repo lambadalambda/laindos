@@ -203,3 +203,4 @@
 - [x] [Consolidate MCB allocation and walk paths](issues/consolidate-mcb-allocation-paths.md)
 - [x] [Apply shared helpers across INT 21h and path code](issues/apply-shared-int21-helpers.md)
 - [x] [Deduplicate CD-ROM driver paths](issues/dedupe-cdrom-driver-paths.md)
+- [x] [Deduplicate shell parsing helpers](issues/dedupe-shell-parsing-helpers.md)

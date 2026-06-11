@@ -192,6 +192,13 @@ def send_keys(output_chunks):
 
     copy_new = send_command(sock, output_chunks, "copy testfile.dat copy1.dat")
     require_command_output("copy testfile.dat copy1.dat", copy_new, ["1 File(s) copied."])
+    copy_self = send_command(sock, output_chunks, "copy testfile.dat testfile.dat")
+    require_command_output("copy testfile.dat testfile.dat", copy_self,
+                           ["File cannot be copied onto itself"],
+                           ["1 File(s) copied."])
+    copy_self_type = send_command(sock, output_chunks, "type testfile.dat")
+    require_command_output("type testfile.dat after self-copy", copy_self_type,
+                           ["Hello from TESTFILE.DAT! This is test data for LainDOS file I/O."])
     copy_new_type = send_command(sock, output_chunks, "type copy1.dat")
     require_command_output("type copy1.dat", copy_new_type, ["Hello from TESTFILE.DAT! This is test data for LainDOS file I/O."])
     copy_dir = send_command(sock, output_chunks, "copy testfile.dat dironly")
@@ -374,6 +381,7 @@ def main():
         "HELLO    COM",
         "<DIR>",
         "File(s)",
+        "Dir(s)",
         "bytes free",
         "Press any key to continue . . .",
         "DIRONLY",
