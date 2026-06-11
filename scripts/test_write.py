@@ -2,7 +2,7 @@
 import os
 import subprocess
 import sys
-from testlib import run_serial_image, run_cmd, build_dir, run_qemu_capture
+from testlib import build_dir, check_markers, run_cmd, run_qemu_capture, run_serial_image
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -35,24 +35,7 @@ def run_qemu():
 def main():
     build_image()
     output = run_qemu()
-    failed = False
-
-    for marker in ["WRITE-STDERR", "PASS: WRITE"]:
-        if marker in output:
-            print(f"  PASS: found '{marker}'")
-        else:
-            print(f"  FAIL: missing '{marker}'")
-            failed = True
-
-    for marker in ["FAIL:", "EXC ", "INT 21h AH="]:
-        if marker in output:
-            print(f"  FAIL: unexpected '{marker}'")
-            failed = True
-
-    if failed:
-        print("\n--- QEMU serial output ---")
-        print(output)
-        print("--- end ---")
+    if not check_markers(output, required=("WRITE-STDERR", "PASS: WRITE")):
         sys.exit(1)
 
     print("\nWrite test passed.")

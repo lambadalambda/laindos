@@ -4,7 +4,7 @@ import socket
 import subprocess
 import sys
 import time
-from testlib import run_cmd, build_dir, chunks_contain, finish_qemu, start_qemu, wait_for_output
+from testlib import build_dir, check_markers, chunks_contain, finish_qemu, run_cmd, start_qemu, wait_for_output
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -85,21 +85,8 @@ def run_qemu():
 def main():
     build_image()
     output = run_qemu()
-    failed = False
-    for marker in ["READY: FLUSHREAD", "PASS: FLUSHREAD", "Program exited, code=00"]:
-        if marker in output:
-            print(f"  PASS: found '{marker}'")
-        else:
-            print(f"  FAIL: missing '{marker}'")
-            failed = True
-    for marker in ["FAIL:", "EXC ", "INT 21h AH=0C"]:
-        if marker in output:
-            print(f"  FAIL: unexpected '{marker}'")
-            failed = True
-    if failed:
-        print("\n--- QEMU serial output ---")
-        print(output)
-        print("--- end ---")
+    if not check_markers(output, required=("READY: FLUSHREAD", "PASS: FLUSHREAD", "Program exited, code=00"),
+                         forbidden=("FAIL:", "EXC ", "INT 21h AH=0C")):
         sys.exit(1)
     print("\nFlush-and-read test passed.")
 

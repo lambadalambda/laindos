@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
-from testlib import build_dir, check_markers, run_cmd, run_qemu_capture
+from testlib import build_dir, check_markers, run_cmd, run_serial_image
 
 BUILDDIR = build_dir()
 WORKDIR = os.path.join(BUILDDIR, "cdmut")
@@ -28,15 +28,7 @@ def build_artifacts():
 
 def main():
     build_artifacts()
-    output, timed_out = run_qemu_capture([
-        "qemu-system-i386",
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-drive", f"file={ISO},format=raw,if=ide,media=cdrom,readonly=on",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
+    output = run_serial_image(IMG, TIMEOUT, extra_args=("-drive", f"file={ISO},format=raw,if=ide,media=cdrom,readonly=on"))
     ok = check_markers(
         output,
         required=("PASS: CDMUT DEL", "PASS: CDMUT REN", "PASS: CDMUT MD",
@@ -45,9 +37,7 @@ def main():
         forbidden=("FAIL:", "EXC ", "INT 21h AH="),
         output_label="CD mutation guard QEMU serial output",
     )
-    if not ok or timed_out:
-        if timed_out:
-            print("  FAIL: QEMU run timed out")
+    if not ok:
         sys.exit(1)
     print("\nCD mutation guard test passed.")
 

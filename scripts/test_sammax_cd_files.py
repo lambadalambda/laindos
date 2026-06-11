@@ -4,7 +4,7 @@ import shutil
 import sys
 import zipfile
 from sammaxlib import prepare_cd_image
-from testlib import build_dir, check_markers, run_cmd, run_qemu_capture
+from testlib import build_dir, check_markers, run_cmd, run_serial_image
 
 ARCHIVE = "vendor/Bestseller Games Gold 3 - Sam & Max Hit the Road.zip"
 BUILDDIR = build_dir()
@@ -29,15 +29,7 @@ def build_artifacts():
 
 def main():
     build_artifacts()
-    output, _ = run_qemu_capture([
-        "qemu-system-i386",
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-drive", f"file={ISO},format=raw,if=ide,media=cdrom,readonly=on",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
+    output = run_serial_image(IMG, TIMEOUT, extra_args=("-drive", f"file={ISO},format=raw,if=ide,media=cdrom,readonly=on"))
     ok = check_markers(
         output,
         required=("PASS: SAMMAXCD", "Program exited, code=00", "HALT"),

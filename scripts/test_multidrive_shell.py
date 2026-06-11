@@ -5,7 +5,7 @@ import socket
 import sys
 import time
 
-from testlib import build_dir, finish_qemu, run_cmd, start_qemu, wait_for_output
+from testlib import build_dir, check_markers, finish_qemu, run_cmd, start_qemu, wait_for_output
 
 
 QEMU = "qemu-system-i386"
@@ -132,21 +132,8 @@ def run_qemu():
 def main():
     build_images()
     output = run_qemu()
-    failed = False
-    for marker in ["A:\\>", "C:\\>", "HDONLY   TXT", "Hello from C drive!", "PASS: HELLO.COM", "Program exited, code=00"]:
-        if marker in output:
-            print(f"  PASS: found '{marker}'")
-        else:
-            print(f"  FAIL: missing '{marker}'")
-            failed = True
-    for marker in ["FAIL:", "EXC ", "INT 21h AH=", "Bad command or file name"]:
-        if marker in output:
-            print(f"  FAIL: unexpected '{marker}'")
-            failed = True
-    if failed:
-        print("\n--- QEMU serial output ---")
-        print(output)
-        print("--- end ---")
+    if not check_markers(output, required=("A:\\>", "C:\\>", "HDONLY   TXT", "Hello from C drive!", "PASS: HELLO.COM", "Program exited, code=00"),
+                         forbidden=("FAIL:", "EXC ", "INT 21h AH=", "Bad command or file name")):
         sys.exit(1)
     print("\nMulti-drive shell test passed.")
 

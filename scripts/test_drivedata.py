@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
-from testlib import build_dir, check_markers, run_cmd, run_qemu_capture
+from testlib import build_dir, check_markers, run_cmd, run_serial_image
 
 BUILDDIR = build_dir()
 FLOPPY_IMG = os.path.join(BUILDDIR, "drivedata_floppy.img")
@@ -30,19 +30,9 @@ def build_image(output_path, boot, fmt=None):
 
 
 def run_image(image_path, hard_disk=False):
-    drive_arg = f"file={image_path},format=raw"
-    if not hard_disk:
-        drive_arg += ",if=floppy"
-    boot_order = "c" if hard_disk else "a"
-    output, _ = run_qemu_capture([
-        "qemu-system-i386",
-        "-drive", drive_arg,
-        "-boot", f"order={boot_order}",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
-    return output
+    if hard_disk:
+        return run_serial_image(image_path, TIMEOUT, drive_opts="", boot_order="c")
+    return run_serial_image(image_path, TIMEOUT)
 
 
 def check_output(label, output):

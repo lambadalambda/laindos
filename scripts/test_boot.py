@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import os
-from testlib import run_serial_image
+from testlib import check_markers, run_serial_image
 
 QEMU = "qemu-system-i386"
 DISK_IMG = os.path.join(os.path.dirname(__file__), "..", "build", "disk.img")
@@ -24,19 +24,8 @@ def test_boot():
         sys.exit(1)
 
     output = run_serial_image(DISK_IMG, TIMEOUT, extra_args=("-snapshot",))
-    failed = False
-
-    for marker in EXPECTED:
-        if marker in output:
-            print(f"  PASS: found '{marker}'")
-        else:
-            print(f"  FAIL: missing '{marker}'")
-            failed = True
-
-    if failed:
-        print("\n--- QEMU serial output ---")
-        print(output)
-        print("--- end ---")
+    if not check_markers(output, required=EXPECTED,
+                         forbidden=()):
         sys.exit(1)
     else:
         print("\nAll tests passed.")

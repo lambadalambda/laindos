@@ -4,7 +4,7 @@ import shutil
 import struct
 import subprocess
 import sys
-from testlib import build_dir, run_cmd, run_serial_image
+from testlib import build_dir, check_markers, run_cmd, run_serial_image
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -127,26 +127,8 @@ def main():
     inspect_image()
     run_host_fat_check()
     output = run_qemu()
-    failed = False
-    for marker in [
-        "LainDOS booted",
-        "PASS: MEM",
-        "Program exited, code=00",
-        "HALT",
-    ]:
-        if marker in output:
-            print(f"  PASS: found '{marker}'")
-        else:
-            print(f"  FAIL: missing '{marker}'")
-            failed = True
-    for marker in ["FAIL:", "EXC ", "INT 21h AH=", "No active partition", "Partition boot read failed"]:
-        if marker in output:
-            print(f"  FAIL: unexpected '{marker}'")
-            failed = True
-    if failed:
-        print("\n--- QEMU serial output ---")
-        print(output)
-        print("--- end ---")
+    if not check_markers(output, required=("LainDOS booted", "PASS: MEM", "Program exited, code=00", "HALT"),
+                         forbidden=("FAIL:", "EXC ", "INT 21h AH=", "No active partition", "Partition boot read failed")):
         sys.exit(1)
     print("\nPartitioned FAT16 boot test passed.")
 

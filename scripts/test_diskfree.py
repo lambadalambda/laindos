@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
-from testlib import build_dir, check_markers, run_cmd, run_qemu_capture
+from testlib import build_dir, check_markers, run_cmd, run_serial_image
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -28,21 +28,6 @@ def build_image(label, image_format=None, boot_source="src/boot.asm", fat_type="
     return img
 
 
-def run_qemu(img, drive_opts="if=floppy", boot_order="a", timeout=TIMEOUT):
-    drive_arg = f"file={img},format=raw"
-    if drive_opts:
-        drive_arg = f"{drive_arg},{drive_opts}"
-    output, _ = run_qemu_capture([
-        QEMU,
-        "-drive", drive_arg,
-        "-boot", f"order={boot_order}",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], timeout)
-    return output
-
-
 def run_case(name, label, **kwargs):
     print(f"\n{name}")
     img = build_image(
@@ -51,11 +36,11 @@ def run_case(name, label, **kwargs):
         kwargs.get("boot_source", "src/boot.asm"),
         kwargs.get("fat_type", "12"),
     )
-    output = run_qemu(
+    output = run_serial_image(
         img,
-        kwargs.get("drive_opts", "if=floppy"),
-        kwargs.get("boot_order", "a"),
         kwargs.get("timeout", TIMEOUT),
+        drive_opts=kwargs.get("drive_opts", "if=floppy"),
+        boot_order=kwargs.get("boot_order", "a"),
     )
     return check_markers(
         output,

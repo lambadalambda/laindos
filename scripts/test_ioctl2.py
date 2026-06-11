@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
-from testlib import build_dir, check_markers, run_cmd, run_qemu_capture
+from testlib import build_dir, check_markers, run_cmd, run_serial_image
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -32,24 +32,14 @@ def build_images():
 
 def main():
     build_images()
-    output, timed_out = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={FLOPPY_IMG},format=raw,if=floppy",
-        "-drive", f"file={HD_IMG},format=raw,if=ide,index=0,media=disk",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
+    output = run_serial_image(FLOPPY_IMG, TIMEOUT, extra_args=("-drive", f"file={HD_IMG},format=raw,if=ide,index=0,media=disk"))
     passed = check_markers(
         output,
         required=("PASS: IOCTL2 DRIVE", "PASS: IOCTL2 SET", "PASS: IOCTL2 SETFILE", "PASS: IOCTL2 DEVINFO",
                   "Program exited, code=00", "HALT"),
         forbidden=("FAIL:", "EXC ", "INT 21h AH="),
         output_label="ioctl2 QEMU serial output")
-    if not passed or timed_out:
-        if timed_out:
-            print("  FAIL: QEMU run timed out")
+    if not passed:
         sys.exit(1)
     print("\nIOCTL set/drive test passed.")
 

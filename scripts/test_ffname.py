@@ -2,7 +2,7 @@
 import os
 import subprocess
 import sys
-from testlib import build_dir, run_cmd, run_serial_image
+from testlib import build_dir, check_markers, run_cmd, run_serial_image
 
 
 BUILDDIR = build_dir()
@@ -65,21 +65,8 @@ def build_image():
 def main():
     build_image()
     output = run_serial_image(IMG, TIMEOUT)
-    failed = False
-    for marker in ["PASS: FFNAME", "Program exited, code=00"]:
-        if marker in output:
-            print(f"  PASS: found '{marker}'")
-        else:
-            print(f"  FAIL: missing '{marker}'")
-            failed = True
-    for marker in ["FAIL:", "EXC "]:
-        if marker in output:
-            print(f"  FAIL: unexpected '{marker}'")
-            failed = True
-    if failed:
-        print("\n--- QEMU serial output ---")
-        print(output)
-        print("--- end ---")
+    if not check_markers(output, required=("PASS: FFNAME", "Program exited, code=00"),
+                         forbidden=("FAIL:", "EXC ")):
         sys.exit(1)
     print("\nFindFirst filename sanitization test passed.")
 

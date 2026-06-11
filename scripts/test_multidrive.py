@@ -3,7 +3,7 @@ import os
 import struct
 import sys
 
-from testlib import build_dir, run_cmd, run_qemu_capture
+from testlib import build_dir, run_cmd, run_serial_image
 
 
 QEMU = "qemu-system-i386"
@@ -85,15 +85,7 @@ def build_images():
 
 
 def run_qemu(hd_img):
-    output, _ = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={FLOPPY_IMG},format=raw,if=floppy",
-        "-drive", f"file={hd_img},format=raw,if=ide,index=0,media=disk",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
+    output = run_serial_image(FLOPPY_IMG, TIMEOUT, extra_args=("-drive", f"file={hd_img},format=raw,if=ide,index=0,media=disk"))
     return output
 
 

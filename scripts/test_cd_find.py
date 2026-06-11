@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
-from testlib import build_dir, check_markers, run_cmd, run_qemu_capture
+from testlib import build_dir, check_markers, run_cmd, run_serial_image
 
 BUILDDIR = build_dir()
 WORKDIR = os.path.join(BUILDDIR, "cd_find")
@@ -33,15 +33,7 @@ def build_artifacts():
 
 def main():
     build_artifacts()
-    output, _ = run_qemu_capture([
-        "qemu-system-i386",
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-drive", f"file={ISO},format=raw,if=ide,media=cdrom,readonly=on",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
+    output = run_serial_image(IMG, TIMEOUT, extra_args=("-drive", f"file={ISO},format=raw,if=ide,media=cdrom,readonly=on"))
     ok = check_markers(
         output,
         required=("PASS: CDFIND", "Program exited, code=00", "HALT"),
