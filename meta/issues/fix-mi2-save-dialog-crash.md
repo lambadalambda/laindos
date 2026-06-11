@@ -53,3 +53,39 @@ Next steps: bracket the exact MCB_START threshold (0xE00, 0xF00) and inspect wha
 semantically special about it; extend the kernel EXC dump with a stack snapshot to
 identify the bad jump's caller; or replay MONKEY2's exact alloc/open/read sequence in
 a test program to rule the allocator in or out.
+
+## Investigation update (2026-06-11)
+
+The failure is **nondeterministic** (~30-50% of runs at a fixed build), which
+invalidates the original single-run-per-step bisect. Re-validated endpoints:
+the pre-HMA revision b28cfad passes the FULL save/reload choreography 6/6;
+current kernels crash ~40% of runs and never complete the save flow even when
+they do not crash. A statistical re-bisect (multiple runs per step,
+save-ok/EXC classification) is the active workstream.
+
+Key discoveries:
+
+1. **The "EXC 06 at 0674:FF0C" reports were garbage.** QEMU `-d int,cpu`
+   shows the only real #UD fired at CS=FFFF EIP=0x0D86 -- mid-instruction
+   *inside exc06_handler itself*. Execution went wild, wandered into the
+   handler body, and fell through `.real_invalid` printing whatever stack
+   residue sat at [bp+2]/[bp+4] (constant 0674:FF0C across runs). That is why
+   the "faulting bytes" always looked like valid code and why breakpoints on
+   the reported address never fired. The EXC reporter needs a validity marker.
+2. **Tick re-entrancy at the game handler**: the int log shows hardware INT 08
+   delivered twice in a row with CPU at exactly 2A4A:0767 (the game's iMUSE
+   timer handler entry) with IF=1 -- something chains into the non-reentrant
+   handler with interrupts enabled and a second tick lands there.
+3. Mechanism candidates exonerated by N>=6 run series at fixed builds:
+   PS/2 mouse (off: 5/9 crash), XMS (off: 1/6), forced-IF removal alone (6/9),
+   InDOS fix alone (2/6), InDOS fix + no forced IF (3/9). Single-sample
+   experiments from 2026-06-10 (load segment / MCB_START / MEM_TOP / placement
+   correlations) are all statistically void and superseded.
+4. **Fixed for real along the way**: EXEC children now run with InDOS=0
+   (commit 88a36ba; previously every program ran its whole life with InDOS
+   elevated, breaking era ISR gating); the kernel exception dump now includes
+   stack and registers.
+5. docs/debug_log.md's Stunt Island entry documents the faithful interrupt
+   model (STI inside the DOS body, preserve caller IF on return) as the
+   eventual replacement for the IF-force shim; a staged patch exists at
+   /tmp/faithful_if_patch.py but is unproven against this bug.
