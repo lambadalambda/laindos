@@ -126,3 +126,34 @@ AH=01 under the kernel's AH=0Bh path); real DOS's duty cycle is far
 lower. Next lever: cut in-DOS wall time on those hot paths, or RE the
 game-side callback's catch-up logic to find the precise starvation
 threshold.
+
+## Layout/threshold experiments (2026-06-11, afternoon)
+
+Unattended outcome distributions (fresh boot, type `cd mi2` + `monkey2`,
+classify at +30s):
+
+| config                                   | game PSP | heap claim | alive |
+|------------------------------------------|----------|------------|-------|
+| pre-HMA b28cfad (control)                | 0x1024   | 0x63C6     | yes   |
+| standard HMA map (MCB 0x0640, top A000)  | 0x0664   | 0x687D     | 0/5   |
+| MCB_START=0x0B00                         | 0x0B24   | 0x63BD     | 4/4 + 1 |
+| MEM_TOP=0x9B00                           | 0x0664   | 0x637D     | 0/4   |
+| standard + 0x4C0-para resident pad       | ~0x0B44  | ~0x63BC    | 0/4   |
+
+Every single-variable model died against this table: heap-claim size
+thresholds (0x6400), game load address, and arena size all fail to
+separate the rows (shrink works; pad with the same PSP and claim dies).
+Within-config consistency is extreme (4/4 vs 0/4) for a failure that
+looked "40% random" under the save-test choreography -- pointing at the
+outcome being a near-deterministic function of launch phase relative to
+boot (each runner script has fixed key timing). A delayed-launch run on
+the working shrink image is the discriminator in flight.
+
+Also ruled out today: XMS HMA-request grant (we return error 0x91), XMS
+A20 disable (stub), A20 transients (qemu logs show A20=1 at all 13k
+tick deliveries), EXE image corruption at any placement (byte-exact
+in-guest verifier), driver overlay memory corruption (pmemsave diffs
+clean; sequencer counters advancing), packed-EXE unpacker placement bug
+(EXE is not packed). The "Overlay Alloc failed" box, the wandering EXC,
+and the silent clean exit are all manifestations downstream of one
+startup failure around the intro-music sync point.
