@@ -206,3 +206,4 @@
 - [x] [Deduplicate shell parsing helpers](issues/dedupe-shell-parsing-helpers.md)
 - [x] [Tidy script utility rough edges](issues/tidy-script-utility-rough-edges.md)
 - [x] [Audit documentation accuracy against current kernel state](issues/audit-docs-accuracy.md)
+- [x] [Bring up Sid Meier's Civilization](issues/bring-up-civilization.md)

@@ -19,6 +19,7 @@ KERNEL = os.path.join(BUILDDIR, "extras_hd_kernel.bin")
 SHELL = os.path.join(BUILDDIR, "shell.com")
 FREE = os.path.join(BUILDDIR, "free.com")
 MEM = os.path.join(BUILDDIR, "mem.com")
+LOADFIX = os.path.join(BUILDDIR, "loadfix.com")
 TIME = os.path.join(BUILDDIR, "time.com")
 IMG = os.path.join(BUILDDIR, "extras_hd.img")
 README = os.path.join(BUILDDIR, "extras.txt")
@@ -129,7 +130,7 @@ def write_readme():
         "\r\n"
         "Directories: M1DEMO MONKEY MI2DEMO MI2 SIMON ASCEND WOLF3D NC CIV RES SETS VAULT\r\n"
         "Norton Commander: CD NC, then NC\r\n"
-        "Civilization: CD CIV, then CIV\r\n"
+        "Civilization: CD CIV, then LOADFIX CIV (CIV.EXE is EXEPACK-compressed)\r\n"
         "Stunt Island installer source is in the root plus RES, SETS, and VAULT.\r\n"
         "Run INSTALL from C:\\, then CD STUNTISL and run STUNT after install.\r\n"
     )
@@ -165,6 +166,7 @@ def main():
     run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
     run_cmd(["nasm", "-f", "bin", "programs/free.asm", "-o", FREE])
     run_cmd(["nasm", "-f", "bin", "programs/free.asm", "-o", MEM])
+    run_cmd(["nasm", "-f", "bin", "programs/loadfix.asm", "-o", LOADFIX])
     run_cmd(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
 
     m1_demo = [
@@ -189,6 +191,7 @@ def main():
         SHELL,
         FREE,
         MEM,
+        LOADFIX,
         TIME,
         README,
     ]

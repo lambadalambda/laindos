@@ -151,6 +151,7 @@ DEFAULT_TESTS = [
     "scripts/test_tickspin.py",
     "scripts/test_timeoutguard.py",
     "scripts/test_mkimage.py",
+    "scripts/test_loadfix.py",
 ]
 
 # Tests that run outside `make test`: vendor-media game tests and emulator
@@ -159,6 +160,7 @@ DEFAULT_TESTS = [
 EXTERNAL_TESTS = {
     "test_ascendancy_smoke.py",        # vendor Ascendancy zip (make test-ascendancy-smoke)
     "test_attached_hd_shell.py",       # monkey demo files (make test-attached-hd-shell)
+    "test_civ_smoke.py",               # vendor Civilization zip (make test-civ-smoke)
     "test_cd_86box.py",                # needs a local 86Box install (make test-cd-86box)
     "test_mi2_save.py",                # vendor MI2 zip (make test-mi2-save)
     "test_monkey_full.py",             # vendor monkey_full zip (make test-monkey-full)

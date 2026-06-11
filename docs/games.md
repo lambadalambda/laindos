@@ -92,6 +92,29 @@ The vendor-gated smoke runs the whole pipeline headlessly — rebuild the instal
 make test-stunt-island-smoke
 ```
 
+## Civilization
+
+Build a bootable hard-disk image with Sid Meier's Civilization in `C:\CIV` from `vendor/sid-meiers-civilization-au.zip`:
+
+```sh
+python3 scripts/build_civ_hd.py
+```
+
+`CIV.EXE` is EXEPACK-compressed, and the unpacker corrupts itself ("Packed file is corrupt") when loaded below segment 1000h — the placement a lean DOS-in-HMA layout produces, exactly as on real MS-DOS 5. Launch it through the bundled `LOADFIX.COM`, the same answer DOS 5 shipped:
+
+```text
+C:\>CD CIV
+C:\CIV>LOADFIX CIV
+```
+
+The vendor-gated smoke verifies both halves — the bare launch fails with the era message and the LOADFIX launch reaches the startup menus and an animating VGA intro:
+
+```sh
+make test-civ-smoke
+```
+
+Under QEMU the game later stalls at a MicroProse presentation card (or exits with `R6003 integer divide by 0`): its `INT 08` hook leaves the BIOS tick at a third rate, and the same behavior reproduces under FreeDOS on the same QEMU, so it is an emulator-timing interaction rather than a LainDOS issue (see `meta/issues.md`).
+
 ## External Hard-Disk Images
 
 Smoke-test a local external hard-disk image without writing to it:
