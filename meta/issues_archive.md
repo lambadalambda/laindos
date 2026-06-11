@@ -199,3 +199,4 @@
 - [x] [Retune the MI2 save test choreography](issues/retune-mi2-save-test.md)
 - [x] [Remove dead kernel code](issues/remove-dead-kernel-code.md)
 - [x] [Migrate long-hand tests to testlib helpers](issues/migrate-tests-to-testlib-helpers.md)
+- [x] [Unify boot-time and EXEC loader sizing logic](issues/unify-boot-and-exec-loader-sizing.md)

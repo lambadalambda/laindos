@@ -1,3 +1,167 @@
+; DS = MZ header. DX:AX = image bytes including the header, derived
+; from the page count [0x04] and last-page byte count [0x02].
+mz_image_bytes:
+    mov ax, [0x04]
+    xor dx, dx
+    cmp word [0x02], 0
+    je .size_shift
+    dec ax
+.size_shift:
+    mov cx, 9
+.size_loop:
+    shl ax, 1
+    rcl dx, 1
+    loop .size_loop
+    mov cx, [0x02]
+    test cx, cx
+    jz .done
+    add ax, cx
+    adc dx, 0
+.done:
+    ret
+
+; DX:AX = byte size, CX = extra paragraphs to add. Returns AX = load
+; size in paragraphs (sector-rounded) plus the extra; CF set when the
+; result does not fit in 16 bits.
+image_paras_from_bytes:
+    add ax, 511
+    adc dx, 0
+    push cx
+    mov cx, 9
+.shr9:
+    shr dx, 1
+    rcr ax, 1
+    loop .shr9
+    mov cx, 5
+.shl5:
+    shl ax, 1
+    rcl dx, 1
+    loop .shl5
+    pop cx
+    add ax, cx
+    adc dx, 0
+    test dx, dx
+    jnz .overflow
+    clc
+    ret
+.overflow:
+    stc
+    ret
+
+; DS = MZ header. Sets kfsize/kfsize_hi from the header page count and
+; computes exe_min_par (header-trimmed image + minalloc + PSP) and
+; prog_par (the larger of the sector-rounded load size and exe_min_par).
+; CF set with AX = 8 (too large) or AX = 11 (bad header) on error.
+exe_compute_sizing:
+    call mz_image_bytes
+    mov [cs:kfsize], ax
+    mov [cs:kfsize_hi], dx
+    add ax, 15
+    adc dx, 0
+    mov cx, 4
+.min_shift:
+    shr dx, 1
+    rcr ax, 1
+    loop .min_shift
+    test dx, dx
+    jnz .too_large
+    cmp ax, [0x08]
+    jb .bad_header
+    sub ax, [0x08]
+    add ax, [0x0A]
+    jc .too_large
+    add ax, 0x10
+    jc .too_large
+    mov [cs:exe_min_par], ax
+    mov ax, [cs:kfsize]
+    mov dx, [cs:kfsize_hi]
+    mov cx, 0x12
+    call image_paras_from_bytes
+    jc .too_large
+    cmp ax, [cs:exe_min_par]
+    jae .use_file
+    mov ax, [cs:exe_min_par]
+.use_file:
+    mov [cs:prog_par], ax
+    clc
+    ret
+.too_large:
+    mov ax, 8
+    stc
+    ret
+.bad_header:
+    mov ax, 11
+    stc
+    ret
+
+; DS = MZ header. Refines prog_par per maxalloc [0x0C]: zero keeps the
+; minimum fit, 0xFFFF grabs the largest free block, anything else asks
+; for min-without-minalloc plus maxalloc, capped by what is available.
+exe_apply_maxalloc_policy:
+    mov cx, [0x0C]
+    test cx, cx
+    jz .done
+    cmp cx, 0xFFFF
+    je .max_all
+    mov ax, [cs:exe_min_par]
+    sub ax, [0x0A]
+    add ax, cx
+    jc .max_all
+    cmp ax, [cs:prog_par]
+    jae .desired_ready
+    mov ax, [cs:prog_par]
+.desired_ready:
+    call find_largest_free_block
+    cmp bx, [cs:prog_par]
+    jb .done
+    cmp ax, bx
+    jbe .use_desired
+    mov ax, bx
+.use_desired:
+    mov [cs:prog_par], ax
+    ret
+.max_all:
+    call find_largest_free_block
+    cmp bx, [cs:prog_par]
+    jb .done
+    mov [cs:prog_par], bx
+.done:
+    ret
+
+; AX = relocation count, DX = table offset, BX = header paragraphs.
+; CF set if the table is invalid. A zero count is always valid; with
+; entries the table must start at or after 0x1C and end within the
+; header (header paragraphs must stay below 4096 so the byte bound
+; fits in 16 bits).
+validate_exe_reloc_table:
+    test ax, ax
+    jz .ok
+    cmp dx, 0x1C
+    jb .bad
+    shl ax, 1
+    jc .bad
+    shl ax, 1
+    jc .bad
+    add ax, dx
+    jc .bad
+    cmp bx, 4096
+    jae .bad
+    push dx
+    mov dx, bx
+    shl dx, 1
+    shl dx, 1
+    shl dx, 1
+    shl dx, 1
+    cmp ax, dx
+    pop dx
+    ja .bad
+.ok:
+    clc
+    ret
+.bad:
+    stc
+    ret
+
 load_exec_program:
     mov word [cs:exec_env_seg], 0
     mov byte [cs:exec_env_owned], 0
@@ -55,131 +219,24 @@ load_exec_program:
     cmp word [0], 0x5A4D
     jne .com_size
     mov byte [cs:exec_is_exe], 1
-    mov ax, [0x04]
-    xor dx, dx
-    cmp word [0x02], 0
-    je .exe_mz_size_shift
-    dec ax
-.exe_mz_size_shift:
-    mov cx, 9
-.exe_mz_size_loop:
-    shl ax, 1
-    rcl dx, 1
-    loop .exe_mz_size_loop
-    mov cx, [0x02]
-    test cx, cx
-    jz .exe_mz_size_store
-    add ax, cx
-    adc dx, 0
-.exe_mz_size_store:
-    mov [cs:kfsize], ax
-    mov [cs:kfsize_hi], dx
-    mov ax, [cs:kfsize]
-    mov dx, [cs:kfsize_hi]
-    add ax, 15
-    adc dx, 0
-    mov cx, 4
-.exe_min_shift:
-    shr dx, 1
-    rcr ax, 1
-    loop .exe_min_shift
-    test dx, dx
-    jnz .exe_too_large
-    cmp ax, [0x08]
-    jb .exe_bad_header
-    sub ax, [0x08]
-    add ax, [0x0A]
-    jc .exe_too_large
-    add ax, 0x10
-    jc .exe_too_large
-    mov [cs:exe_min_par], ax
-    mov ax, [cs:kfsize]
-    mov dx, [cs:kfsize_hi]
-    add ax, 511
-    adc dx, 0
-    mov cx, 9
-.exe_file_shr:
-    shr dx, 1
-    rcr ax, 1
-    loop .exe_file_shr
-    mov cx, 5
-.exe_file_shl:
-    shl ax, 1
-    rcl dx, 1
-    loop .exe_file_shl
-    add ax, 0x12
-    adc dx, 0
-    test dx, dx
-    jz .exe_size_ok
-.exe_too_large:
-    call free_exec_environment
-    mov ax, 8
-    stc
-    ret
-.exe_bad_header:
-    call free_exec_environment
-    mov ax, 11
-    stc
-    ret
-.exe_size_ok:
-    cmp ax, [cs:exe_min_par]
-    jae .exe_use_file
-    mov ax, [cs:exe_min_par]
-.exe_use_file:
-    mov [cs:prog_par], ax
-    mov cx, [0x0C]
-    test cx, cx
-    jz .alloc
-    cmp cx, 0xFFFF
-    je .exe_max_all
-    mov ax, [cs:exe_min_par]
-    sub ax, [0x0A]
-    add ax, cx
-    jc .exe_max_all
-    cmp ax, [cs:prog_par]
-    jae .exe_max_desired_ready
-    mov ax, [cs:prog_par]
-.exe_max_desired_ready:
-    call find_largest_free_block
-    cmp bx, [cs:prog_par]
-    jb .alloc
-    cmp ax, bx
-    jbe .exe_max_use_desired
-    mov ax, bx
-.exe_max_use_desired:
-    mov [cs:prog_par], ax
-    jmp .alloc
-.exe_max_all:
-    call find_largest_free_block
-    cmp bx, [cs:prog_par]
-    jb .alloc
-    mov [cs:prog_par], bx
+    call exe_compute_sizing
+    jc .size_err
+    call exe_apply_maxalloc_policy
     jmp .alloc
 .com_size:
     mov ax, [cs:kfsize]
     mov dx, [cs:kfsize_hi]
-    add ax, 511
-    adc dx, 0
-    mov cx, 9
-.shr9:
-    shr dx, 1
-    rcr ax, 1
-    loop .shr9
-    mov cx, 5
-.shl5:
-    shl ax, 1
-    rcl dx, 1
-    loop .shl5
-    add ax, COM_EXTRA_PAR
-    adc dx, 0
-    test dx, dx
-    jz .com_size_ok
-    call free_exec_environment
+    mov cx, COM_EXTRA_PAR
+    call image_paras_from_bytes
+    mov [cs:prog_par], ax
     mov ax, 8
+    jnc .alloc
+.size_err:
+    push ax
+    call free_exec_environment
+    pop ax
     stc
     ret
-.com_size_ok:
-    mov [cs:prog_par], ax
 .alloc:
     push cs
     pop ds
@@ -789,23 +846,7 @@ load_overlay_direct:
     shl ax, 1
     loop .hdr_shift
     mov [cs:ov_skip], ax
-    mov ax, [0x04]
-    xor dx, dx
-    cmp word [0x02], 0
-    je .mz_size_shift
-    dec ax
-.mz_size_shift:
-    mov cx, 9
-.mz_size_loop:
-    shl ax, 1
-    rcl dx, 1
-    loop .mz_size_loop
-    mov cx, [0x02]
-    test cx, cx
-    jz .mz_size_ready
-    add ax, cx
-    adc dx, 0
-.mz_size_ready:
+    call mz_image_bytes
     sub ax, [cs:ov_skip]
     sbb dx, 0
     jc .mz_bad_pop
@@ -815,17 +856,11 @@ load_overlay_direct:
     mov [cs:ov_reloc_count], ax
     mov ax, [0x18]
     mov [cs:ov_reloc_off], ax
-    cmp word [cs:ov_reloc_off], 0x1C
-    jb .mz_bad_pop
     mov ax, [cs:ov_reloc_count]
-    shl ax, 1
+    mov dx, [cs:ov_reloc_off]
+    mov bx, [0x08]
+    call validate_exe_reloc_table
     jc .mz_bad_pop
-    shl ax, 1
-    jc .mz_bad_pop
-    add ax, [cs:ov_reloc_off]
-    jc .mz_bad_pop
-    cmp ax, [cs:ov_skip]
-    ja .mz_bad_pop
     mov ax, [cs:ov_left]
     mov dx, [cs:ov_left_hi]
     add ax, 15
@@ -1607,26 +1642,10 @@ setup_exe_dyn:
     cmp word [cs:exe_image_par], 0
     je .reloc_err
     mov ax, [cs:exe_reloc_count]
-    test ax, ax
-    jz .reloc_table_ok
-    cmp word [cs:exe_reloc_off], 0x1C
-    jb .reloc_err
-    shl ax, 1
+    mov dx, [cs:exe_reloc_off]
+    mov bx, [cs:exe_hdr_par]
+    call validate_exe_reloc_table
     jc .reloc_err
-    shl ax, 1
-    jc .reloc_err
-    add ax, [cs:exe_reloc_off]
-    jc .reloc_err
-    mov dx, [cs:exe_hdr_par]
-    cmp dx, 4096
-    jae .reloc_err
-    shl dx, 1
-    shl dx, 1
-    shl dx, 1
-    shl dx, 1
-    cmp ax, dx
-    ja .reloc_err
-.reloc_table_ok:
 
     mov ax, [cs:prog_seg]
     call build_psp

@@ -272,87 +272,16 @@ kernel_entry:
 
     mov ax, [cs:kfsize]
     mov dx, [cs:kfsize_hi]
-    add ax, 511
-    adc dx, 0
-    mov cx, 9
-.shr9c:
-    shr dx, 1
-    rcr ax, 1
-    loop .shr9c
-    mov cx, 5
-.shl5c:
-    shl ax, 1
-    rcl dx, 1
-    loop .shl5c
-    add ax, COM_EXTRA_PAR
-    adc dx, 0
-    test dx, dx
-    jnz .halt
+    mov cx, COM_EXTRA_PAR
+    call image_paras_from_bytes
+    jc .halt
     mov [cs:prog_par], ax
     jmp .alloc_com
 
 .peek_mz:
-    mov ax, [cs:kfsize]
-    mov dx, [cs:kfsize_hi]
-    add ax, 15
-    adc dx, 0
-    mov cx, 4
-.shr4p:
-    shr dx, 1
-    rcr ax, 1
-    loop .shr4p
-    sub ax, [0x08]
-    add ax, [0x0A]
-    add ax, 0x10
-    mov [cs:exe_min_par], ax
-    mov ax, [cs:kfsize]
-    mov dx, [cs:kfsize_hi]
-    add ax, 511
-    adc dx, 0
-    mov cx, 9
-.shr9m:
-    shr dx, 1
-    rcr ax, 1
-    loop .shr9m
-    mov cx, 5
-.shl5m:
-    shl ax, 1
-    rcl dx, 1
-    loop .shl5m
-    add ax, 0x12
-    cmp ax, [cs:exe_min_par]
-    jae .use_file
-    mov ax, [cs:exe_min_par]
-.use_file:
-    mov [cs:prog_par], ax
-
-    mov cx, [0x0C]
-    test cx, cx
-    jz .alloc
-    cmp cx, 0xFFFF
-    je .max_all
-    mov ax, [cs:exe_min_par]
-    sub ax, [0x0A]
-    add ax, cx
-    jc .max_all
-    cmp ax, [cs:prog_par]
-    jae .max_desired_ready
-    mov ax, [cs:prog_par]
-.max_desired_ready:
-    call find_largest_free_block
-    cmp bx, [cs:prog_par]
-    jb .alloc
-    cmp ax, bx
-    jbe .max_use_desired
-    mov ax, bx
-.max_use_desired:
-    mov [cs:prog_par], ax
-    jmp .alloc
-.max_all:
-    call find_largest_free_block
-    cmp bx, [cs:prog_par]
-    jb .alloc
-    mov [cs:prog_par], bx
+    call exe_compute_sizing
+    jc .halt
+    call exe_apply_maxalloc_policy
 
 .alloc:
     push cs
