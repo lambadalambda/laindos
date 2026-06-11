@@ -119,6 +119,20 @@ Under QEMU the game later stalls at a MicroProse presentation card (or exits wit
 make test-civ-86box
 ```
 
+## Simon the Sorcerer Demo
+
+Build a bootable hard-disk image with the Simon the Sorcerer demo in `C:\SIMON` from `vendor/simon1demo.zip`:
+
+```sh
+python3 scripts/build_simon_hd.py
+```
+
+Launch with `CD SIMON`, then `SIMON` (the bundled batch runs `RUNVGA GDEMO /3`). The AGOS engine boots straight to its interactive in-game scene with the verb interface and mouse cursor — no compatibility work was needed. The vendor-gated smoke verifies the scene and an advancing BIOS tick:
+
+```sh
+make test-simon-smoke
+```
+
 ## External Hard-Disk Images
 
 Smoke-test a local external hard-disk image without writing to it:

@@ -16,6 +16,7 @@ What LainDOS implements today, and the compatibility decisions behind it.
 - Runs the full Monkey Island 2: LeChuck's Revenge with working in-game save and load, verified end to end by the vendor-gated `make test-mi2-save` smoke.
 - Installs Stunt Island from its source media through the in-game installer and boots the installed game to its interactive startup prompts under QEMU, verified by the vendor-gated `make test-stunt-island-smoke`.
 - Runs Norton Commander 5.5 with startup, child-launch, file-copy, rename/delete, and mkdir/rmdir smokes, and Shortline to an active game screen, when the local archives are present.
+- Runs the Simon the Sorcerer demo (AGOS engine) to its interactive in-game scene with verb interface and mouse cursor, verified by the vendor-gated `make test-simon-smoke`.
 - Runs Sid Meier's Civilization to its startup menus and animating VGA intro through the bundled `LOADFIX.COM` (CIV.EXE is EXEPACK-compressed and needs a 64 KiB-plus load address, exactly as on real MS-DOS 5), verified by the vendor-gated `make test-civ-smoke`. Under the headless 86Box build the same image reaches the title menu (`make test-civ-86box`); under QEMU further progress is blocked by an emulator PIT-timing interaction that also reproduces under FreeDOS.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
