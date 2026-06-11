@@ -185,6 +185,8 @@ kernel_entry:
     call serial_print
 
     mov word [trace_left], TRACE_DOS
+    mov [kstack_seg], cs
+    mov word [kstack_base], KERNEL_STACK_TOP
     call mouse_init_ps2
 
     mov word [cur_dir_cluster], ROOT_CLUSTER
@@ -432,7 +434,30 @@ kernel_entry:
     hlt
     jmp .hloop
 
+; A depth-1 INT 21h call runs on the kernel-owned stack with the
+; caller's SS:SP parked as the two words below kstack_base, so the
+; caller's stack must come back before the INT frame fixups. Nested
+; calls and the boot launcher's direct exec path never switched and
+; skip the restore: nested calls show indos > 1, and the boot path
+; runs on the boot stack, not the kernel stack segment.
+%macro INT21_RESTORE_CALLER_STACK 0
+    cli
+    cmp byte [cs:indos_flag], 1
+    jne %%no_restore
+    push ax
+    mov ax, ss
+    cmp ax, [cs:kstack_seg]
+    pop ax
+    jne %%no_restore
+    pop word [cs:entry_caller_sp]
+    pop word [cs:entry_caller_ss]
+    mov ss, [cs:entry_caller_ss]
+    mov sp, [cs:entry_caller_sp]
+%%no_restore:
+%endmacro
+
 iret_nc:
+    INT21_RESTORE_CALLER_STACK
     push bp
     mov bp, sp
     and word [bp+6], ~CF
@@ -441,6 +466,7 @@ iret_nc:
     iret
 
 iret_cy:
+    INT21_RESTORE_CALLER_STACK
     push bp
     mov bp, sp
     or word [bp+6], CF
@@ -449,6 +475,7 @@ iret_cy:
     iret
 
 iret_nc_zf:
+    INT21_RESTORE_CALLER_STACK
     push bp
     mov bp, sp
     and word [bp+6], ~CF
@@ -458,6 +485,7 @@ iret_nc_zf:
     iret
 
 iret_nc_nz:
+    INT21_RESTORE_CALLER_STACK
     push bp
     mov bp, sp
     and word [bp+6], ~(CF | ZF)
@@ -471,18 +499,6 @@ iret_cy_no_indos:
     or word [bp+6], CF
     pop bp
     iret
-
-; INT 21h returns above force IF=1 on iret as a Stunt Island
-; compatibility shim. Stunt Island's install code calls INT 21h AH=4Eh
-; with IF=0 and deadlocked waiting for a tick because the kernel
-; preserved the caller's IF. Real MS-DOS 4.00 enables interrupts while
-; running DOS code (see DISP.ASM STI/CLI around stack switches) but its
-; IRET preserves the caller's saved IF, so the flag state on return
-; matches what the caller pushed. The C-carry and ZF variants preserve
-; the contract that callers rely on, but the IF=1 write is intentional
-; and not MS-DOS 4.00 return-flag fidelity. Do not remove without a
-; Stunt Island retest or an equivalent compatibility decision.
-; See docs/debug_log.md for the original investigation.
 
 enable_a20:
     call a20_test
@@ -2538,6 +2554,8 @@ do_terminate:
     cli
     mov ss, ax
     mov sp, [cs:saved_sp]
+    mov ax, [cs:saved_kbase]
+    mov [cs:kstack_base], ax
     sti
 ; @anchor: do_terminate_return_to_parent
     jmp exec_com.back
@@ -2616,6 +2634,8 @@ do_terminate_tsr:
     cli
     mov ss, ax
     mov sp, [cs:saved_sp]
+    mov ax, [cs:saved_kbase]
+    mov [cs:kstack_base], ax
     sti
     jmp exec_com.back
 
@@ -3638,6 +3658,11 @@ log_cx: dw 0
 log_dx: dw 0
 trace_left: dw 0
 indos_flag: db 0
+kstack_seg: dw 0
+kstack_base: dw 0
+saved_kbase: dw 0
+entry_caller_ss: dw 0
+entry_caller_sp: dw 0
 exc_vec: db 0
 bpb_copy: times 64 db 0
 %if TRACE_EXEC_STATE

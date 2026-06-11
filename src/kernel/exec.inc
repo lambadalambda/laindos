@@ -1740,6 +1740,11 @@ exec_exe_dyn:
     push ax
     push word [cs:exe_ip]
     dec byte [cs:indos_flag]
+    mov ax, [cs:kstack_base]
+    mov [cs:saved_kbase], ax
+    mov ax, [cs:saved_sp]
+    sub ax, 32
+    mov [cs:kstack_base], ax
     xor ax, ax
     sti
     retf
@@ -1780,6 +1785,11 @@ exec_com_dyn:
     push ax
     push word 0x0100
     dec byte [cs:indos_flag]
+    mov ax, [cs:kstack_base]
+    mov [cs:saved_kbase], ax
+    mov ax, [cs:saved_sp]
+    sub ax, 32
+    mov [cs:kstack_base], ax
     xor ax, ax
     sti
 ; @anchor: exec_com_entry_jump

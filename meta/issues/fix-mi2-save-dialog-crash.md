@@ -90,31 +90,39 @@ Key discoveries:
    eventual replacement for the IF-force shim; a staged patch exists at
    /tmp/faithful_if_patch.py but is unproven against this bug.
 
-## Root cause identified (2026-06-11)
+## Mechanism narrowed, not yet fixed (2026-06-11)
 
-Two experiments closed the case:
+Experiments that closed out the original framing:
 
-1. **iMUSE driver removal**: stripping the `.IMS` sound drivers from the
-   image (game runs silent, never installs its INT 08 hook at 2A4A:0767)
+1. **iMUSE driver removal**: stripping the `.IMS` drivers (no INT 08 hook)
    eliminates the crash completely -- 0/6 vs ~40-50% baseline. The game's
-   iMUSE timer hook is a *required ingredient*; the kernel does not corrupt
+   timer hook is a required ingredient; the kernel does not corrupt
    anything on its own.
-2. **Tick batching**: the old kernel ran entire INT 21h calls with IF=0 and
-   then forced IF=1 on the saved FLAGS at IRET (the Stunt Island shim).
-   Pending timer ticks therefore could not be serviced *during* DOS calls and
-   instead burst in immediately after IRET -- right at the game-code
-   instruction boundary following each DOS call. Real MS-DOS does the
-   opposite: STI inside the dispatcher after the stack switch, so ticks drain
-   while the caller is parked safely inside DOS. iMUSE's INT 08 handler is
-   non-reentrant and makes DOS calls; a burst landing at its entry (observed
-   in the QEMU int log: two INT 08 deliveries in a row at 2A4A:0767 with
-   IF=1) re-enters it and execution wanders into garbage. The HMA relocation
-   did not introduce the defect -- it shifted INT 21h timing enough to move
-   the burst window onto iMUSE's vulnerable entry in ~40% of boots.
+2. **Tick batching**: the old kernel ran INT 21h with IF=0 and forced IF=1
+   at IRET. QEMU accounting shows it silently dropped ~75%+ of timer ticks
+   at the PIC during load and delivered survivors in bursts at IRET
+   boundaries (always with InDOS=0) -- the bursty re-entrancy behind the
+   original ~40% save-flow crash.
+3. **Faithful interrupt model** (STI in the INT 21h body, caller IF
+   preserved, STI at EXEC child entry, MS-DOS-style kernel dispatcher
+   stack) is now in the kernel (15c8f37 + follow-up): correct semantics,
+   139/139 suite, and the wandering-execution crash is gone. But MI2 now
+   fails differently: all 291 Hz iMUSE ticks are delivered, ~99% land
+   inside INT 21h (InDOS=1) because the game's poll loop lives in AH=0Bh,
+   the InDOS-gated game-side iMUSE callback starves, and the game gives up
+   at the intro-music sync point ("Overlay Alloc failed for
+   C:\MI2\speaker.ims", then a clean exit).
 
-Fix: adopt the faithful interrupt model -- `STI` in the INT 21h body after
-the register frame is saved, remove all forced-IF `IRET` paths so the
-caller's IF is preserved, and `STI` before jumping to EXEC child entry so
-programs start with interrupts enabled like real DOS.
-`scripts/test_findedge.py` expectations updated to assert IF *preservation*
-(clear after CLI'd call, set across an STI'd call) instead of forced IF=1.
+SPEAKER.IMS internals (disassembled): MZ overlay; install reprograms the
+PIT to ~291 Hz; the tick handler far-calls the game's iMUSE core every
+tick (no InDOS check in the driver; the gate is in the game callback --
+faking AH=34h to a zero byte makes the game exit instantly, so the gate
+is load-bearing). BIOS INT 08 is chained every 16th tick.
+
+Open question: what lets the callback keep up on real DOS. LainDOS's
+keyboard-status and byte-read paths keep the CPU inside INT 21h for ~99%
+of the load/poll phase (sampled: 74% of wall time inside BIOS INT 16h
+AH=01 under the kernel's AH=0Bh path); real DOS's duty cycle is far
+lower. Next lever: cut in-DOS wall time on those hot paths, or RE the
+game-side callback's catch-up logic to find the precise starvation
+threshold.

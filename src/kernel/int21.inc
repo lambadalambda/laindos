@@ -309,6 +309,15 @@ int21_handler:
     cmp byte [cs:mouse_in_callback], 0
     jne .reject_reentry
     inc byte [cs:indos_flag]
+    cmp byte [cs:indos_flag], 1
+    jne .stack_switched
+    mov [cs:entry_caller_ss], ss
+    mov [cs:entry_caller_sp], sp
+    mov ss, [cs:kstack_seg]
+    mov sp, [cs:kstack_base]
+    push word [cs:entry_caller_ss]
+    push word [cs:entry_caller_sp]
+.stack_switched:
     sti
     cmp ah, 0x4C
     je .terminate

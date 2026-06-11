@@ -17,17 +17,27 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Removing the `.IMS` iMUSE drivers from the image (game silent, hook never installed) eliminates the crash: 0/6 vs ~40-50% baseline.
 - Mechanism: LainDOS ran whole INT 21h calls with IF=0 and forced IF=1 on the saved FLAGS at IRET, so pending ticks burst in right after each DOS call returns -- at game-code instruction boundaries -- instead of draining inside the call as on real DOS. A burst landing at the non-reentrant iMUSE handler entry re-enters it. The HMA relocation only shifted INT 21h timing enough to move the burst onto the vulnerable window.
 
-### Fix
+### Kernel Changes Landed
 
-- Adopted the faithful interrupt model prescribed by the 2026-06-01 entry: `STI` in the INT 21h body after the register frame save, forced-IF ORs removed from all IRET helpers (caller IF preserved), and `STI` before EXEC child entry so programs start with IF=1 like real DOS.
-- `scripts/test_findedge.py` now asserts IF preservation (clear after a CLI'd FindFirst, set across an STI'd FindNext) instead of forced IF=1.
+- Adopted the faithful interrupt model prescribed by the 2026-06-01 entry: `STI` in the INT 21h body after the register frame save, forced-IF ORs removed from all IRET helpers (caller IF preserved), and `STI` before EXEC child entry so programs start with IF=1 like real DOS (commit 15c8f37).
+- Completed it with the MS-DOS-style dispatcher stack: a depth-1 INT 21h call switches to a kernel-owned stack in the HMA below `KERNEL_STACK_TOP` before `STI`, parks the caller's SS:SP, and restores it before the IRET frame fixups. EXEC lowers `kstack_base` below the suspended parent frame at child entry and terminate restores it.
+- `scripts/test_findedge.py` now asserts IF preservation (clear after a CLI'd FindFirst, set across an STI'd FindNext) instead of forced IF=1; `scripts/test_tickspin.py` covers the Stunt Island wait pattern (EXEC'd program starts with IF=1, BIOS tick advances).
 - En route, fixed for real: EXEC children now run with InDOS=0 (88a36ba) and the kernel exception dump includes stack and registers.
+
+### MI2 Status After The Faithful Model — Not Fixed, Mechanism Sharpened
+
+- The faithful model alone (STI without the stack switch) made MI2 die during startup loading every run -- silently (wandering into a clean exit; "Thanks for using this INC Crack!" is the cracked EXE's exit message) or with the fake-frame EXC under serial tracing. A 9-run "0 crashes" series was misleading: the game died before reaching the racy code.
+- With the dispatcher stack added, MI2 survives loading but hits "Overlay Alloc failed for C:\MI2\speaker.ims": the game attempts a second driver load at the intro-music sync point with the arena fully claimed (its near-heap claim 0x687D paras at 30D2 leaves zero free), then exits cleanly.
+- SPEAKER.IMS disassembly (MZ overlay, handler at +0x767): the install reprograms the PIT to ~291 Hz (divisor 0x1000), the tick handler far-calls the game's iMUSE core every tick with no InDOS gate in the driver, and chains BIOS INT 08 every 16th tick. The InDOS gate lives in the game-side callback: faking AH=34h to an always-zero byte makes the game exit instantly at startup, so the gate is load-bearing.
+- QEMU tick accounting during the load/poll phase: the new kernel delivers ~13,000 INT 08s in the window with 99.1% landing with SS at the kernel stack (inside DOS, InDOS=1); the old kernel (IF=0 through DOS calls) delivered only ~180 -- it silently dropped most ticks at the PIC and the survivors fired at IRET boundaries with InDOS=0.
+- Statistical EIP sampling during the stall shows 74% of wall time inside BIOS INT 16h AH=01 via the kernel's keyboard-status path: the game is in a poll loop pumping AH=0Bh while waiting for iMUSE state that never advances.
+- Serial tracing slows DOS calls enough to kill the game at the same file position (POS=003E6B66 in MONKEY2.001, the music sync point) on BOTH kernels -- trace runs cannot discriminate kernel behavior there.
 
 ### Next Probes
 
-- Rerun Stunt Island manually (`scripts/run_stunt_island.py`); it was the original beneficiary of the forced-IF shim and must still pass its post-intro timer wait under the faithful model.
-- The save-flow choreography in `scripts/test_mi2_save.py` still does not complete on current kernels even in non-crashing runs (timing-keyed keystrokes); retune it and consider promoting it to the registered suite.
-- Known fidelity gap: MS-DOS executes `STI` only after switching to a DOS-owned stack; LainDOS still runs INT 21h on the caller's stack, so interrupts serviced mid-call now consume caller stack on top of the DOS frame. If a game with a tight stack overflows, add internal dispatcher stacks before weakening the STI.
+- The open question is what the iMUSE game-side callback needs in order to advance past the music sync point: it runs at 291 Hz but defers when InDOS=1, and under LainDOS the game's poll loop spends ~99% of wall time inside INT 21h. Reducing the in-DOS duty cycle of the AH=0Bh/read paths (or understanding the callback's catch-up logic via RE of the MONKEY2.EXE iMUSE core) is the next lever.
+- Rerun Stunt Island manually (`scripts/run_stunt_island.py`); it was the original beneficiary of the forced-IF shim. Per project decision the shim stays removed even if Stunt Island regresses -- debug that separately if so.
+- The save-flow choreography in `scripts/test_mi2_save.py` diverges from current boot timing long before the save dialog (blind fixed delays); retune with state detection once the game runs again.
 
 ## 2026-06-10 HMA Kernel Relocation: DOS/4GW GDT Corruption At 1 MiB
 
