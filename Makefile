@@ -60,7 +60,7 @@ SITE_IMAGE_DEPS := monkey-demo
 endif
 SITE_IMAGE_ARG := $(if $(SITE_IMAGE),--image $(SITE_IMAGE),)
 
-.PHONY: all clean run site check-docs-sync test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell test-shell-batch-builtins extras-hd run-extras-hd test-cd-bios test-cd-file test-cd-subdir test-cd-find test-cd-mscdex test-cd-exec test-cd-86box test-sammax-cd-files test-sammax-cd-start test-sammax-cd-setmuse test-sammax-cd-setmuse-save test-sammax-cd-install test-sammax-cd-install-select test-sammax-cd-dig test-normality-install test-monkey-full test-mi2-save test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-norton-commander-launch test-norton-commander-copy test-norton-commander-rename-delete test-norton-commander-mkdir-rmdir test-norton-commander test-shortline-smoke test-stunt-island-smoke test-civ-smoke test-civ-86box test-simon-smoke test-game-smokes
+.PHONY: all clean run site check-docs-sync test test-serial monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell test-shell-batch-builtins extras-hd run-extras-hd test-cd-bios test-cd-file test-cd-subdir test-cd-find test-cd-mscdex test-cd-exec test-cd-86box test-sammax-cd-files test-sammax-cd-start test-sammax-cd-setmuse test-sammax-cd-setmuse-save test-sammax-cd-install test-sammax-cd-install-select test-sammax-cd-dig test-normality-install test-monkey-full test-mi2-save test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-norton-commander-launch test-norton-commander-copy test-norton-commander-rename-delete test-norton-commander-mkdir-rmdir test-norton-commander test-shortline-smoke test-stunt-island-smoke test-civ-smoke test-civ-86box test-simon-smoke test-mm2-smoke test-game-smokes
 
 all: $(DISK_IMG)
 
@@ -338,6 +338,9 @@ test-civ-86box: vendor/sid-meiers-civilization-au.zip
 
 test-simon-smoke: vendor/simon1demo.zip
 	$(RUN_TEST) $(PYTHON) scripts/test_simon_smoke.py
+
+test-mm2-smoke: vendor/003513_micro_machines_2.7z
+	$(RUN_TEST) $(PYTHON) scripts/test_mm2_smoke.py
 
 test-game-smokes: test-monkey-demo test-monkey-full test-wolf3d-smoke test-ascendancy-smoke
 

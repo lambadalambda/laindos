@@ -209,3 +209,4 @@
 - [x] [Bring up Sid Meier's Civilization](issues/bring-up-civilization.md)
 - [x] [Investigate Civilization's QEMU PIT stall](issues/investigate-civilization-qemu-pit-stall.md)
 - [x] [Bring up the Simon the Sorcerer demo](issues/bring-up-simon-the-sorcerer.md)
+- [x] [Bring up Micro Machines 2](issues/bring-up-micro-machines-2.md)

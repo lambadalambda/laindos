@@ -41,6 +41,15 @@ sector_io_loop:
     mov al, 1
     int 0x13
     jnc .ok
+    cmp ah, 0x06
+    jne .no_media_change
+    cmp byte [cs:kdrv], 0x80
+    jae .no_media_change
+    call floppy_media_remount
+    jc .fail
+    mov byte [cs:kret], 3
+    jmp .next
+.no_media_change:
     xor ax, ax
     mov dl, [cs:kdrv]
     int 0x13

@@ -4,7 +4,7 @@ What LainDOS implements today, and the compatibility decisions behind it.
 
 ## Current Status
 
-- Boots FAT12 floppy images, raw FAT hard-disk images, simple MBR-partitioned FAT12/FAT16 hard disks, and floppy boots with an attached raw or partitioned FAT hard disk exposed as `C:`.
+- Boots FAT12 floppy images, raw FAT hard-disk images, simple MBR-partitioned FAT12/FAT16 hard disks, and floppy boots with an attached raw or partitioned FAT hard disk exposed as `C:`. Hard-disk boots expose the BIOS floppy as `A:` like real DOS, and floppy media changes are picked up through the INT 13h change-line error (the volume is re-read and `A:`'s working directory resets to root).
 - Loads `.COM` and MZ `.EXE` programs with PSP setup, relocation, terminate vectors, environment blocks, and MCB allocation.
 - Provides a small shell with `AUTOEXEC.BAT`, current directory support, environment/PATH/BLASTER handling, and parent/child `EXEC` coverage including inherited child PSP handle tables.
 - Implements the core DOS file APIs used by the current suite: open/read/write/seek/close, create/truncate, delete, rename, attributes, timestamps, disk free, FindFirst/FindNext, and writable FAT12/FAT16 paths.
@@ -16,12 +16,13 @@ What LainDOS implements today, and the compatibility decisions behind it.
 - Runs the full Monkey Island 2: LeChuck's Revenge with working in-game save and load, verified end to end by the vendor-gated `make test-mi2-save` smoke.
 - Installs Stunt Island from its source media through the in-game installer and boots the installed game to its interactive startup prompts under QEMU, verified by the vendor-gated `make test-stunt-island-smoke`.
 - Runs Norton Commander 5.5 with startup, child-launch, file-copy, rename/delete, and mkdir/rmdir smokes, and Shortline to an active game screen, when the local archives are present.
+- Installs Micro Machines 2 through its real four-floppy Codemasters installer (language selection, SHR unpacking, three disk swaps) and launches the installed game through DOS/4GW to its interactive copy-protection screen, verified by the vendor-gated `make test-mm2-smoke`.
 - Runs the Simon the Sorcerer demo (AGOS engine) to its interactive in-game scene with verb interface and mouse cursor, verified by the vendor-gated `make test-simon-smoke`.
 - Runs Sid Meier's Civilization to its startup menus and animating VGA intro through the bundled `LOADFIX.COM` (CIV.EXE is EXEPACK-compressed and needs a 64 KiB-plus load address, exactly as on real MS-DOS 5), verified by the vendor-gated `make test-civ-smoke`. Under the headless 86Box build the same image reaches the title menu (`make test-civ-86box`); under QEMU further progress is blocked by an emulator PIT-timing interaction that also reproduces under FreeDOS.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
 - Provides vendor-gated `make test-sammax-cd-files`, `make test-sammax-cd-start`, `make test-sammax-cd-setmuse`, `make test-sammax-cd-setmuse-save`, `make test-sammax-cd-install`, `make test-sammax-cd-install-select`, `make test-sammax-cd-dig`, and `make test-normality-install` smokes for the Sam & Max Hit the Road CD data track from its cue/bin archive. The Normality smoke drives the Gremlin installer end to end (its copy phase runs `COPY`/`MD` through `COMSPEC /C`) and launches the installed demo.
-- `make test` currently runs the automated QEMU regression ladder and passes `140/140` tests.
+- `make test` currently runs the automated QEMU regression ladder and passes `141/141` tests.
 
 ## Scope
 

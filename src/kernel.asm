@@ -690,6 +690,18 @@ init_drive_table:
     call save_active_drive_slot
     call load_active_volume_buffers
     jc .done
+    call mount_bios_floppy_a
+    jnc .hd_have_floppy
+    mov al, 2
+    call load_drive_slot_geometry
+    mov byte [cs:rf_cache_valid], 0
+    mov byte [cs:fat16_cache_valid], 0
+    call load_active_volume_buffers
+    jmp .hd_floppy_done
+.hd_have_floppy:
+    mov al, 2
+    call activate_drive
+.hd_floppy_done:
     call mount_bios_cdrom_d
     jc .hard_boot_cd_done
     mov byte [cs:dos_drive_count], 4
@@ -1035,6 +1047,125 @@ mount_bios_hard_disk_c:
     mov byte [cs:drive_present+2], 0
     stc
 .done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+; Mount the BIOS floppy (drive 00h) as A: when booting from hard disk,
+; like real DOS. The caller restores C: as the active drive afterwards.
+mount_bios_floppy_a:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov byte [cs:kdrv], 0x00
+    mov word [cs:kpart_lba], 0
+    mov word [cs:kpart_lba_hi], 0
+    mov word [cs:kbio_spt], 18
+    mov word [cs:kbio_heads], 2
+    mov ax, SEC_BUF
+    mov es, ax
+    xor bx, bx
+    xor ax, ax
+    mov word [cs:kio_lba_hi], 0
+    call read_sector
+    jc .err
+    call copy_secbuf_to_bpb
+    call parse_bpb_geometry
+    jc .err
+    mov word [cs:kpart_lba], 0
+    mov word [cs:kpart_lba_hi], 0
+    mov word [cs:cur_dir_cluster], ROOT_CLUSTER
+    mov byte [cs:cur_dir_path], 0
+    mov byte [cs:active_drive_num], 0
+    mov al, 0
+    call save_active_drive_slot
+    clc
+    jmp .done
+.err:
+    stc
+.done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+; A floppy INT 13h read failed with the change-line error (AH=06h): the
+; disk was swapped under an in-flight operation. Reset the drive, re-read
+; the BPB, reload the active volume, and reset A:'s working directory so
+; the retried I/O sees the new disk. The in-flight kio state survives the
+; nested sector reads.
+floppy_media_remount:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, [cs:klba]
+    push ax
+    mov ax, [cs:klba_hi]
+    push ax
+    mov al, [cs:kio_op]
+    push ax
+    xor ax, ax
+    mov dl, [cs:kdrv]
+    int 0x13
+    mov ax, SEC_BUF
+    mov es, ax
+    xor bx, bx
+    xor ax, ax
+    mov word [cs:kio_lba_hi], 0
+    call read_sector
+    jc .err
+    call copy_secbuf_to_bpb
+    call parse_bpb_geometry
+    jc .err
+    mov word [cs:kpart_lba], 0
+    mov word [cs:kpart_lba_hi], 0
+    mov word [cs:cur_dir_cluster], ROOT_CLUSTER
+    mov byte [cs:cur_dir_path], 0
+    mov byte [cs:rf_cache_valid], 0
+    mov byte [cs:fat16_cache_valid], 0
+    mov byte [cs:fat_dirty], 0
+    call load_active_volume_buffers
+    jc .err
+    cmp byte [cs:kdrv], 0
+    jne .saved
+    mov word [cs:drive_cur_clusters], ROOT_CLUSTER
+    mov byte [cs:drive_cur_paths], 0
+    mov al, 0
+    call save_active_drive_slot
+.saved:
+    clc
+    jmp .out
+.err:
+    stc
+.out:
+    pop ax
+    mov [cs:kio_op], al
+    pop ax
+    mov [cs:klba_hi], ax
+    pop ax
+    mov [cs:klba], ax
+    mov byte [cs:kcnt], 1
     pop di
     pop si
     pop es

@@ -133,6 +133,22 @@ Launch with `CD SIMON`, then `SIMON` (the bundled batch runs `RUNVGA GDEMO /3`).
 make test-simon-smoke
 ```
 
+## Micro Machines 2
+
+Stage the four installer floppies and a blank bootable target from `vendor/003513_micro_machines_2.7z`:
+
+```sh
+python3 scripts/build_mm2_hd.py
+```
+
+The game files live in `.SHR` bundles only the real Codemasters installer can unpack, so installation is the genuine article: boot `build/mm2_hd.img` with `build/mm2_disk1.img` in A:, run `A:\INSTALL`, and swap to disks 2-4 when prompted (under QEMU: `change floppy0 build/mm2_diskN.img raw` in the monitor). This exercises two faithful-DOS behaviors added for it: the BIOS floppy is exposed as A: on hard-disk boots, and a floppy swap is picked up through the INT 13h change-line error. After installing, `CD \MM2` and `MM2` boots the game through DOS/4GW to its interactive copy-protection screen; going further needs the manual's symbol card.
+
+The vendor-gated smoke drives the whole pipeline, swaps included:
+
+```sh
+make test-mm2-smoke
+```
+
 ## External Hard-Disk Images
 
 Smoke-test a local external hard-disk image without writing to it:

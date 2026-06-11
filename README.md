@@ -10,9 +10,9 @@ That is LainDOS in QEMU: boot the floppy to the shell, `DIR` the disk, type `mid
 
 LainDOS implements the DOS that era software actually calls: the `INT 21h` file/memory/process APIs, MZ `.EXE` loading with relocation, MCB memory management, a small shell with batch files, writable FAT12/FAT16, read-only ISO-9660 CD-ROM with MSCDEX detection, a PS/2-backed `INT 33h` mouse driver, and an XMS shim — with the kernel itself resident in the High Memory Area, like late-era MS-DOS. It is not a FreeDOS replacement; it is a compatibility testbed that grows exactly as fast as its games demand, with faithful DOS semantics preferred over per-title hacks.
 
-Games it runs today: **The Secret of Monkey Island** (demo bundled, full VGA version supported), **Monkey Island 2: LeChuck's Revenge** with working in-game save and load, **Sam & Max Hit the Road** from CD-ROM, **Simon the Sorcerer**, **Sid Meier's Civilization**, **Wolfenstein 3D**, **Ascendancy**, **Stunt Island**, **Shortline**, and Norton Commander 5.5 for good measure.
+Games it runs today: **The Secret of Monkey Island** (demo bundled, full VGA version supported), **Monkey Island 2: LeChuck's Revenge** with working in-game save and load, **Sam & Max Hit the Road** from CD-ROM, **Simon the Sorcerer**, **Sid Meier's Civilization**, **Wolfenstein 3D**, **Ascendancy**, **Stunt Island**, **Micro Machines 2**, **Shortline**, and Norton Commander 5.5 for good measure.
 
-Every change is gated by an automated QEMU regression ladder that currently passes `140/140` tests.
+Every change is gated by an automated QEMU regression ladder that currently passes `141/141` tests.
 
 ## Try it
 

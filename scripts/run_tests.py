@@ -152,6 +152,7 @@ DEFAULT_TESTS = [
     "scripts/test_timeoutguard.py",
     "scripts/test_mkimage.py",
     "scripts/test_loadfix.py",
+    "scripts/test_hdfloppy.py",
 ]
 
 # Tests that run outside `make test`: vendor-media game tests and emulator
@@ -164,6 +165,7 @@ EXTERNAL_TESTS = {
     "test_civ_smoke.py",               # vendor Civilization zip (make test-civ-smoke)
     "test_cd_86box.py",                # needs a local 86Box install (make test-cd-86box)
     "test_mi2_save.py",                # vendor MI2 zip (make test-mi2-save)
+    "test_mm2_smoke.py",               # vendor Micro Machines 2 7z (make test-mm2-smoke)
     "test_monkey_full.py",             # vendor monkey_full zip (make test-monkey-full)
     "test_normality_install.py",       # Sam & Max CD image (make test-normality-install)
     "test_norton_commander_copy.py",   # vendor Norton 7z (make test-norton-commander-copy)
