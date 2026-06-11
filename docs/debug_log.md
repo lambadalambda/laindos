@@ -43,8 +43,8 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Remaining Follow-Ups
 
-- `scripts/test_mi2_save.py` choreography diverges from current boot timing (blind fixed delays; its "save dialog" screendump now lands mid-intro). Retune with state detection (screendump-based) and consider registering it.
-- Rerun Stunt Island manually (`scripts/run_stunt_island.py`). Per project decision the forced-IF shim stays removed even if Stunt Island regresses -- debug separately if so.
+- DONE: `scripts/test_mi2_save.py` rewritten as a state-driven flow -- screendump phase detection plus closed-loop clicking (the SCUMM dialogs draw at scene-dependent positions and the mouse-delta scaling varies by phase, so blind coordinates miss). Full save verified end to end: SAVEGAME.002 lands on the image with the typed name after the game quits cleanly to the shell. The earlier "save does not persist" observations were harness artifacts (missed clicks on the difficulty screen and OK button), not kernel behavior.
+- Rerun Stunt Island manually (`scripts/run_stunt_island.py`). Per project decision the forced-IF shim stays removed even if Stunt Island regresses -- debug separately if so. The default `build/stunt_xmsfix_hd.img` no longer exists; recreate the installed `C:\STUNTISL` tree via the installer in `build/extras_hd.img` first.
 
 ## 2026-06-10 HMA Kernel Relocation: DOS/4GW GDT Corruption At 1 MiB
 

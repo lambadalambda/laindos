@@ -1,4 +1,3 @@
-- [ ] [Retune the MI2 save test choreography](issues/retune-mi2-save-test.md)
 - [ ] [Migrate long-hand tests to testlib helpers](issues/migrate-tests-to-testlib-helpers.md)
 - [ ] [Unify boot-time and EXEC loader sizing logic](issues/unify-boot-and-exec-loader-sizing.md)
 - [ ] [Consolidate MCB allocation and walk paths](issues/consolidate-mcb-allocation-paths.md)
