@@ -15,19 +15,89 @@ mcb_walk_next:
     stc
     ret
 
-%macro MCB_WALK_EACH 6
-%1:
-    mov ds, si
-    MCB_IS_VALID
-    je %2
-    jmp %4
-%3:
-    cmp byte [ds:0], MCB_SIG_Z
-    je %5
-    call mcb_walk_next
-    jc %6
-    jmp %1
-%endmacro
+; DS:SI = MCB, BX = paragraphs to keep in the low part. When the block
+; is large enough to leave a viable remainder, carve a free MCB above
+; the kept part (inheriting the original signature) and mark the kept
+; part 'M'. Owner is left untouched. Preserves all registers.
+mcb_split_low:
+    push ax
+    push cx
+    push di
+    push es
+    mov ax, [ds:3]
+    sub ax, bx
+    cmp ax, 2
+    jb .done
+    mov di, si
+    add di, bx
+    inc di
+    mov es, di
+    mov al, [ds:0]
+    mov [es:0], al
+    mov word [es:1], 0
+    mov cx, [ds:3]
+    sub cx, bx
+    dec cx
+    mov [es:3], cx
+    mov byte [ds:0], MCB_SIG_M
+    mov [ds:3], bx
+.done:
+    pop es
+    pop di
+    pop cx
+    pop ax
+    ret
+
+; DS:SI = free MCB, BX = paragraphs to keep in the HIGH part. Carves
+; the allocation out of the top of the block, leaving the low remainder
+; free; DS and SI move to the kept high MCB. Owner is left untouched.
+mcb_split_high:
+    push ax
+    push cx
+    push di
+    push es
+    mov cx, [ds:3]
+    sub cx, bx
+    cmp cx, 2
+    jb .done
+    mov di, si
+    add di, cx
+    mov al, [ds:0]
+    mov byte [ds:0], MCB_SIG_M
+    dec cx
+    mov [ds:3], cx
+    mov es, di
+    mov [es:0], al
+    mov [es:3], bx
+    mov si, di
+    mov ds, di
+.done:
+    pop es
+    pop di
+    pop cx
+    pop ax
+    ret
+
+; Walk the whole chain checking signatures. CF set with AX = 7 when a
+; corrupt MCB is found.
+mcb_chain_validate:
+    push ds
+    push si
+    mov si, [cs:mcb_first]
+    MCB_WALK_EACH .mcv_walk, .mcv_check, .mcv_next, .mcv_bad, .mcv_ok, .mcv_ok
+.mcv_check:
+    jmp .mcv_next
+.mcv_ok:
+    pop si
+    pop ds
+    clc
+    ret
+.mcv_bad:
+    mov ax, 7
+    pop si
+    pop ds
+    stc
+    ret
 
 alloc_mem_direct:
     push ds
@@ -41,29 +111,7 @@ alloc_mem_direct:
     mov ax, [ds:3]
     cmp ax, [cs:am_req]
     jb .amd_next
-    mov ax, [ds:3]
-    sub ax, [cs:am_req]
-    cmp ax, 2
-    jb .amd_exact
-    push si
-    mov di, si
-    add di, [cs:am_req]
-    inc di
-    push di
-    mov es, di
-    mov al, [ds:0]
-    mov byte [es:0], al
-    mov word [es:1], 0
-    mov cx, [ds:3]
-    sub cx, [cs:am_req]
-    dec cx
-    mov word [es:3], cx
-    mov byte [ds:0], MCB_SIG_M
-    mov ax, [cs:am_req]
-    mov word [ds:3], ax
-    pop di
-    pop si
-.amd_exact:
+    call mcb_split_low
     mov ax, [cs:cur_psp]
     mov word [ds:1], ax
     mov ax, si
@@ -170,25 +218,7 @@ alloc_mem_direct_high:
     test si, si
     jz .amdh_nomem
     mov ds, si
-    mov cx, [ds:3]
-    sub cx, [cs:am_req]
-    cmp cx, 2
-    jb .amdh_exact
-    mov di, si
-    add di, cx
-    mov al, [ds:0]
-    mov byte [ds:0], MCB_SIG_M
-    dec cx
-    mov [ds:3], cx
-    mov es, di
-    mov byte [es:0], al
-    mov ax, [cs:cur_psp]
-    mov [es:1], ax
-    mov ax, [cs:am_req]
-    mov [es:3], ax
-    mov si, di
-    mov ds, di
-.amdh_exact:
+    call mcb_split_high
     mov ax, [cs:cur_psp]
     mov word [ds:1], ax
     mov ax, si
@@ -198,6 +228,47 @@ alloc_mem_direct_high:
     clc
     ret
 .amdh_nomem:
+    stc
+    pop si
+    pop ds
+    ret
+
+; Best-fit variant: allocate from the smallest free block that satisfies
+; the request (the AH=48h strategy-1 policy).
+alloc_mem_direct_best:
+    push ds
+    push si
+    mov [cs:am_req], bx
+    mov word [cs:am_best_seg], 0
+    mov word [cs:am_best_size], 0xFFFF
+    mov si, [cs:mcb_first]
+    MCB_WALK_EACH .amdb_walk, .amdb_check, .amdb_next, .amdb_nomem, .amdb_choose, .amdb_nomem
+.amdb_check:
+    cmp word [ds:1], 0
+    jne .amdb_next
+    mov ax, [ds:3]
+    cmp ax, [cs:am_req]
+    jb .amdb_next
+    cmp ax, [cs:am_best_size]
+    jae .amdb_next
+    mov [cs:am_best_size], ax
+    mov [cs:am_best_seg], si
+    jmp .amdb_next
+.amdb_choose:
+    mov si, [cs:am_best_seg]
+    test si, si
+    jz .amdb_nomem
+    mov ds, si
+    call mcb_split_low
+    mov ax, [cs:cur_psp]
+    mov word [ds:1], ax
+    mov ax, si
+    inc ax
+    pop si
+    pop ds
+    clc
+    ret
+.amdb_nomem:
     stc
     pop si
     pop ds

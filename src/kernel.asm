@@ -2443,24 +2443,13 @@ do_terminate:
     call close_owned_handles
     mov byte [cs:console_ext_pending], 0
     mov si, [cs:mcb_first]
-.dt_mcb_walk:
-    mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .dt_mcb_check
-    cmp byte [ds:0], MCB_SIG_Z
-    je .dt_mcb_check
-    jmp .dt_mcb_done
+    MCB_WALK_EACH .dt_mcb_walk, .dt_mcb_check, .dt_mcb_next, .dt_mcb_done, .dt_mcb_done, .dt_mcb_done
 .dt_mcb_check:
     mov ax, [cs:cur_psp]
     cmp word [ds:1], ax
     jne .dt_mcb_next
     mov word [ds:1], 0
-.dt_mcb_next:
-    cmp byte [ds:0], MCB_SIG_Z
-    je .dt_mcb_done
-    call mcb_walk_next
-    jc .dt_mcb_done
-    jmp .dt_mcb_walk
+    jmp .dt_mcb_next
 .dt_mcb_done:
     call mcb_coalesce_all_free
     mov ax, [cs:cur_psp]
@@ -2513,11 +2502,8 @@ do_terminate_tsr:
     dec si
     mov [cs:tsr_psp_mcb], si
     mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .mcb_ok
-    cmp byte [ds:0], MCB_SIG_Z
+    MCB_IS_VALID
     jne .free_extra
-.mcb_ok:
     cmp [ds:1], ax
     jne .free_extra
     mov bx, [cs:tsr_keep_par]
@@ -2531,19 +2517,10 @@ do_terminate_tsr:
     sub ax, bx
     cmp ax, 2
     jb .free_extra
-    mov di, si
-    add di, bx
-    inc di
-    mov es, di
-    mov dl, [ds:0]
-    mov [es:0], dl
-    mov word [es:1], 0
-    dec ax
-    mov [es:3], ax
-    mov byte [ds:0], MCB_SIG_M
-    mov [ds:3], bx
-    mov si, di
-    mov ds, di
+    call mcb_split_low
+    add si, bx
+    inc si
+    mov ds, si
     call mcb_merge_free_forward
     mov ax, [cs:cur_psp]
     mov es, ax
@@ -2569,12 +2546,7 @@ do_terminate_tsr:
 
 tsr_free_owned_extra:
     mov si, [cs:mcb_first]
-.walk:
-    mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .check
-    cmp byte [ds:0], MCB_SIG_Z
-    jne .done
+    MCB_WALK_EACH .walk, .check, .next, .done, .done, .done
 .check:
     mov ax, [cs:cur_psp]
     cmp [ds:1], ax
@@ -2588,12 +2560,7 @@ tsr_free_owned_extra:
     cmp word [ds:1], 0
     jne .next
     call mcb_merge_free_forward
-.next:
-    cmp byte [ds:0], MCB_SIG_Z
-    je .done
-    call mcb_walk_next
-    jc .done
-    jmp .walk
+    jmp .next
 .done:
     ret
 

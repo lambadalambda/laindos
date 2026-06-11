@@ -751,6 +751,7 @@ free_exec_environment:
     push ax
 ; @anchor: free_exec_environment_free_block
     push ds
+    push si
     mov ax, [cs:exec_env_seg]
     test ax, ax
     jz .done
@@ -770,6 +771,7 @@ free_exec_environment:
     mov word [cs:exec_env_seg], 0
     mov byte [cs:exec_env_owned], 0
 .done:
+    pop si
     pop ds
     pop ax
     ret
@@ -800,6 +802,7 @@ assign_exec_environment_owner:
 free_prog_mcb:
     push ax
     push ds
+    push si
     mov ax, [cs:prog_seg]
     test ax, ax
     jz .done
@@ -814,6 +817,7 @@ free_prog_mcb:
 .clear:
     mov word [cs:prog_seg], 0
 .done:
+    pop si
     pop ds
     pop ax
     ret

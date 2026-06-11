@@ -34,4 +34,21 @@ MCB_SIG_Z equ 'Z'
 %%mcb_ok:
 %%mcb_fail:
 %endmacro
+
+; Walk the MCB chain calling a per-entry check. Args: walk label,
+; check target, next label, invalid-signature target, end-of-chain
+; target, walk-failure target. DS:SI track the current MCB.
+%macro MCB_WALK_EACH 6
+%1:
+    mov ds, si
+    MCB_IS_VALID
+    je %2
+    jmp %4
+%3:
+    cmp byte [ds:0], MCB_SIG_Z
+    je %5
+    call mcb_walk_next
+    jc %6
+    jmp %1
+%endmacro
 %endif

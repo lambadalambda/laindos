@@ -200,3 +200,4 @@
 - [x] [Remove dead kernel code](issues/remove-dead-kernel-code.md)
 - [x] [Migrate long-hand tests to testlib helpers](issues/migrate-tests-to-testlib-helpers.md)
 - [x] [Unify boot-time and EXEC loader sizing logic](issues/unify-boot-and-exec-loader-sizing.md)
+- [x] [Consolidate MCB allocation and walk paths](issues/consolidate-mcb-allocation-paths.md)

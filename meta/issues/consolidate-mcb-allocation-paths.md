@@ -15,3 +15,23 @@ The free-block split sequence (carve `am_req` paragraphs out of a free MCB, crea
 ## Notes
 
 - Latent clobber while in the area: `free_exec_environment`/`free_prog_mcb` (`src/kernel/exec.inc:672`, 717) preserve AX/DS but silently destroy SI — give them symmetric save/restore.
+
+## Resolution (2026-06-11)
+
+- One split definition each: `mcb_split_low` (keep the low part, carve
+  a free MCB above) and `mcb_split_high` (allocate from the top of the
+  block) in memory_mcb.inc, used by alloc_mem_direct,
+  alloc_mem_direct_high, the new alloc_mem_direct_best, the AH=4Ah
+  grow/shrink paths, and the do_terminate_tsr shrink. The 4Ah shrink's
+  hand-rolled single-step forward merge became a mcb_merge_free_forward
+  call on the carved tail.
+- AH=48h now routes through the shared allocators: mcb_chain_validate
+  walks the chain first (preserving the AX=7 corrupt-arena error), the
+  strategy dispatch picks alloc_mem_direct / alloc_mem_direct_best /
+  alloc_mem_direct_high (keeping the small-allocation last-fit bias),
+  and the failure path reuses find_largest_free_block for BX.
+- The do_terminate ownership walk and tsr_free_owned_extra use
+  MCB_WALK_EACH (the macro moved to memory.inc so kernel.asm sites can
+  use it); the AH=49h/4Ah header checks use MCB_IS_VALID.
+- free_exec_environment/free_prog_mcb now preserve SI.
+- Suite passes 139/139; kernel shrank 38684 -> 38240 bytes.

@@ -1504,65 +1504,28 @@ int21_handler:
     push ds
     push si
     mov [cs:am_req], bx
+    call mcb_chain_validate
+    jc .am_err
     mov al, [cs:alloc_strat]
     and al, 0x03
-    cmp al, 2
-    jne .am_not_last_strategy
-    jmp near .am_find_last
-.am_not_last_strategy:
     cmp al, 1
-    jne .am_first_strategy
-    jmp near .am_find_best
-.am_first_strategy:
+    je .am_strat_best
+    cmp al, 2
+    je .am_strat_high
     cmp word [cs:am_req], 1
-    jbe .am_first_walk
+    jbe .am_strat_first
     cmp word [cs:am_req], SMALL_ALLOC_HIGH_MAX
-    ja .am_first_walk
-    jmp near .am_find_last
-.am_first_walk:
-    mov si, [cs:mcb_first]
-.am_walk:
-    mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .am_check
-    cmp byte [ds:0], MCB_SIG_Z
-    je .am_check
-    mov ax, 7
-    jmp .am_err
-.am_check:
-    cmp word [ds:1], 0
-    jne .am_next
-    mov ax, [ds:3]
-    cmp ax, [cs:am_req]
-    jb .am_next
-.am_use:
-    mov ax, [ds:3]
-    sub ax, [cs:am_req]
-    cmp ax, 2
-    jb .am_exact
-    push si
-    mov di, si
-    add di, [cs:am_req]
-    inc di
-    push di
-    mov es, di
-    mov al, [ds:0]
-    mov byte [es:0], al
-    mov word [es:1], 0
-    mov cx, [ds:3]
-    sub cx, [cs:am_req]
-    dec cx
-    mov word [es:3], cx
-    mov byte [ds:0], MCB_SIG_M
-    mov ax, [cs:am_req]
-    mov word [ds:3], ax
-    pop di
-    pop si
-.am_exact:
-    mov ax, [cs:cur_psp]
-    mov word [ds:1], ax
-    mov ax, si
-    inc ax
+    jbe .am_strat_high
+.am_strat_first:
+    call alloc_mem_direct
+    jmp .am_alloc_done
+.am_strat_best:
+    call alloc_mem_direct_best
+    jmp .am_alloc_done
+.am_strat_high:
+    call alloc_mem_direct_high
+.am_alloc_done:
+    jc .am_nomem
     cmp word [cs:trace_left], 0
     je .am_no_trace
     dec word [cs:trace_left]
@@ -1595,117 +1558,8 @@ int21_handler:
     INT21_POP_FRAME_BX_CX_DX_ES_DI_DS_SI
     mov ax, [cs:am_ret_seg]
     jmp iret_nc
-.am_next:
-    cmp byte [ds:0], MCB_SIG_Z
-    je .am_nomem
-    call mcb_walk_next
-    jc .am_nomem
-    jmp .am_walk
-.am_find_last:
-    mov word [cs:am_best_seg], 0
-    mov si, [cs:mcb_first]
-.am_last_walk:
-    mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .am_last_check
-    cmp byte [ds:0], MCB_SIG_Z
-    je .am_last_check
-    mov ax, 7
-    jmp .am_err
-.am_last_check:
-    cmp word [ds:1], 0
-    jne .am_last_next
-    mov ax, [ds:3]
-    cmp ax, [cs:am_req]
-    jb .am_last_next
-    mov [cs:am_best_seg], si
-.am_last_next:
-    cmp byte [ds:0], MCB_SIG_Z
-    je .am_choose_last
-    call mcb_walk_next
-    jc .am_nomem
-    jmp .am_last_walk
-.am_find_best:
-    mov word [cs:am_best_seg], 0
-    mov word [cs:am_best_size], 0xFFFF
-    mov si, [cs:mcb_first]
-.am_best_walk:
-    mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .am_best_check
-    cmp byte [ds:0], MCB_SIG_Z
-    je .am_best_check
-    mov ax, 7
-    jmp .am_err
-.am_best_check:
-    cmp word [ds:1], 0
-    jne .am_best_next
-    mov ax, [ds:3]
-    cmp ax, [cs:am_req]
-    jb .am_best_next
-    cmp ax, [cs:am_best_size]
-    jae .am_best_next
-    mov [cs:am_best_size], ax
-    mov [cs:am_best_seg], si
-.am_best_next:
-    cmp byte [ds:0], MCB_SIG_Z
-    je .am_choose_best
-    call mcb_walk_next
-    jc .am_nomem
-    jmp .am_best_walk
-.am_choose_best:
-    mov si, [cs:am_best_seg]
-    test si, si
-    jz .am_nomem
-    mov ds, si
-    jmp .am_use
-.am_choose_last:
-    mov si, [cs:am_best_seg]
-    test si, si
-    jz .am_nomem
-    mov ds, si
-.am_use_last:
-    mov cx, [ds:3]
-    sub cx, [cs:am_req]
-    cmp cx, 2
-    jb .am_exact
-    mov di, si
-    add di, cx
-    mov al, [ds:0]
-    mov byte [ds:0], MCB_SIG_M
-    dec cx
-    mov [ds:3], cx
-    mov es, di
-    mov byte [es:0], al
-    mov ax, [cs:am_req]
-    mov [es:3], ax
-    mov si, di
-    mov ds, di
-    jmp .am_exact
 .am_nomem:
-    mov bx, 0
-    mov si, [cs:mcb_first]
-.am_scan_largest:
-    mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .am_sl_check
-    cmp byte [ds:0], MCB_SIG_Z
-    je .am_sl_check
-    jmp .am_sl_done
-.am_sl_check:
-    cmp word [ds:1], 0
-    jne .am_sl_next
-    mov ax, [ds:3]
-    cmp ax, bx
-    jbe .am_sl_next
-    mov bx, ax
-.am_sl_next:
-    cmp byte [ds:0], MCB_SIG_Z
-    je .am_sl_done
-    call mcb_walk_next
-    jc .am_sl_done
-    jmp .am_scan_largest
-.am_sl_done:
+    call find_largest_free_block
     mov ax, 8
 .am_err:
     cmp word [cs:trace_left], 0
@@ -1741,9 +1595,7 @@ int21_handler:
     mov si, es
     dec si
     mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .fm_ok
-    cmp byte [ds:0], MCB_SIG_Z
+    MCB_IS_VALID
     je .fm_ok
     mov ax, 9
     jmp .fm_err
@@ -1767,9 +1619,7 @@ int21_handler:
     mov si, es
     dec si
     mov ds, si
-    cmp byte [ds:0], MCB_SIG_M
-    je .rm_ok
-    cmp byte [ds:0], MCB_SIG_Z
+    MCB_IS_VALID
     je .rm_ok
     mov ax, 9
     jmp .rm_err
@@ -1799,73 +1649,22 @@ int21_handler:
     mov dl, [es:0]
     mov byte [ds:0], dl
     add word [ds:3], cx
-    mov ax, [ds:3]
-    sub ax, bx
-    cmp ax, 2
-    jb .rm_shrink
-    push es
-    mov di, si
-    add di, bx
-    inc di
-    mov es, di
-    mov byte [es:0], dl
-    mov byte [ds:0], MCB_SIG_M
-    mov word [es:1], 0
-    mov cx, [ds:3]
-    sub cx, bx
-    dec cx
-    mov word [es:3], cx
-    mov word [ds:3], bx
-    pop es
+    call mcb_split_low
     jmp .rm_done
 .rm_shrink:
     mov ax, [ds:3]
     sub ax, bx
     cmp ax, 2
     jb .rm_done
-    push es
-    mov di, si
-    add di, bx
-    inc di
-    mov es, di
-    mov dl, [ds:0]
-    mov byte [es:0], dl
-    mov word [es:1], 0
-    dec ax
-    mov word [es:3], ax
-    mov byte [ds:0], MCB_SIG_M
-    mov word [ds:3], bx
-    cmp dl, MCB_SIG_M
-    jne .rm_shrink_merged
+    call mcb_split_low
     push ds
-    push es
-    mov ax, es
-    inc ax
-    add ax, [es:3]
-    jb .rm_shrink_no_merge
-    cmp ax, MEM_TOP
-    jae .rm_shrink_no_merge
-    mov ds, ax
-    cmp byte [ds:0], MCB_SIG_M
-    je .rm_shrink_next_valid
-    cmp byte [ds:0], MCB_SIG_Z
-    jne .rm_shrink_no_merge
-.rm_shrink_next_valid:
-    cmp word [ds:1], 0
-    jne .rm_shrink_no_merge
-    mov cx, [ds:3]
-    inc cx
-    pop es
-    add [es:3], cx
-    mov al, [ds:0]
-    mov [es:0], al
+    push si
+    add si, bx
+    inc si
+    mov ds, si
+    call mcb_merge_free_forward
+    pop si
     pop ds
-    jmp .rm_shrink_merged
-.rm_shrink_no_merge:
-    pop es
-    pop ds
-.rm_shrink_merged:
-    pop es
 .rm_done:
     push ax
     push cx
