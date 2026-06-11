@@ -179,7 +179,7 @@ const DOSAPI_GROUPS = [
     id: "version",
     title: "Version, drive data, date/time, and probes",
     verdict: "Compatibility probes return stable DOS-like answers or explicit unsupported-LFN status.",
-    calls: "AH=19h,1Bh,1Ch,25h,29h,2Ah-30h,33h,35h,36h,38h,52h,54h,5Dh,60h,63h,71h",
+    calls: "AH=19h,1Bh,1Ch,25h,29h,2Ah-30h,33h-36h,38h,52h,54h,5Dh,60h,63h,71h",
     prose: [
       "Many programs do not immediately open files. They first ask DOS what version it is, what drive is current, how much disk space is free, what the date/time is, or where an interrupt vector points.",
       "LainDOS answers these probes with DOS 3.30-style behavior where that helps old games, returns real disk-free counts from the FAT, keeps enough vector/date/verify state for installers and utilities to continue, and includes narrow FCB compatibility used by older probes and launchers. `AH=2Ch` derives time from BIOS ticks until `AH=2Dh` stores an explicit DOS time; builders can pass `-DUTC_OFFSET_MINUTES=<minutes>` to convert a UTC BIOS clock to local time modulo 24 hours.",
@@ -251,6 +251,7 @@ const DOSAPI_CALLS = [
       ["30h", "Get DOS version", "supported", "Reports DOS 5.00 identity (true-version flags advertise DOS in the HMA)."],
       ["31h", "Terminate and stay resident", "partial", "Keeps the PSP MCB resident, frees non-resident child-owned MCBs, and reports TSR return type."],
       ["33h", "Ctrl-Break state", "partial", "Supports get/set break flag, boot drive query, and true-version query."],
+      ["34h", "Get InDOS flag address", "supported", "Returns ES:BX pointing at the InDOS re-entrancy counter for TSRs and extenders that poll it."],
       ["35h", "Get interrupt vector", "supported", "Reads an IVT entry into ES:BX."],
       ["36h", "Get disk free space", "supported", "Counts free clusters from the real FAT."],
       ["37h", "Switch character", "supported", "Gets/sets the stored switch character (default '/'); other subfunctions return AL=FFh."],
@@ -296,7 +297,7 @@ const DOSAPI_CALLS = [
       ["48h", "Allocate memory", "supported", "Allocates paragraphs from the MCB arena."],
       ["49h", "Free memory", "supported", "Releases an MCB-owned block."],
       ["4Ah", "Resize memory", "supported", "Shrinks or grows blocks when adjacent free space permits."],
-      ["4Bh", "EXEC", "partial", "Supports AL=00h load-and-run, AL=03h overlay load, custom or inherited child-owned environment copies with executable path tails, and inherited child PSP JFT entries."],
+      ["4Bh", "EXEC", "partial", "Supports AL=00h load-and-run, AL=01h load-only with entry SS:SP/CS:IP returned in the parameter block, AL=03h overlay load, custom or inherited child-owned environment copies with executable path tails, and inherited child PSP JFT entries."],
       ["4Ch", "Terminate with return code", "supported", "Stores AL and returns control to the parent or shell."],
       ["4Dh", "Get return code", "supported", "Returns and clears the last child return code and termination type."],
       ["58h", "Allocation strategy", "supported", "Supports get/set for first, best, and last fit."],
@@ -325,7 +326,7 @@ const DOSAPI_SUBFUNCTIONS = [
   ["AH=5Dh", "DOS internal", "AX=5D06h returns DS:SI for a minimal swappable-data-area header with current DTA, PSP, return code/type, and drive fields; other subfunctions fail."],
   ["AH=71h", "LFN unsupported", "All Windows long-filename subfunctions fail with CF set and AX=7100h, matching the fallback signal expected by DJGPP-era callers."],
   ["AH=44h", "IOCTL", "AL=00h reads device information, AL=01h is accepted as the same compatibility answer, AL=06h/07h report input/output status, and AL=08h/09h/0Ah report local drive or handle state."],
-  ["AH=4Bh", "EXEC", "AL=00h loads and runs a child program; AL=03h loads an overlay. Load-but-do-not-execute and other EXEC variants are not implemented yet."],
+  ["AH=4Bh", "EXEC", "AL=00h loads and runs a child program; AL=01h loads one without running it and fills the parameter block with the child's entry SS:SP and CS:IP; AL=03h loads an overlay. Other EXEC variants fail with a function-number error."],
   ["AH=58h", "Allocator", "AL=00h gets the strategy and AL=01h sets strategy BL=0/1/2 for first/best/last fit. Other values fail with function-number error."],
 ];
 

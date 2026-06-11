@@ -87,7 +87,7 @@ const MOUSE_SECTIONS = [
       [77, "    mov bx, 2"],
       [81, "    iret"],
     ],
-    hi: [1, 20, 23, 47, 48, 64, 68, 74, 75],
+    hi: [1, 20, 23, 47, 48, 64, 68, 76, 77],
     tests: ["scripts/test_mouse.py", "scripts/test_regpres.py"],
   },
   {
@@ -122,7 +122,7 @@ const MOUSE_SECTIONS = [
       [248, "    cmp ax, [cs:mouse_max_x]"],
       [262, "    mov [cs:mouse_y], ax"],
     ],
-    hi: [83, 88, 94, 97, 108, 185, 202, 237],
+    hi: [88, 88, 94, 102, 113, 190, 207, 242],
     tests: ["scripts/test_mouse.py", "scripts/test_mouseratio.py", "scripts/test_regpres.py"],
   },
   {
@@ -151,7 +151,7 @@ const MOUSE_SECTIONS = [
       [181, "    mov word [cs:mouse_motion_x], 0"],
       [182, "    mov word [cs:mouse_motion_y], 0"],
     ],
-    hi: [119, 130, 135, 146, 157, 162, 173, 176, 177],
+    hi: [124, 135, 135, 151, 162, 162, 178, 181, 182],
     tests: ["scripts/test_mouse.py", "scripts/test_mousecb.py"],
   },
   {
@@ -185,7 +185,7 @@ const MOUSE_SECTIONS = [
       [531, "    neg ax"],
       [535, "    call mouse_apply_delta_y"],
     ],
-    hi: [328, 334, 337, 341, 351, 452, 463, 468, 477, 508, 523, 527],
+    hi: [333, 342, 345, 349, 359, 460, 471, 468, 485, 516, 531, 535],
     tests: ["scripts/test_mousecb.py", "scripts/test_mouseratio.py", "tests/programs/mousehw.asm"],
   },
   {
@@ -222,7 +222,7 @@ const MOUSE_SECTIONS = [
       [635, "    out 0x20, al"],
       [637, "    call mouse_ps2_byte"],
     ],
-    hi: [536, 546, 557, 567, 575, 579, 581, 591, 597, 611, 622, 625, 626],
+    hi: [544, 554, 565, 575, 575, 587, 589, 599, 606, 621, 637, 634, 635],
     tests: ["scripts/test_mousecb.py", "scripts/test_mouseratio.py", "scripts/test_mouseindos.py"],
   },
 ];

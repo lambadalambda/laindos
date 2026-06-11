@@ -44,7 +44,7 @@ const MEM_SECTIONS = [
       [25, "%error \"MEM_TOP must be 256-byte aligned\""],
       [27, "MCB_SIG_M equ 'M'"],
       [28, "MCB_SIG_Z equ 'Z'"]],
-    hi: [4, 6, 7, 8, 9, 12, 16, 17],
+    hi: [4, 6, 7, 8, 9, 19, 23, 24],
     tests: ["scripts/test_boot.py", "scripts/test_highmcb.py", "scripts/test_free.py"],
   },
   {
@@ -68,14 +68,14 @@ const MEM_SECTIONS = [
       [178, "%if ENABLE_XMS"],
       [179, "    call init_xms_size"],
       [195, "    mov ax, MCB_START"],
-      [156, "    mov es, ax"],
+      [196, "    mov es, ax"],
       [197, "    mov byte [es:0], MCB_SIG_Z"],
       [198, "    mov word [es:1], 0"],
       [199, "    mov ax, MEM_TOP - MCB_START - 1"],
       [200, "    mov word [es:3], ax"],
       [201, "    mov word [mcb_first], MCB_START"],
       [202, "    mov word [cur_psp], 0"]],
-    hi: [111, 124, 145, 159, 161, 164, 165],
+    hi: [137, 158, 145, 195, 197, 200, 201],
     tests: ["scripts/test_boot.py", "scripts/test_memfail.py", "scripts/test_highmcb.py"],
   },
   {
@@ -107,7 +107,7 @@ const MEM_SECTIONS = [
       [3740, "%error \"EMS frame must be inside conventional arena\""],
       [3751, "%if ENABLE_XMS && XMS_MAX_KB > 15360"],
       [{a: "xms_backing_limit_error"}, "%error \"XMS BIOS move backing must remain below 16 MiB\""]],
-    hi: [3317, 3320, 3323, 3326, 3332, 3335, 3341, 3353],
+    hi: [3715, 3718, 3721, 3724, 3727, 3730, 3733, 3736, 3739, 3751],
     tests: ["scripts/test_boot.py", "scripts/test_free.py", "scripts/test_ems.py"],
   },
   {
@@ -140,7 +140,7 @@ const MEM_SECTIONS = [
       [115, "    mov ax, [cs:cur_psp]"],
       [116, "    mov word [ds:1], ax"],
       [118, "    inc ax"]],
-    hi: [1, 18, 32, 37, 46, 61, 68, 70],
+    hi: [1, 22, 102, 107, 29, 66, 116, 118],
     tests: ["scripts/test_highmcb.py", "scripts/test_envmcb.py", "scripts/test_memrelease.py"],
   },
   {
@@ -173,7 +173,7 @@ const MEM_SECTIONS = [
       [1603, ".am_nomem:"],
       [1604, "    call find_largest_free_block"],
       [1605, "    mov ax, 8"]],
-    hi: [1224, 1259, 1298, 1319, 1404, 1428, 1488],
+    hi: [1478, 1503, 1540, 1549, 1559, 1567, 1604],
     tests: ["scripts/test_stratapi.py", "scripts/test_memfail.py", "scripts/test_highmcb.py"],
   },
   {
@@ -211,7 +211,7 @@ const MEM_SECTIONS = [
       [1730, ".rm_cant_grow:"],
       [1802, "    mov bx, ax"],
       [1732, "    mov ax, 8"]],
-    hi: [1535, 1551, 1552, 1559, 1592, 1633, 1680, 1723],
+    hi: [1631, 1640, 1645, 1646, 1653, 1694, 1721, 1802],
     tests: ["scripts/test_memfail.py", "scripts/test_memrelease.py", "scripts/test_tsr.py"],
   },
   {
@@ -239,7 +239,7 @@ const MEM_SECTIONS = [
       [792, "    dec bx"],
       [797, "    mov ax, [cs:cur_psp]"],
       [{a: "env_owner_store"}, "    mov [ds:1], ax"]],
-    hi: [{a: "alloc_exec_environment_start"}, {a: "alloc_exec_environment_temp_owner"}, {a: "free_exec_environment_start"}, 508, 522, 523],
+    hi: [{a: "alloc_exec_environment_start"}, {a: "alloc_exec_environment_temp_owner"}, {a: "free_exec_environment_start"}, 783, 797, {a: "env_owner_store"}],
     tests: ["scripts/test_envmcb.py", "scripts/test_execenv.py", "scripts/test_envoflow.py", "scripts/test_memrelease.py"],
   },
   {
@@ -266,7 +266,7 @@ const MEM_SECTIONS = [
       [2455, "    call mcb_coalesce_all_free"],
       [2460, "    mov ax, [0x16]"],
       [{a: "do_terminate_restore_parent_psp"}, "    mov [cs:cur_psp], ax"]],
-    hi: [2144, 2157, 2161, 2171, 2173, 2181, 2187],
+    hi: [2428, 2442, 2549, 2450, 2559, 2455, {a: "do_terminate_restore_parent_psp"}],
     tests: ["scripts/test_memrelease.py", "scripts/test_free.py", "scripts/test_shell.py"],
   },
   {
@@ -312,7 +312,7 @@ const MEM_SECTIONS = [
       [1958, "    call xms_prepare_endpoint"],
       [2004, "    mov ax, 0x8700"],
       [{a: "xms_move_bios_call"}, "    int 0x15"]],
-    hi: [43, 88, 1583, 1610, 1613, 1623, 1661, 1679, 1755],
+    hi: [43, 114, 1774, 1836, 1830, 1843, 1915, 1933, {a: "xms_move_bios_call"}],
     tests: ["scripts/test_xms.py", "scripts/test_free.py", "scripts/test_shell.py"],
   },
   {
@@ -356,7 +356,7 @@ const MEM_SECTIONS = [
       [2295, "    mov word [cs:ems_alloc_pages], 0"],
       [2319, "ems_clear_map:"],
       [{a: "ems_clear_map_fill"}, "    mov word [cs:ems_map_pages], 0xFFFF"]],
-    hi: [92, 1453, 1907, 1913, 1939, 1954, 1962, 1994, 2012],
+    hi: [118, 1578, 2162, 2168, 2194, 2209, 2217, 2260, 2267],
     tests: ["scripts/test_ems.py", "scripts/test_free.py", "scripts/test_shell.py"],
   },
   {
@@ -395,7 +395,7 @@ const MEM_SECTIONS = [
       [108, "    int 0x67"],
       [111, "    mov ah, 0x42"],
       [112, "    int 0x67"]],
-    hi: [13, 22, 27, 35, 52, 55, 70, 93],
+    hi: [13, 22, 27, 35, 52, 55, 72, 103],
     tests: ["scripts/test_free.py", "scripts/test_shell.py", "scripts/test_xms.py", "scripts/test_ems.py"],
   }];
 

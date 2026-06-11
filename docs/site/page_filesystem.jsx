@@ -8,9 +8,9 @@ const FS_FLOW = [
 
 const FS_BUFFERS = [
   ["FAT_SEG 0060", "Whole FAT12 table, or the current FAT16 sector workspace when following chains."],
-  ["SEC_BUF 0B00", "One-sector scratch buffer for subdirectories, write-modify-write, and load copies."],
-  ["READ_CACHE_BUF 0B20", "AH=3Fh read cache, invalidated by every sector write."],
-  ["ROOT_SEG 0B40", "Resident root-directory image for fast root scans and root slot flushes."],
+  ["SEC_BUF 0200", "One-sector scratch buffer for subdirectories, write-modify-write, and load copies."],
+  ["READ_CACHE_BUF 0220", "AH=3Fh read cache, invalidated by every sector write."],
+  ["ROOT_SEG 0240", "Resident root-directory image for fast root scans and root slot flushes."],
 ];
 
 const FS_SECTIONS = [
@@ -42,7 +42,7 @@ const FS_SECTIONS = [
       [626, "    cmp ax, 4087"],
       [628, "    mov byte [cs:kfat_bits], 16"],
     ],
-    hi: [442, 481, 487, 505, 528, 553],
+    hi: [576, 622, 628, 572, 595, 620],
     tests: ["scripts/test_bpb_invalid.py", "scripts/test_fat16.py", "scripts/test_partitioned_fat16.py"],
   },
   {
@@ -121,7 +121,7 @@ const FS_SECTIONS = [
       [338, "    mov ax, [cs:kfat_start]"],
       [355, "    call write_sector"],
     ],
-    hi: [1, 44, 93, 137, 199, 247, 275],
+    hi: [32, 44, 93, 168, 230, 278, 308],
     tests: ["scripts/test_badfat.py", "scripts/test_fat16_bounds.py", "scripts/test_dirmut.py"],
   },
   {
@@ -163,7 +163,7 @@ const FS_SECTIONS = [
       [1884, "    call resolve_path"],
       [1897, "    call parse_83name"],
     ],
-    hi: [939, 960, 1063, 1711, 1756, 1793, 1858],
+    hi: [936, 960, 1061, 1737, 1803, 1793, 1884],
     tests: ["scripts/test_pathcanon.py", "scripts/test_drivepath.py", "scripts/test_diredge.py", "scripts/test_parsefcb.py", "scripts/test_findstar.py"],
   },
   {
@@ -202,7 +202,7 @@ const FS_SECTIONS = [
       [1479, "    call fat_set"],
       [1480, "    call flush_fat"],
     ],
-    hi: [1121, 1142, 1201, 1354, 1411, 1469],
+    hi: [1146, 1167, 1219, 1364, 1418, 1473],
     tests: ["scripts/test_findedge.py", "scripts/test_dirextfail.py", "scripts/test_dirextrollback.py"],
   },
   {
@@ -277,7 +277,7 @@ const FS_SECTIONS = [
       [3535, "    mov byte [cs:rf_cache_valid], 0"],
       [3626, "    mov ax, [cs:wf_written]"],
     ],
-    hi: [2903, 2917, 3137, 3200, 3215, 3289],
+    hi: [3090, 3110, 3136, 3472, 3530, 3535],
     tests: ["scripts/test_readcache.py", "scripts/test_rwedge.py", "scripts/test_seekedge.py"],
   },
   {
@@ -319,7 +319,7 @@ const FS_SECTIONS = [
       [5056, "    call flush_handle_dir_entry"],
       [5058, "    call flush_fat"],
     ],
-    hi: [2303, 2358, 3379, 3401, 4449, 4575],
+    hi: [2454, 2550, 3692, 3726, 4897, 5026],
     tests: ["scripts/test_createapi.py", "scripts/test_handleleak.py", "scripts/test_savewrite.py", "scripts/test_dirmut.py", "scripts/test_rnguard.py"],
   },
 ];

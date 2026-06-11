@@ -14,12 +14,14 @@ const PROGRAM_SECTIONS = [
     summary: "AH=4Bh is the bridge from a shell command to a child process.",
     body: [
       "The parent supplies the path in DS:DX and an EXEC parameter block in ES:BX. LainDOS saves the parent's registers, PSP, DTA, and stack frame before resolving the child. That saved frame is what makes returning from a child look like a normal DOS call to the parent.",
-      "Only AL=00h load-and-run and AL=03h overlay load are implemented. Other EXEC variants fail explicitly instead of becoming silent compatibility stubs."],
+      "AL=00h load-and-run, AL=01h load-only (the child's entry SS:SP and CS:IP are returned through the parameter block), and AL=03h overlay load are implemented. Other EXEC variants fail explicitly instead of becoming silent compatibility stubs."],
     file: "src/kernel/int21.inc",
     code: [
       [1955, ".exec:"],
-      [1148, "    cmp al, 0"],
+      [1956, "    cmp al, 0"],
       [1957, "    je .exec_program"],
+      [1958, "    cmp al, 1"],
+      [1959, "    je near .exec_load"],
       [1960, "    cmp al, 3"],
       [1961, "    je .exec_overlay"],
       [2045, "    mov [cs:exec_param_off], bx"],
@@ -27,7 +29,7 @@ const PROGRAM_SECTIONS = [
       [2047, "    mov [cs:exec_path_off], dx"],
       [2048, "    mov [cs:exec_path_seg], ds"],
       [2049, "    call load_exec_program"]],
-    hi: [1940, 1966, 1970],
+    hi: [1955, 2045, 2049],
     tests: ["scripts/test_shell.py", "scripts/test_execparam.py", "scripts/test_spawn.py"],
   },
   {
@@ -52,7 +54,7 @@ const PROGRAM_SECTIONS = [
       [240, ".alloc:"],
       [251, "    mov [cs:prog_seg], ax"],
       [{a: "exec_load_fat_file"}, "    call load_file_direct"]],
-    hi: [6, 29, 148, 170],
+    hi: [177, 219, 240, 170],
     tests: ["scripts/test_badreloc.py", "scripts/test_memrelease.py", "scripts/test_shell.py"],
   },
   {
@@ -78,7 +80,7 @@ const PROGRAM_SECTIONS = [
       [606, "    stosw"],
       [607, "    mov ds, [cs:exec_path_seg]"],
       [{a: "env_path_first_byte"}, "    stosb"]],
-    hi: [309, 320, 335, 342],
+    hi: [573, 584, 599, 606],
     tests: ["scripts/test_execenv.py", "scripts/test_envmcb.py", "scripts/test_envpath.py", "scripts/test_envoflow.py"],
   },
   {
@@ -102,7 +104,7 @@ const PROGRAM_SECTIONS = [
       [1491, "    mov [es:0x2C], bx"],
       [1495, "    call assign_exec_environment_owner"],
       [{a: "build_psp_copy_fcbs"}, "    call exec_copy_default_fcbs"]],
-    hi: [913, 921, 951, 1013, 1015],
+    hi: [1389, 1397, 1427, 1489, 1491],
     tests: ["scripts/test_shell.py", "scripts/test_execparam.py", "scripts/test_jft.py"],
   },
   {
@@ -128,7 +130,7 @@ const PROGRAM_SECTIONS = [
       [1726, "    mov ss, ax"],
       [1730, "    push word 0x0100"],
       [{a: "exec_com_entry_jump"}, "    retf"]],
-    hi: [1110, 1130, 1159, 1191, 1234, 1269],
+    hi: [139, 1591, 1620, 1654, 1703, {a: "exec_com_entry_jump"}],
     tests: ["scripts/test_badreloc.py", "scripts/test_overlay.py", "scripts/test_regpres.py"],
   },
   {
@@ -150,7 +152,7 @@ const PROGRAM_SECTIONS = [
       [2163, "    call load_overlay_direct"],
       [832, "    xor ax, ax"],
       [551, "    jmp iret_nc"]],
-    hi: [1993, 2007, 2009, 2020],
+    hi: [2111, 2125, 2127, 2163],
     tests: ["scripts/test_overlay.py", "tests/programs/ovltest.asm", "tests/programs/overlay.asm"],
   },
   {
@@ -174,7 +176,7 @@ const PROGRAM_SECTIONS = [
       [2539, "    mov ax, [cs:saved_ss]"],
       [2542, "    mov sp, [cs:saved_sp]"],
       [{a: "do_terminate_return_to_parent"}, "    jmp exec_resume_parent"]],
-    hi: [2144, 2158, 2173, 2187, 2201],
+    hi: [2428, 2484, 2559, 2534, {a: "do_terminate_return_to_parent"}],
     tests: ["scripts/test_retcode.py", "scripts/test_termflush.py", "scripts/test_tsr.py"],
   }];
 
