@@ -106,13 +106,41 @@ def code_part(line):
     return line.split(";", 1)[0].rstrip()
 
 
+def top_level_items(block):
+    """Split the contents of a bracketed block into top-level items."""
+    items = []
+    depth = 0
+    in_string = None
+    escaped = False
+    item_start = 1
+    for i in range(1, len(block) - 1):
+        ch = block[i]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == in_string:
+                in_string = None
+            continue
+        if ch in ('"', "'", "`"):
+            in_string = ch
+        elif ch in "[{(":
+            depth += 1
+        elif ch in "]})":
+            depth -= 1
+        elif ch == "," and depth == 0:
+            items.append(block[item_start:i])
+            item_start = i + 1
+    tail = block[item_start:len(block) - 1]
+    items.append(tail)
+    return [item for item in items if item.strip()]
+
+
 def check_source_excerpts(errors):
     checked = 0
     anchor_check_pattern = re.compile(
         r"\[\s*\{\s*a\s*:\s*\"([^\"]+)\"\s*\}\s*,\s*(\"(?:\\.|[^\"\\])*\")\s*\]"
-    )
-    hi_anchor_pattern = re.compile(
-        r"\{\s*a\s*:\s*\"([^\"]+)\"\s*\}"
     )
     for doc in SOURCE_EXCERPT_DOCS:
         text = read(doc)
@@ -172,18 +200,43 @@ def check_source_excerpts(errors):
                                 f"  doc:    {excerpt!r}\n"
                                 f"  source: {actual!r}"
                             )
-                    hi_match = re.search(r"\bhi:\s*\[", text[bracket_end + 1:])
-                    if hi_match:
-                        hi_bracket_start = bracket_end + 1 + hi_match.end() - 1
-                        hi_bracket_end = find_matching(text, hi_bracket_start)
-                        if hi_bracket_end is not None:
-                            hi_block = text[hi_bracket_start:hi_bracket_end + 1]
-                            for m3 in hi_anchor_pattern.finditer(hi_block):
-                                anchor_name = m3.group(1)
-                                checked += 1
+                    excerpt_lines = {ln for ln, _ in parse_code_entries(block)}
+                    block_anchors = {m3.group(1) for m3 in anchor_check_pattern.finditer(block)}
+                    next_code = re.search(r"\bcode:\s*\[", text[bracket_end + 1:])
+                    window_end = bracket_end + 1 + (next_code.start() if next_code else len(text))
+                    for kind in ("hi", "annotations"):
+                        kind_match = re.search(rf"\b{kind}:\s*\[", text[bracket_end + 1:window_end])
+                        if not kind_match:
+                            continue
+                        kind_start = bracket_end + 1 + kind_match.end() - 1
+                        kind_end = find_matching(text, kind_start)
+                        if kind_end is None:
+                            continue
+                        for item in top_level_items(text[kind_start:kind_end + 1]):
+                            if kind == "hi":
+                                num = re.fullmatch(r"\s*(\d+)\s*", item)
+                                anchor = re.fullmatch(r"\s*\{\s*a\s*:\s*\"([^\"]+)\"\s*\}\s*", item)
+                            else:
+                                num = re.match(r"\s*\[\s*(\d+)\s*,", item)
+                                anchor = None
+                                if num is None:
+                                    continue
+                            checked += 1
+                            if num:
+                                line_no = int(num.group(1))
+                                if line_no not in excerpt_lines:
+                                    errors.append(
+                                        f"{rel(doc)}: {kind} key {line_no} is not an excerpt line of its code block ({source_rel})"
+                                    )
+                            elif anchor:
+                                anchor_name = anchor.group(1)
                                 if anchor_name not in anchors:
                                     errors.append(
-                                        f"{rel(doc)}: unknown hi anchor {anchor_name!r} for {source_rel}"
+                                        f"{rel(doc)}: unknown {kind} anchor {anchor_name!r} for {source_rel}"
+                                    )
+                                elif anchor_name not in block_anchors:
+                                    errors.append(
+                                        f"{rel(doc)}: {kind} anchor {anchor_name!r} is not an excerpt entry of its code block ({source_rel})"
                                     )
             pos = bracket_end + 1
     if checked == 0:
