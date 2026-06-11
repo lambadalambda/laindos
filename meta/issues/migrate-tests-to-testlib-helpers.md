@@ -20,3 +20,23 @@ Roughly 3,000 lines (~20% of scripts/) are copy-pasted boilerplate that testlib 
 ## Resolution (batch 1, 2026-06-10)
 
 Removed all 41 byte-identical test-script `run(cmd)` copies and the 7 near-identical copies in the build scripts (testlib.run_cmd now also prints "Command failed: <cmd>" on error, matching the richer variant); run_monkey_full_bochs.py keeps its genuinely different non-capturing runner. 23 tests with the exact canonical floppy QEMU block now call run_serial_image (picking up the fail-on-timeout default). Net -650 lines. Also fixed the broken `make test-attached-hd-shell` target found along the way (it never passed the image path; now depends on extras-hd and passes it). Remaining work for later batches: tests with custom drive_opts/extra QEMU args, and the inline marker-check loops that could move to check_markers.
+
+## Resolution (batches 2-3, 2026-06-11)
+
+run_serial_image gained boot_order and extra_args (floppy default
+unchanged), letting the HD (order=c), -snapshot, two-drive (floppy +
+IDE CD-ROM / IDE disk), and hard_disk-flag runner shapes migrate: 37
+more tests dropped their inline QEMU argv blocks and hand-rolled
+timed_out handling, picking up the fail-on-timeout default. The
+canonical inline marker-check loops (including blank-line, named-list,
+and no-forbidden variants) moved onto check_markers with identical
+output. Net -704 lines across the two batches on top of batch 1's -650.
+
+Final state vs acceptance: the only `def run(cmd):` left is
+run_monkey_full_bochs.py's intentionally different non-capturing
+runner; every remaining inline `-serial stdio` block is either an
+interactive monitor/sendkey test (game/media and console/shell-typing
+scripts, which need their own QEMU invocation with a monitor socket) or
+test_boot_chain_bounds' custom stop_markers -- a legitimate direct
+run_qemu_capture use. Remaining long-hand marker loops carry per-case
+labels or multi-output checks that check_markers does not model.

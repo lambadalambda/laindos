@@ -1,4 +1,3 @@
-- [ ] [Migrate long-hand tests to testlib helpers](issues/migrate-tests-to-testlib-helpers.md)
 - [ ] [Unify boot-time and EXEC loader sizing logic](issues/unify-boot-and-exec-loader-sizing.md)
 - [ ] [Consolidate MCB allocation and walk paths](issues/consolidate-mcb-allocation-paths.md)
 - [ ] [Deduplicate CD-ROM driver paths](issues/dedupe-cdrom-driver-paths.md)
