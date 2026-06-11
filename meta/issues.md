@@ -1,1 +1,0 @@
-- [ ] [Tidy script utility rough edges](issues/tidy-script-utility-rough-edges.md)

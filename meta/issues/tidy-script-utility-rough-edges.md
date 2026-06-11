@@ -11,3 +11,24 @@ Low-severity hygiene items from the 2026-06-10 review of scripts/: (a) `unlzexe.
 ## Acceptance Criteria
 
 - `make test` passes; failing-run build dirs are bounded (e.g. cleaned at start of the next run); unlzexe's status is decided and documented.
+
+## Resolution (2026-06-11)
+
+- (a) unlzexe.py deleted. It turned out to be untracked (never
+  committed), had no callers, and the debug log already records it
+  producing broken output (40-byte result for midemo.exe); the
+  relocation-table limitation made it a trap for any real LZEXE input.
+- (b) ChunkScanner makes wait_for_output and finish_qemu polling
+  incremental: each poll appends only new chunks and searches the
+  unseen tail plus a needle-sized overlap, linear in total output.
+  The atexit kill_qemu_at_exit accumulation is recorded as won't-fix:
+  registrations are per-test-process, bounded by the handful of QEMU
+  launches a single script makes, become no-ops once the process
+  exits (kill_qemu_at_exit checks poll()), and unregistering would
+  remove the safety net for any concurrently running QEMU.
+- (c) run_tests.py prunes build/tests/run-<pid> leftovers from dead
+  processes at startup, so failing runs keep their dir for inspection
+  but the accumulation is bounded by one invocation.
+- (d) test_cd_86box.py resolves the binary via LAINDOS_86BOX, then
+  PATH, then the macOS default, and the failure message says how to
+  point it at an install.

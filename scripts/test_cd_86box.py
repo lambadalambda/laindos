@@ -92,9 +92,10 @@ def main():
     parser = argparse.ArgumentParser(description="Run focused LainDOS CD smoke under 86Box.")
     parser.add_argument("--boot-only", action="store_true", help="boot HELLO.COM from floppy with no hard disk and no CD")
     args = parser.parse_args()
-    exe = os.environ.get("LAINDOS_86BOX", DEFAULT_86BOX)
+    exe = os.environ.get("LAINDOS_86BOX") or shutil.which("86Box") or DEFAULT_86BOX
     if not os.path.exists(exe):
         print(f"Missing 86Box executable: {exe}", file=sys.stderr)
+        print("Install 86Box or set LAINDOS_86BOX to its binary path.", file=sys.stderr)
         sys.exit(1)
     build_artifacts(boot_only=args.boot_only)
     build_profile(with_cd=not args.boot_only)

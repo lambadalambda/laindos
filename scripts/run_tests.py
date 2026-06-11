@@ -214,6 +214,30 @@ def is_relative_to(path, parent):
         return False
 
 
+def prune_stale_run_dirs(root):
+    """Remove build/tests/run-<pid> leftovers from earlier runs whose
+    process is gone (failing runs keep their dir for inspection, so they
+    accumulate until the next invocation prunes them)."""
+    runs_dir = root / "build" / "tests"
+    if not runs_dir.is_dir():
+        return
+    for entry in runs_dir.iterdir():
+        if not entry.name.startswith("run-") or not entry.is_dir():
+            continue
+        try:
+            pid = int(entry.name[4:])
+        except ValueError:
+            continue
+        if pid == os.getpid():
+            continue
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            shutil.rmtree(entry, ignore_errors=True)
+        except PermissionError:
+            continue
+
+
 def cleanup_build_root(root, build_root, keep_build):
     if keep_build:
         return
@@ -334,6 +358,7 @@ def main():
     root = repo_root()
     if not check_test_discovery(root):
         return 2
+    prune_stale_run_dirs(root)
     build_root = Path(args.build_root)
     if not build_root.is_absolute():
         build_root = root / build_root

@@ -203,14 +203,38 @@ def chunks_contain(chunks, markers):
     return any(marker.encode() in output for marker in markers)
 
 
+class ChunkScanner:
+    """Incremental marker scan over a growing chunk list. Each poll only
+    appends new chunks and searches the unseen tail (plus a needle-sized
+    overlap), keeping repeated polling linear in total output."""
+
+    def __init__(self, chunks, *marker_groups):
+        self.chunks = chunks
+        self.index = 0
+        self.buf = bytearray()
+        self.scanned = 0
+        self.groups = [tuple(m.encode() for m in group) for group in marker_groups]
+        self.overlap = max((len(n) for g in self.groups for n in g), default=1) - 1
+
+    def poll(self):
+        """Return a tuple of booleans, one per marker group."""
+        while self.index < len(self.chunks):
+            self.buf += self.chunks[self.index]
+            self.index += 1
+        start = max(0, self.scanned - self.overlap)
+        window = bytes(self.buf[start:])
+        self.scanned = len(self.buf)
+        return tuple(any(n in window for n in group) for group in self.groups)
+
+
 def wait_for_output(chunks, marker, timeout=10, stop_markers=DEFAULT_FAIL_MARKERS + DEFAULT_STOP_MARKERS):
-    needle = marker.encode()
+    scanner = ChunkScanner(chunks, (marker,), stop_markers)
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        output = b"".join(chunks)
-        if needle in output:
+        found, stopped = scanner.poll()
+        if found:
             return True
-        if any(stop.encode() in output for stop in stop_markers):
+        if stopped:
             return False
         time.sleep(0.02)
     return False
@@ -354,8 +378,10 @@ def collect_output(stdout_chunks, stderr_chunks, threads):
 def finish_qemu(proc, stdout_chunks, stderr_chunks, threads, timeout=10, stop_markers=DEFAULT_STOP_MARKERS, fail_markers=DEFAULT_FAIL_MARKERS):
     deadline = time.monotonic() + timeout
     timed_out = False
+    scanner = ChunkScanner(stdout_chunks, fail_markers, stop_markers)
     while proc.poll() is None:
-        if chunks_contain(stdout_chunks, fail_markers) or chunks_contain(stdout_chunks, stop_markers):
+        failed, stopped = scanner.poll()
+        if failed or stopped:
             time.sleep(0.05)
             break
         if time.monotonic() >= deadline:
