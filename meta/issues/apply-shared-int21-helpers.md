@@ -15,3 +15,30 @@ Several existing or obvious helpers are open-coded repeatedly: (a) the `STRIP_DR
 ## Notes
 
 - Latent register-contract hazard in the same area: `find_in_dir`'s root branch clobbers DX while the subdir branch preserves it (path_dir.inc:1148 vs 1184-1185) — make the contract symmetric while refactoring.
+
+## Resolution (2026-06-11)
+
+- New src/kernel/macros.inc (included right after fat_bpb.inc so every
+  later include can use it) hosts STRIP_DRIVE_PREFIX (moved from
+  path_dir.inc) and the new INC_DWORD_CS. Four of the open-coded
+  drive-prefix strips in int21.inc became the macro; the fifth
+  (.ff_has_path dispatch) stays explicit because its no-prefix case
+  jumps away rather than falling through. All seven 32-bit LBA bumps
+  use INC_DWORD_CS.
+- pos_to_cluster_sector (path_dir.inc) replaces the triplicated
+  position-to-(cluster index, sector-in-cluster) computation in the
+  read/write paths.
+- release_handle_slot replaces the five drifting handle-slot clear
+  sequences; the four-field variants now also zero H_REFCOUNT (safe:
+  alias slots carry refcount 0 and the closed-root site is reached only
+  with refcount 0).
+- rm_resize_trace replaces the byte-identical AH=4Ah trace blocks,
+  parameterized by a tail-message variable.
+- serial_print_hex_word now composes two serial_print_hex calls.
+- find_in_dir's root branch calls root_entry_loc_from_cx instead of
+  re-deriving it, and now preserves DX like the subdir branch (the
+  noted register-contract hazard).
+- One self-inflicted bug caught by the suite mid-refactor: the script
+  that swapped the slot-clear sequences also rewrote the new helper's
+  own body into a recursive call; 139/139 after the fix. Kernel shrank
+  38240 -> 37993 bytes.

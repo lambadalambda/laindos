@@ -130,9 +130,6 @@ finish_sector_io:
     add ax, 0x1000
     mov es, ax
 .no_wrap:
-    inc word [cs:klba]
-    jnz .lba_inc_done
-    inc word [cs:klba_hi]
-.lba_inc_done:
+    INC_DWORD_CS klba, klba_hi
     dec byte [cs:kcnt]
     ret

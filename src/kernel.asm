@@ -7,6 +7,7 @@ VGA_COLS equ 80
 VGA_ROWS equ 25
 %include "src/memory.inc"
 %include "src/fat_bpb.inc"
+%include "src/kernel/macros.inc"
 
 BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
@@ -3485,6 +3486,7 @@ am_ret_ax: dw 0
 am_ret_bx: dw 0
 am_ret_seg: dw 0
 rm_req: dw 0
+rm_trace_tail: dw 0
 coh_index: dw 0
 
 ov_param_off: dw 0

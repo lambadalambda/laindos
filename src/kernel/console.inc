@@ -291,23 +291,11 @@ serial_print_hex:
     ret
 
 serial_print_hex_word:
-    push cx
     push ax
-    mov cx, 4
-.whloop:
-    rol ax, 4
+    mov al, ah
+    call serial_print_hex
+    pop ax
     push ax
-    and al, 0x0F
-    cmp al, 10
-    jae .walpha
-    add al, '0'
-    jmp .wout
-.walpha:
-    add al, 'A' - 10
-.wout:
-    call serial_putchar
+    call serial_print_hex
     pop ax
-    loop .whloop
-    pop ax
-    pop cx
     ret

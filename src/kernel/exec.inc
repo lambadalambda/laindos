@@ -424,10 +424,7 @@ load_cd_file_direct:
     add ax, 0x1000
     mov es, ax
 .adv_ok:
-    inc word [cs:.lba_lo]
-    jnz .lba_inc_done
-    inc word [cs:.lba_hi]
-.lba_inc_done:
+    INC_DWORD_CS .lba_lo, .lba_hi
     jmp .load
 .done:
     push cs

@@ -201,3 +201,4 @@
 - [x] [Migrate long-hand tests to testlib helpers](issues/migrate-tests-to-testlib-helpers.md)
 - [x] [Unify boot-time and EXEC loader sizing logic](issues/unify-boot-and-exec-loader-sizing.md)
 - [x] [Consolidate MCB allocation and walk paths](issues/consolidate-mcb-allocation-paths.md)
+- [x] [Apply shared helpers across INT 21h and path code](issues/apply-shared-int21-helpers.md)

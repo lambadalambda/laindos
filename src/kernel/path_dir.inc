@@ -25,19 +25,6 @@ alloc_handle:
     stc
     ret
 
-%macro STRIP_DRIVE_PREFIX 1
-    mov al, [ds:%1]
-    call ascii_upper
-    cmp al, 'A'
-    jb %%skip
-    cmp al, 'Z'
-    ja %%skip
-    cmp byte [ds:%1+1], ':'
-    jne %%skip
-    add %1, 2
-%%skip:
-%endmacro
-
 %macro LOAD_SUBDIR_SECTOR 3
     mov ax, SEC_BUF
     mov es, ax
@@ -247,6 +234,28 @@ make_device_handle_at:
     clc
     ret
 
+; DX:AX = byte position. Returns AX = cluster index within the chain
+; and DX = sector index within that cluster. Clobbers CX.
+pos_to_cluster_sector:
+    mov cx, 9
+.shift:
+    shr dx, 1
+    rcr ax, 1
+    loop .shift
+    xor ch, ch
+    mov cl, [cs:kspc]
+    div cx
+    ret
+
+; SI = handle table offset. Clear the slot back to the free state.
+release_handle_slot:
+    mov byte [cs:si+handles+H_USED], 0
+    mov byte [cs:si+handles+H_MODE], 0
+    mov word [cs:si+handles+H_OWNER], 0
+    mov word [cs:si+handles+H_REFCOUNT], 0
+    mov word [cs:si+handles+H_ALIAS], H_ALIAS_NONE
+    ret
+
 close_table_handle:
     cmp bx, MAX_HANDLES
     jae .bad
@@ -264,10 +273,7 @@ close_table_handle:
     mov dx, [cs:si+handles+H_ALIAS]
     cmp dx, H_ALIAS_NONE
     je .master
-    mov byte [cs:si+handles+H_USED], 0
-    mov byte [cs:si+handles+H_MODE], 0
-    mov word [cs:si+handles+H_OWNER], 0
-    mov word [cs:si+handles+H_ALIAS], H_ALIAS_NONE
+    call release_handle_slot
     mov ax, dx
     mov cx, HANDLE_SIZE
     mul cx
@@ -330,11 +336,7 @@ close_root_handle:
     jc .err
 .mark_free:
     pop si
-    mov byte [cs:si+handles+H_USED], 0
-    mov byte [cs:si+handles+H_MODE], 0
-    mov word [cs:si+handles+H_OWNER], 0
-    mov word [cs:si+handles+H_REFCOUNT], 0
-    mov word [cs:si+handles+H_ALIAS], H_ALIAS_NONE
+    call release_handle_slot
     clc
     ret
 .err:
@@ -383,10 +385,7 @@ close_handle_for_replace:
     mov cx, [cs:si+handles+H_REFCOUNT]
     test cx, cx
     jnz .promote_alias
-    mov byte [cs:si+handles+H_USED], 0
-    mov byte [cs:si+handles+H_MODE], 0
-    mov word [cs:si+handles+H_OWNER], 0
-    mov word [cs:si+handles+H_ALIAS], H_ALIAS_NONE
+    call release_handle_slot
     jmp .ok_pop
 .promote_alias:
     mov [cs:dup_status], cx
@@ -461,11 +460,7 @@ close_handle_for_replace:
     inc bx
     jmp .update_alias_loop
 .free_old_root:
-    mov byte [cs:si+handles+H_USED], 0
-    mov byte [cs:si+handles+H_MODE], 0
-    mov word [cs:si+handles+H_OWNER], 0
-    mov word [cs:si+handles+H_REFCOUNT], 0
-    mov word [cs:si+handles+H_ALIAS], H_ALIAS_NONE
+    call release_handle_slot
 .ok_pop:
     pop di
     pop si
@@ -1174,21 +1169,13 @@ find_in_dir_from_common:
     mov cx, [cs:fid_idx]
     cmp cx, [cs:kroot_entries]
     jae .rid_notfound
+    push dx
     mov ax, cx
     mov dx, 32
     mul dx
     mov di, ax
-    mov ax, cx
-    push cx
-    mov cl, 4
-    shr ax, cl
-    pop cx
-    add ax, [cs:krsta]
-    mov [cs:ff_entry_lba], ax
-    mov word [cs:ff_entry_lba_hi], 0
-    mov ax, di
-    and ax, 511
-    mov [cs:ff_entry_off], ax
+    pop dx
+    call root_entry_loc_from_cx
     cmp di, [cs:kroot_bytes]
     jae .rid_notfound
     cmp byte [es:di], 0
@@ -1257,10 +1244,7 @@ find_in_dir_from_common:
     dec bx
     jnz .rid_entry
 .rid_next_sec:
-    inc word [cs:rid_lba]
-    jnz .rid_lba_inc_done
-    inc word [cs:rid_lba_hi]
-.rid_lba_inc_done:
+    INC_DWORD_CS rid_lba, rid_lba_hi
     inc byte [cs:rid_sec_idx]
     mov al, [cs:rid_sec_idx]
     cmp al, [cs:kspc]
@@ -1415,10 +1399,7 @@ find_dir_free:
     add di, 32
     inc word [cs:ff_entry_idx]
     loop .sd_entry
-    inc word [cs:rid_lba]
-    jnz .sd_lba_inc_done
-    inc word [cs:rid_lba_hi]
-.sd_lba_inc_done:
+    INC_DWORD_CS rid_lba, rid_lba_hi
     inc byte [cs:rid_sec_idx]
     mov al, [cs:rid_sec_idx]
     cmp al, [cs:kspc]
@@ -1472,10 +1453,7 @@ find_dir_free:
 %endif
     call write_sector
     jc .sd_rollback
-    inc word [cs:rid_lba]
-    jnz .sd_ext_lba_inc_done
-    inc word [cs:rid_lba_hi]
-.sd_ext_lba_inc_done:
+    INC_DWORD_CS rid_lba, rid_lba_hi
     inc byte [cs:rid_sec_idx]
     mov al, [cs:rid_sec_idx]
     cmp al, [cs:kspc]
@@ -1630,10 +1608,7 @@ init_dir_cluster:
     mov ax, [cs:md_dir_lba]
     call write_sector
     jc .idc_err
-    inc word [cs:md_dir_lba]
-    jnz .idc_lba_inc_done
-    inc word [cs:md_dir_lba_hi]
-.idc_lba_inc_done:
+    INC_DWORD_CS md_dir_lba, md_dir_lba_hi
     inc byte [cs:md_sec_idx]
     mov al, [cs:md_sec_idx]
     cmp al, [cs:kspc]
@@ -1726,10 +1701,7 @@ dir_is_empty:
 .die_next_entry:
     add di, 32
     loop .die_entry
-    inc word [cs:rd_scan_lba]
-    jnz .die_lba_inc_done
-    inc word [cs:rd_scan_lba_hi]
-.die_lba_inc_done:
+    INC_DWORD_CS rd_scan_lba, rd_scan_lba_hi
     inc byte [cs:rd_scan_sec_idx]
     mov al, [cs:rd_scan_sec_idx]
     cmp al, [cs:kspc]

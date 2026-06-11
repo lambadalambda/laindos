@@ -304,6 +304,48 @@ advance_date_days:
     ret
 
 
+
+; Gated AH=4Ah trace: "RESIZE <seg> SIZE=<size> SIG=<sig> REQ=<req>"
+; from DS:SI = MCB, terminated by the message at [cs:rm_trace_tail].
+rm_resize_trace:
+    cmp word [cs:trace_left], 0
+    je .off
+    dec word [cs:trace_left]
+    pusha
+    push ds
+    xor ax, ax
+    mov al, [ds:0]
+    push ax
+    mov ax, [ds:3]
+    push ax
+    mov ax, si
+    inc ax
+    push ax
+    push cs
+    pop ds
+    mov si, msg_trace_resize
+    call serial_print
+    pop ax
+    call serial_print_hex_word
+    mov si, msg_trace_size
+    call serial_print
+    pop ax
+    call serial_print_hex_word
+    mov si, msg_trace_sig
+    call serial_print
+    pop ax
+    call serial_print_hex_word
+    mov si, msg_trace_req
+    call serial_print
+    mov ax, [cs:rm_req]
+    call serial_print_hex_word
+    mov si, [cs:rm_trace_tail]
+    call serial_print
+    pop ds
+    popa
+.off:
+    ret
+
 int21_handler:
     cld
     cmp byte [cs:mouse_in_callback], 0
@@ -1681,84 +1723,16 @@ int21_handler:
     pop es
     pop cx
     pop ax
-    cmp word [cs:trace_left], 0
-    je .rm_no_trace
-    dec word [cs:trace_left]
-    pusha
-    push ds
-    xor ax, ax
-    mov al, [ds:0]
-    push ax
-    mov ax, [ds:3]
-    push ax
-    mov ax, si
-    inc ax
-    push ax
-    push cs
-    pop ds
-    mov si, msg_trace_resize
-    call serial_print
-    pop ax
-    call serial_print_hex_word
-    mov si, msg_trace_size
-    call serial_print
-    pop ax
-    call serial_print_hex_word
-    mov si, msg_trace_sig
-    call serial_print
-    pop ax
-    call serial_print_hex_word
-    mov si, msg_trace_req
-    call serial_print
-    mov ax, [cs:rm_req]
-    call serial_print_hex_word
-    mov si, msg_crlf
-    call serial_print
-    pop ds
-    popa
-.rm_no_trace:
+    mov word [cs:rm_trace_tail], msg_crlf
+    call rm_resize_trace
     INT21_POP_FRAME_DS_SI_ES_DI_DX_CX
     jmp iret_nc
 .rm_cant_grow:
     mov bx, ax
     mov ax, 8
 .rm_err:
-    cmp word [cs:trace_left], 0
-    je .rm_err_no_trace
-    dec word [cs:trace_left]
-    pusha
-    push ds
-    xor ax, ax
-    mov al, [ds:0]
-    push ax
-    mov ax, [ds:3]
-    push ax
-    mov ax, si
-    inc ax
-    push ax
-    push cs
-    pop ds
-    mov si, msg_trace_resize
-    call serial_print
-    pop ax
-    call serial_print_hex_word
-    mov si, msg_trace_size
-    call serial_print
-    pop ax
-    call serial_print_hex_word
-    mov si, msg_trace_sig
-    call serial_print
-    pop ax
-    call serial_print_hex_word
-    mov si, msg_trace_req
-    call serial_print
-    mov ax, [cs:rm_req]
-    call serial_print_hex_word
-    mov si, msg_trace_fail
-    call serial_print
-    pop ds
-    popa
-.rm_err_no_trace:
+    mov word [cs:rm_trace_tail], msg_trace_fail
+    call rm_resize_trace
     INT21_POP_FRAME_DS_SI_ES_DI_DX_CX
     jmp iret_cy
 .get_date:
@@ -2222,15 +2196,7 @@ int21_handler:
     mov [cs:cd_path_off], dx
     mov [cs:cd_path_seg], ds
     mov si, dx
-    mov al, [ds:si]
-    call ascii_upper
-    cmp al, 'A'
-    jb .cd_check_root
-    cmp al, 'Z'
-    ja .cd_check_root
-    cmp byte [ds:si+1], ':'
-    jne .cd_check_root
-    add si, 2
+    STRIP_DRIVE_PREFIX si
 .cd_check_root:
     cmp byte [ds:si], '\'
     je .cd_root_sep
@@ -3071,14 +3037,7 @@ int21_handler:
     mov si, [cs:bx+handles+H_CLUSTER]
     mov ax, [cs:bx+handles+H_POS_LO]
     mov dx, [cs:bx+handles+H_POS_HI]
-    mov cx, 9
-.rf_sector_shift:
-    shr dx, 1
-    rcr ax, 1
-    loop .rf_sector_shift
-    xor ch, ch
-    mov cl, [cs:kspc]
-    div cx
+    call pos_to_cluster_sector
     mov [cs:rf_sec_in_cluster], dx
     mov [cs:rf_cluster_index], ax
     mov si, [cs:bx+handles+H_LAST_CLUSTER]
@@ -3431,14 +3390,7 @@ int21_handler:
 .wf_gap_have_start:
     mov ax, [cs:si+handles+H_POS_LO]
     mov dx, [cs:si+handles+H_POS_HI]
-    mov cx, 9
-.wf_gap_sector_shift:
-    shr dx, 1
-    rcr ax, 1
-    loop .wf_gap_sector_shift
-    xor ch, ch
-    mov cl, [cs:kspc]
-    div cx
+    call pos_to_cluster_sector
     mov [cs:wf_cluster_index], ax
     mov [cs:wf_sec_in_cluster], dx
     call wf_get_cluster
@@ -3513,14 +3465,7 @@ int21_handler:
 .wf_have_start:
     mov ax, [cs:si+handles+H_POS_LO]
     mov dx, [cs:si+handles+H_POS_HI]
-    mov cx, 9
-.wf_sector_shift:
-    shr dx, 1
-    rcr ax, 1
-    loop .wf_sector_shift
-    xor ch, ch
-    mov cl, [cs:kspc]
-    div cx
+    call pos_to_cluster_sector
     mov [cs:wf_cluster_index], ax
     mov [cs:wf_sec_in_cluster], dx
     mov cx, ax
@@ -4805,15 +4750,7 @@ int21_handler:
     mov [cs:ff_dir_cluster], ax
     mov ds, [cs:ff_path_seg]
     mov si, [cs:ff_path_off]
-    mov al, [ds:si]
-    call ascii_upper
-    cmp al, 'A'
-    jb .ff_parse_name
-    cmp al, 'Z'
-    ja .ff_parse_name
-    cmp byte [ds:si+1], ':'
-    jne .ff_parse_name
-    add si, 2
+    STRIP_DRIVE_PREFIX si
 .ff_parse_name:
     call parse_83name
     mov ax, [cs:dta_seg]
@@ -4849,15 +4786,7 @@ int21_handler:
     mov word [cs:ff_dir_cluster], ROOT_CLUSTER
     mov ds, [cs:ff_path_seg]
     mov si, [cs:ff_path_off]
-    mov al, [ds:si]
-    call ascii_upper
-    cmp al, 'A'
-    jb .ff_cd_check_sep
-    cmp al, 'Z'
-    ja .ff_cd_check_sep
-    cmp byte [ds:si+1], ':'
-    jne .ff_cd_check_sep
-    add si, 2
+    STRIP_DRIVE_PREFIX si
 .ff_cd_check_sep:
     cmp word [cs:ff_sep_off], -1
     jne .ff_cd_parent_path
@@ -4868,15 +4797,7 @@ int21_handler:
     jc .ff_err
     mov ds, [cs:ff_path_seg]
     mov si, [cs:ff_path_off]
-    mov al, [ds:si]
-    call ascii_upper
-    cmp al, 'A'
-    jb .ff_parse_name
-    cmp al, 'Z'
-    ja .ff_parse_name
-    cmp byte [ds:si+1], ':'
-    jne .ff_parse_name
-    add si, 2
+    STRIP_DRIVE_PREFIX si
     jmp .ff_parse_name
 .ff_cd_parent_path:
 .ff_cd_root_scan:
