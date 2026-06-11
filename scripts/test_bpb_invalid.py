@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
-from testlib import build_dir, run_cmd, run_qemu_capture
+from testlib import build_dir, run_cmd, run_serial_image
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -25,17 +25,8 @@ def build_image(name, define):
 
 def run_case(name, define):
     img = build_image(name, define)
-    output, timed_out = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={img},format=raw,if=floppy",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
-    failed = timed_out
-    if timed_out:
-        print(f"  FAIL: [{name}] QEMU run timed out")
+    output = run_serial_image(img, TIMEOUT)
+    failed = False
     for marker in ["LainDOS booted", "Invalid BPB", "HALT"]:
         if marker in output:
             print(f"  PASS: [{name}] found '{marker}'")

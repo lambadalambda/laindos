@@ -3,7 +3,7 @@ import os
 import re
 import subprocess
 import sys
-from testlib import run_cmd, build_dir, run_qemu_capture
+from testlib import run_cmd, build_dir, run_serial_image
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -46,15 +46,7 @@ def build_hold_image():
 
 
 def run_qemu(img=None):
-    output, _ = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={img or IMG},format=raw,if=floppy",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
-    return output
+    return run_serial_image(img or IMG, TIMEOUT)
 
 
 def parse_number(value):

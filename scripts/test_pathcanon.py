@@ -2,7 +2,7 @@
 import os
 import sys
 
-from testlib import build_dir, check_markers, run_cmd, run_qemu_capture
+from testlib import build_dir, check_markers, run_cmd, run_serial_image
 
 
 BUILDDIR = build_dir()
@@ -28,14 +28,7 @@ def build_image():
 
 def main():
     build_image()
-    output, _ = run_qemu_capture([
-        "qemu-system-i386",
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
+    output = run_serial_image(IMG, TIMEOUT)
     if not check_markers(output, required=("PASS: PATHCANON", "Program exited, code=00", "HALT")):
         sys.exit(1)
     print("\nPath canonicalization test passed.")

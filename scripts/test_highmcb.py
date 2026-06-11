@@ -2,7 +2,7 @@
 import os
 import subprocess
 import sys
-from testlib import run_cmd, build_dir, run_qemu_capture
+from testlib import build_dir, run_cmd, run_serial_image
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -28,14 +28,7 @@ def build_image():
 
 
 def run_qemu():
-    output, _ = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], 10)
+    output = run_serial_image(IMG, 10)
     return output
 
 

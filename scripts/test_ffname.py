@@ -2,7 +2,7 @@
 import os
 import subprocess
 import sys
-from testlib import run_cmd, build_dir, run_qemu_capture
+from testlib import build_dir, run_cmd, run_serial_image
 
 
 BUILDDIR = build_dir()
@@ -64,14 +64,7 @@ def build_image():
 
 def main():
     build_image()
-    output, _ = run_qemu_capture([
-        "qemu-system-i386",
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
+    output = run_serial_image(IMG, TIMEOUT)
     failed = False
     for marker in ["PASS: FFNAME", "Program exited, code=00"]:
         if marker in output:

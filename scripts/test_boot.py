@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import os
-from testlib import run_qemu_capture
+from testlib import run_serial_image
 
 QEMU = "qemu-system-i386"
 DISK_IMG = os.path.join(os.path.dirname(__file__), "..", "build", "disk.img")
@@ -23,15 +23,7 @@ def test_boot():
         print("FAIL: disk image not found, run 'mise run build' first")
         sys.exit(1)
 
-    output, _ = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={DISK_IMG},format=raw,if=floppy",
-        "-snapshot",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
+    output = run_serial_image(DISK_IMG, TIMEOUT, extra_args=("-snapshot",))
     failed = False
 
     for marker in EXPECTED:

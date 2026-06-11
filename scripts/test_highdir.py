@@ -3,7 +3,7 @@ import os
 import struct
 import subprocess
 import sys
-from testlib import run_cmd, build_dir, run_qemu_capture
+from testlib import build_dir, run_cmd, run_serial_image
 from fatlib import FatImage, entry_cluster, entry_size, find_entry
 
 QEMU = "qemu-system-i386"
@@ -33,14 +33,7 @@ def build_image():
 
 
 def run_qemu():
-    output, _ = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={IMG},format=raw",
-        "-boot", "order=c",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
+    output = run_serial_image(IMG, TIMEOUT, drive_opts="", boot_order="c")
     return output
 
 

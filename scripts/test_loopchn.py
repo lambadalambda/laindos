@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
-from testlib import build_dir, check_markers, run_cmd, run_qemu_capture
+from testlib import build_dir, check_markers, run_cmd, run_serial_image
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -69,22 +69,13 @@ def build_image():
 
 def main():
     build_image()
-    output, timed_out = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
+    output = run_serial_image(IMG, TIMEOUT)
     passed = check_markers(
         output,
         required=("PASS: LOOPCHN", "Program exited, code=00", "HALT"),
         forbidden=("FAIL:", "EXC ", "INT 21h AH="),
         output_label="loopchn QEMU serial output")
-    if not passed or timed_out:
-        if timed_out:
-            print("  FAIL: QEMU run timed out (kernel hung on looped chain)")
+    if not passed:
         sys.exit(1)
     print("\nFAT chain cycle guard test passed.")
 

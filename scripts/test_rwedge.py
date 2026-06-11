@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 import os
 import sys
-from testlib import build_dir, check_markers, run_cmd, run_qemu_capture
+from testlib import build_dir, check_markers, run_cmd, run_serial_image
 
-QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
 IMG = os.path.join(BUILDDIR, "rwedge.img")
 KERNEL = os.path.join(BUILDDIR, "rwedge_kernel.bin")
@@ -25,14 +24,7 @@ def build_image():
 
 def main():
     build_image()
-    output, _ = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={IMG},format=raw,if=floppy",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
+    output = run_serial_image(IMG, TIMEOUT)
     if not check_markers(output, required=("PASS: RWEDGE", "Program exited, code=00", "HALT")):
         sys.exit(1)
     print("\nRead/write edge test passed.")

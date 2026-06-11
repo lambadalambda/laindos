@@ -4,7 +4,7 @@ import socket
 import sys
 import time
 from testlib import (build_dir, check_markers, chunks_contain, finish_qemu,
-                     run_cmd, run_qemu_capture, start_qemu, wait_for_output)
+                     run_cmd, run_serial_image, start_qemu, wait_for_output)
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -28,20 +28,13 @@ def build(name, kernel_defines, program_defines):
 
 def run_absent():
     img = build("absent", ["-DTEST_MOUSE_DISABLE_PS2"], ["-DEXPECT_PRESENT=0"])
-    output, timed_out = run_qemu_capture([
-        QEMU,
-        "-drive", f"file={img},format=raw,if=floppy",
-        "-boot", "order=a",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
+    output = run_serial_image(img, TIMEOUT)
     ok = check_markers(
         output,
         required=("PASS: MOUSERST ABSENT", "Program exited, code=00", "HALT"),
         forbidden=("FAIL:", "EXC ", "INT 21h AH="),
         output_label="mouserst absent QEMU serial output")
-    return ok and not timed_out
+    return ok
 
 
 def connect_monitor():

@@ -132,11 +132,13 @@ def run_simple_serial_test(label, boot_file, programs, required=(),
 
 
 def run_serial_image(img, timeout=10, qemu="qemu-system-i386", drive_opts="if=floppy",
-                     allow_timeout=False):
+                     allow_timeout=False, boot_order="a", extra_args=()):
+    drive = f"file={img},format=raw,{drive_opts}" if drive_opts else f"file={img},format=raw"
     output, timed_out = run_qemu_capture([
         qemu,
-        "-drive", f"file={img},format=raw,{drive_opts}",
-        "-boot", "order=a",
+        "-drive", drive,
+        "-boot", f"order={boot_order}",
+        *extra_args,
         "-serial", "stdio",
         "-monitor", "none",
         "-nographic",

@@ -2,7 +2,7 @@
 import os
 import subprocess
 import sys
-from testlib import run_cmd, build_dir, run_qemu_capture
+from testlib import run_cmd, build_dir, run_serial_image
 
 QEMU = "qemu-system-i386"
 BUILDDIR = build_dir()
@@ -32,19 +32,12 @@ def build_image():
 
 
 def run_qemu():
-    return run_qemu_capture([
-        QEMU,
-        "-drive", f"file={IMG},format=raw",
-        "-boot", "order=c",
-        "-serial", "stdio",
-        "-monitor", "none",
-        "-nographic",
-    ], TIMEOUT)
+    return run_serial_image(IMG, TIMEOUT, drive_opts="", boot_order="c")
 
 
 def main():
     build_image()
-    output, timed_out = run_qemu()
+    output = run_qemu()
     failed = False
     for marker in [
         "LainDOS booted",
@@ -61,8 +54,6 @@ def main():
         if marker in output:
             print(f"  FAIL: unexpected '{marker}'")
             failed = True
-    if timed_out and failed:
-        print(f"  FAIL: QEMU timed out after {TIMEOUT}s")
     if failed:
         print("\n--- QEMU serial output ---")
         print(output)
