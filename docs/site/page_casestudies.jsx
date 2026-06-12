@@ -19,6 +19,14 @@ const CASES = [
       "Ledger the resource, not the calls. The call trace looked perfectly healthy; only marking alloc/release pairs exposed that closes consumed slots without returning them.",
     cause:
       "DOS open modes are a packed byte: the low three bits are access (read/write), the middle bits are sharing. Red Alert opens read-only with deny-none sharing — AX=3D20h, ordinary era behavior. The close path tested the whole stored mode byte against zero to decide whether the file was writable and needed its directory entry flushed; the share bits made a read-only open look writable. The write path had masked the access bits all along — the close path forgot.",
+    before: [
+      "    ; close_root_handle, before: the whole mode byte decides",
+      "    cmp byte [cs:si+handles+H_MODE], 0",
+      "    je .mark_free",
+      "    call flush_handle_dir_entry      ; share bits land here...",
+      "    jc .err                          ; ...the CD flush fails...",
+      "                                     ; ...and the slot never frees",
+    ],
     file: "src/kernel/path_dir.inc",
     code: [
       [326, "close_root_handle:"],
@@ -52,6 +60,14 @@ const CASES = [
       "When an emulator-vs-real-DOS comparison says the binary is fine elsewhere, hunt for the environmental difference — here, where allocations land — before reading another line of game code.",
     cause:
       "Two faithfulness gaps stacked: a small-allocation last-fit bias placed buffers at segments with the sign bit set, and the arena top ignored the BIOS's own conventional-memory answer. Restoring plain DOS first fit and sizing the arena from INT 12h made both classes of program assumption hold.",
+    before: [
+      "    ; arena top, before: hardcoded to 640K -- the EBDA included",
+      "    mov ax, MEM_TOP - MCB_START - 1",
+      "    mov word [es:3], ax",
+      "    ; allocation strategy, before: small requests biased high",
+      "    cmp word [cs:am_req], SMALL_ALLOC_HIGH_MAX",
+      "    jbe .am_strat_high               ; buffers land at 0x9F8B...",
+    ],
     file: "src/kernel.asm",
     code: [
       [198, "    ; arena ends at the BIOS conventional-memory line, not at 640K: the"],
@@ -85,6 +101,12 @@ const CASES = [
       "Reduce a game-shaped failure to a shell one-liner first. The five failing write tests after the naive fix were the suite earning its keep: the bug's fix had a bug, and the ladder caught it within minutes.",
     cause:
       "The kernel trusted cached volume state on a removable drive with no physical-read traffic to surface the swap. The fix is real DOS's own protocol — 2-second rule, BIOS change-line query, then a root-sector content compare because the emulator's change line cannot be trusted to clear.",
+    before: [
+      "    ; activate_drive, before: same drive means trust every cached byte",
+      "    cmp al, [cs:active_drive_num]",
+      "    je .ok                           ; no physical read, no check --",
+      "                                     ; a swapped disk stays invisible",
+    ],
     file: "src/kernel.asm",
     code: [
       [1200, "floppy_media_check:"],
@@ -116,6 +138,13 @@ const CASES = [
       "When a UI behaves consistently wrong rather than randomly wrong, suspect a status channel: the program is faithfully acting on one bad input, and finding that input beats debugging its reactions.",
     cause:
       "Two spec subtleties: the busy bit games poll was missing from every device-request status word, and Stop Audio (command 133) carries pause-with-resume-point semantics, not a hard stop. Both now answered from the drive's own sub-channel state.",
+    before: [
+      "    ; request status, before: done bit only -- never busy",
+      ".ok:",
+      "    mov ax, 0x0100",
+      ".status:",
+      "    mov [es:bx+3], ax                ; the game polls bit 9 in vain",
+    ],
     file: "src/kernel/cdrom.inc",
     code: [
       [1671, "cd_audio_or_busy:"],
@@ -145,6 +174,13 @@ const CASES = [
       "When evidence keeps exonerating suspects, re-examine the premises: print what the program itself sees (its own SS:SP) instead of inferring it. One raw serial write from the test settled what hours of kernel forensics could not.",
     cause:
       "Real DOS loads a .COM into the largest free block — .COM images carry no BSS, and era programs assume the room past their image is theirs. The file-sized allocation violated that contract for every boot-launched program. Both the boot launcher and EXEC now grant the largest block, with the DOS-exact entry stack.",
+    before: [
+      "    ; boot launcher, before: a file-sized block at the arena top",
+      ".alloc_com:",
+      "    mov bx, [cs:prog_par]            ; image size plus ~4 KiB slack",
+      "    call alloc_mem_direct_high       ; parked just under the EBDA,",
+      "                                     ; SP at the cramped block top",
+    ],
     file: "src/kernel/exec.inc",
     code: [
       [240, ".com_largest:"],
@@ -158,6 +194,21 @@ const CASES = [
       "Tests run inside the same contracts as programs. A test that violates an unwritten platform assumption produces evidence indistinguishable from a kernel bug — and the fix may be to make the assumption hold, as the real platform did.",
   },
 ];
+
+function BeforeBlock({ lines }) {
+  const T = window.T;
+  return (
+    <div>
+      <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: 1.6,
+        textTransform: "uppercase", color: "#b04a3a", margin: "0 0 6px" }}>Before - the bug</p>
+      <pre style={{ background: "#1d1713", color: "#e8d9c5", border: "1px solid #b04a3a",
+        borderLeft: "4px solid #b04a3a", borderRadius: 10, padding: "14px 16px", overflowX: "auto",
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 12.5, lineHeight: 1.65, margin: "0 0 4px" }}>
+        {lines.join("\n")}
+      </pre>
+    </div>
+  );
+}
 
 function CaseStudyCard({ cs }) {
   const T = window.T;
@@ -192,6 +243,8 @@ function CaseStudyCard({ cs }) {
 
       <p style={label}>Root cause &amp; fix</p>
       <p style={para}><window.InlineText text={cs.cause} /></p>
+      <BeforeBlock lines={cs.before} />
+      <p style={{ ...label, color: "#2f7d4f", margin: "12px 0 6px" }}>After - the fix, anchored to current source</p>
       <window.CodeBlock file={cs.file} code={cs.code} hi={cs.hi} />
 
       <p style={{ ...label, marginTop: 14 }}>Pinned by</p>
