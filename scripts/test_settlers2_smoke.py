@@ -3,8 +3,9 @@
 
 Boots a blank LainDOS C: with the Gold Edition data-track ISO as D:, runs
 the real Blue Byte installer (DOS/4GW graphics UI: ENTER activates the
-focused menu button, SPACE activates dialog buttons), reboots out of the
-mouse-only post-install Setup menu, then launches the installed game and
+focused menu button, SPACE activates dialog buttons), reboots out of the post-install Setup
+menu (which QEMU's stalled input dispatch leaves no way to exit — see
+drive_installer), then launches the installed game and
 verifies it reaches its 640x480 VESA main menu with the BIOS tick
 advancing. Under QEMU the game's timer-driven input pump
 does not run (an emulator interaction of the Civilization PIT class), so
@@ -124,11 +125,12 @@ def drive_installer(sock):
     time.sleep(2)
     send_monitor_key(sock, "spc", delay=0.5)   # O.K. on "erfolgreich installiert"
     time.sleep(3)
-    # The post-install Setup menu's buttons take only mouse clicks, and its
-    # click handling never fires under QEMU (the same emulator interaction
-    # that stalls the game's input pump; keystrokes and cursor motion do get
-    # through). Exit the period way instead: reboot after installing. The
-    # -snapshot overlay carries the installed C: across the reset.
+    # Under QEMU the post-install Setup menu cannot be left by input: no key
+    # moves its button focus and mouse clicks never fire (cursor motion and
+    # ENTER/SPACE do get through) — the same emulator interaction that
+    # stalls the game's input pump; under 86Box the keyboard works. Exit the
+    # period way instead: reboot after installing. The -snapshot overlay
+    # carries the installed C: across the reset.
     send_monitor_command(sock, "system_reset", delay=1.0)
     wait_text(sock, "C:\\>", 60)
     print("  PASS: install survives a reboot, back at the shell")
