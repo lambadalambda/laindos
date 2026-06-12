@@ -4827,11 +4827,34 @@ int21_handler:
     inc si
     jmp .ff_parse_name
 .ff_cd_find:
+    cmp byte [cs:ff_attr_mask], ATTR_VOLUME
+    je .ff_cd_volume_label
     xor bx, bx
     call cd_find_from
     jnc .ff_found
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     RET_ERR 2
+; An exclusive volume-label search (attribute byte == 0x08) is answered
+; by MSCDEX from the ISO9660 volume identifier, ignoring the search
+; pattern entirely -- programs pass a bare "D:\" here. Red Alert tells
+; its discs apart this way.
+.ff_cd_volume_label:
+    push cs
+    pop ds
+    mov si, cd_volume_id
+    push cs
+    pop es
+    mov di, ff_entry_name
+    mov cx, 11
+    rep movsb
+    mov byte [cs:ff_entry_attr], ATTR_VOLUME
+    xor ax, ax
+    mov [cs:ff_entry_time], ax
+    mov [cs:ff_entry_date], ax
+    mov [cs:ff_entry_size], ax
+    mov [cs:ff_entry_size_hi], ax
+    mov [cs:ff_entry_idx], ax
+    jmp .ff_found
 .ff_found:
 ; @anchor: find_first_store_dta
     call store_find_dta

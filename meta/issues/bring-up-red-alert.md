@@ -35,3 +35,21 @@ under sustained load, INT 33h mouse, and (for the SVGA mode) VESA.
   target — plan an 86Box profile like the Settlers II one.
 - Disc swaps: the Allied disc carries the install; the Soviet disc is
   for the Soviet campaign (runtime disc selection, not install-time).
+
+## Progress
+
+- Installer black screen: share-bits handle leak, fixed (`test_cd_share`,
+  debug log "The Share-Bits Handle Leak").
+- Post-launch "hang with constant HD read": the game was sitting at its
+  insert-CD dialog — `Get_CD_Index()` reads the CD volume label via an
+  exclusive-`_A_VOLID` FindFirst on `D:\` and matches it against
+  "CD1"/"CD2". Fixed by serving the ISO9660 PVD volume id the way MSCDEX
+  does (`test_cd_volid`, debug log "The 'Hang' That Was A Dialog").
+  Verified under QEMU: the Allied disc identifies and the intro movie
+  streams from the CD.
+- Known wrinkle (user report, 86Box): the installer finishes but cannot
+  be quit from its end screen — needed a reboot. Same family as the
+  Settlers II post-install menu; revisit once the game itself is
+  confirmed playable.
+- Still open: user confirmation of menu/gameplay under 86Box, then the
+  vendor-gated smoke and docs per acceptance criteria.

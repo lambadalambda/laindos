@@ -3431,6 +3431,7 @@ cd_root_lba_lo: dw 0
 cd_root_lba_hi: dw 0
 cd_root_size_lo: dw 0
 cd_root_size_hi: dw 0
+cd_volume_id: times 11 db ' '
 cd_scan_lba_lo: dw 0
 cd_scan_lba_hi: dw 0
 cd_scan_sectors: dw 0

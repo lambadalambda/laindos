@@ -387,6 +387,18 @@ cd_validate_pvd:
     mov [cs:cd_root_size_lo], ax
     mov ax, [si+12]
     mov [cs:cd_root_size_hi], ax
+    ; keep the volume identifier (PVD bytes 40-50): MSCDEX serves it as
+    ; the drive's volume label, which is how CD-checking games tell
+    ; their discs apart
+    push cx
+    mov si, 40
+    mov cx, 11
+.copy_volume_id:
+    mov al, [si]
+    mov [cs:cd_volume_id - 40 + si], al
+    inc si
+    loop .copy_volume_id
+    pop cx
     clc
     ret
 .bad:
