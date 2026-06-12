@@ -105,7 +105,7 @@ function Sidebar({ route, go, hrefFor = sidebarHrefFor }) {
       </nav>
 
       <div style={{ padding: "20px 22px 0", color: T.faint, fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace", lineHeight: 1.7 }}>
-        single-tasking · real mode<br />NASM · CC0 · 145/145 tests
+        single-tasking · real mode<br />NASM · CC0 · 146/146 tests
       </div>
     </aside>
   );

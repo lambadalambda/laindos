@@ -328,8 +328,12 @@ close_root_handle:
     mov ax, [cs:si+handles+H_DIR_LBA]
     or ax, [cs:si+handles+H_DIR_LBA_HI]
     je .mark_free
-    cmp byte [cs:si+handles+H_MODE], 0
-    je .mark_free
+    ; flush-on-close is decided by the access bits alone; sharing bits
+    ; (deny-none reads and friends) must not force a dir-entry flush --
+    ; on read-only media that flush fails and would leak the slot
+    mov al, [cs:si+handles+H_MODE]
+    and al, 7
+    jz .mark_free
     call flush_handle_dir_entry
     jc .err
     call flush_fat
