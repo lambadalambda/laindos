@@ -212,3 +212,4 @@
 - [x] [Bring up Micro Machines 2](issues/bring-up-micro-machines-2.md)
 - [x] [Bring up Wing Commander](issues/bring-up-wing-commander.md)
 - [x] [Bring up The Settlers II Gold Edition](issues/bring-up-settlers-2.md)
+- [x] [CD audio: MSCDEX device requests (INT 2Fh AX=1510h)](issues/cd-audio-mscdex-device-requests.md)

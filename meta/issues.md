@@ -1,1 +1,0 @@
-- [ ] [CD audio: MSCDEX device requests (INT 2Fh AX=1510h)](issues/cd-audio-mscdex-device-requests.md)

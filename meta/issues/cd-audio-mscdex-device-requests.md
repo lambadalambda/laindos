@@ -42,6 +42,22 @@ tracks.
   stretch goal).
 - Docs updated in lockstep.
 
+## Resolution (2026-06-12)
+
+- Implemented the INT 2Fh AX=1510h dispatcher with the audio IOCTL
+  control blocks (6/7/8/9/10/11/12/15) and Play/Stop/Resume commands
+  over a generalized ATAPI packet path, with lazy transport bring-up
+  (IDENTIFY PACKET DEVICE fallback when the BIOS has consumed the
+  power-on signature) and a division-overflow guard on hostile play
+  addresses. `test_cd_audio` pins the contract in the default ladder;
+  suite 143/143.
+- The first 86Box run exposed the spec's busy bit: CD player UIs poll
+  status-word bit 9 (0x0200) to track playback, and Stop Audio (133)
+  carries pause-with-resume-point semantics. Both fixed.
+- User-confirmed under 86Box with the mixed-mode cue/bin: Settlers II
+  lists all eight audio tracks, selection plays, stop stops —
+  "THERE WE GO, all fixed!"
+
 ## Notes
 
 - The smoke's `build/settlers2_cd.iso` is data-track-only; actual audio
