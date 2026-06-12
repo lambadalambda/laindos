@@ -210,3 +210,4 @@
 - [x] [Investigate Civilization's QEMU PIT stall](issues/investigate-civilization-qemu-pit-stall.md)
 - [x] [Bring up the Simon the Sorcerer demo](issues/bring-up-simon-the-sorcerer.md)
 - [x] [Bring up Micro Machines 2](issues/bring-up-micro-machines-2.md)
+- [x] [Bring up Wing Commander](issues/bring-up-wing-commander.md)

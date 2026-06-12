@@ -3,9 +3,11 @@
 change is picked up on the next access.
 
 Real DOS booted from C: still exposes the floppy as A:, and re-reads
-the volume when the disk is swapped (the BIOS change line surfaces as
-INT 13h error 06h on the next read). Era floppy installers — Micro
-Machines 2's among them — depend on both.
+the volume when the disk is swapped — through the change-line error
+(INT 13h error 06h) when a physical read is in flight, and through a
+MEDIA CHECK (with the 2-second rule) before cached FAT/root data is
+trusted when no read would otherwise happen. Era floppy installers —
+Micro Machines 2's and Wing Commander's among them — depend on these.
 """
 import os
 import sys
@@ -109,6 +111,24 @@ def main():
         pos = got or pos
         shell_command(sock, "type a:\\disk1.txt")
         got = wait_serial(stdout_chunks, "File not found", pos, 10, "stale file rejected after swap")
+        ok = got is not None and ok
+        pos = got or pos
+        # Swap while A: is the *current* drive: every lookup is served from
+        # the cached FAT/root, so detection must come from a media check,
+        # not from a physical read's change-line error. The media check
+        # honors DOS's 2-second rule, so wait past it like a human swap.
+        shell_command(sock, "a:")
+        shell_command(sock, "type disk2.txt")
+        got = wait_serial(stdout_chunks, "BRAVO-MARKER", pos, 10, "current-drive read before swap")
+        ok = got is not None and ok
+        pos = got or pos
+        send_monitor_command(sock, f"change floppy0 {os.path.abspath(DISK1)} raw", delay=3.0)
+        shell_command(sock, "type disk1.txt")
+        got = wait_serial(stdout_chunks, "ALPHA-MARKER", pos, 10, "media change seen on current drive")
+        ok = got is not None and ok
+        pos = got or pos
+        shell_command(sock, "type disk2.txt")
+        got = wait_serial(stdout_chunks, "File not found", pos, 10, "stale file rejected on current drive")
         ok = got is not None and ok
         monitor_quit(sock, proc)
     finally:

@@ -1176,6 +1176,83 @@ floppy_media_remount:
     pop ax
     ret
 
+; Real DOS issues a MEDIA CHECK before trusting its buffers on a removable
+; drive. Without it a swap is invisible while the drive stays current: the
+; cached FAT/root keep serving the old disk because no physical read ever
+; happens to surface the change-line error. Like DOS, a drive verified
+; within the last 2 seconds (36 ticks) is assumed unchanged, and a
+; "changed" answer from INT 13h AH=16h is confirmed by content before any
+; state is discarded — QEMU's change line latches "changed" forever, and
+; real DOS too re-read the volume before invalidating buffers it could
+; not rebuild.
+floppy_media_check:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    push es
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .ok
+    cmp byte [cs:kdrv], 0x80
+    jae .ok
+    mov ax, 0x40
+    mov ds, ax
+    mov ax, [ds:0x6C]
+    sub ax, [cs:floppy_check_tick]
+    cmp ax, 36
+    jb .ok
+    mov ah, 0x16
+    mov dl, [cs:kdrv]
+    int 0x13
+    cmp ah, 0x06
+    jne .stamp
+    ; Change line active (or unreliable): re-read the first root
+    ; directory sector and compare with the cached copy. A mismatch is a
+    ; different disk; a swapped identical disk is indistinguishable, as
+    ; on real DOS. A read failing mid-probe with error 06h takes the
+    ; in-flight remount path inside sector_io_loop.
+    mov ax, SEC_BUF
+    mov es, ax
+    xor bx, bx
+    mov word [cs:kio_lba_hi], 0
+    mov ax, [cs:krsta]
+    call read_sector
+    jc .err
+    mov ax, SEC_BUF
+    mov ds, ax
+    mov ax, ROOT_SEG
+    mov es, ax
+    xor si, si
+    xor di, di
+    mov cx, 256
+    repe cmpsw
+    je .stamp
+    call floppy_media_remount
+    jc .err
+.stamp:
+    mov ax, 0x40
+    mov ds, ax
+    mov ax, [ds:0x6C]
+    mov [cs:floppy_check_tick], ax
+.ok:
+    clc
+    jmp .done
+.err:
+    stc
+.done:
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
 copy_secbuf_to_bpb:
     push ax
     push cx
@@ -1321,7 +1398,11 @@ activate_drive:
     cmp byte [cs:drive_present+bx], 0
     je .err
     cmp al, [cs:active_drive_num]
-    je .ok
+    jne .switch
+    call floppy_media_check
+    jc .err
+    jmp .ok
+.switch:
     call flush_fat
     jc .err
     call save_active_drive_cwd
@@ -3456,6 +3537,7 @@ rf_cluster_index: dw 0
 rf_cache_lba:  dw 0
 rf_cache_lba_hi: dw 0
 rf_cache_valid: db 0
+floppy_check_tick: dw 0
 rf_buf_off:    dw 0
 rf_buf_seg:    dw 0
 wf_count:      dw 0

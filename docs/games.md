@@ -149,6 +149,38 @@ The vendor-gated smoke drives the whole pipeline, swaps included:
 make test-mm2-smoke
 ```
 
+## Wing Commander
+
+Stage the three installer floppies (the "Version B2.4: HI 3.5" release from
+`vendor/wing-commander_202104/disk1..3.ima`) and a blank bootable target:
+
+```sh
+python3 scripts/build_wc_hd.py
+```
+
+Boot `build/wc_hd.img` with `build/wc_disk1.img` in A:, run `A:\INSTALL`,
+pick drive C:, accept the defaults ("Save Space" skips a lengthy VGA art
+expansion pass), and swap to disks 2 and 3 when prompted
+(under QEMU: `change floppy0 build/wc_diskN.img raw` in the monitor). The
+swaps land while A: stays the current drive, so they are picked up by the
+kernel's real-DOS-style media check rather than a change-line error on a
+physical read. After installing, `CD \WING` and `WC` runs the game: opening
+credits, the Claw Marks copy-protection quiz (answers live in the manual —
+the Tiger's Claw was launched in 2644), the Vega campaign/Secret Missions
+select (a mouse-driven menu; ENTER aborts), and on into the barracks bar
+scene. The game reports "No Expanded Memory Detected" and runs fine without
+EMS.
+
+The vendor-gated smoke drives all of it headlessly — install with swaps,
+quiz answered by reading the drawn question out of guest RAM and looking it
+up in the documented answer table, a steered mouse click on Start Vega
+Campaign, pilot name entry, and the animated bar scene with the BIOS tick
+advancing:
+
+```sh
+make test-wc-smoke
+```
+
 ## External Hard-Disk Images
 
 Smoke-test a local external hard-disk image without writing to it:
