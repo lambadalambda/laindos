@@ -225,7 +225,10 @@ is fully playable: use a Pentium 75 profile (`machine = p54tp4xe`,
 16 MiB RAM, S3 Trio32 PCI video, PS/2 mouse, SB16), attach
 `settlers2_c.img` as an IDE hard disk with `hdd_01_parameters =
 63, 16, 325, 0, ide` on channel 0:0, and `settlers2_cd.iso` as an ATAPI
-CD-ROM on channel 1:0.
+CD-ROM on channel 1:0. For the Redbook soundtrack, mount the original
+`CD01.cue` instead of the extracted data-track ISO — the in-game CD
+audio goes through the kernel's MSCDEX device-request path (INT 2Fh
+AX=1510h), and the audio tracks only exist on the mixed-mode image.
 
 The vendor-gated smoke installs from CD and launches to the VESA menu
 headlessly:

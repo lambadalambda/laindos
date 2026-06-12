@@ -2035,6 +2035,8 @@ int2f_handler:
     je int2f_cd_version
     cmp ax, 0x150D
     je int2f_cd_drive_letters
+    cmp ax, 0x1510
+    je int2f_cd_dev_req
 %if ENABLE_XMS
     cmp ax, 0x4300
     je .xms_installed
@@ -3452,6 +3454,11 @@ atapi_scan_devsel: db 0
 cd_scan_handler: dw 0
 atapi_count: dw 0
 atapi_cdb: times 12 db 0
+atapi_limit: dw 0
+cd_toc_track: db 0
+cd_play_lo: dw 0
+cd_play_hi: dw 0
+cd_play_msf: times 6 db 0
 cd_cmp_name: times 11 db 0
 drive_present: times MAX_DRIVES db 0
 drive_type: times MAX_DRIVES db 0

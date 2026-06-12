@@ -177,11 +177,51 @@ atapi_probe_selected:
     add dx, 4
     in al, dx
     cmp al, 0x14
-    jne .err
+    jne .identify
     inc dx
     in al, dx
     cmp al, 0xEB
-    jne .err
+    je .commit
+.identify:
+    ; the signature registers only survive until the BIOS talks to the
+    ; device; IDENTIFY PACKET DEVICE answers with a data phase on ATAPI
+    ; devices and aborts on anything else
+    push bx
+    push cx
+    mov dx, [cs:atapi_scan_base]
+    add dx, 7
+    mov al, 0xA1
+    out dx, al
+    mov bx, 0x0040
+.id_outer:
+    xor cx, cx
+.id_poll:
+    in al, dx
+    cmp al, 0xFF
+    je .id_err
+    test al, 0x80
+    jnz .id_next
+    test al, 0x01
+    jnz .id_err
+    test al, 0x08
+    jnz .id_data
+.id_next:
+    loop .id_poll
+    dec bx
+    jnz .id_outer
+.id_err:
+    pop cx
+    pop bx
+    jmp .err
+.id_data:
+    mov dx, [cs:atapi_scan_base]
+    mov cx, 256
+.id_drain:
+    in ax, dx
+    loop .id_drain
+    pop cx
+    pop bx
+.commit:
     mov ax, [cs:atapi_scan_base]
     mov [cs:atapi_base], ax
     mov ax, [cs:atapi_scan_ctrl]
@@ -1341,3 +1381,533 @@ cd_read_handle:
     pop cx
     pop bx
     ret
+
+; ---- MSCDEX INT 2Fh AX=1510h: CD-ROM device driver requests ----
+; The audio control path games use: TOC-backed IOCTL Input control
+; blocks and the Play/Stop/Resume device commands, served over ATAPI
+; packets. Status word: done 0x0100, error 0x8000, codes 1 (unknown
+; unit), 3 (unknown command), 0x0C (general failure).
+
+; Send the 12-byte packet at atapi_cdb to the current ATAPI device.
+; AX = max response bytes (0 = no data phase), ES:DI = response buffer.
+; Actual byte count lands in atapi_count. CF on device error.
+atapi_packet_in:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push si
+    push di
+    mov [cs:atapi_limit], ax
+    call atapi_select_current
+    call atapi_wait_not_busy
+    jc .err
+    mov dx, [cs:atapi_base]
+    inc dx
+    xor al, al
+    out dx, al
+    mov dx, [cs:atapi_base]
+    add dx, 4
+    mov ax, [cs:atapi_limit]
+    out dx, al
+    inc dx
+    mov al, ah
+    out dx, al
+    mov dx, [cs:atapi_base]
+    add dx, 7
+    mov al, 0xA0
+    out dx, al
+    call atapi_wait_drq
+    jc .err
+    push cs
+    pop ds
+    mov si, atapi_cdb
+    mov dx, [cs:atapi_base]
+    mov cx, 6
+    cld
+    rep outsw
+    mov word [cs:atapi_count], 0
+    cmp word [cs:atapi_limit], 0
+    je .complete
+    call atapi_wait_drq
+    jc .err
+    mov dx, [cs:atapi_base]
+    add dx, 4
+    in al, dx
+    mov [cs:atapi_count], al
+    inc dx
+    in al, dx
+    mov [cs:atapi_count+1], al
+    mov cx, [cs:atapi_count]
+    inc cx
+    shr cx, 1
+    jcxz .complete
+    mov dx, [cs:atapi_base]
+    cld
+    rep insw
+.complete:
+    call atapi_wait_not_busy
+    jc .err
+    mov dx, [cs:atapi_base]
+    add dx, 7
+    in al, dx
+    test al, 0x01
+    jnz .err
+    pop di
+    pop si
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    clc
+    ret
+.err:
+    pop di
+    pop si
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    stc
+    ret
+
+; The EDD probe wins the mount under QEMU and leaves atapi_base unset;
+; audio commands bring the ATAPI transport up on first use.
+cd_audio_atapi_ready:
+    cmp word [cs:atapi_base], 0
+    jne .ok
+    call atapi_detect_cdrom
+    jc .err
+    cmp word [cs:atapi_base], 0
+    je .err
+.ok:
+    clc
+    ret
+.err:
+    stc
+    ret
+
+cd_audio_zero_cdb:
+    push ax
+    push cx
+    push di
+    push es
+    push cs
+    pop es
+    mov di, atapi_cdb
+    xor ax, ax
+    mov cx, 6
+    cld
+    rep stosw
+    pop es
+    pop di
+    pop cx
+    pop ax
+    ret
+
+; READ TOC (MSF form) into CD_BUF. CF on failure.
+cd_audio_read_toc:
+    push ax
+    push di
+    push es
+    call cd_audio_atapi_ready
+    jc .err
+    call cd_audio_zero_cdb
+    mov byte [cs:atapi_cdb], 0x43
+    mov byte [cs:atapi_cdb+1], 0x02
+    mov byte [cs:atapi_cdb+7], 0x03
+    mov byte [cs:atapi_cdb+8], 0x24
+    mov ax, CD_BUF
+    mov es, ax
+    xor di, di
+    mov ax, 0x0324
+    call atapi_packet_in
+    jc .err
+    cmp word [cs:atapi_count], 12
+    jb .err
+    pop es
+    pop di
+    pop ax
+    clc
+    ret
+.err:
+    pop es
+    pop di
+    pop ax
+    stc
+    ret
+
+; AL = track number (0xAA = lead-out) within the TOC in CD_BUF.
+; Returns AL = min, AH = sec, DL = frame, DH = control byte in the
+; Q-channel convention (nibble-swapped ADR/control; data track = 0x40).
+; CF when the track is absent.
+cd_audio_track_lookup:
+    push bx
+    push cx
+    push di
+    push es
+    mov [cs:cd_toc_track], al
+    mov cx, [cs:atapi_count]
+    sub cx, 4
+    shr cx, 1
+    shr cx, 1
+    shr cx, 1
+    jcxz .nf
+    mov ax, CD_BUF
+    mov es, ax
+    mov di, 4
+.scan:
+    mov al, [es:di+2]
+    cmp al, [cs:cd_toc_track]
+    je .found
+    add di, 8
+    loop .scan
+.nf:
+    pop es
+    pop di
+    pop cx
+    pop bx
+    stc
+    ret
+.found:
+    mov dh, [es:di+1]
+    mov cl, 4
+    rol dh, cl
+    mov al, [es:di+5]
+    mov ah, [es:di+6]
+    mov dl, [es:di+7]
+    pop es
+    pop di
+    pop cx
+    pop bx
+    clc
+    ret
+
+; AL = min, AH = sec, DL = frame -> DX:AX = HSG LBA.
+cd_audio_msf_to_lba:
+    push bx
+    push cx
+    mov bl, ah
+    mov bh, dl
+    xor ah, ah
+    mov dx, 60
+    mul dx
+    mov cl, bl
+    xor ch, ch
+    add ax, cx
+    mov cx, 75
+    mul cx
+    mov cl, bh
+    xor ch, ch
+    add ax, cx
+    adc dx, 0
+    sub ax, 150
+    sbb dx, 0
+    pop cx
+    pop bx
+    ret
+
+; DX:AX = HSG LBA -> AL = min, AH = sec, DL = frame. CF when the LBA
+; is beyond any disc (a division overflow with hostile input otherwise).
+cd_audio_lba_to_msf:
+    push cx
+    add ax, 150
+    adc dx, 0
+    cmp dx, 75
+    jae .overflow
+    mov cx, 75
+    div cx
+    push dx
+    xor dx, dx
+    mov cx, 60
+    div cx
+    mov ah, dl
+    pop dx
+    pop cx
+    clc
+    ret
+.overflow:
+    pop cx
+    stc
+    ret
+
+; READ SUB-CHANNEL current-position page (16 bytes) into CD_BUF.
+cd_audio_subchannel:
+    push ax
+    push di
+    push es
+    call cd_audio_atapi_ready
+    jc .err
+    call cd_audio_zero_cdb
+    mov byte [cs:atapi_cdb], 0x42
+    mov byte [cs:atapi_cdb+1], 0x02
+    mov byte [cs:atapi_cdb+2], 0x40
+    mov byte [cs:atapi_cdb+3], 0x01
+    mov byte [cs:atapi_cdb+8], 16
+    mov ax, CD_BUF
+    mov es, ax
+    xor di, di
+    mov ax, 16
+    call atapi_packet_in
+    jc .err
+    pop es
+    pop di
+    pop ax
+    clc
+    ret
+.err:
+    pop es
+    pop di
+    pop ax
+    stc
+    ret
+
+int2f_cd_dev_req:
+    push ax
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    call int2f_cd_ensure
+    jc .unknown_unit
+    cmp cx, 3
+    jne .unknown_unit
+    mov al, [es:bx+2]
+    cmp al, 3
+    je .ioctl_input
+    cmp al, 12
+    je .ok                       ; IOCTL Output: eject/lock/reset/channel
+    cmp al, 13
+    je .ok                       ; device open
+    cmp al, 14
+    je .ok                       ; device close
+    cmp al, 132
+    je .play
+    cmp al, 133
+    je .stop
+    cmp al, 136
+    je .resume
+.unknown_cmd:
+    mov ax, 0x8103
+    jmp .status
+.unknown_unit:
+    mov ax, 0x8101
+    jmp .status
+.fail:
+    mov ax, 0x810C
+    jmp .status
+.ok:
+    mov ax, 0x0100
+.status:
+    mov [es:bx+3], ax
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop ax
+    jmp int2f_iret_nc
+
+.ioctl_input:
+    lds si, [es:bx+14]
+    mov al, [si]
+    cmp al, 6
+    je .dev_status
+    cmp al, 7
+    je .sector_size
+    cmp al, 8
+    je .volume_size
+    cmp al, 9
+    je .media_changed
+    cmp al, 10
+    je .disc_info
+    cmp al, 11
+    je .track_info
+    cmp al, 12
+    je .qchannel
+    cmp al, 15
+    je .audio_status
+    jmp .unknown_cmd
+
+.dev_status:
+    ; cooked reads, audio capable, Red Book addressing
+    mov word [si+1], 0x0214
+    mov word [si+3], 0
+    jmp .ok
+
+.sector_size:
+    mov word [si+2], 2048
+    jmp .ok
+
+.media_changed:
+    mov byte [si+1], 1
+    jmp .ok
+
+.volume_size:
+    call cd_audio_read_toc
+    jc .fail
+    mov al, 0xAA
+    call cd_audio_track_lookup
+    jc .fail
+    call cd_audio_msf_to_lba
+    mov [si+1], ax
+    mov [si+3], dx
+    jmp .ok
+
+.disc_info:
+    call cd_audio_read_toc
+    jc .fail
+    push es
+    mov ax, CD_BUF
+    mov es, ax
+    mov al, [es:2]
+    mov [si+1], al
+    mov al, [es:3]
+    mov [si+2], al
+    pop es
+    mov al, 0xAA
+    call cd_audio_track_lookup
+    jc .fail
+    mov [si+3], dl               ; Red Book dword: frame, sec, min, 0
+    mov [si+4], ah
+    mov [si+5], al
+    mov byte [si+6], 0
+    jmp .ok
+
+.track_info:
+    call cd_audio_read_toc
+    jc .fail
+    mov al, [si+1]
+    call cd_audio_track_lookup
+    jc .fail
+    mov [si+2], dl
+    mov [si+3], ah
+    mov [si+4], al
+    mov byte [si+5], 0
+    mov [si+6], dh
+    jmp .ok
+
+.qchannel:
+    call cd_audio_subchannel
+    jc .fail
+    push es
+    mov ax, CD_BUF
+    mov es, ax
+    mov al, [es:5]
+    mov cl, 4
+    rol al, cl
+    mov [si+1], al
+    mov al, [es:6]
+    mov [si+2], al
+    mov al, [es:7]
+    mov [si+3], al
+    mov al, [es:13]
+    mov [si+4], al
+    mov al, [es:14]
+    mov [si+5], al
+    mov al, [es:15]
+    mov [si+6], al
+    mov byte [si+7], 0
+    mov al, [es:9]
+    mov [si+8], al
+    mov al, [es:10]
+    mov [si+9], al
+    mov al, [es:11]
+    mov [si+10], al
+    pop es
+    jmp .ok
+
+.audio_status:
+    call cd_audio_subchannel
+    jc .fail
+    push es
+    mov ax, CD_BUF
+    mov es, ax
+    xor ax, ax
+    cmp byte [es:1], 0x12        ; audio paused
+    jne .as_flag
+    inc ax
+.as_flag:
+    pop es
+    mov [si+1], ax
+    mov al, [cs:cd_play_msf+2]   ; last play range, Red Book dwords
+    mov [si+3], al
+    mov al, [cs:cd_play_msf+1]
+    mov [si+4], al
+    mov al, [cs:cd_play_msf]
+    mov [si+5], al
+    mov byte [si+6], 0
+    mov al, [cs:cd_play_msf+5]
+    mov [si+7], al
+    mov al, [cs:cd_play_msf+4]
+    mov [si+8], al
+    mov al, [cs:cd_play_msf+3]
+    mov [si+9], al
+    mov byte [si+10], 0
+    jmp .ok
+
+.play:
+    mov ax, [es:bx+14]
+    mov dx, [es:bx+16]
+    cmp byte [es:bx+13], 1
+    jne .play_have_lba
+    ; Red Book start dword: AL = frame, AH = sec, DL = min
+    xchg al, dl
+    call cd_audio_msf_to_lba
+.play_have_lba:
+    mov [cs:cd_play_lo], ax
+    mov [cs:cd_play_hi], dx
+    call cd_audio_zero_cdb
+    mov byte [cs:atapi_cdb], 0x47
+    call cd_audio_lba_to_msf
+    jc .fail
+    mov [cs:atapi_cdb+3], al
+    mov [cs:atapi_cdb+4], ah
+    mov [cs:atapi_cdb+5], dl
+    mov [cs:cd_play_msf], al
+    mov [cs:cd_play_msf+1], ah
+    mov [cs:cd_play_msf+2], dl
+    mov ax, [cs:cd_play_lo]
+    mov dx, [cs:cd_play_hi]
+    add ax, [es:bx+18]
+    adc dx, [es:bx+20]
+    call cd_audio_lba_to_msf
+    jc .fail
+    mov [cs:atapi_cdb+6], al
+    mov [cs:atapi_cdb+7], ah
+    mov [cs:atapi_cdb+8], dl
+    mov [cs:cd_play_msf+3], al
+    mov [cs:cd_play_msf+4], ah
+    mov [cs:cd_play_msf+5], dl
+    call cd_audio_atapi_ready
+    jc .fail
+    xor ax, ax
+    call atapi_packet_in
+    jc .fail
+    jmp .ok
+
+.stop:
+    ; best-effort, as era drivers behaved: stopping an idle (or
+    ; audio-incapable emulated) drive still reports done
+    call cd_audio_atapi_ready
+    jc .ok
+    call cd_audio_zero_cdb
+    mov byte [cs:atapi_cdb], 0x4E
+    xor ax, ax
+    call atapi_packet_in
+    jmp .ok
+
+.resume:
+    call cd_audio_atapi_ready
+    jc .fail
+    call cd_audio_zero_cdb
+    mov byte [cs:atapi_cdb], 0x4B
+    mov byte [cs:atapi_cdb+8], 1
+    xor ax, ax
+    call atapi_packet_in
+    jc .fail
+    jmp .ok
