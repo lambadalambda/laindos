@@ -171,6 +171,20 @@ select (a mouse-driven menu; ENTER aborts), and on into the barracks bar
 scene. The game reports "No Expanded Memory Detected" and runs fine without
 EMS.
 
+For interactive testing there is a mise task that installs once into a
+persistent `build/wc_installed.img` (sound defaults to AdLib; without EMS
+the game announces "Limited music will play", as on a real 640k machine)
+and then boots it in a visible QEMU window, types `CD WING` + `WC`, and
+prints the quiz answer table to the terminal:
+
+```sh
+mise run run-wc
+```
+
+`scripts/run_wc.py` takes `--reinstall` (redo the install, e.g. with
+`--sound sb`/`--sound none`), `--no-launch`, and `--no-snapshot` (persist
+pilot saves to the installed image).
+
 The vendor-gated smoke drives all of it headlessly — install with swaps,
 quiz answered by reading the drawn question out of guest RAM and looking it
 up in the documented answer table, a steered mouse click on Start Vega

@@ -86,6 +86,10 @@ run = "make run-extras-hd"
 description = "Boot local Stunt Island image and launch STUNT"
 run = "python3 scripts/run_stunt_island.py"
 
+[tasks.run-wc]
+description = "Boot installed Wing Commander and launch WC (installs on first run)"
+run = "python3 scripts/run_wc.py"
+
 [tasks.clean]
 description = "Remove build artifacts"
 run = "make clean"
