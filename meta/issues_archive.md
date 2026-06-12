@@ -213,3 +213,4 @@
 - [x] [Bring up Wing Commander](issues/bring-up-wing-commander.md)
 - [x] [Bring up The Settlers II Gold Edition](issues/bring-up-settlers-2.md)
 - [x] [CD audio: MSCDEX device requests (INT 2Fh AX=1510h)](issues/cd-audio-mscdex-device-requests.md)
+- [x] [Boot-launched COMs should get the largest free block, like real DOS](issues/boot-com-largest-block.md)
