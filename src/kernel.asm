@@ -299,10 +299,14 @@ kernel_entry:
     call alloc_mem_direct
     jmp .alloc_done
 .alloc_com:
+    ; a .COM owns the largest free block, as on real DOS
     push cs
     pop ds
-    mov bx, [cs:prog_par]
-    call alloc_mem_direct_high
+    call find_largest_free_block
+    cmp bx, [cs:prog_par]
+    jb .halt
+    mov [cs:prog_par], bx
+    call alloc_mem_direct
 .alloc_done:
     jc .halt
     mov [cs:prog_seg], ax

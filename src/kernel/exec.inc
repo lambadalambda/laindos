@@ -230,13 +230,22 @@ load_exec_program:
     call image_paras_from_bytes
     mov [cs:prog_par], ax
     mov ax, 8
-    jnc .alloc
+    jnc .com_largest
 .size_err:
     push ax
     call free_exec_environment
     pop ax
     stc
     ret
+.com_largest:
+    ; a .COM owns the largest free block, as on real DOS; if even the
+    ; image does not fit, the allocation below fails with error 8
+    push cs
+    pop ds
+    call find_largest_free_block
+    cmp bx, [cs:prog_par]
+    jb .alloc
+    mov [cs:prog_par], bx
 .alloc:
     push cs
     pop ds
@@ -1709,14 +1718,15 @@ exec_com_dyn:
     mov ax, [ds:3]
     cmp ax, 0x1000
     jb .small_stack
-    mov ax, 0xFFFE
+    ; the first push wraps to 0xFFFE, leaving SP there with the zero
+    ; word at [SP], exactly as real DOS enters a .COM
+    xor ax, ax
     jmp .stack_ready
 .small_stack:
     mov cx, 4
 .stack_shift:
     shl ax, 1
     loop .stack_shift
-    sub ax, 2
 .stack_ready:
     mov [cs:com_stack_top], ax
 

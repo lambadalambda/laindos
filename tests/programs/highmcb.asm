@@ -6,6 +6,12 @@
 start:
     push cs
     pop ds
+    ; DOS-style prologue: move the stack inside the kept region, then
+    ; shrink the block so later allocations/execs have memory to use
+    mov sp, 0x1FFE
+    mov bx, 0x0200
+    mov ah, 0x4A
+    int 0x21
 
     mov ah, 0x62
     int 0x21
@@ -21,11 +27,25 @@ start:
     cmp word [es:3], ENV_PARAS
     jb fail_first_size
 
+    ; the program owns the next block: the largest-block COM load,
+    ; trimmed to 0x200 paragraphs by the prologue above
     mov ax, MCB_START
     add ax, [es:3]
     inc ax
     mov es, ax
     cmp byte [es:0], 'M'
+    jne fail_prog_sig
+    mov ax, [es:1]
+    cmp ax, [psp_seg]
+    jne fail_prog_owner
+    cmp word [es:3], 0x0200
+    jne fail_prog_size
+    ; the freed remainder follows, last in the arena
+    mov ax, es
+    add ax, [es:3]
+    inc ax
+    mov es, ax
+    cmp byte [es:0], 'Z'
     jne fail_free_sig
     cmp word [es:1], 0
     jne fail_free_owner
@@ -35,7 +55,7 @@ start:
     mov ax, [psp_seg]
     dec ax
     mov es, ax
-    cmp byte [es:0], 'Z'
+    cmp byte [es:0], 'M'
     jne fail_prog_sig
     mov ax, [es:1]
     cmp ax, [psp_seg]
@@ -92,6 +112,9 @@ fail_prog_sig:
 fail_prog_owner:
     mov dx, fail_prog_owner_msg
     jmp fail
+fail_prog_size:
+    mov dx, fail_prog_size_msg
+    jmp fail
 fail_one_alloc:
     mov dx, fail_one_alloc_msg
     jmp fail
@@ -117,6 +140,7 @@ fail_free_owner_msg: db "FAIL: HIGHMCB FREE OWNER", 13, 10, "$"
 fail_free_size_msg: db "FAIL: HIGHMCB FREE SIZE", 13, 10, "$"
 fail_prog_sig_msg: db "FAIL: HIGHMCB PROG SIG", 13, 10, "$"
 fail_prog_owner_msg: db "FAIL: HIGHMCB PROG OWNER", 13, 10, "$"
+fail_prog_size_msg: db 'FAIL: HIGHMCB PROG SIZE', 13, 10, '$'
 fail_one_alloc_msg: db "FAIL: HIGHMCB ONE ALLOC", 13, 10, "$"
 fail_one_resize_msg: db "FAIL: HIGHMCB ONE RESIZE", 13, 10, "$"
 fail_one_free_msg: db "FAIL: HIGHMCB ONE FREE", 13, 10, "$"

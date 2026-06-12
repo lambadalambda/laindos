@@ -30,6 +30,22 @@ debugging session to exonerate (see debug log 2026-06-12).
   and a >= 64 KiB owned block when memory allows).
 - Full suite passes.
 
+## Resolution (2026-06-12)
+
+- Both the boot launcher and the EXEC path now give a `.COM` the
+  largest free block, and the entry stack is DOS-exact (SP=0xFFFE,
+  zero word at [SP]). `test_boot_mem` pins the contract; `highmcb`
+  re-pins the new arena layout.
+- Twenty-five test programs plus the bundled LOADFIX gained the
+  DOS-canonical shrink prologue (move SP into the kept region, then
+  AH=4Ah) that real COM programs used before allocating or spawning.
+- Compatibility unlock: with the shell resident low, children load
+  above the EXEPACK 64 KiB line — bare CIV starts without LOADFIX —
+  and the boot program's stack no longer sits under the EBDA where
+  SeaBIOS's INT 13h extra stack can trample it.
+- Suite 145/145; placement-sensitive vendor smokes (MI2 save, full
+  Monkey, Civ, Settlers II, Wing Commander, MM2) all pass.
+
 ## Notes
 
 - The high allocation dates from earlier kernel layouts; check the

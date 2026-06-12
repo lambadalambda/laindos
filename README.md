@@ -12,7 +12,7 @@ LainDOS implements the DOS that era software actually calls: the `INT 21h` file/
 
 Games it runs today: **The Secret of Monkey Island** (demo bundled, full VGA version supported), **Monkey Island 2: LeChuck's Revenge** with working in-game save and load, **Sam & Max Hit the Road** from CD-ROM, **Simon the Sorcerer**, **Sid Meier's Civilization**, **Wolfenstein 3D**, **Ascendancy**, **Stunt Island**, **Wing Commander**, **The Settlers II Gold Edition**, **Micro Machines 2**, **Shortline**, and Norton Commander 5.5 for good measure.
 
-Every change is gated by an automated QEMU regression ladder that currently passes `144/144` tests.
+Every change is gated by an automated QEMU regression ladder that currently passes `145/145` tests.
 
 ## Try it
 

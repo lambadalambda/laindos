@@ -7,6 +7,12 @@ tail_marker_off equ 2 + reloc_count * 2 + 300
 start:
     push cs
     pop ds
+    ; DOS-style prologue: move the stack inside the kept region, then
+    ; shrink the block so later allocations/execs have memory to use
+    mov sp, 0x1FFE
+    mov bx, 0x0200
+    mov ah, 0x4A
+    int 0x21
     push cs
     pop es
     mov [exec_params+4], ds
