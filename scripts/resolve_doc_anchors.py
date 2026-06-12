@@ -25,7 +25,7 @@ SOURCE_EXCERPT_DOCS_GLOB = (
     "app.jsx", "data.jsx", "shared.jsx", "shell.jsx", "v86machine.jsx",
     *[f"page_{name}.jsx" for name in [
         "boot", "misc", "dosapi", "tests", "filesystem", "memory", "programs",
-        "shell", "mouse", "emulators", "glossary",
+        "shell", "mouse", "emulators", "casestudies", "glossary",
     ]],
 )
 ANCHOR_LINE_RE = re.compile(r"^\s*;\s*@anchor:\s*(\S+)\s*$")

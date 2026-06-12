@@ -27,6 +27,7 @@ programs.html
 shell.html
 mouse.html
 emulators.html
+casestudies.html
 glossary.html
 run.html
 ```

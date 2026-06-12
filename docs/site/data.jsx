@@ -36,6 +36,8 @@ const NAV = [
     blurb: "PS/2 packets, callbacks, buttons and game input" },
   { id: "emulators", label: "Emulators / Debugging", kind: "track", status: "done",
     blurb: "QEMU, 86Box, Bochs, v86, and real-DOS comparisons" },
+  { id: "cases", label: "Bug Case Studies", kind: "track", status: "done",
+    blurb: "How things went wrong, and what each fix pinned down" },
   { id: "glossary", label: "Glossary", kind: "page" },
   { id: "run", label: "Run it", kind: "run" },
 ];

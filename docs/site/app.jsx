@@ -14,6 +14,7 @@ import "./page_programs.jsx";
 import "./page_shell.jsx";
 import "./page_mouse.jsx";
 import "./page_emulators.jsx";
+import "./page_casestudies.jsx";
 import "./page_glossary.jsx";
 
 const SITE_PAGES = [
@@ -27,6 +28,7 @@ const SITE_PAGES = [
   { route: "shell", file: "shell.html", title: "LainDOS - Shell" },
   { route: "mouse", file: "mouse.html", title: "LainDOS - Mouse" },
   { route: "emulators", file: "emulators.html", title: "LainDOS - Emulator Workflows" },
+  { route: "cases", file: "casestudies.html", title: "LainDOS - Bug Case Studies" },
   { route: "glossary", file: "glossary.html", title: "LainDOS - Glossary" },
   { route: "run", file: "run.html", title: "LainDOS - Run It" },
 ];
@@ -96,6 +98,7 @@ function App({ initialRoute, initialSub }) {
   else if (route === "shell") page = <window.ShellDocsPage go={go} />;
   else if (route === "mouse") page = <window.MouseDocsPage go={go} />;
   else if (route === "emulators") page = <window.EmulatorsPage go={go} />;
+  else if (route === "cases") page = <window.CaseStudiesPage go={go} />;
   else if (route === "glossary") page = <window.GlossaryPage go={go} />;
   else if (route === "run") page = <window.RunPage go={go} />;
   else {
