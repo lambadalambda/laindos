@@ -1554,10 +1554,6 @@ int21_handler:
     je .am_strat_best
     cmp al, 2
     je .am_strat_high
-    cmp word [cs:am_req], 1
-    jbe .am_strat_first
-    cmp word [cs:am_req], SMALL_ALLOC_HIGH_MAX
-    jbe .am_strat_high
 .am_strat_first:
     call alloc_mem_direct
     jmp .am_alloc_done

@@ -48,7 +48,7 @@ start:
     test ax, ax
     jnz fail_rel_exe_child
 
-    mov bx, 0x0020
+    mov bx, 0x0040
     mov ah, 0x48
     int 0x21
     jc fail_overlay_alloc

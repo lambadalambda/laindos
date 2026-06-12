@@ -31,7 +31,7 @@ def parse_cue(cue_path):
     in_data_track = False
     file_re = re.compile(r'^FILE\s+"([^"]+)"\s+BINARY$', re.IGNORECASE)
     track_re = re.compile(r'^TRACK\s+\d+\s+(\S+)$', re.IGNORECASE)
-    index_re = re.compile(r'^INDEX\s+01\s+(\d\d:\d\d:\d\d)$', re.IGNORECASE)
+    index_re = re.compile(r'^INDEX\s+0?1\s+(\d\d:\d\d:\d\d)$', re.IGNORECASE)
     with open(cue_path, "r", encoding="ascii") as cue:
         for raw_line in cue:
             line = raw_line.strip()

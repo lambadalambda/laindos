@@ -25,6 +25,7 @@ DEFAULT_TESTS = [
     "scripts/test_highmcb.py",
     "scripts/test_stratapi.py",
     "scripts/test_memrelease.py",
+    "scripts/test_memtop.py",
     "scripts/test_memfail.py",
     "scripts/test_write.py",
     "scripts/test_rwedge.py",

@@ -4,7 +4,7 @@
 reloc_count equ 140
 tail_marker_off equ 2 + reloc_count * 2 + 300
 
-    mov bx, 0x0020
+    mov bx, 0x0040
     mov ah, 0x48
     int 0x21
     jc fail_alloc

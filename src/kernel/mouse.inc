@@ -44,7 +44,66 @@ int33_handler:
     je .set_callback
     cmp ax, 0x000F
     je .set_ratio
+    cmp ax, 0x0015
+    je .state_size
+    cmp ax, 0x0016
+    je .save_state
+    cmp ax, 0x0017
+    je .restore_state
+    cmp ax, 0x0024
+    je .get_info
     iret
+; AX=0024h: MS MOUSE 8.20-style driver info — PS/2 mouse type, IRQ 0.
+.get_info:
+    mov bx, 0x0814
+    mov ch, 4
+    xor cl, cl
+    iret
+
+; AX=0015h/16h/17h: driver state size and save/restore. The state is the
+; visible driver configuration; programs snapshot it around child EXECs.
+.state_size:
+    mov bx, mouse_state_vars_end - mouse_state_vars
+    iret
+.save_state:
+    push ds
+    push si
+    push di
+    push cx
+    push cs
+    pop ds
+    mov si, mouse_state_vars
+    mov di, dx
+    mov cx, (mouse_state_vars_end - mouse_state_vars) / 2
+    cld
+    rep movsw
+    pop cx
+    pop di
+    pop si
+    pop ds
+    iret
+.restore_state:
+    push ds
+    push es
+    push si
+    push di
+    push cx
+    push es
+    pop ds
+    push cs
+    pop es
+    mov si, dx
+    mov di, mouse_state_vars
+    mov cx, (mouse_state_vars_end - mouse_state_vars) / 2
+    cld
+    rep movsw
+    pop cx
+    pop di
+    pop si
+    pop es
+    pop ds
+    iret
+
 .reset:
     mov word [cs:mouse_min_x], 0
     mov word [cs:mouse_max_x], 639
@@ -600,8 +659,32 @@ mouse_invoke_callback:
     mov bx, [cs:mouse_buttons]
     mov cx, [cs:mouse_x]
     mov dx, [cs:mouse_y]
-    mov si, [cs:mouse_event_dx]
-    mov di, [cs:mouse_event_dy]
+    ; real drivers pass the cumulative mickey counters (the AX=000Bh
+    ; accumulators), not per-event deltas; Settlers II integrates these
+    mov si, [cs:mouse_motion_x]
+    mov di, [cs:mouse_motion_y]
+%ifdef TRACE_MOUSE
+    pusha
+    push si
+    mov si, ax
+    mov dx, 0x3F8
+    mov al, 'C'
+    out dx, al
+    mov ax, si
+    call serial_print_hex_word
+    mov al, ','
+    out dx, al
+    mov ax, cx
+    call serial_print_hex_word
+    mov al, ','
+    out dx, al
+    pop si
+    mov ax, si
+    call serial_print_hex_word
+    mov al, ';'
+    out dx, al
+    popa
+%endif
     sti
     call far [cs:mouse_callback_off]
     cli

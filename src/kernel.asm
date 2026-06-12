@@ -36,7 +36,6 @@ H_ALIAS     equ 30
 H_DRIVE     equ 32
 H_ALIAS_NONE equ 0xFFFF
 MAX_HANDLES equ 20
-SMALL_ALLOC_HIGH_MAX equ 0x0020
 COM_EXTRA_PAR equ 0x0110
 KERNEL_STACK_TOP equ 0xFFF0
 KERNEL_STACK_GUARD_BYTES equ 0x0800
@@ -196,7 +195,16 @@ kernel_entry:
     mov es, ax
     mov byte [es:0], MCB_SIG_Z
     mov word [es:1], 0
-    mov ax, MEM_TOP - MCB_START - 1
+    ; arena ends at the BIOS conventional-memory line, not at 640K: the
+    ; EBDA above it belongs to the BIOS (PS/2 mouse state lives there)
+    mov ax, [mem_kib]
+    mov cl, 6
+    shl ax, cl
+    cmp ax, MEM_TOP
+    jbe .arena_top_ok
+    mov ax, MEM_TOP
+.arena_top_ok:
+    sub ax, MCB_START + 1
     mov word [es:3], ax
     mov word [mcb_first], MCB_START
     mov word [cur_psp], 0
@@ -3795,6 +3803,7 @@ trace_vec_seg: dw 0
 trace_mcb_seg: dw 0
 %endif
 
+mouse_state_vars:
 mouse_x: dw 320
 mouse_y: dw 100
 mouse_min_x: dw 0
@@ -3817,6 +3826,7 @@ mouse_scale_rem_x: dw 0
 mouse_scale_rem_y: dw 0
 mouse_event_dx: dw 0
 mouse_event_dy: dw 0
+mouse_state_vars_end:
 mouse_in_callback: db 0
 mouse_ps2_enabled: db 0
 mouse_cmd: db 0
