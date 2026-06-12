@@ -22,6 +22,7 @@ DEFAULT_TESTS = [
     "scripts/test_cd_find.py",
     "scripts/test_cd_mscdex.py",
     "scripts/test_cd_audio.py",
+    "scripts/test_cd_chunks.py",
     "scripts/test_cd_exec.py",
     "scripts/test_highmcb.py",
     "scripts/test_stratapi.py",
