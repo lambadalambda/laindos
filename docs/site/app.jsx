@@ -18,19 +18,19 @@ import "./page_casestudies.jsx";
 import "./page_glossary.jsx";
 
 const SITE_PAGES = [
-  { route: "overview", file: "index.html", title: "LainDOS - source, annotated" },
-  { route: "boot", file: "boot.html", title: "LainDOS - The Boot Path" },
-  { route: "dosapi", file: "dosapi.html", title: "LainDOS - INT 21h" },
-  { route: "tests", file: "tests.html", title: "LainDOS - Regression Ladder" },
-  { route: "fs", file: "filesystem.html", title: "LainDOS - FAT Filesystem" },
-  { route: "mem", file: "memory.html", title: "LainDOS - Memory" },
-  { route: "prog", file: "programs.html", title: "LainDOS - Programs" },
-  { route: "shell", file: "shell.html", title: "LainDOS - Shell" },
-  { route: "mouse", file: "mouse.html", title: "LainDOS - Mouse" },
-  { route: "emulators", file: "emulators.html", title: "LainDOS - Emulator Workflows" },
-  { route: "cases", file: "casestudies.html", title: "LainDOS - Bug Case Studies" },
-  { route: "glossary", file: "glossary.html", title: "LainDOS - Glossary" },
-  { route: "run", file: "run.html", title: "LainDOS - Run It" },
+  { route: "overview", file: "index.html", title: "LainDOS - source, annotated", desc: "A tiny single-tasking DOS written from scratch in real-mode x86 assembly, annotated source and all - its mission in life is booting period games." },
+  { route: "boot", file: "boot.html", title: "LainDOS - The Boot Path", desc: "Power-on to a running game: the 512-byte boot sector, kernel relocation into the HMA, and the handoff, step by step." },
+  { route: "dosapi", file: "dosapi.html", title: "LainDOS - INT 21h", desc: "What INT 21h coverage means for real games and tools - the DOS API surface LainDOS implements and why." },
+  { route: "tests", file: "tests.html", title: "LainDOS - Regression Ladder", desc: "The QEMU regression ladder: serial markers, minimal repros, and vendor-gated game smokes." },
+  { route: "fs", file: "filesystem.html", title: "LainDOS - FAT Filesystem", desc: "FAT12 and FAT16 from cluster chains to 8.3 names, plus read-only ISO-9660 CD-ROM." },
+  { route: "mem", file: "memory.html", title: "LainDOS - Memory", desc: "The MCB arena, DOS first fit, the INT 12h line, and the XMS shim - where programs live." },
+  { route: "prog", file: "programs.html", title: "LainDOS - Programs", desc: "PSP layout, COM and EXE loading, relocation, and EXEC - how real programs start." },
+  { route: "shell", file: "shell.html", title: "LainDOS - Shell", desc: "The shell, AUTOEXEC.BAT, PATH lookup, and batch files." },
+  { route: "mouse", file: "mouse.html", title: "LainDOS - Mouse", desc: "A PS/2-backed INT 33h mouse driver: packets, callbacks, and game input." },
+  { route: "emulators", file: "emulators.html", title: "LainDOS - Emulator Workflows", desc: "QEMU, 86Box, Bochs, v86, and real-DOS comparisons - picking the shortest path to an answer." },
+  { route: "cases", file: "casestudies.html", title: "LainDOS - Bug Case Studies", desc: "Bug case studies in the long form: the background, the hunt with its dead ends, and the before/after fix - how a DOS goes wrong and gets fixed." },
+  { route: "glossary", file: "glossary.html", title: "LainDOS - Glossary", desc: "Era terms decoded: segments, MCBs, EBDA, change lines, and friends." },
+  { route: "run", file: "run.html", title: "LainDOS - Run It", desc: "Boot LainDOS in your browser: the bundled Monkey Island demo floppy under v86." },
 ];
 
 const PAGE_BY_ROUTE = Object.fromEntries(SITE_PAGES.map(page => [page.route, page]));

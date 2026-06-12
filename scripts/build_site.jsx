@@ -3,6 +3,8 @@
 const APP_SRC = new URL("../docs/site/app.jsx", import.meta.url);
 const RESOLVED_SRC = new URL("../build/.resolved-docs/app.jsx", import.meta.url);
 const RESOLVER = new URL("../scripts/resolve_doc_anchors.py", import.meta.url);
+const SITE_BASE = "https://lambadalambda.github.io/laindos/";
+const OGCARD_SRC = new URL("../docs/site/ogcard.png", import.meta.url);
 
 const VOID_TAGS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]);
 const UNITLESS_STYLE = new Set([
@@ -239,6 +241,20 @@ function htmlForPage(page, body, imageUrl) {
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>${escapeHtml(page.title)}</title>
+<meta name="description" content="${escapeHtml(page.desc || "")}" />
+<link rel="canonical" href="${SITE_BASE}${page.file}" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="LainDOS" />
+<meta property="og:title" content="${escapeHtml(page.title)}" />
+<meta property="og:description" content="${escapeHtml(page.desc || "")}" />
+<meta property="og:url" content="${SITE_BASE}${page.file}" />
+<meta property="og:image" content="${SITE_BASE}ogcard.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="${escapeHtml(page.title)}" />
+<meta name="twitter:description" content="${escapeHtml(page.desc || "")}" />
+<meta name="twitter:image" content="${SITE_BASE}ogcard.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -301,6 +317,7 @@ async function main() {
   await runBundle(outDir);
   await Deno.writeTextFile(`${outDir}/.nojekyll`, "");
 
+  await Deno.copyFile(OGCARD_SRC.pathname, `${outDir}/ogcard.png`);
   for (const page of SITE_PAGES) await Deno.stat(`${outDir}/${page.file}`);
   await Deno.stat(`${outDir}/app.js`);
   if (opts.image) await Deno.stat(`${outDir}/shell_monkey.img`);
