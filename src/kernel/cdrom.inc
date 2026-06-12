@@ -1665,6 +1665,24 @@ cd_audio_subchannel:
     stc
     ret
 
+; OR the spec's busy bit (0x0200) into the request status in AX while
+; an audio play operation is in progress -- games poll this to track
+; playback, and without it their CD player UIs run inverted.
+cd_audio_or_busy:
+    push cx
+    push es
+    call cd_audio_subchannel
+    jc .done
+    mov cx, CD_BUF
+    mov es, cx
+    cmp byte [es:1], 0x11
+    jne .done
+    or ax, 0x0200
+.done:
+    pop es
+    pop cx
+    ret
+
 int2f_cd_dev_req:
     push ax
     push cx
@@ -1703,6 +1721,7 @@ int2f_cd_dev_req:
 .ok:
     mov ax, 0x0100
 .status:
+    call cd_audio_or_busy
     mov [es:bx+3], ax
     pop ds
     pop di
@@ -1891,12 +1910,13 @@ int2f_cd_dev_req:
     jmp .ok
 
 .stop:
-    ; best-effort, as era drivers behaved: stopping an idle (or
+    ; Stop Audio pauses with a resume point, per the device driver
+    ; spec; best-effort, as era drivers behaved: stopping an idle (or
     ; audio-incapable emulated) drive still reports done
     call cd_audio_atapi_ready
     jc .ok
     call cd_audio_zero_cdb
-    mov byte [cs:atapi_cdb], 0x4E
+    mov byte [cs:atapi_cdb], 0x4B
     xor ax, ax
     call atapi_packet_in
     jmp .ok
