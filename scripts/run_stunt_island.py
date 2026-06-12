@@ -152,6 +152,13 @@ def prepare_current_image(base_image):
 
 
 def main():
+    # mise runs tasks with stdout/stderr on non-blocking pipes; Python's
+    # buffered writes then die with BlockingIOError once the pipe fills
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            os.set_blocking(stream.fileno(), True)
+        except (OSError, ValueError):
+            pass
     args = parse_args()
     image = os.path.abspath(args.image)
     if not os.path.isfile(image):

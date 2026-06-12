@@ -214,6 +214,13 @@ def parse_args():
 
 
 def main():
+    # mise runs tasks with stdout/stderr on non-blocking pipes; Python's
+    # buffered writes then die with BlockingIOError once the pipe fills
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            os.set_blocking(stream.fileno(), True)
+        except (OSError, ValueError):
+            pass
     args = parse_args()
     os.makedirs("build", exist_ok=True)
     if args.reinstall or not os.path.isfile(INSTALLED_IMAGE):
