@@ -31,6 +31,25 @@ exercised by Ascendancy) installing from CD-ROM.
 - Expect VESA (VBE) graphics, DOS/4GW, XMS/raw memory probing, and a CD
   presence check; Redbook audio tracks will not play (acceptable).
 
+## Resolution (2026-06-12)
+
+- The vendor-gated `make test-settlers2-smoke` installs from the CD data
+  track through the real Blue Byte installer, reboots out of the
+  post-install Setup menu (its buttons take only mouse clicks, and click
+  handling never fires under QEMU — the same emulator interaction that
+  stalls the game's menu input pump; the `-snapshot` overlay carries the
+  installed `C:` across `system_reset`), launches the game, and asserts
+  the 640x480 VESA main menu plus an advancing BIOS tick.
+- The 86Box cross-check settled the input-pump question without the RPC
+  mouse endpoint: under an interactive Pentium 75 VM (`p54tp4xe`, 16 MiB,
+  S3 Trio32 PCI, PS/2 mouse, SB16, C: image on IDE 0:0 with 63/16/325
+  geometry, ISO as ATAPI 1:0) the game is fully playable — user-confirmed
+  in-game. The stall is QEMU-side, not a kernel gap.
+- Docs updated in lockstep: games.md section, status.md bullet, README
+  games list, debug log closure. The three kernel faithfulness fixes
+  (arena top at INT 12h, DOS first fit, INT 33h driver info/state +
+  cumulative mickeys) shipped earlier in commit 4a76d10.
+
 ## Progress (2026-06-12)
 
 - Staged and installed end to end; the game runs through its 640x480 VESA

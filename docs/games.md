@@ -195,6 +195,45 @@ advancing:
 make test-wc-smoke
 ```
 
+## The Settlers II Gold Edition
+
+Stage the CD data track and a blank bootable target from the CloneCD rip
+(`vendor/die-siedler-2-gold/CD01.cue` + `CD01.img`, mixed mode: one
+MODE1/2352 data track plus eight Redbook audio tracks that stay silent):
+
+```sh
+python3 scripts/build_settlers2.py
+```
+
+Boot `build/settlers2_c.img` with `build/settlers2_cd.iso` attached as a
+read-only `D:`, then run `D:`, `CD S2`, `SETUP`. The Blue Byte installer is
+a DOS/4GW graphics program (ENTER activates the focused menu button, SPACE
+activates dialog buttons): pick "Siedler II Gold installieren", drive `C:`,
+and the default `C:\BLUEBYTE\SIEDLER2` path. After the copy finishes, leave
+the Setup menu via "Programm verlassen", then `C:`, `CD \BLUEBYTE\SIEDLER2`,
+`START`. `SIEDLER2.EXE` first tries its CauseWay VMM launcher, prints
+"CauseWay error 09", and falls back to a direct DOS/4GW start — that error
+line is expected and harmless.
+
+The bring-up forced three kernel faithfulness fixes (MCB arena top at the
+BIOS INT 12h line, plain DOS first-fit allocation, and INT 33h driver
+info/state functions with cumulative callback mickeys); without them the
+game dies in DOS/4GW before its splash. Under QEMU the game reaches its
+640x480 VESA main menu but the timer-driven input pump never runs (an
+emulator interaction of the Civilization PIT class). Under 86Box the game
+is fully playable: use a Pentium 75 profile (`machine = p54tp4xe`,
+16 MiB RAM, S3 Trio32 PCI video, PS/2 mouse, SB16), attach
+`settlers2_c.img` as an IDE hard disk with `hdd_01_parameters =
+63, 16, 325, 0, ide` on channel 0:0, and `settlers2_cd.iso` as an ATAPI
+CD-ROM on channel 1:0.
+
+The vendor-gated smoke installs from CD and launches to the VESA menu
+headlessly:
+
+```sh
+make test-settlers2-smoke
+```
+
 ## External Hard-Disk Images
 
 Smoke-test a local external hard-disk image without writing to it:

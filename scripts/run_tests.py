@@ -168,6 +168,7 @@ EXTERNAL_TESTS = {
     "test_mi2_save.py",                # vendor MI2 zip (make test-mi2-save)
     "test_mm2_smoke.py",               # vendor Micro Machines 2 7z (make test-mm2-smoke)
     "test_wc_smoke.py",                # vendor Wing Commander floppies (make test-wc-smoke)
+    "test_settlers2_smoke.py",         # vendor Settlers II CD rip (make test-settlers2-smoke)
     "test_monkey_full.py",             # vendor monkey_full zip (make test-monkey-full)
     "test_normality_install.py",       # Sam & Max CD image (make test-normality-install)
     "test_norton_commander_copy.py",   # vendor Norton 7z (make test-norton-commander-copy)

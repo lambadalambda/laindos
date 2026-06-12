@@ -1,1 +1,0 @@
-- [ ] [Bring up The Settlers II Gold Edition](issues/bring-up-settlers-2.md)
