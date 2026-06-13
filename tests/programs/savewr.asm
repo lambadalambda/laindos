@@ -33,7 +33,7 @@ start:
     cmp ax, 1
     jne fail_read
     cmp byte [read_buf], 0
-    jne fail_compare
+    jne fail_compare_initial
 
     call seek_start
 
@@ -57,7 +57,7 @@ start:
     cmp ax, 1
     jne fail_read
     cmp byte [read_buf], 0xA5
-    jne fail_compare
+    jne fail_compare_read_after_write
 
     call seek_start
 
@@ -108,7 +108,7 @@ start:
     jne fail_read
 
     call compare_pattern
-    jc fail_compare
+    jc fail_compare_reopen
 
     mov bx, [handle]
     mov ah, 0x3E
@@ -145,7 +145,7 @@ start:
     cmp ax, pattern_size
     jne fail_read
     call compare_pattern
-    jc fail_compare
+    jc fail_compare_rename
 
     mov bx, [handle]
     mov ah, 0x3E
@@ -619,6 +619,18 @@ fail_open:
 fail_read:
     mov dx, fail_read_msg
     jmp print_fail
+fail_compare_initial:
+    mov dx, fail_compare_initial_msg
+    jmp print_fail
+fail_compare_read_after_write:
+    mov dx, fail_compare_read_after_write_msg
+    jmp print_fail
+fail_compare_reopen:
+    mov dx, fail_compare_reopen_msg
+    jmp print_fail
+fail_compare_rename:
+    mov dx, fail_compare_rename_msg
+    jmp print_fail
 fail_compare:
     mov dx, fail_compare_msg
     jmp print_fail
@@ -674,6 +686,10 @@ fail_write_msg: db "FAIL: WRITEFILE", 13, 10, "$"
 fail_close_msg: db "FAIL: CLOSE", 13, 10, "$"
 fail_open_msg: db "FAIL: OPEN", 13, 10, "$"
 fail_read_msg: db "FAIL: READ", 13, 10, "$"
+fail_compare_initial_msg: db "FAIL: COMPARE INITIAL", 13, 10, "$"
+fail_compare_read_after_write_msg: db "FAIL: COMPARE RAW", 13, 10, "$"
+fail_compare_reopen_msg: db "FAIL: COMPARE REOPEN", 13, 10, "$"
+fail_compare_rename_msg: db "FAIL: COMPARE RENAME", 13, 10, "$"
 fail_compare_msg: db "FAIL: COMPARE", 13, 10, "$"
 fail_rename_msg: db "FAIL: RENAME", 13, 10, "$"
 fail_date_msg: db "FAIL: DATE", 13, 10, "$"

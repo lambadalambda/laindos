@@ -700,6 +700,7 @@ init_drive_table:
     call save_active_drive_slot
     mov al, 2
     call save_active_drive_slot
+    mov byte [cs:drive_req], 2
     call load_active_volume_buffers
     jc .done
     call mount_bios_floppy_a
@@ -708,6 +709,7 @@ init_drive_table:
     call load_drive_slot_geometry
     mov byte [cs:rf_cache_valid], 0
     mov byte [cs:fat16_cache_valid], 0
+    mov byte [cs:drive_req], 2
     call load_active_volume_buffers
     jmp .hd_floppy_done
 .hd_have_floppy:
@@ -1157,6 +1159,8 @@ floppy_media_remount:
     mov byte [cs:rf_cache_valid], 0
     mov byte [cs:fat16_cache_valid], 0
     mov byte [cs:fat_dirty], 0
+    mov al, [cs:active_drive_num]
+    mov [cs:drive_req], al
     call load_active_volume_buffers
     jc .err
     cmp byte [cs:kdrv], 0
@@ -1414,7 +1418,9 @@ activate_drive:
     call floppy_media_check
     jc .err
     jmp .ok
-.switch:
+.switch: PERF_INC perf_drive_switches
+    call wf_flush_sector_cache
+    jc .err
     call flush_fat
     jc .err
     call save_active_drive_cwd
@@ -1443,6 +1449,7 @@ activate_drive:
     mov al, [cs:drive_prev]
     cmp al, MAX_DRIVES
     jae .err
+    mov [cs:drive_req], al
     call load_drive_slot_geometry
     mov byte [cs:rf_cache_valid], 0
     mov byte [cs:fat16_cache_valid], 0
@@ -1478,16 +1485,28 @@ load_active_volume_buffers:
     call read_sector_loop
     jc .err
 .root:
+    cmp byte [cs:kfat_bits], 16
+    jne .load_root
+    cmp byte [cs:kdrv], 0x80
+    jb .load_root
+    mov al, [cs:drive_req]
+    cmp [cs:root_buf_drive], al
+    je .ok
+.load_root:
     mov ax, ROOT_SEG
     mov es, ax
     xor bx, bx
     mov ax, [cs:krsta]
     mov cx, [cs:krsc]
     call read_sector_loop
-    jc .err
+    jc .root_err
+    mov al, [cs:drive_req]
+    mov [cs:root_buf_drive], al
 .ok:
     clc
     jmp .done
+.root_err:
+    mov byte [cs:root_buf_drive], 0xFF
 .err:
     stc
 .done:
@@ -3416,6 +3435,7 @@ dos_drive_count: db 1
 active_drive_num: db 0
 drive_req: db 0
 drive_prev: db 0
+root_buf_drive: db 0xFF
 drive_load_lba: dw 0
 mbr_part_lba: dw 0
 mbr_part_lba_hi: dw 0
@@ -3948,6 +3968,270 @@ int2f_iret_nc:
     pop bp
     iret
 
+wf_mark_sector_cache:
+    mov byte [cs:rf_cache_valid], 0
+    mov ax, [cs:wf_sector_lba]
+    mov [cs:wf_sec_cache_lba], ax
+    mov ax, [cs:wf_sector_lba_hi]
+    mov [cs:wf_sec_cache_lba_hi], ax
+    mov al, [cs:active_drive_num]
+    mov [cs:wf_sec_cache_drive], al
+    mov byte [cs:wf_sec_cache_dirty], 1
+    mov byte [cs:wf_sec_cache_valid], 1
+    ret
+
+wf_prepare_sector_cache:
+    cmp byte [cs:wf_sec_cache_valid], 1
+    jne .ok
+    mov al, [cs:active_drive_num]
+    cmp al, [cs:wf_sec_cache_drive]
+    jne .flush
+    mov ax, [cs:wf_sector_lba]
+    cmp ax, [cs:wf_sec_cache_lba]
+    jne .flush
+    mov ax, [cs:wf_sector_lba_hi]
+    cmp ax, [cs:wf_sec_cache_lba_hi]
+    je .ok
+.flush:
+    call wf_flush_sector_cache
+    jc .err
+    mov byte [cs:wf_sec_cache_valid], 0
+.ok:
+    clc
+    ret
+.err:
+    stc
+    ret
+
+wf_flush_sector_cache:
+    cmp byte [cs:wf_sec_cache_valid], 1
+    jne .clean
+    cmp byte [cs:wf_sec_cache_dirty], 1
+    jne .clean
+    cmp byte [cs:wf_sec_cache_flushing], 1
+    je .clean
+    mov al, [cs:active_drive_num]
+    cmp al, [cs:wf_sec_cache_drive]
+    jne .err
+    mov byte [cs:wf_sec_cache_flushing], 1
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, [cs:kio_lba_hi]
+    push ax
+    mov ax, [cs:wf_sec_cache_lba_hi]
+    mov [cs:kio_lba_hi], ax
+    mov ax, [cs:wf_sec_cache_lba]
+    mov dx, WRITE_CACHE_BUF
+    mov es, dx
+    xor bx, bx
+    PERF_INC perf_data_writes
+    call write_sector
+    mov byte [cs:wf_flush_error], 0
+    jnc .store_restore
+    mov byte [cs:wf_flush_error], 1
+.store_restore:
+    pop ax
+    mov [cs:kio_lba_hi], ax
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    mov byte [cs:wf_sec_cache_flushing], 0
+    cmp byte [cs:wf_flush_error], 0
+    jne .err
+    mov byte [cs:wf_sec_cache_dirty], 0
+.clean:
+    clc
+    ret
+.err:
+    stc
+    ret
+
+wf_fill_read_cache_from_write:
+    cmp byte [cs:wf_sec_cache_valid], 1
+    jne .miss
+    push bx
+    mov bl, [cs:active_drive_num]
+    cmp bl, [cs:wf_sec_cache_drive]
+    pop bx
+    jne .miss
+    cmp ax, [cs:wf_sec_cache_lba]
+    jne .miss
+    cmp dx, [cs:wf_sec_cache_lba_hi]
+    jne .miss
+    call wf_flush_sector_cache
+    jc .err
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov ax, WRITE_CACHE_BUF
+    mov ds, ax
+    mov ax, READ_CACHE_BUF
+    mov es, ax
+    xor si, si
+    xor di, di
+    mov cx, 256
+    cld
+    rep movsw
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    mov byte [cs:rf_cache_valid], 1
+    mov al, 1
+    clc
+    ret
+.miss:
+    xor al, al
+    clc
+    ret
+.err:
+    stc
+    ret
+
+wf_flush_handle_dir_entry:
+    call wf_flush_sector_cache
+    jc .done
+    call flush_handle_dir_entry
+.done:
+    ret
+
+wf_flush_iret_nc:
+    call wf_flush_sector_cache
+    jc .err
+    jmp iret_nc
+.err:
+    mov ax, 5
+    jmp iret_cy
+
+wf_sec_cache_lba: dw 0
+wf_sec_cache_lba_hi: dw 0
+wf_sec_cache_drive: db 0
+wf_sec_cache_valid: db 0
+wf_sec_cache_dirty: db 0
+wf_sec_cache_flushing: db 0
+wf_flush_error: db 0
+
+%if PERF_IO_COUNTS
+perf_counts_reset:
+    push ax
+    push cx
+    push di
+    push es
+    push cs
+    pop es
+    mov di, perf_sector_reads
+    mov cx, (perf_counts_end - perf_sector_reads) / 2
+    xor ax, ax
+    rep stosw
+    pop es
+    pop di
+    pop cx
+    pop ax
+    ret
+
+perf_counts_print:
+    push ax
+    push ds
+    push si
+    push cs
+    pop ds
+    mov si, msg_perf_rd
+    call serial_print
+    mov ax, [cs:perf_sector_reads]
+    call serial_print_hex_word
+    mov si, msg_perf_wr
+    call serial_print
+    mov ax, [cs:perf_sector_writes]
+    call serial_print_hex_word
+    mov si, msg_perf_wd
+    call serial_print
+    mov ax, [cs:perf_data_writes]
+    call serial_print_hex_word
+    mov si, msg_perf_cd
+    call serial_print
+    mov ax, [cs:perf_cd_reads]
+    call serial_print_hex_word
+    mov si, msg_perf_dsw
+    call serial_print
+    mov ax, [cs:perf_drive_switches]
+    call serial_print_hex_word
+    mov si, msg_perf_ff
+    call serial_print
+    mov ax, [cs:perf_fat_flushes]
+    call serial_print_hex_word
+    mov si, msg_perf_f16
+    call serial_print
+    mov ax, [cs:perf_fat16_flushes]
+    call serial_print_hex_word
+    mov si, msg_perf_fa
+    call serial_print
+    mov ax, [cs:perf_fat_allocs]
+    call serial_print_hex_word
+    mov si, msg_perf_dir
+    call serial_print
+    mov ax, [cs:perf_dir_flushes]
+    call serial_print_hex_word
+    mov si, msg_perf_wfc
+    call serial_print
+    mov ax, [cs:perf_write_calls]
+    call serial_print_hex_word
+    mov si, msg_perf_wfp
+    call serial_print
+    mov ax, [cs:perf_write_prereads]
+    call serial_print_hex_word
+    mov si, msg_crlf
+    call serial_print
+    pop si
+    pop ds
+    pop ax
+    ret
+
+msg_perf_rd:  db "PERF RD=", 0
+msg_perf_wr:  db " WR=", 0
+msg_perf_wd:  db " WD=", 0
+msg_perf_cd:  db " CD=", 0
+msg_perf_dsw: db " DSW=", 0
+msg_perf_ff:  db " FF=", 0
+msg_perf_f16: db " F16=", 0
+msg_perf_fa:  db " FA=", 0
+msg_perf_dir: db " DIR=", 0
+msg_perf_wfc: db " WFC=", 0
+msg_perf_wfp: db " WFP=", 0
+
+perf_sector_reads: dw 0
+perf_sector_writes: dw 0
+perf_data_writes: dw 0
+perf_cd_reads: dw 0
+perf_drive_switches: dw 0
+perf_fat_flushes: dw 0
+perf_fat16_flushes: dw 0
+perf_fat_allocs: dw 0
+perf_dir_flushes: dw 0
+perf_write_calls: dw 0
+perf_write_prereads: dw 0
+perf_counts_end:
+%endif
+
 kernel_end:
 
 %if mouse_callback_seg != (mouse_callback_off + 2)
@@ -3972,8 +4256,11 @@ kernel_end:
 %if (READ_CACHE_BUF + SECTOR_BUF_PARAS) > ROOT_SEG
 %error "READ_CACHE_BUF overlaps ROOT_SEG"
 %endif
-%if (ROOT_SEG + ROOT_BUF_PARAS) > MCB_START
-%error "ROOT_SEG overlaps MCB arena"
+%if (ROOT_SEG + ROOT_BUF_PARAS) > WRITE_CACHE_BUF
+%error "ROOT_SEG overlaps WRITE_CACHE_BUF"
+%endif
+%if (WRITE_CACHE_BUF + SECTOR_BUF_PARAS) > MCB_START
+%error "WRITE_CACHE_BUF overlaps MCB arena"
 %endif
 %if MCB_START >= MEM_TOP
 %error "MCB arena is empty"

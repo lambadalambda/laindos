@@ -151,7 +151,7 @@ fat16_window_flush:
     jne .none
     cmp byte [cs:fat16_cache_dirty], 1
     jne .none
-    push ax
+    PERF_INC_THEN_PUSH_AX perf_fat16_flushes
     push bx
     push cx
     push dx
@@ -273,7 +273,7 @@ fat16_set:
     pop ax
     ret
 
-fat_alloc_cluster:
+fat_alloc_cluster: PERF_INC perf_fat_allocs
     push bx
     push cx
     push si
@@ -351,7 +351,7 @@ fat_free_chain:
     pop ax
     ret
 
-flush_fat:
+flush_fat: PERF_INC perf_fat_flushes
     cmp byte [cs:fat_io_error], 0
     jne .fat_err
     cmp byte [cs:kfat_bits], 16

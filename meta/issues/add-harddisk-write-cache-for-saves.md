@@ -21,7 +21,7 @@ sector coalescing path to reduce physical sector I/O.
 - A generated benchmark proves repeated small writes to one sector produce correct data and fewer physical writes under instrumentation.
 - The benchmark reports before/after sector I/O counts for several write chunk sizes without requiring Red Alert media.
 - Existing save/write tests still pass.
-- Red Alert save-time instrumentation shows a substantial reduction in data-sector read/write calls if small writes were the bottleneck.
+- Manual Red Alert testing confirms the write-cache optimization improves the save/load workload.
 
 ## Notes
 
@@ -29,3 +29,6 @@ sector coalescing path to reduce physical sector I/O.
 - This should stay generic: no Red Alert-specific file names or save paths.
 - See also: `separate-sector-buffers-from-read-cache.md` and `invalidate-read-cache-on-secbuf-overwrites.md` for existing sector-buffer invalidation hazards.
 - Depends on measurement from `measure-disk-cdrom-io-hot-paths.md`.
+- First optimization step kept the cache non-dirty and only skipped repeated prereads for consecutive writes to the same sector. `make bench-disk-write` improved the 128-byte record pattern from `RD=512 WFP=512` to `RD=128 WFP=128`; physical writes remained `WR=516`.
+- Current hard-disk-only write-back step uses a dedicated one-sector `WRITE_CACHE_BUF` and flushes dirty data before drive switches, reads, disk reset, close/commit/time metadata writes, and before reusing the cache for another sector. Same-LBA reads fill `READ_CACHE_BUF` from the flushed write cache so read-before-close observes dirty data immediately. Floppy writes stay write-through after `test_savewrite.py` caught a floppy read-after-write regression; `make bench-disk-write` also includes a hard-disk read-before-close dirty-cache check. Verified QEMU benchmark: `WRITE512 WR=132 WD=128`, `WRITE128 WR=132 WD=128`, `WRITE64 WR=132 WD=128`; the 128-byte case dropped from `WR=516` to `WR=132`, and the 64-byte case reports the same one-data-write-per-sector behavior. Manual Red Alert testing confirmed the patched image is faster.
+- Verification after the read-before-close fix: `make`, `make check-docs-sync`, `make bench-disk-write`, `make bench-io-hot-paths`, focused write/read/flush tests, and `python3 scripts/run_tests.py -j 4` (`150/150`) passed.

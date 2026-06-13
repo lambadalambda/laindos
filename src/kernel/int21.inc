@@ -360,7 +360,7 @@ int21_handler:
     push word [cs:entry_caller_ss]
     push word [cs:entry_caller_sp]
 .stack_switched:
-    sti
+    INT21_STI
     cmp ah, 0x4C
     je .terminate
     cmp ah, 0x09
@@ -787,7 +787,7 @@ int21_handler:
     mov ah, 0x0A
     jmp .read_line_buffered
 .disk_reset:
-    jmp iret_nc
+    jmp wf_flush_iret_nc
 .get_drive:
     mov al, [cs:dos_drive_num]
     jmp iret_nc
@@ -3093,6 +3093,12 @@ int21_handler:
     mov byte [cs:rf_cache_valid], 0
     mov [cs:rf_cache_lba], ax
     mov [cs:rf_cache_lba_hi], dx
+    call wf_fill_read_cache_from_write
+    jc .rf_err_pop
+    cmp al, 1
+    je .rf_have_sector
+    mov ax, [cs:rf_cache_lba]
+    mov dx, [cs:rf_cache_lba_hi]
     mov [cs:kio_lba_hi], dx
     push es
     push bx
@@ -3304,7 +3310,7 @@ int21_handler:
 .rf_err:
     RET_ERR 6
 
-.write_file:
+.write_file: PERF_INC perf_write_calls
     cmp bx, MAX_HANDLES
     jae .wf_invalid
     cmp bx, 5
@@ -3430,10 +3436,12 @@ int21_handler:
     call cluster_lba
     mov [cs:wf_sector_lba], ax
     mov [cs:wf_sector_lba_hi], dx
+    call wf_prepare_sector_cache
+    jc .wf_file_io_pop
     push es
     push bx
     mov [cs:kio_lba_hi], dx
-    mov dx, SEC_BUF
+    mov dx, WRITE_CACHE_BUF
     mov es, dx
     xor bx, bx
     mov si, [cs:wf_hoff]
@@ -3442,7 +3450,7 @@ int21_handler:
     jnz .wf_preread
     cmp word [cs:wf_count], 512
     jae .wf_skip_preread
-.wf_preread:
+.wf_preread: WF_PREREAD_CACHE_CHECK
     mov ax, [cs:wf_sector_lba]
     call read_sector
 .wf_skip_preread:
@@ -3462,7 +3470,7 @@ int21_handler:
     push cx
     push ds
     push es
-    mov ax, SEC_BUF
+    mov ax, WRITE_CACHE_BUF
     mov es, ax
     mov ax, [cs:wf_buf_seg]
     mov ds, ax
@@ -3471,21 +3479,12 @@ int21_handler:
     pop es
     pop ds
     pop cx
-    push cx
-    push es
-    push bx
-    mov ax, [cs:wf_sector_lba]
-    mov dx, [cs:wf_sector_lba_hi]
-    mov [cs:kio_lba_hi], dx
-    mov dx, SEC_BUF
-    mov es, dx
-    xor bx, bx
-    call write_sector
-    pop bx
-    pop es
-    pop cx
+    call wf_mark_sector_cache
+    cmp byte [cs:kdrv], 0x80
+    jae .wf_store_done
+    call wf_flush_sector_cache
     jc .wf_file_io_pop
-    mov byte [cs:rf_cache_valid], 0
+.wf_store_done:
     mov si, [cs:wf_hoff]
     add [cs:si+handles+H_POS_LO], cx
     adc word [cs:si+handles+H_POS_HI], 0
@@ -3507,6 +3506,8 @@ int21_handler:
     add [cs:wf_written], cx
     jmp .wf_file_loop
 .wf_truncate:
+    call wf_flush_sector_cache
+    jc .wf_file_io_pop
     mov si, [cs:wf_hoff]
     mov ax, [cs:si+handles+H_POS_HI]
     cmp ax, [cs:si+handles+H_SIZE_HI]
@@ -4981,7 +4982,7 @@ int21_handler:
     mov [cs:si+handles+H_TIME], ax
     mov ax, [cs:ft_date]
     mov [cs:si+handles+H_DATE], ax
-    call flush_handle_dir_entry
+    call wf_flush_handle_dir_entry
     jc .ft_io_err_saved
     pop dx
     pop cx
@@ -5029,7 +5030,7 @@ int21_handler:
     mov ax, [cs:si+handles+H_DIR_LBA]
     or ax, [cs:si+handles+H_DIR_LBA_HI]
     je .cm_ok_pop
-    call flush_handle_dir_entry
+    call wf_flush_handle_dir_entry
     jc .cm_io_pop
     call flush_fat
     jc .cm_io_pop
@@ -5074,9 +5075,23 @@ int21_handler:
 
 %ifdef TEST_HANDLE_COUNT_QUERY
 .test_api:
+%if PERF_IO_COUNTS
+    cmp al, 0
+    je .perf_reset
+    cmp al, 1
+    je .perf_print
+%endif
     cmp al, 0
     je .test_handle_count
     RET_ERR 1
+%if PERF_IO_COUNTS
+.perf_reset:
+    call perf_counts_reset
+    jmp iret_nc
+.perf_print:
+    call perf_counts_print
+    jmp iret_nc
+%endif
 .test_handle_count:
     push bx
     push cx

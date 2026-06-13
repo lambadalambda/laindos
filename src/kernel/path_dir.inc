@@ -334,7 +334,7 @@ close_root_handle:
     mov al, [cs:si+handles+H_MODE]
     and al, 7
     jz .mark_free
-    call flush_handle_dir_entry
+    call wf_flush_handle_dir_entry
     jc .err
     call flush_fat
     jc .err
@@ -2187,4 +2187,3 @@ load_file_direct:
 
 .sec_num: dw 0
 .sec_num_hi: dw 0
-

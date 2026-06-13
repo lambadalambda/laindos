@@ -9,6 +9,7 @@ CD_BUF_PARAS equ 0x80
 CD_BUF equ 0x0180
 SEC_BUF equ 0x0200
 READ_CACHE_BUF equ (SEC_BUF + SECTOR_BUF_PARAS)
+WRITE_CACHE_BUF equ 0x0640
 ; Real DOS systems never hand out program memory this low: IO.SYS,
 ; MSDOS.SYS, buffers, and stacks consumed the first ~45-80 KB, so the
 ; first PSP on period machines sat at roughly 0x0B00 or above. Era

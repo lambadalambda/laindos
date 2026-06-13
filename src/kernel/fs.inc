@@ -84,7 +84,7 @@ flush_root_sector:
     pop ax
     ret
 
-flush_dir_sector:
+flush_dir_sector: PERF_INC perf_dir_flushes
     mov [cs:dir_flush_lba], ax
     mov dx, [cs:kio_lba_hi]
     mov [cs:dir_flush_lba_hi], dx

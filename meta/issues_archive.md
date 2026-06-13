@@ -214,3 +214,7 @@
 - [x] [Bring up The Settlers II Gold Edition](issues/bring-up-settlers-2.md)
 - [x] [CD audio: MSCDEX device requests (INT 2Fh AX=1510h)](issues/cd-audio-mscdex-device-requests.md)
 - [x] [Boot-launched COMs should get the largest free block, like real DOS](issues/boot-com-largest-block.md)
+- [x] [Reduce Drive-Switch Buffer Thrash Between C: and D:](issues/reduce-drive-switch-buffer-thrash.md)
+- [x] [Build a self-booting LainDOS installer floppy](issues/build-installer-floppy.md)
+- [x] [Measure Hard-Disk and CD-ROM I/O Hot Paths](issues/measure-disk-cdrom-io-hot-paths.md)
+- [x] [Add a Hard-Disk Write Cache for Save-Game Workloads](issues/add-harddisk-write-cache-for-saves.md)

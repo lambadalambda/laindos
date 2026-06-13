@@ -22,12 +22,16 @@ cluster_lba:
     pop cx
     ret
 
-read_sector:
+read_sector: PERF_INC perf_sector_reads
+    call wf_flush_sector_cache
+    jc .flush_err
     mov byte [cs:kio_op], 2
     call setup_sector_io
     jmp sector_io_loop
+.flush_err:
+    ret
 
-write_sector:
+write_sector: PERF_INC perf_sector_writes
     mov byte [cs:rf_cache_valid], 0
     mov byte [cs:kio_op], 3
     call setup_sector_io

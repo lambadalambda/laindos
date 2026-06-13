@@ -43,7 +43,14 @@ C: shell.
   reach the captured serial under our harness, though the kernel's boot
   serial does -- not chased, since an installer's UI is the screen.
 
-## Remaining
+## Completion
+
+- 2026-06-13: The hard-disk installer floppy is complete. `make installer`
+  builds a self-booting floppy and `make test-installer` verifies installing
+  to a blank FAT16 hard disk with byte-exact system files. Later UI/media
+  enhancements are useful, but they are not blockers for this issue.
+
+## Future Enhancements
 
 - Second-floppy (B:) target (FAT12 path); needs a two-floppy config and
   the kernel does not currently expose B:.

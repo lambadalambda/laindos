@@ -1,4 +1,4 @@
-cd_read_sector_drive:
+cd_read_sector_drive: PERF_INC perf_cd_reads
     ; any raw sector read replaces CD_BUF's contents, so the file-read
     ; cache (which mirrors CD_BUF) is no longer valid. cd_read_handle
     ; re-validates after its own read; every other caller -- directory
