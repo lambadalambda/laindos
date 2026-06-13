@@ -100,7 +100,7 @@ def main():
         "Free Expanded (EMS)",
         "Largest executable program size",
         "Largest free upper memory block",
-        "LainDOS is resident in conventional memory.",
+        "LainDOS kernel is resident in high memory.",
         "Program exited, code=00",
     ]:
         if marker in output:
@@ -129,6 +129,9 @@ def main():
     elif rows["Conventional"][0] <= 0:
         print("  FAIL: conventional memory total is zero")
         failed = True
+    elif rows["Conventional"][2] == 0:
+        print("  FAIL: conventional free memory is zero")
+        failed = True
     else:
         for label, (total_kb, used_kb, free_kb) in rows.items():
             if total_kb != used_kb + free_kb:
@@ -155,6 +158,9 @@ def main():
         failed = True
     elif ems_free[1] > ems_total[1]:
         print(f"  FAIL: EMS free exceeds total total={ems_total[1]} free={ems_free[1]}")
+        failed = True
+    elif largest[0] == 0:
+        print("  FAIL: largest executable program size is zero")
         failed = True
     elif rows.get("Conventional") and largest[0] > rows["Conventional"][2]:
         print(

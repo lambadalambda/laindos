@@ -3031,3 +3031,9 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - Final ladder `make bench-disk-write bench-fat16-alloc bench-metadata bench-io-hot-paths bench-cd-cache` passed. Representative final counters: `WRITE128 WR=132 WD=128`, allocation high-cluster/nearly-full `FS=32`, metadata clean commit/close `WR=0 DIR=0`, drive-switch `RD=9 CD=1 DSW=65`, `CDMIX64 CD=3`, and archive alternating reads `CDALT2_64 CD=2` / `CDALT4_64 CD=4`.
 - The umbrella performance issue is archived: all child slices are complete, full `make test` passed after the final kernel changes, and user-confirmed Red Alert boots and feels good on refreshed media.
+
+## 2026-06-13 FREE.COM Self-Allocation Regression
+
+- Symptom: booting `FREE.COM` directly after the COM loader was made DOS-faithful reported `Conventional 640K used / 0K free` and `Largest executable program size 0`, even though the MCB chain was healthy.
+- Cause: COM programs now receive the largest free block like real DOS. Unlike shell-style tools, `FREE.COM` never moved its stack into its image or shrank its PSP block before walking MCBs, so its own oversized allocation consumed all conventional memory it was trying to report.
+- Fix: `FREE.COM` now sets an internal stack, resizes itself to `free_resident_paras`, restores DS, and then scans the MCB chain. The visible report now shows nonzero conventional free/largest executable memory and states that the LainDOS kernel is resident in high memory.

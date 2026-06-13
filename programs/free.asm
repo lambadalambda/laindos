@@ -9,6 +9,19 @@ RESERVED_KB equ (1024 - CONV_TOTAL_KB)
 start:
     push cs
     pop ds
+    cli
+    mov ax, cs
+    mov ss, ax
+    mov sp, free_stack_top
+    sti
+    push cs
+    pop es
+    mov bx, free_resident_paras
+    mov ah, 0x4A
+    int 0x21
+    jc resize_failed
+    push cs
+    pop ds
 
     call collect_mcb
     call query_xms
@@ -417,6 +430,14 @@ print_dword_dec:
     pop ax
     ret
 
+resize_failed:
+    push cs
+    pop ds
+    mov dx, resize_fail_msg
+    call print_string
+    mov ax, 0x4C01
+    int 0x21
+
 block_owner: dw 0
 block_size: dw 0
 block_sig: db 0
@@ -474,5 +495,10 @@ kb_open_msg: db " K (", "$"
 bytes_close_msg: db " bytes)", 13, 10, "$"
 largest_msg: db "Largest executable program size            $"
 upper_largest_msg: db "Largest free upper memory block            $"
-resident_msg: db "LainDOS is resident in conventional memory.", 13, 10, "$"
+resident_msg: db "LainDOS kernel is resident in high memory.", 13, 10, "$"
 bad_chain_msg: db "Invalid MCB chain", 13, 10, "$"
+resize_fail_msg: db "FREE resize failed", 13, 10, "$"
+free_stack: times 512 db 0
+free_stack_top:
+free_resident_end:
+free_resident_paras equ ((free_resident_end - start + 0x100 + 15) / 16)
