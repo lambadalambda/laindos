@@ -4867,6 +4867,8 @@ int21_handler:
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI
     RET_ERR 15
 .fn_cd_find:
+    ; FindNext continues an existing enumeration; new media is refreshed by
+    ; the next FindFirst/open boundary, not midway through a saved DTA scan.
     call cd_find_from
     jnc .fn_found
     INT21_POP_FRAME_DS_SI_CX_BX_ES_DI

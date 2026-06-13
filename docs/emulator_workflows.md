@@ -90,7 +90,7 @@ Current known-good graphics choice for Ascendancy:
 
 - `gfxcard = s3_trio64_pci`
 
-For CD-ROM tests, attach the ISO as an IDE ATAPI drive. LainDOS first tries BIOS EDD CD reads and then falls back to direct ATAPI PIO reads, which covers 86Box profiles whose BIOS does not expose non-boot CD media through `INT 13h AH=42h`.
+For CD-ROM tests, attach the ISO as an IDE ATAPI drive. LainDOS can mount through BIOS EDD, but CD path opens refresh the PVD/root/volume state through direct ATAPI when available and then keep subsequent directory/file reads on that validated transport. This avoids stale SeaBIOS sectors after a monitor media swap while still covering 86Box profiles whose BIOS does not expose non-boot CD media through `INT 13h AH=42h`.
 
 For isolated CD tests, prefer the CD as IDE secondary master (`cdrom_01_ide_channel = 1:0`) and no hard disk. That keeps boot-order and hard-disk geometry out of the first discriminator. Once the floppy-only and generated-ISO probes pass, move back to the real profile shape, such as hard disk on `0:0` and CD on `0:1` for Sam & Max.
 

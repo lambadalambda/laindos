@@ -3454,9 +3454,8 @@ cd_present: db 0
 ; one-sector read cache for the CD: CD_BUF holds the sector at
 ; cd_rd_cache_lba when valid. Small/repeated reads of a MIX archive hit
 ; the same sector many times; without this every read re-fetched 2 KiB
-; over ATAPI. Invalidated at mount and on every CD open/resolve, so a
-; disc swap (which happens only with no file open) can never serve stale
-; data.
+; over ATAPI. CD open/resolve refreshes the PVD/root/volume metadata and
+; invalidates this cache before any post-swap directory or file lookup.
 cd_rd_cache_valid: db 0
 cd_rd_cache_lba: dw 0
 cd_rd_cache_lba_hi: dw 0

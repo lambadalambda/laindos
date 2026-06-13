@@ -411,6 +411,168 @@ cd_validate_pvd:
     stc
     ret
 
+cd_clear_media_state:
+    push ax
+    push cx
+    push es
+    push di
+    mov byte [cs:cd_rd_cache_valid], 0
+    xor ax, ax
+    mov [cs:cd_root_lba_lo], ax
+    mov [cs:cd_root_lba_hi], ax
+    mov [cs:cd_root_size_lo], ax
+    mov [cs:cd_root_size_hi], ax
+    mov [cs:cd_dir_lba_lo], ax
+    mov [cs:cd_dir_lba_hi], ax
+    mov [cs:cd_dir_size_lo], ax
+    mov [cs:cd_dir_size_hi], ax
+    mov [cs:cd_file_lba_lo], ax
+    mov [cs:cd_file_lba_hi], ax
+    mov [cs:cd_file_size_lo], ax
+    mov [cs:cd_file_size_hi], ax
+    push cs
+    pop es
+    mov di, cd_volume_id
+    mov cx, 11
+    mov al, ' '
+    cld
+    rep stosb
+    pop di
+    pop es
+    pop cx
+    pop ax
+    ret
+
+cd_atapi_soft_reset:
+    ; SRST resets both devices on the IDE channel; only use it after an
+    ; ATAPI read failure while no CD file read is in progress.
+    push ax
+    push cx
+    push dx
+    cmp word [cs:atapi_base], 0
+    jne .have_device
+    call atapi_detect_cdrom
+    jc .err
+.have_device:
+    mov dx, [cs:atapi_ctrl]
+    mov al, 0x04
+    out dx, al
+    mov cx, 0x0800
+.hold:
+    loop .hold
+    xor al, al
+    out dx, al
+    mov cx, 0x4000
+.recover:
+    loop .recover
+    call atapi_select_current
+    clc
+    jmp .done
+.err:
+    stc
+.done:
+    pop dx
+    pop cx
+    pop ax
+    ret
+
+cd_read_pvd_atapi:
+    push ax
+    push bx
+    push dx
+    push es
+    mov ax, CD_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, 16
+    xor dx, dx
+    call atapi_read_sector
+    pop es
+    pop dx
+    pop bx
+    pop ax
+    ret
+
+cd_read_pvd_current:
+    push ax
+    push bx
+    push dx
+    push es
+    mov ax, CD_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, 16
+    xor dx, dx
+    call cd_read_sector_current
+    pop es
+    pop dx
+    pop bx
+    pop ax
+    ret
+
+cd_refresh_media:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    mov byte [cs:cd_rd_cache_valid], 0
+    cmp word [cs:atapi_base], 0
+    jne .try_atapi
+    call atapi_detect_cdrom
+    jc .try_bios
+.try_atapi:
+    call cd_read_pvd_atapi
+    jnc .validate_atapi
+    call cd_atapi_soft_reset
+    jc .try_bios
+    call cd_read_pvd_atapi
+    jnc .validate_atapi
+    call cd_atapi_soft_reset
+    jc .try_bios
+    call cd_read_pvd_atapi
+    jnc .validate_atapi
+.try_bios:
+    call cd_read_pvd_current
+    jnc .validate_bios
+.bios_reset:
+    push ax
+    push dx
+    xor ah, ah
+    mov dl, [cs:kdrv]
+    int 0x13
+    pop dx
+    pop ax
+    call cd_read_pvd_current
+    jc .err
+.validate_bios:
+    call cd_validate_pvd
+    jc .err
+    clc
+    jmp .done
+.validate_atapi:
+    call cd_validate_pvd
+    jc .err
+    ; SeaBIOS can keep serving stale CD sectors after a media swap. Once
+    ; ATAPI has produced a valid PVD, keep later directory/file reads there.
+    mov byte [cs:cd_read_method], CD_READ_METHOD_ATAPI
+    clc
+    jmp .done
+.err:
+    call cd_clear_media_state
+    stc
+.done:
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
 ; Register drive 3 (D:) as the mounted CD-ROM and reset its CWD.
 ; Clobbers AX, CX, DI, ES.
 cd_register_drive:
@@ -810,6 +972,8 @@ cd_open_path:
     push es
     push si
     push di
+    call cd_refresh_media
+    jc .err
     call cd_prepare_path
     jc .err
     call cd_parse_next_component
@@ -859,6 +1023,8 @@ cd_open_dir_path:
     push es
     push si
     push di
+    call cd_refresh_media
+    jc .err
     call cd_prepare_path
     jc .err
     mov ds, [cs:cd_path_seg]

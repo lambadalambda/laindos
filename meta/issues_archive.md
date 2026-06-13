@@ -220,3 +220,4 @@
 - [x] [Add a Hard-Disk Write Cache for Save-Game Workloads](issues/add-harddisk-write-cache-for-saves.md)
 - [x] [Optimize FAT16 Allocation and Flush Behavior](issues/optimize-fat16-allocation-and-flush.md)
 - [x] [Coalesce Save-Time Directory and FAT Metadata Flushes](issues/coalesce-save-metadata-flushes.md)
+- [x] [Fix CD-ROM Media-Swap Cache Invalidation](issues/fix-cdrom-media-swap-cache-invalidation.md)

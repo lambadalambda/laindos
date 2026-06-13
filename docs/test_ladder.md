@@ -21,6 +21,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `make test-cd-find`: run the generated-ISO read-only `D:` directory enumeration probe, including explicit-subdirectory and current-directory wildcard searches.
 - `make test-cd-mscdex`: run the generated-ISO MSCDEX detection probe.
 - `make test-cd-exec`: run the generated-ISO `EXEC` and overlay-load probe for COM and EXE programs loaded from `D:`.
+- `make test-cd-media-swap`: run the generated-ISO QEMU monitor media-swap regression for CD volume, directory, and file state invalidation.
 - `make test-cd-86box`: run the generated-ISO read-only `D:` file probe in 86Box with an ATAPI CD-ROM attached as IDE secondary master.
 - `make test-installer`: build the self-booting installer floppy, install to a blank QEMU hard disk, and verify the resulting FAT16 boot volume host-side.
 - `make test-sammax-cd-files`: with local Sam & Max media, extract the cue/bin data track and verify `D:\SAMNMAX` file reads.
