@@ -28,3 +28,9 @@ directory searches, and sequential CD reads.
 
 - Start from the existing benchmark style in `scripts/bench_io_hot_paths.py`, `scripts/bench_cd_cache.py`, and `tests/programs/perfio.asm`.
 - Prefer one focused benchmark target if the phases stay quick; split into multiple targets if run time grows too much.
+
+## Implementation Notes
+
+- Added `make bench-read-paths`, `scripts/bench_read_paths.py`, and `tests/programs/perfread.asm`.
+- Added opt-in `FW` reporting for checked FAT chain-walk steps; allocation scans continue to use `FS`.
+- Initial generated-media baseline: sequential FAT reads `RD=128 FW=15`, load-only `EXECLOAD RD=97 FW=12`, random `FATSEEK RD=32 FW=191`, worst-entry `DIRLOOK RD=288 FW=32`, and sequential `CDSEQ CD=16`.

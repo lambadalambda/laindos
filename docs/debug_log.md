@@ -2,6 +2,21 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-13 Read-Side Performance Benchmark Baseline
+
+### Goal
+
+- Add generated, vendor-independent baselines before changing read-side implementation paths: sequential `AH=3Fh`, load-only `EXEC`, random FAT seeks, worst-entry subdirectory lookup, and sequential CD reads.
+
+### Confirmed Facts
+
+- Added `make bench-read-paths`, which builds generated FAT16 hard-disk media plus a generated ISO with `PERF_IO_COUNTS=1` and runs `PERFREAD.COM`.
+- Added `FW` as a separate opt-in counter for checked FAT chain-walk steps; `FS` remains FAT allocation scan steps.
+
+### Baseline
+
+- `make bench-read-paths` passed. Representative counters: sequential FAT reads `READ64/READ512/READ1K/READ4K RD=128 FW=15`, `EXECLOAD RD=97 FW=12`, `FATSEEK RD=32 FW=191`, `DIRLOOK RD=288 FW=32`, and `CDSEQ CD=16`.
+
 ## 2026-06-11 MI2 Save Crash: Tick Batching Into iMUSE's Non-Reentrant INT 08 Hook
 
 ### Symptoms

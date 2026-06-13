@@ -4215,6 +4215,10 @@ perf_counts_print:
     call serial_print
     mov ax, [cs:perf_fat_scan_steps]
     call serial_print_hex_word
+    mov si, msg_perf_fw
+    call serial_print
+    mov ax, [cs:perf_fat_walk_steps]
+    call serial_print_hex_word
     mov si, msg_perf_fh
     call serial_print
     mov ax, [cs:perf_fat16_hits]
@@ -4246,6 +4250,7 @@ msg_perf_dir: db " DIR=", 0
 msg_perf_wfc: db " WFC=", 0
 msg_perf_wfp: db " WFP=", 0
 msg_perf_fs:  db " FS=", 0
+msg_perf_fw:  db " FW=", 0
 msg_perf_fh:  db " FH=", 0
 msg_perf_fm:  db " FM=", 0
 msg_perf_mw:  db " MW=", 0
@@ -4262,6 +4267,7 @@ perf_dir_flushes: dw 0
 perf_write_calls: dw 0
 perf_write_prereads: dw 0
 perf_fat_scan_steps: dw 0
+perf_fat_walk_steps: dw 0
 perf_fat16_hits: dw 0
 perf_fat16_misses: dw 0
 perf_fat_mirror_writes: dw 0

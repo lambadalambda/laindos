@@ -66,6 +66,16 @@ make bench-cd-cache
 
 This boots generated ISO media with an archive-shaped file and runs repeated same-sector, sequential, two-sector alternating, and four-sector alternating 64-byte reads. The runner fails if the CD file-read cache re-fetches archive sectors that should stay hot.
 
+Run the focused read-side hot-path benchmark:
+
+```sh
+make bench-read-paths
+```
+
+This boots generated FAT16 hard-disk and ISO media under `PERF_IO_COUNTS=1`, then reports sequential `AH=3Fh` read phases with 64-byte, 512-byte, 1 KiB, and 4 KiB chunks, load-only `EXEC`, random FAT-file seeks, worst-entry subdirectory lookup, and sequential CD reads. The `FW` counter records checked FAT chain-walk steps separately from allocation scan steps (`FS`).
+
+The BIOS tick field is coarse, so very fast phases can legitimately report zero ticks; the sector and FAT-walk counters are the stable baseline signal.
+
 Run the focused metadata flush benchmark:
 
 ```sh

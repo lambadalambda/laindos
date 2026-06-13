@@ -9,6 +9,7 @@ fat_next_checked:
     cmp word [cs:fat_walk_left], 0
     je .cycle
     dec word [cs:fat_walk_left]
+    PERF_INC perf_fat_walk_steps
     call fat_next
     cmp ax, [cs:kfat_eoc]
     jae .stop

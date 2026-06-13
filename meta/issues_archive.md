@@ -224,3 +224,4 @@
 - [x] [Expand CD-ROM Read Caching for MIX-Archive Access](issues/expand-cdrom-read-cache.md)
 - [x] [Bring up Command & Conquer: Red Alert (DOS)](issues/bring-up-red-alert.md)
 - [x] [Performance Track: Hard-Disk and CD-ROM I/O](issues/performance-harddisk-cdrom-track.md)
+- [x] [Add Read-Side Performance Benchmarks](issues/add-read-side-performance-benchmarks.md)
