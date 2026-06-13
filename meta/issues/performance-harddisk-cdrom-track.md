@@ -40,3 +40,15 @@ per-title shortcuts.
 - Current CD media-swap symptom: after changing CDs, `DIR` often works only on a second try and can briefly show stale or wrong data. Treat this as a correctness prerequisite before expanding CD caches.
 - Prefer small generated DOS benchmark programs under `tests/programs/` plus Python runners in `scripts/` that print or collect stable counters. Vendor-gated Red Alert runs should only validate that synthetic wins transfer to the real game.
 - 2026-06-13 CD cache expansion: `make bench-cd-cache` now covers generated archive-style same-sector, sequential, and two-/four-sector alternating 64-byte reads. The four-slot CD file-read cache reduced alternating CD sector fetches from 64 to 2 and 4 respectively while same-sector/sequential phases stayed at 1 and 3. User-confirmed Red Alert boots and feels good on refreshed media after this change.
+
+## Closed State
+
+- Final benchmark ladder passed: `make bench-disk-write bench-fat16-alloc bench-metadata bench-io-hot-paths bench-cd-cache`.
+- Final write-cache counters: `WRITE512 WR=132 WD=128`, `WRITE128 WR=132 WD=128`, `WRITE64 WR=132 WD=128`; the 128-byte save-style case is coalesced to one data-sector write per sector.
+- Final FAT16 allocation counters: sequential `FS=32`, fragmented `FS=63`, high-cluster `FS=32`, nearly-full `FS=32`.
+- Final metadata counters: FAT16 `CLEANCOMMIT WR=0 DIR=0`, `CLEANCLOSE WR=0 DIR=0`, `OVERWRITE WR=1 DIR=0`, `TIMECOMMIT WR=35 DIR=32`; FAT12 shows the same clean zero-write behavior with expected FAT12 FAT-sector write counts.
+- Final hot-path counters: `DRIVESW RD=9 WR=35 CD=1 DSW=65`, `FAT16ALLOC WR=260 FS=32`, `METADATA WR=35 DIR=32`, `CDMIX64 CD=3`.
+- Final CD archive-cache counters: `CDSAME64 CD=1`, `CDSEQ64 CD=3`, `CDALT2_64 CD=2`, `CDALT4_64 CD=4`.
+- Correctness coverage passed during the track, including focused generated-media tests and full `make test` (`152/152`) after the final CD cache implementation.
+- User-confirmed Red Alert boots and feels good on refreshed media; no further Red Alert-specific instrumentation or bring-up work is required for the current project state.
+- The original Red Alert under-15-second save/load target is waived in favor of this user confirmation because the game is now acceptable on the refreshed media and the remaining measurements are covered by generated benchmarks.

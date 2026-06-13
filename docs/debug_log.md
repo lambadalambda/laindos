@@ -3026,3 +3026,8 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Review follow-up: cache refill now clears the victim slot's valid byte before issuing the physical read, preventing a failed refill from leaving old LBA metadata attached to overwritten or partial data; `CD_CACHE_SLOTS` also has a NASM power-of-two guard because the round-robin index wraps with a bitmask.
 - Result: `make bench-cd-cache` now reports `CDSAME64 CD=1`, `CDSEQ64 CD=3`, `CDALT2_64 CD=2`, and `CDALT4_64 CD=4`.
 - Verification: `make`, `make bench-cd-cache`, Makefile CD targets `test-cd-file`, `test-cd-subdir`, `test-cd-find`, `test-cd-mscdex`, `test-cd-audio`, `test-cd-chunks`, `test-cd-share`, `test-cd-exec`, `test-cd-media-swap`, direct scripts `test_cd_volid.py`, `test_cd_cache.py`, `test_cdmut.py`, `test_cddots.py`, `make check-docs-sync`, `git diff --check`, and full `make test` (`152/152`) all passed. User-confirmed Red Alert boots and behaves well on the refreshed media after the cache expansion, so the planned vendor-gated bring-up smoke is not required for the current project state.
+
+## 2026-06-13 Performance Track Closure
+
+- Final ladder `make bench-disk-write bench-fat16-alloc bench-metadata bench-io-hot-paths bench-cd-cache` passed. Representative final counters: `WRITE128 WR=132 WD=128`, allocation high-cluster/nearly-full `FS=32`, metadata clean commit/close `WR=0 DIR=0`, drive-switch `RD=9 CD=1 DSW=65`, `CDMIX64 CD=3`, and archive alternating reads `CDALT2_64 CD=2` / `CDALT4_64 CD=4`.
+- The umbrella performance issue is archived: all child slices are complete, full `make test` passed after the final kernel changes, and user-confirmed Red Alert boots and feels good on refreshed media.
