@@ -56,9 +56,16 @@ under sustained load, INT 33h mouse, and (for the SVGA mode) VESA.
   got a write-back window like FAT12. Swap reservation went from ~250 s
   to <19 s on 86Box; intro on screen by ~40 s (`test_gap_write`, debug
   log "The DOS/4GW 'Hang' Was A 16 MB Swap").
+- Playable (user-confirmed, 86Box): first mission runs. But mission
+  loads from the CD took ~a minute. Cause: the CD read path had no sector
+  cache, so the game's many small reads of the MIX archive re-fetched a
+  full 2 KiB sector over ATAPI each time. Added a one-sector CD read
+  cache (`test_cd_cache`); the 64-byte-chunk benchmark dropped ~19x on
+  86Box (debug log "Slow Mission Loads"). Note: 86Box uses the ATAPI read
+  path (method 1); QEMU uses INT 13h/EDD (method 0).
 - Known wrinkle (user report, 86Box): the installer finishes but cannot
   be quit from its end screen — needed a reboot. Same family as the
   Settlers II post-install menu; revisit once the game itself is
   confirmed playable.
-- Still open: user confirmation of menu/gameplay under 86Box, then the
+- Still open: user confirmation that mission loads are now fast, then the
   vendor-gated smoke and docs per acceptance criteria.

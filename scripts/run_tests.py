@@ -26,6 +26,7 @@ DEFAULT_TESTS = [
     "scripts/test_boot_mem.py",
     "scripts/test_cd_share.py",
     "scripts/test_cd_volid.py",
+    "scripts/test_cd_cache.py",
     "scripts/test_cd_exec.py",
     "scripts/test_highmcb.py",
     "scripts/test_stratapi.py",

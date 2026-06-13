@@ -1,4 +1,10 @@
 cd_read_sector_drive:
+    ; any raw sector read replaces CD_BUF's contents, so the file-read
+    ; cache (which mirrors CD_BUF) is no longer valid. cd_read_handle
+    ; re-validates after its own read; every other caller -- directory
+    ; scans, the PVD, audio TOC/subchannel, a post-swap reopen -- leaves
+    ; it invalid, which is exactly right.
+    mov byte [cs:cd_rd_cache_valid], 0
     push ax
     push bx
     push cx
@@ -1326,11 +1332,23 @@ cd_read_handle:
     loop .sector_shift
     add ax, [cs:bx+handles+H_CLUSTER]
     adc dx, [cs:bx+handles+H_LAST_CLUSTER]
+    ; ax:dx = absolute sector LBA -- reuse CD_BUF if it already holds it
+    cmp byte [cs:cd_rd_cache_valid], 1
+    jne .fetch_sector
+    cmp ax, [cs:cd_rd_cache_lba]
+    jne .fetch_sector
+    cmp dx, [cs:cd_rd_cache_lba_hi]
+    je .have_cd_sector
+.fetch_sector:
+    mov [cs:cd_rd_cache_lba], ax
+    mov [cs:cd_rd_cache_lba_hi], dx
     mov bx, CD_BUF
     mov es, bx
     xor bx, bx
-    call cd_read_sector_current
+    call cd_read_sector_current     ; clears cd_rd_cache_valid internally
     jc .err
+    mov byte [cs:cd_rd_cache_valid], 1
+.have_cd_sector:
     mov bx, [cs:rf_hoff]
     mov ax, [cs:bx+handles+H_POS_LO]
     and ax, 2047
