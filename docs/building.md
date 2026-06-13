@@ -58,6 +58,14 @@ make bench-io-hot-paths
 
 This adds generated CD-ROM media and reports hard-disk write, C:/D: drive-switch, FAT16 allocation, metadata flush, and MIX-like CD read counters. `WR` counts all physical sector writes; `WD` counts deferred hard-disk data-sector flushes only. The generated C:/D: alternation also fails if hard-disk sector reads climb back to the old repeated-root-reload pattern.
 
+Run the focused FAT16 allocation benchmark:
+
+```sh
+make bench-fat16-alloc
+```
+
+This boots generated FAT16 hard-disk images shaped into sequential, fragmented, high-cluster, and nearly-full allocation cases. It reports allocation scan steps (`FS`), FAT16 window hits/misses (`FH`/`FM`), and FAT mirror writes (`MW`) in addition to the common sector counters.
+
 Build the self-booting LainDOS installer floppy and run its headless install check:
 
 ```sh

@@ -674,6 +674,9 @@ init_drive_table:
 .clear_loop:
     mov byte [cs:drive_present+bx], 0
     mov byte [cs:drive_type+bx], DRIVE_TYPE_FAT
+    mov si, bx
+    shl si, 1
+    mov word [cs:drive_fat_alloc_hints+si], 2
     mov byte [cs:drive_cur_paths+di], 0
     inc bx
     add di, 64
@@ -694,6 +697,7 @@ init_drive_table:
     mov byte [cs:active_drive_num], 2
     mov word [cs:cur_dir_cluster], ROOT_CLUSTER
     mov byte [cs:cur_dir_path], 0
+    call fat16_find_first_free_hint
     mov al, 0
     call save_active_drive_slot
     mov al, 1
@@ -823,6 +827,8 @@ save_active_drive_slot:
     mov [cs:drive_kroot_bytes+si], ax
     mov ax, [cs:kmax_cluster]
     mov [cs:drive_kmax_cluster+si], ax
+    mov ax, [cs:fat_alloc_hint]
+    mov [cs:drive_fat_alloc_hints+si], ax
     mov ax, [cs:kpart_lba]
     mov [cs:drive_kpart_lba+si], ax
     mov ax, [cs:kpart_lba_hi]
@@ -890,6 +896,8 @@ save_active_drive_cwd:
     shl si, 1
     mov ax, [cs:cur_dir_cluster]
     mov [cs:drive_cur_clusters+si], ax
+    mov ax, [cs:fat_alloc_hint]
+    mov [cs:drive_fat_alloc_hints+si], ax
     mov si, bx
     shl si, 6
     push cs
@@ -993,6 +1001,8 @@ load_drive_slot_geometry:
     mov [cs:kroot_bytes], ax
     mov ax, [cs:drive_kmax_cluster+si]
     mov [cs:kmax_cluster], ax
+    mov ax, [cs:drive_fat_alloc_hints+si]
+    mov [cs:fat_alloc_hint], ax
     mov ax, [cs:drive_kpart_lba+si]
     mov [cs:kpart_lba], ax
     mov ax, [cs:drive_kpart_lba_hi+si]
@@ -1050,6 +1060,7 @@ mount_bios_hard_disk_c:
 .mounted_bpb:
     mov byte [cs:kdrv], 0x80
     call query_bios_disk_geometry
+    call fat16_find_first_free_hint
     mov word [cs:cur_dir_cluster], ROOT_CLUSTER
     mov byte [cs:cur_dir_path], 0
     mov byte [cs:active_drive_num], 2
@@ -3513,6 +3524,7 @@ drive_kfat_reserved: times MAX_DRIVES dw 0
 drive_kroot_entries: times MAX_DRIVES dw 0
 drive_kroot_bytes: times MAX_DRIVES dw 0
 drive_kmax_cluster: times MAX_DRIVES dw 0
+drive_fat_alloc_hints: times MAX_DRIVES dw 2
 drive_kpart_lba: times MAX_DRIVES dw 0
 drive_kpart_lba_hi: times MAX_DRIVES dw 0
 drive_bpbs: times MAX_DRIVES * 64 db 0
@@ -4199,6 +4211,22 @@ perf_counts_print:
     call serial_print
     mov ax, [cs:perf_write_prereads]
     call serial_print_hex_word
+    mov si, msg_perf_fs
+    call serial_print
+    mov ax, [cs:perf_fat_scan_steps]
+    call serial_print_hex_word
+    mov si, msg_perf_fh
+    call serial_print
+    mov ax, [cs:perf_fat16_hits]
+    call serial_print_hex_word
+    mov si, msg_perf_fm
+    call serial_print
+    mov ax, [cs:perf_fat16_misses]
+    call serial_print_hex_word
+    mov si, msg_perf_mw
+    call serial_print
+    mov ax, [cs:perf_fat_mirror_writes]
+    call serial_print_hex_word
     mov si, msg_crlf
     call serial_print
     pop si
@@ -4217,6 +4245,10 @@ msg_perf_fa:  db " FA=", 0
 msg_perf_dir: db " DIR=", 0
 msg_perf_wfc: db " WFC=", 0
 msg_perf_wfp: db " WFP=", 0
+msg_perf_fs:  db " FS=", 0
+msg_perf_fh:  db " FH=", 0
+msg_perf_fm:  db " FM=", 0
+msg_perf_mw:  db " MW=", 0
 
 perf_sector_reads: dw 0
 perf_sector_writes: dw 0
@@ -4229,6 +4261,10 @@ perf_fat_allocs: dw 0
 perf_dir_flushes: dw 0
 perf_write_calls: dw 0
 perf_write_prereads: dw 0
+perf_fat_scan_steps: dw 0
+perf_fat16_hits: dw 0
+perf_fat16_misses: dw 0
+perf_fat_mirror_writes: dw 0
 perf_counts_end:
 %endif
 

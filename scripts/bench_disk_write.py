@@ -93,6 +93,8 @@ def print_summary(results):
             f"{phase}: ticks={ticks_text} "
             f"rd={counters.get('RD', 0)} wr={counters.get('WR', 0)} data_wr={counters.get('WD', 0)} "
             f"fat_flush={counters.get('FF', 0)} fat16_flush={counters.get('F16', 0)} "
+            f"fat_scan={counters.get('FS', 0)} fat16_hit={counters.get('FH', 0)} "
+            f"fat16_miss={counters.get('FM', 0)} mirror_writes={counters.get('MW', 0)} "
             f"dir_flush={counters.get('DIR', 0)} write_calls={counters.get('WFC', 0)} "
             f"prereads={counters.get('WFP', 0)} drive_switches={counters.get('DSW', 0)}"
         )

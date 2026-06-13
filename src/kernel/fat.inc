@@ -117,6 +117,7 @@ fat16_window_load:
     cmp ax, [cs:fat16_cache_sector]
     je .hit
 .miss:
+    PERF_INC perf_fat16_misses
     push ax
     call fat16_window_flush
     pop ax
@@ -130,7 +131,10 @@ fat16_window_load:
     jc .err
     mov byte [cs:fat16_cache_valid], 1
     mov byte [cs:fat16_cache_dirty], 0
+    clc
+    jmp .ret
 .hit:
+    PERF_INC perf_fat16_hits
     clc
     jmp .ret
 .err:
@@ -172,6 +176,7 @@ fat16_window_flush:
     mov dx, FAT_SEG
     mov es, dx
     xor bx, bx
+    PERF_INC perf_fat_mirror_writes
     call write_sector
     jc .ioerr
     inc byte [cs:fat_copy_idx]
@@ -186,6 +191,38 @@ fat16_window_flush:
     pop bx
     pop ax
 .none:
+    ret
+
+fat16_find_first_free_hint:
+    push ax
+    push bx
+    push cx
+    push si
+    mov word [cs:fat_alloc_hint], 2
+    cmp byte [cs:kfat_bits], 16
+    jne .done
+    cmp byte [cs:kdrv], 0x80
+    jb .done
+    mov cx, 2
+    mov bx, [cs:kmax_cluster]
+    sub bx, 2
+    jbe .done
+.loop:
+    mov si, cx
+    call fat_next
+    test ax, ax
+    jz .found
+    inc cx
+    dec bx
+    jnz .loop
+    jmp .done
+.found:
+    mov [cs:fat_alloc_hint], cx
+.done:
+    pop si
+    pop cx
+    pop bx
+    pop ax
     ret
 
 fat_set:
@@ -290,6 +327,7 @@ fat_alloc_cluster: PERF_INC perf_fat_allocs
     jb .try
     mov cx, 2
 .try:
+    PERF_INC perf_fat_scan_steps
     mov si, cx
     call fat_next
     test ax, ax

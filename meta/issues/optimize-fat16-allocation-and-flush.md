@@ -27,3 +27,6 @@ scans on large or fragmented volumes.
 - Possible approaches include a wider FAT16 window, stronger allocation hints, local free-run detection, or delayed mirror writes with explicit flush boundaries.
 - See also: `improve-fat-write-durability-and-rollback.md` for FAT-copy consistency and rollback expectations.
 - Depends on measurement from `measure-disk-cdrom-io-hot-paths.md`.
+- 2026-06-13: Added `make bench-fat16-alloc`, which boots generated FAT16 images shaped into sequential, fragmented, high-cluster, and nearly-full allocation cases. New opt-in counters report FAT allocation scan steps (`FS`), FAT16 window hits/misses (`FH`/`FM`), and FAT mirror writes (`MW`).
+- 2026-06-13 baseline before the allocation-hint change: sequential `FS=43`, fragmented `FS=75`, high-cluster `FS=8222`, nearly-full `FS=24533`; high-cluster and nearly-full spent the save/write phase scanning allocated FAT entries.
+- 2026-06-13: FAT16 hard-disk mounts now scan once for the first free cluster and store the allocation hint per drive. After the change, `make bench-fat16-alloc` reports high-cluster `FS=32` and nearly-full `FS=32`, with mirror writes still `MW=2`.

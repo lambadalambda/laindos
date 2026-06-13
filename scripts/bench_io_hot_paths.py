@@ -112,6 +112,8 @@ def print_summary(results):
             f"cd={counters.get('CD', 0)} "
             f"drive_switches={counters.get('DSW', 0)} fat_flush={counters.get('FF', 0)} "
             f"fat16_flush={counters.get('F16', 0)} fat_alloc={counters.get('FA', 0)} "
+            f"fat_scan={counters.get('FS', 0)} fat16_hit={counters.get('FH', 0)} "
+            f"fat16_miss={counters.get('FM', 0)} mirror_writes={counters.get('MW', 0)} "
             f"dir_flush={counters.get('DIR', 0)} write_calls={counters.get('WFC', 0)} "
             f"prereads={counters.get('WFP', 0)}"
         )

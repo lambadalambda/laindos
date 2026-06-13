@@ -2993,3 +2993,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Added a generated benchmark guard to fail when `DRIVESW` hard-disk sector reads exceed 128. It failed on the old behavior with `DRIVESW reloaded too many hard-disk sectors: 1065 > 128`.
 - The fix is deliberately narrow: `ROOT_SEG` now remembers which logical drive owns its contents, and `load_active_volume_buffers` skips the root reload only when the requested volume is the same hard-disk FAT16 drive. CD switches do not overwrite `ROOT_SEG`; floppy and failed root-load paths still reload or invalidate conservatively.
 - Result: `make bench-io-hot-paths` reports `DRIVESW ticks=0 rd=9 wr=35 data_wr=32 cd=1 drive_switches=65`, so the workload still alternates drives but no longer rereads C:'s root on each pass. Manual Red Alert testing on the patched 86Box image confirmed the change sped things up enough, so no Red Alert-specific root-reload instrumentation is planned for this slice.
+
+## 2026-06-13 FAT16 Allocation Scan Hints
+
+- Added `make bench-fat16-alloc` with generated FAT16 images shaped into sequential, fragmented, high-cluster, and nearly-full allocation cases. The opt-in perf line now includes `FS` (FAT allocation scan steps), `FH`/`FM` (FAT16 window hits/misses), and `MW` (FAT mirror sector writes).
+- Baseline after the hard-disk write cache but before this change: sequential `FS=43`, fragmented `FS=75`, high-cluster `FS=8222`, nearly-full `FS=24533`. The high-cluster and nearly-full cases showed the first save/write allocation paying a long scan from cluster 2 across already-used entries.
+- Fix: FAT16 hard-disk mounts now find the first free cluster once and save the hint per logical drive. Drive switches preserve the hint with the rest of the slot geometry. The scan still happens, but not inside the measured save/write phase.
+- Result: `make bench-fat16-alloc` reports sequential `FS=32`, fragmented `FS=63`, high-cluster `FS=32`, nearly-full `FS=32`, with FAT mirror writes unchanged at `MW=2`.
