@@ -1,5 +1,4 @@
 - [ ] [Bring up Command & Conquer: Red Alert (DOS)](issues/bring-up-red-alert.md)
 - [ ] [Performance Track: Hard-Disk and CD-ROM I/O](issues/performance-harddisk-cdrom-track.md)
-- [ ] [Coalesce Save-Time Directory and FAT Metadata Flushes](issues/coalesce-save-metadata-flushes.md)
 - [ ] [Expand CD-ROM Read Caching for MIX-Archive Access](issues/expand-cdrom-read-cache.md)
 - [ ] [Fix CD-ROM Media-Swap Cache Invalidation](issues/fix-cdrom-media-swap-cache-invalidation.md)

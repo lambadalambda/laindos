@@ -68,6 +68,7 @@ DEFAULT_TESTS = [
     "scripts/test_createapi.py",
     "scripts/test_handlecnt.py",
     "scripts/test_handleleak.py",
+    "scripts/test_metafail.py",
     "scripts/test_drive.py",
     "scripts/test_multidrive.py",
     "scripts/test_multidrive_shell.py",

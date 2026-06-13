@@ -3384,6 +3384,7 @@ int21_handler:
     mov [cs:si+handles+H_CLUSTER], ax
     mov [cs:si+handles+H_LAST_CLUSTER], ax
     mov word [cs:si+handles+H_LAST_INDEX], 0
+    mov byte [cs:si+handles+H_DRIVE+1], 1
 .wf_gap_have_first:
     ; extend the chain through the cluster holding the last gap byte
     ; (write position - 1); wf_get_cluster allocates every missing link
@@ -3403,6 +3404,7 @@ int21_handler:
     mov ax, [cs:wf_target_hi]
     mov [cs:si+handles+H_POS_HI], ax
     mov [cs:si+handles+H_SIZE_HI], ax
+    mov byte [cs:si+handles+H_DRIVE+1], 1
     mov byte [cs:rf_cache_valid], 0
     jmp .wf_file_loop
 .wf_file_loop:
@@ -3421,6 +3423,7 @@ int21_handler:
     mov [cs:si+handles+H_CLUSTER], ax
     mov [cs:si+handles+H_LAST_CLUSTER], ax
     mov word [cs:si+handles+H_LAST_INDEX], 0
+    mov byte [cs:si+handles+H_DRIVE+1], 1
 .wf_have_start:
     mov ax, [cs:si+handles+H_POS_LO]
     mov dx, [cs:si+handles+H_POS_HI]
@@ -3500,6 +3503,7 @@ int21_handler:
     mov [cs:si+handles+H_SIZE_LO], ax
     mov ax, [cs:si+handles+H_POS_HI]
     mov [cs:si+handles+H_SIZE_HI], ax
+    mov byte [cs:si+handles+H_DRIVE+1], 1
 .wf_size_ok:
     add [cs:wf_buf_off], cx
     sub [cs:wf_count], cx
@@ -3521,6 +3525,7 @@ int21_handler:
     mov [cs:si+handles+H_SIZE_LO], ax
     mov dx, [cs:si+handles+H_POS_HI]
     mov [cs:si+handles+H_SIZE_HI], dx
+    mov byte [cs:si+handles+H_DRIVE+1], 1
     or ax, dx
     jz .wf_trunc_all
     mov ax, [cs:si+handles+H_POS_LO]
@@ -3571,6 +3576,7 @@ int21_handler:
     mov word [cs:si+handles+H_CLUSTER], 0
     mov word [cs:si+handles+H_LAST_CLUSTER], 0
     mov word [cs:si+handles+H_LAST_INDEX], 0
+    mov byte [cs:si+handles+H_DRIVE+1], 1
     cmp ax, 2
     jb .wf_file_done
     mov si, ax
@@ -4982,6 +4988,7 @@ int21_handler:
     mov [cs:si+handles+H_TIME], ax
     mov ax, [cs:ft_date]
     mov [cs:si+handles+H_DATE], ax
+    mov byte [cs:si+handles+H_DRIVE+1], 1
     call wf_flush_handle_dir_entry
     jc .ft_io_err_saved
     pop dx

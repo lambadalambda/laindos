@@ -3699,7 +3699,7 @@ dir_update_hoff: dw 0
 dir_ext_old_next: dw 0
 dir_ext_fail_once: db 0
 %ifdef TEST_FLUSH_DIR_SLOT_FAIL
-flush_dir_slot_fail_once: db 0
+flush_dir_slot_fail_count: db 0, 0
 %endif
 
 fat_dirty: db 0
@@ -4123,7 +4123,7 @@ wf_fill_read_cache_from_write:
 wf_flush_handle_dir_entry:
     call wf_flush_sector_cache
     jc .done
-    call flush_handle_dir_entry
+    call flush_dirty_handle_dir_entry
 .done:
     ret
 

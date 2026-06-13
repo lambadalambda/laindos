@@ -35,7 +35,7 @@ const DOSAPI_GROUPS = [
     calls: "AH=39h-43h,56h,57h,5Ah,5Bh,68h",
     prose: [
       "This is the compatibility surface most games hit first: make and remove directories, change directory, create/open/close/read/write/seek files, delete, rename, get or set attributes, get or set file timestamps, create temporary files, create-new, and commit writes.",
-      "LainDOS deliberately handles real FAT writeback here: truncating an existing writable file frees its old cluster chain, writes update file size and directory metadata, rename refuses read-only/open files, and commit flushes both the directory entry and FAT."
+      "LainDOS deliberately handles real FAT writeback here: truncating an existing writable file frees its old cluster chain, writes update file size and directory metadata, rename refuses read-only/open files, and commit flushes dirty data, dirty directory metadata, and FAT state."
     ],
     codeFile: "src/kernel/int21.inc",
     code: [

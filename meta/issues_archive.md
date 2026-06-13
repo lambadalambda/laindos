@@ -219,3 +219,4 @@
 - [x] [Measure Hard-Disk and CD-ROM I/O Hot Paths](issues/measure-disk-cdrom-io-hot-paths.md)
 - [x] [Add a Hard-Disk Write Cache for Save-Game Workloads](issues/add-harddisk-write-cache-for-saves.md)
 - [x] [Optimize FAT16 Allocation and Flush Behavior](issues/optimize-fat16-allocation-and-flush.md)
+- [x] [Coalesce Save-Time Directory and FAT Metadata Flushes](issues/coalesce-save-metadata-flushes.md)

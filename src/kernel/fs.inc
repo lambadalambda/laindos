@@ -52,11 +52,11 @@ load_dir_slot:
 
 flush_dir_slot:
 %ifdef TEST_FLUSH_DIR_SLOT_FAIL
-    cmp byte [cs:flush_dir_slot_fail_once], 0
-    jne .fds_no_test_fail
-    mov byte [cs:flush_dir_slot_fail_once], 1
+    call test_flush_dir_slot_fail
+    jnc .fds_no_test_fail
     stc
     ret
+    nop
 .fds_no_test_fail:
 %endif
     mov [cs:kio_lba_hi], dx
@@ -160,6 +160,37 @@ store_handle_dir_fields:
     mov [es:di+30], ax
     pop ax
     ret
+
+flush_dirty_handle_dir_entry:
+    cmp byte [cs:si+handles+H_DRIVE+1], 0
+    jne .dirty
+    clc
+    ret
+.dirty:
+    call flush_handle_dir_entry
+    jc .done
+    mov byte [cs:si+handles+H_DRIVE+1], 0
+.done:
+    ret
+
+%ifdef TEST_FLUSH_DIR_SLOT_FAIL
+test_flush_dir_slot_fail:
+    cmp byte [cs:flush_dir_slot_fail_count+1], 0
+    jne .no
+    inc byte [cs:flush_dir_slot_fail_count]
+%ifdef TEST_FLUSH_DIR_SLOT_FAIL_AFTER
+    cmp byte [cs:flush_dir_slot_fail_count], TEST_FLUSH_DIR_SLOT_FAIL_AFTER
+%else
+    cmp byte [cs:flush_dir_slot_fail_count], 1
+%endif
+    jne .no
+    mov byte [cs:flush_dir_slot_fail_count+1], 1
+    stc
+    ret
+.no:
+    clc
+    ret
+%endif
 
 entry_has_open_handle:
     push ax

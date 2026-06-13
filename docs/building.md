@@ -58,6 +58,14 @@ make bench-io-hot-paths
 
 This adds generated CD-ROM media and reports hard-disk write, C:/D: drive-switch, FAT16 allocation, metadata flush, and MIX-like CD read counters. `WR` counts all physical sector writes; `WD` counts deferred hard-disk data-sector flushes only. The generated C:/D: alternation also fails if hard-disk sector reads climb back to the old repeated-root-reload pattern.
 
+Run the focused metadata flush benchmark:
+
+```sh
+make bench-metadata
+```
+
+This boots generated FAT16 and FAT12 hard-disk images and runs timestamp-update, clean commit, clean close, same-size overwrite, temp-file rename, delete-old-save, and subdirectory timestamp phases. The runner fails if clean commit/close or same-size overwrite starts rewriting directory sectors again.
+
 Run the focused FAT16 allocation benchmark:
 
 ```sh
