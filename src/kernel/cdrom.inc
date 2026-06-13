@@ -1,10 +1,25 @@
-cd_read_sector_drive: PERF_INC perf_cd_reads
-    ; any raw sector read replaces CD_BUF's contents, so the file-read
-    ; cache (which mirrors CD_BUF) is no longer valid. cd_read_handle
-    ; re-validates after its own read; every other caller -- directory
-    ; scans, the PVD, audio TOC/subchannel, a post-swap reopen -- leaves
-    ; it invalid, which is exactly right.
-    mov byte [cs:cd_rd_cache_valid], 0
+cd_invalidate_file_cache:
+    push ax
+    push cx
+    push es
+    push di
+    push cs
+    pop es
+    mov di, cd_rd_cache_valid
+    xor ax, ax
+    mov cx, CD_CACHE_SLOTS
+    cld
+    rep stosb
+    mov byte [cs:cd_rd_cache_next], 0
+    pop di
+    pop es
+    pop cx
+    pop ax
+    ret
+
+cd_read_sector_drive:
+    call cd_invalidate_file_cache
+cd_fetch_sector_drive: PERF_INC perf_cd_reads
     push ax
     push bx
     push cx
@@ -66,6 +81,25 @@ cd_read_sector_current:
     mov [cs:cd_io_drive], al
     pop ax
     jmp cd_read_sector_drive
+
+cd_fetch_sector_current:
+    push ax
+    mov al, [cs:kdrv]
+    mov [cs:cd_io_drive], al
+    pop ax
+    jmp cd_fetch_sector_drive
+
+cd_cache_slot_seg:
+    push bx
+    push cx
+    xor bh, bh
+    mov ax, bx
+    mov cl, 7
+    shl ax, cl
+    add ax, CD_CACHE_BUF
+    pop cx
+    pop bx
+    ret
 
 ; SI -> {base dw, ctrl dw, devsel db} ATAPI port description.
 atapi_select_via:
@@ -416,7 +450,7 @@ cd_clear_media_state:
     push cx
     push es
     push di
-    mov byte [cs:cd_rd_cache_valid], 0
+    call cd_invalidate_file_cache
     xor ax, ax
     mov [cs:cd_root_lba_lo], ax
     mov [cs:cd_root_lba_hi], ax
@@ -518,7 +552,7 @@ cd_refresh_media:
     push ds
     push es
     push si
-    mov byte [cs:cd_rd_cache_valid], 0
+    call cd_invalidate_file_cache
     cmp word [cs:atapi_base], 0
     jne .try_atapi
     call atapi_detect_cdrom
@@ -1498,22 +1532,51 @@ cd_read_handle:
     loop .sector_shift
     add ax, [cs:bx+handles+H_CLUSTER]
     adc dx, [cs:bx+handles+H_LAST_CLUSTER]
-    ; ax:dx = absolute sector LBA -- reuse CD_BUF if it already holds it
-    cmp byte [cs:cd_rd_cache_valid], 1
-    jne .fetch_sector
-    cmp ax, [cs:cd_rd_cache_lba]
-    jne .fetch_sector
-    cmp dx, [cs:cd_rd_cache_lba_hi]
-    je .have_cd_sector
+    ; ax:dx = absolute sector LBA -- reuse any cached file sector.
+    mov [cs:cd_rd_cache_req_lba], ax
+    mov [cs:cd_rd_cache_req_lba_hi], dx
+    xor si, si
+.cache_lookup:
+    cmp si, CD_CACHE_SLOTS
+    jae .fetch_sector
+    mov bx, si
+    cmp byte [cs:cd_rd_cache_valid+bx], 1
+    jne .cache_next
+    shl bx, 1
+    cmp ax, [cs:cd_rd_cache_lba+bx]
+    jne .cache_next
+    cmp dx, [cs:cd_rd_cache_lba_hi+bx]
+    je .cache_hit
+.cache_next:
+    inc si
+    jmp .cache_lookup
+.cache_hit:
+    mov bx, si
+    call cd_cache_slot_seg
+    mov [cs:cd_rd_cache_seg], ax
+    jmp .have_cd_sector
 .fetch_sector:
-    mov [cs:cd_rd_cache_lba], ax
-    mov [cs:cd_rd_cache_lba_hi], dx
-    mov bx, CD_BUF
-    mov es, bx
+    xor bh, bh
+    mov bl, [cs:cd_rd_cache_next]
+    mov si, bx
+    mov byte [cs:cd_rd_cache_valid+bx], 0
+    inc byte [cs:cd_rd_cache_next]
+    and byte [cs:cd_rd_cache_next], CD_CACHE_SLOTS - 1
+    call cd_cache_slot_seg
+    mov [cs:cd_rd_cache_seg], ax
+    mov es, ax
     xor bx, bx
-    call cd_read_sector_current     ; clears cd_rd_cache_valid internally
+    mov ax, [cs:cd_rd_cache_req_lba]
+    mov dx, [cs:cd_rd_cache_req_lba_hi]
+    call cd_fetch_sector_current
     jc .err
-    mov byte [cs:cd_rd_cache_valid], 1
+    mov bx, si
+    mov byte [cs:cd_rd_cache_valid+bx], 1
+    shl bx, 1
+    mov ax, [cs:cd_rd_cache_req_lba]
+    mov [cs:cd_rd_cache_lba+bx], ax
+    mov ax, [cs:cd_rd_cache_req_lba_hi]
+    mov [cs:cd_rd_cache_lba_hi+bx], ax
 .have_cd_sector:
     mov bx, [cs:rf_hoff]
     mov ax, [cs:bx+handles+H_POS_LO]
@@ -1538,7 +1601,7 @@ cd_read_handle:
     mov ax, [cs:rf_buf_seg]
     mov es, ax
     mov di, [cs:rf_buf_off]
-    mov ax, CD_BUF
+    mov ax, [cs:cd_rd_cache_seg]
     mov ds, ax
     mov ax, [cs:rf_buf_off]
     test ax, ax

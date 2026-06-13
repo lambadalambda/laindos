@@ -58,6 +58,14 @@ make bench-io-hot-paths
 
 This adds generated CD-ROM media and reports hard-disk write, C:/D: drive-switch, FAT16 allocation, metadata flush, and MIX-like CD read counters. `WR` counts all physical sector writes; `WD` counts deferred hard-disk data-sector flushes only. The generated C:/D: alternation also fails if hard-disk sector reads climb back to the old repeated-root-reload pattern.
 
+Run the focused CD-ROM read-cache benchmark:
+
+```sh
+make bench-cd-cache
+```
+
+This boots generated ISO media with an archive-shaped file and runs repeated same-sector, sequential, two-sector alternating, and four-sector alternating 64-byte reads. The runner fails if the CD file-read cache re-fetches archive sectors that should stay hot.
+
 Run the focused metadata flush benchmark:
 
 ```sh

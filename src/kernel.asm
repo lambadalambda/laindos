@@ -3451,14 +3451,15 @@ drive_load_lba: dw 0
 mbr_part_lba: dw 0
 mbr_part_lba_hi: dw 0
 cd_present: db 0
-; one-sector read cache for the CD: CD_BUF holds the sector at
-; cd_rd_cache_lba when valid. Small/repeated reads of a MIX archive hit
-; the same sector many times; without this every read re-fetched 2 KiB
-; over ATAPI. CD open/resolve refreshes the PVD/root/volume metadata and
-; invalidates this cache before any post-swap directory or file lookup.
-cd_rd_cache_valid: db 0
-cd_rd_cache_lba: dw 0
-cd_rd_cache_lba_hi: dw 0
+; four-sector read cache for CD files. Raw CD reads still use CD_BUF as
+; scratch and invalidate these dedicated slots.
+cd_rd_cache_valid: times CD_CACHE_SLOTS db 0
+cd_rd_cache_lba: times CD_CACHE_SLOTS dw 0
+cd_rd_cache_lba_hi: times CD_CACHE_SLOTS dw 0
+cd_rd_cache_req_lba: dw 0
+cd_rd_cache_req_lba_hi: dw 0
+cd_rd_cache_seg: dw 0
+cd_rd_cache_next: db 0
 cd_probe_drive: db 0
 cd_io_drive: db 0
 cd_bios_drive: db 0
@@ -4296,6 +4297,12 @@ kernel_end:
 %endif
 %if (WRITE_CACHE_BUF + SECTOR_BUF_PARAS) > MCB_START
 %error "WRITE_CACHE_BUF overlaps MCB arena"
+%endif
+%if (WRITE_CACHE_BUF + SECTOR_BUF_PARAS) > CD_CACHE_BUF
+%error "WRITE_CACHE_BUF overlaps CD cache"
+%endif
+%if (CD_CACHE_BUF + (CD_CACHE_SLOTS * CD_CACHE_SLOT_PARAS)) > MCB_START
+%error "CD cache overlaps MCB arena"
 %endif
 %if MCB_START >= MEM_TOP
 %error "MCB arena is empty"

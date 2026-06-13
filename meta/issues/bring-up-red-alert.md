@@ -67,5 +67,7 @@ under sustained load, INT 33h mouse, and (for the SVGA mode) VESA.
   be quit from its end screen — needed a reboot. Same family as the
   Settlers II post-install menu; revisit once the game itself is
   confirmed playable.
-- Still open: user confirmation that mission loads are now fast, then the
-  vendor-gated smoke and docs per acceptance criteria.
+- Closed state: user-confirmed current Red Alert boot/play/load behavior is
+  good after the CD cache and media refresh work. The previously planned
+  vendor-gated install/launch smoke is no longer required for this project
+  state.

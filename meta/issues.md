@@ -1,3 +1,1 @@
-- [ ] [Bring up Command & Conquer: Red Alert (DOS)](issues/bring-up-red-alert.md)
 - [ ] [Performance Track: Hard-Disk and CD-ROM I/O](issues/performance-harddisk-cdrom-track.md)
-- [ ] [Expand CD-ROM Read Caching for MIX-Archive Access](issues/expand-cdrom-read-cache.md)

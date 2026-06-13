@@ -27,3 +27,10 @@ caching only where measurement shows it helps.
 - The one-sector cache should remain the minimum fallback if memory pressure argues against a larger cache.
 - Depends on `fix-cdrom-media-swap-cache-invalidation.md` so larger caches do not preserve stale disc data.
 - Depends on measurement from `measure-disk-cdrom-io-hot-paths.md`.
+- 2026-06-13: Added `make bench-cd-cache`, `scripts/bench_cd_cache.py`, and `tests/programs/perfcd.asm` with generated ISO phases `CDSAME64`, `CDSEQ64`, `CDALT2_64`, and `CDALT4_64`.
+- Baseline one-sector cache result: same-sector and sequential reads were already bounded (`CDSAME64 CD=1`, `CDSEQ64 CD=3`), but alternating sectors missed badly (`CDALT2_64 CD=64`, `CDALT4_64 CD=64`).
+- Implemented a four-slot CD file-read cache backed by dedicated buffers rather than `CD_BUF`; raw sector users still invalidate the file cache before PVD, directory, audio, and media-refresh reads.
+- Review follow-up: a victim slot is now marked invalid before refilling, so a failed CD sector fetch cannot leave stale LBA metadata attached to partially replaced data; `CD_CACHE_SLOTS` is also compile-time guarded as a power of two for the round-robin mask.
+- Current generated result: `make bench-cd-cache` reports `CDSAME64 CD=1`, `CDSEQ64 CD=3`, `CDALT2_64 CD=2`, and `CDALT4_64 CD=4`.
+- Focused generated CD regressions and full `make test` (`152/152`) passed. Covered file, subdir, FindFirst/FindNext, MSCDEX, audio, chunk-read, share, exec, media-swap, volume-label, cache-coherence, mutation guard, and dot/large-directory paths.
+- User-confirmed Red Alert boot/load behavior on the refreshed media is good after the four-slot cache, so no additional Red Alert-specific instrumentation is required for this slice.
