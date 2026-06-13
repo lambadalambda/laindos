@@ -267,6 +267,15 @@ def send_monitor_command(sock, command, delay=0.0):
         time.sleep(delay)
 
 
+def monitor_output_path(path):
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    if os.path.isabs(path):
+        return os.path.relpath(path, os.getcwd())
+    return path
+
+
 def send_monitor_key(sock, key, delay=0.15):
     send_monitor_command(sock, f"sendkey {key}", delay)
 
@@ -280,7 +289,7 @@ def send_monitor_text(sock, text, delay=0.15, keymap=None):
 
 
 def monitor_screendump(sock, path, delay=1):
-    send_monitor_command(sock, f"screendump {path}")
+    send_monitor_command(sock, f"screendump {monitor_output_path(path)}")
     if delay:
         time.sleep(delay)
 
@@ -423,7 +432,7 @@ def read_text_screen(path):
 def monitor_text_screen(sock, path, delay=0.3):
     """pmemsave the B800 text screen through the QEMU monitor and parse it."""
     remove_if_exists(path)
-    send_monitor_command(sock, f"pmemsave 0xb8000 4000 {path}", delay=delay)
+    send_monitor_command(sock, f"pmemsave 0xb8000 4000 {monitor_output_path(path)}", delay=delay)
     return read_text_screen(path)
 
 
@@ -431,7 +440,7 @@ def monitor_text_screen_attrs(sock, path, delay=0.3):
     """Like monitor_text_screen but with per-row attribute runs for
     highlight detection ("Rnn [start-end:0xattr] ... |text|")."""
     remove_if_exists(path)
-    send_monitor_command(sock, f"pmemsave 0xb8000 4000 {path}", delay=delay)
+    send_monitor_command(sock, f"pmemsave 0xb8000 4000 {monitor_output_path(path)}", delay=delay)
     if not os.path.exists(path):
         return ""
     with open(path, "rb") as f:

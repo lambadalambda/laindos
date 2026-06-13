@@ -1,1 +1,2 @@
 - [ ] [Bring up Command & Conquer: Red Alert (DOS)](issues/bring-up-red-alert.md)
+- [ ] [Build a self-booting LainDOS installer floppy](issues/build-installer-floppy.md)

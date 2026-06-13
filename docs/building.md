@@ -42,6 +42,13 @@ Headless smoke-test the shell-launched Monkey Island demo:
 make test-monkey-demo
 ```
 
+Build the self-booting LainDOS installer floppy and run its headless install check:
+
+```sh
+make installer
+make test-installer
+```
+
 Game smoke tests keep the emulated SB16 device when a game expects it, and Wolf3D plus the Sam & Max CD launcher also add QEMU's separate AdLib device. Automated runs route those devices to QEMU's `none` audio backend so tests stay silent.
 
 Build and boot the local extras hard-disk image, which combines local archives that are not part of `vendor/FreeDOS.VHD` into `build/extras_hd.img`:
