@@ -40,13 +40,22 @@ under sustained load, INT 33h mouse, and (for the SVGA mode) VESA.
 
 - Installer black screen: share-bits handle leak, fixed (`test_cd_share`,
   debug log "The Share-Bits Handle Leak").
-- Post-launch "hang with constant HD read": the game was sitting at its
-  insert-CD dialog — `Get_CD_Index()` reads the CD volume label via an
-  exclusive-`_A_VOLID` FindFirst on `D:\` and matches it against
+- Post-launch "hang with constant HD read" (QEMU): the game was sitting
+  at its insert-CD dialog — `Get_CD_Index()` reads the CD volume label
+  via an exclusive-`_A_VOLID` FindFirst on `D:\` and matches it against
   "CD1"/"CD2". Fixed by serving the ISO9660 PVD volume id the way MSCDEX
   does (`test_cd_volid`, debug log "The 'Hang' That Was A Dialog").
   Verified under QEMU: the Allied disc identifies and the intro movie
   streams from the CD.
+- Post-launch "hang on the DOS/4GW screen with constant HD writes"
+  (86Box-only, surfaced because 86Box runs the disk at real PIO speed):
+  DOS/4GW reserves a 16 MB swap by writing one byte past EOF. The write
+  path zero-filled the whole gap one sector at a time, and FAT16 was
+  write-through (both copies per entry) — ~64K sector I/Os. Fixed in two
+  parts: gap extend now allocates clusters only (no zero-fill), and FAT16
+  got a write-back window like FAT12. Swap reservation went from ~250 s
+  to <19 s on 86Box; intro on screen by ~40 s (`test_gap_write`, debug
+  log "The DOS/4GW 'Hang' Was A 16 MB Swap").
 - Known wrinkle (user report, 86Box): the installer finishes but cannot
   be quit from its end screen — needed a reboot. Same family as the
   Settlers II post-install menu; revisit once the game itself is

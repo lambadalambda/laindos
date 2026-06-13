@@ -24,7 +24,7 @@ What LainDOS implements today, and the compatibility decisions behind it.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
 - Provides vendor-gated `make test-sammax-cd-files`, `make test-sammax-cd-start`, `make test-sammax-cd-setmuse`, `make test-sammax-cd-setmuse-save`, `make test-sammax-cd-install`, `make test-sammax-cd-install-select`, `make test-sammax-cd-dig`, and `make test-normality-install` smokes for the Sam & Max Hit the Road CD data track from its cue/bin archive. The Normality smoke drives the Gremlin installer end to end (its copy phase runs `COPY`/`MD` through `COMSPEC /C`) and launches the installed demo.
-- `make test` currently runs the automated QEMU regression ladder and passes `147/147` tests.
+- `make test` currently runs the automated QEMU regression ladder and passes `148/148` tests.
 
 ## Scope
 

@@ -78,39 +78,21 @@ fat16_next:
     push dx
     push ds
     push es
-    mov word [cs:kio_lba_hi], 0
     mov ax, si
     mov bx, ax
     mov cl, 8
     shr ax, cl
     cmp ax, [cs:kfat_secs]
     jae .err
-    add ax, [cs:kfat_start]
-    mov [cs:fat16_lba], ax
+    call fat16_window_load          ; ax = FAT-relative sector
+    jc .err
     and bx, 0x00FF
     shl bx, 1
-    mov [cs:fat16_off], bx
-    cmp byte [cs:fat16_cache_valid], 1
-    jne .load_sector
-    cmp ax, [cs:fat16_cache_lba]
-    je .have_sector
-.load_sector:
-    mov dx, FAT_SEG
-    mov es, dx
-    xor bx, bx
-    call read_sector
-    jc .err
-    mov ax, [cs:fat16_lba]
-    mov [cs:fat16_cache_lba], ax
-    mov byte [cs:fat16_cache_valid], 1
-.have_sector:
     mov ax, FAT_SEG
     mov ds, ax
-    mov bx, [cs:fat16_off]
     mov ax, [bx]
     jmp .done
 .err:
-    mov byte [cs:fat16_cache_valid], 0
     mov ax, [cs:kfat_eoc_value]
 .done:
     call fat_next_sanitize
@@ -119,6 +101,91 @@ fat16_next:
     pop dx
     pop cx
     pop bx
+    ret
+
+; Ensure FAT_SEG holds FAT-relative sector AX of the active FAT16 volume.
+; If a different sector is currently cached and dirty, flush it to every
+; FAT copy first (write-back). CF set on read error. Preserves BX/CX/DX/ES
+; and the caller's SI; clobbers AX.
+fat16_window_load:
+    push bx
+    push cx
+    push dx
+    push es
+    cmp byte [cs:fat16_cache_valid], 1
+    jne .miss
+    cmp ax, [cs:fat16_cache_sector]
+    je .hit
+.miss:
+    push ax
+    call fat16_window_flush
+    pop ax
+    mov [cs:fat16_cache_sector], ax
+    add ax, [cs:kfat_start]
+    mov word [cs:kio_lba_hi], 0
+    mov dx, FAT_SEG
+    mov es, dx
+    xor bx, bx
+    call read_sector
+    jc .err
+    mov byte [cs:fat16_cache_valid], 1
+    mov byte [cs:fat16_cache_dirty], 0
+.hit:
+    clc
+    jmp .ret
+.err:
+    mov byte [cs:fat16_cache_valid], 0
+    mov byte [cs:fat16_cache_dirty], 0
+    stc
+.ret:
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    ret
+
+; Write the cached FAT16 window back to every FAT copy if it is dirty.
+; No-op when the window is clean or invalid. Sets fat_io_error on failure.
+fat16_window_flush:
+    cmp byte [cs:fat16_cache_valid], 1
+    jne .none
+    cmp byte [cs:fat16_cache_dirty], 1
+    jne .none
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+    mov byte [cs:fat_copy_idx], 0
+.copy:
+    xor ax, ax
+    mov al, [cs:knum_fats]
+    cmp [cs:fat_copy_idx], al
+    jae .done
+    mov ax, [cs:kfat_secs]
+    xor dx, dx
+    mov dl, [cs:fat_copy_idx]
+    mul dx
+    add ax, [cs:kfat_start]
+    add ax, [cs:fat16_cache_sector]
+    mov word [cs:kio_lba_hi], 0
+    mov dx, FAT_SEG
+    mov es, dx
+    xor bx, bx
+    call write_sector
+    jc .ioerr
+    inc byte [cs:fat_copy_idx]
+    jmp .copy
+.ioerr:
+    mov byte [cs:fat_io_error], 1
+.done:
+    mov byte [cs:fat16_cache_dirty], 0
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+.none:
     ret
 
 fat_set:
@@ -165,58 +232,37 @@ fat_set:
     mov byte [cs:fat_io_error], 1
     ret
 
+; FAT16 cluster update: load the FAT sector holding the entry into the
+; window (flushing any other dirty sector first), patch the entry in
+; memory, and mark the window dirty. The actual disk write is deferred to
+; the next window eviction or to flush_fat -- the same write-back model
+; the FAT12 path uses. Updating both FAT copies on every entry (the old
+; write-through) turned a multi-megabyte file's cluster chain into tens of
+; thousands of sector read-modify-writes (the Red Alert swap-file stall on
+; real-speed IDE).
 fat16_set:
     push ax
     push bx
     push cx
     push dx
     push es
-    mov word [cs:kio_lba_hi], 0
-    mov byte [cs:fat16_cache_valid], 0
     mov [cs:fat16_value], ax
     mov ax, si
     mov bx, ax
     mov cl, 8
     shr ax, cl
-    mov [cs:fat16_sector], ax
     cmp ax, [cs:kfat_secs]
     jae .err
+    call fat16_window_load          ; ax = FAT-relative sector
+    jc .err
     and bx, 0x00FF
     shl bx, 1
-    mov [cs:fat16_off], bx
-    mov byte [cs:fat_copy_idx], 0
-.copy_loop:
-    xor ax, ax
-    mov al, [cs:knum_fats]
-    cmp [cs:fat_copy_idx], al
-    jae .done
-    mov ax, [cs:kfat_secs]
-    xor dx, dx
-    mov dl, [cs:fat_copy_idx]
-    mul dx
-    add ax, [cs:kfat_start]
-    add ax, [cs:fat16_sector]
-    mov dx, SEC_BUF
-    mov es, dx
-    xor bx, bx
-    call read_sector
-    jc .err
-    mov bx, [cs:fat16_off]
+    mov ax, FAT_SEG
+    mov es, ax
     mov ax, [cs:fat16_value]
     mov [es:bx], ax
-    mov ax, [cs:kfat_secs]
-    xor dx, dx
-    mov dl, [cs:fat_copy_idx]
-    mul dx
-    add ax, [cs:kfat_start]
-    add ax, [cs:fat16_sector]
-    mov dx, SEC_BUF
-    mov es, dx
-    xor bx, bx
-    call write_sector
-    jc .err
-    inc byte [cs:fat_copy_idx]
-    jmp .copy_loop
+    mov byte [cs:fat16_cache_dirty], 1
+    jmp .done
 .err:
     mov byte [cs:fat_io_error], 1
 .done:
@@ -310,6 +356,10 @@ flush_fat:
     jne .fat_err
     cmp byte [cs:kfat_bits], 16
     jne .fat12
+    ; FAT16 keeps one write-back window; persist it to all FAT copies
+    call fat16_window_flush
+    cmp byte [cs:fat_io_error], 0
+    jne .fat_err
     mov byte [cs:fat_dirty], 0
     clc
     ret

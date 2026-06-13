@@ -82,6 +82,7 @@ DEFAULT_TESTS = [
     "scripts/test_partitioned_fat16.py",
     "scripts/test_fat16_large.py",
     "scripts/test_fat16_seek.py",
+    "scripts/test_gap_write.py",
     "scripts/test_highdir.py",
     "scripts/test_badfat.py",
     "scripts/test_free.py",

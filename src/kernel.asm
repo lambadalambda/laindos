@@ -3667,12 +3667,10 @@ fat_copy_idx: db 0
 fat_alloc_hint: dw 2
 fat_flush_lba: dw 0
 fat_flush_off: dw 0
-fat16_lba: dw 0
-fat16_sector: dw 0
-fat16_off: dw 0
 fat16_value: dw 0
-fat16_cache_lba: dw 0
+fat16_cache_sector: dw 0
 fat16_cache_valid: db 0
+fat16_cache_dirty: db 0
 
 rp_path: dw 0
 rp_path_seg: dw 0

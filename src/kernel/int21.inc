@@ -3356,92 +3356,49 @@ int21_handler:
     ja .wf_gap_start
     jmp .wf_file_loop
 .wf_gap_start:
+    ; Writing past EOF. Back the gap [old size, write position) with
+    ; freshly allocated clusters and move the size up to the write
+    ; position -- but do NOT read-modify-write every sector with zeros.
+    ; Real DOS leaves a write-past-EOF gap undefined; it only allocates
+    ; the clusters (a few FAT writes) and returns. The old per-sector
+    ; zero-fill turned DOS/4GW's swap-file reservation (a 1-byte write at
+    ; offset 16 MiB) into 32K sector read-modify-writes -- instant on a
+    ; host-backed disk, but minutes of churn on real-speed IDE (the
+    ; Red Alert "hang on the DOS/4GW screen"). On a zero-initialised
+    ; volume the freshly allocated clusters still read back as zero.
     mov ax, [cs:si+handles+H_POS_LO]
     mov [cs:wf_target_lo], ax
     mov ax, [cs:si+handles+H_POS_HI]
     mov [cs:wf_target_hi], ax
-    mov ax, [cs:si+handles+H_SIZE_LO]
-    mov [cs:si+handles+H_POS_LO], ax
-    mov ax, [cs:si+handles+H_SIZE_HI]
-    mov [cs:si+handles+H_POS_HI], ax
-.wf_gap_loop:
-    mov si, [cs:wf_hoff]
-    mov ax, [cs:wf_target_hi]
-    cmp [cs:si+handles+H_POS_HI], ax
-    jb .wf_gap_more
-    ja .wf_file_loop
-    mov ax, [cs:wf_target_lo]
-    cmp [cs:si+handles+H_POS_LO], ax
-    jb .wf_gap_more
-    jmp .wf_file_loop
-.wf_gap_more:
     cmp word [cs:si+handles+H_CLUSTER], 0
-    jne .wf_gap_have_start
+    jne .wf_gap_have_first
     call fat_alloc_cluster
     jc .wf_file_io_pop
     mov si, [cs:wf_hoff]
     mov [cs:si+handles+H_CLUSTER], ax
     mov [cs:si+handles+H_LAST_CLUSTER], ax
     mov word [cs:si+handles+H_LAST_INDEX], 0
-.wf_gap_have_start:
-    mov ax, [cs:si+handles+H_POS_LO]
-    mov dx, [cs:si+handles+H_POS_HI]
+.wf_gap_have_first:
+    ; extend the chain through the cluster holding the last gap byte
+    ; (write position - 1); wf_get_cluster allocates every missing link
+    ; in the in-memory FAT without touching data sectors
+    mov ax, [cs:wf_target_lo]
+    mov dx, [cs:wf_target_hi]
+    sub ax, 1
+    sbb dx, 0
     call pos_to_cluster_sector
     mov [cs:wf_cluster_index], ax
-    mov [cs:wf_sec_in_cluster], dx
     call wf_get_cluster
     jc .wf_file_io_pop
-    mov ax, si
-    mov bx, [cs:wf_sec_in_cluster]
-    call cluster_lba
-    mov [cs:wf_sector_lba], ax
-    mov [cs:wf_sector_lba_hi], dx
-    mov ax, SEC_BUF
-    mov es, ax
-    xor bx, bx
-    mov ax, [cs:wf_sector_lba]
-    mov dx, [cs:wf_sector_lba_hi]
-    mov [cs:kio_lba_hi], dx
-    call read_sector
-    jc .wf_file_io_pop
-    mov ax, SEC_BUF
-    mov es, ax
     mov si, [cs:wf_hoff]
-    mov di, [cs:si+handles+H_POS_LO]
-    and di, 511
-    mov cx, 512
-    sub cx, di
-    mov ax, [cs:wf_target_hi]
-    cmp ax, [cs:si+handles+H_POS_HI]
-    jne .wf_gap_chunk_ok
     mov ax, [cs:wf_target_lo]
-    sub ax, [cs:si+handles+H_POS_LO]
-    cmp cx, ax
-    jbe .wf_gap_chunk_ok
-    mov cx, ax
-.wf_gap_chunk_ok:
-    push cx
-    xor ax, ax
-    cld
-    rep stosb
-    pop cx
-    push cx
-    xor bx, bx
-    mov ax, [cs:wf_sector_lba]
-    mov dx, [cs:wf_sector_lba_hi]
-    mov [cs:kio_lba_hi], dx
-    call write_sector
-    pop cx
-    jc .wf_file_io_pop
-    mov byte [cs:rf_cache_valid], 0
-    mov si, [cs:wf_hoff]
-    add [cs:si+handles+H_POS_LO], cx
-    adc word [cs:si+handles+H_POS_HI], 0
-    mov ax, [cs:si+handles+H_POS_LO]
+    mov [cs:si+handles+H_POS_LO], ax
     mov [cs:si+handles+H_SIZE_LO], ax
-    mov ax, [cs:si+handles+H_POS_HI]
+    mov ax, [cs:wf_target_hi]
+    mov [cs:si+handles+H_POS_HI], ax
     mov [cs:si+handles+H_SIZE_HI], ax
-    jmp .wf_gap_loop
+    mov byte [cs:rf_cache_valid], 0
+    jmp .wf_file_loop
 .wf_file_loop:
     cmp word [cs:wf_count], 0
     jne .wf_have_data
