@@ -80,6 +80,19 @@ Launch command:
 "/Applications/86Box.app/Contents/MacOS/86Box" -P "/Users/lainsoykaf/repos/laindos/build/86box-serial-file" -N
 ```
 
+The launch above is the GUI build: it captures serial through
+`serial1_device = stdio` but takes no input, so it only suits probes that
+run on boot (a `BOOT_FILE` program). For **input-driven runs** — driving a
+game's menus/mouse, starting a mission, screenshotting mid-run — use the
+**headless RPC build** via `scripts/box86lib.py`: it launches the
+`build-headless` 86Box with `SDL_VIDEODRIVER=dummy` and exposes
+`/key`, `/screenshot`, `/monitor`, `/status`, `/exit` over localhost.
+Build steps, the `docs/86box-rpc.patch` it needs, and gotchas (the blit-mutex
+wedge, the F1 CMOS prompt on fresh profiles) are in the "Headless 86Box For
+Automated Tests" section of `docs/emulator_workflows.md`. `test_civ_86box.py`
+is the working example that drives a game this way (`test_cd_86box.py` uses
+the GUI build for serial-only boot probes).
+
 Focused floppy probe shape:
 
 ```sh
