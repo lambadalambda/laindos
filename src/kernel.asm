@@ -1151,6 +1151,12 @@ floppy_media_remount:
     mov al, [cs:kio_op]
     push ax
     xor ax, ax
+    mov al, [cs:kcnt]
+    push ax
+    xor ax, ax
+    mov al, [cs:kio_force_single]
+    push ax
+    xor ax, ax
     mov dl, [cs:kdrv]
     int 0x13
     mov ax, SEC_BUF
@@ -1187,12 +1193,15 @@ floppy_media_remount:
     stc
 .out:
     pop ax
+    mov [cs:kio_force_single], al
+    pop ax
+    mov [cs:kcnt], al
+    pop ax
     mov [cs:kio_op], al
     pop ax
     mov [cs:klba_hi], ax
     pop ax
     mov [cs:klba], ax
-    mov byte [cs:kcnt], 1
     pop di
     pop si
     pop es
@@ -3433,6 +3442,8 @@ klba:  dw 0
 klba_hi: dw 0
 kio_lba_hi: dw 0
 kcnt:  db 0
+kio_xfer_count: db 1
+kio_force_single: db 0
 kio_op: db 0
 ksc:   db 0
 khd:   db 0
@@ -3597,6 +3608,9 @@ rf_sec_in_cluster: dw 0
 rf_cluster_index: dw 0
 rf_cache_lba:  dw 0
 rf_cache_lba_hi: dw 0
+rf_direct_lba: dw 0
+rf_direct_lba_hi: dw 0
+rf_direct_count: db 0
 rf_cache_valid: db 0
 floppy_check_tick: dw 0
 rf_buf_off:    dw 0
@@ -4171,6 +4185,10 @@ perf_counts_print:
     call serial_print
     mov ax, [cs:perf_sector_reads]
     call serial_print_hex_word
+    mov si, msg_perf_rs
+    call serial_print
+    mov ax, [cs:perf_read_sectors]
+    call serial_print_hex_word
     mov si, msg_perf_wr
     call serial_print
     mov ax, [cs:perf_sector_writes]
@@ -4239,6 +4257,7 @@ perf_counts_print:
     ret
 
 msg_perf_rd:  db "PERF RD=", 0
+msg_perf_rs:  db " RS=", 0
 msg_perf_wr:  db " WR=", 0
 msg_perf_wd:  db " WD=", 0
 msg_perf_cd:  db " CD=", 0
@@ -4256,6 +4275,7 @@ msg_perf_fm:  db " FM=", 0
 msg_perf_mw:  db " MW=", 0
 
 perf_sector_reads: dw 0
+perf_read_sectors: dw 0
 perf_sector_writes: dw 0
 perf_data_writes: dw 0
 perf_cd_reads: dw 0

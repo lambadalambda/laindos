@@ -17,6 +17,26 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - `make bench-read-paths` passed. Representative counters: sequential FAT reads `READ64/READ512/READ1K/READ4K RD=128 FW=15`, `EXECLOAD RD=97 FW=12`, `FATSEEK RD=32 FW=191`, `DIRLOOK RD=288 FW=32`, and `CDSEQ CD=16`.
 
+## 2026-06-13 Multi-Sector FAT Read Path
+
+### Goal
+
+- Reduce BIOS interrupt count for sequential FAT handle reads while keeping single-sector behavior for sub-sector and random 512-byte reads.
+
+### Confirmed Facts
+
+- Added a `read_sectors` disk helper that chooses a safe transfer count from the remaining request, current track, and destination 64 KiB DMA boundary, with a single-sector fallback after failed multi-sector attempts.
+- Added a conservative `AH=3Fh` FAT direct-read path for full-sector requests of at least two sectors within the current cluster. Existing one-sector cache reads still handle 64-byte and random 512-byte cases.
+- Perf output now separates `RD` BIOS read calls from `RS` transferred FAT sectors.
+- Code review found two latent hardware/error-path bugs not exercised by QEMU: failed multi-sector reads were not actually forced down to one sector, and the DMA boundary cap used only `BX` rather than the low 16 bits of physical `ES:BX`. The fallback now retries one sector without refreshing the retry budget, the DMA cap uses physical page offset, and direct handle reads fall back to the cache path if the caller buffer starts too close to a DMA boundary for one sector.
+- `finish_sector_io` now advances `ES:BX` using the high word of `512 * sector_count` as well as offset carry, so future larger transfer counts cannot silently lose a 64 KiB segment step.
+- Follow-up review caught a stack imbalance on the post-pop cylinder-overflow error path; that branch now returns through the plain geometry error exit, while the pop-before-error exit remains only for DMA no-fit failures before the saved quotient is restored.
+- The direct read path also refuses `rf_direct_count >= 128` before issuing BIOS I/O, preserving the current 16-bit byte-count update invariant.
+
+### Baseline After Change
+
+- `make bench-read-paths` passed. Sequential reads now report `READ64 RD=128 RS=128`, `READ512 RD=128 RS=128`, `READ1K RD=65 RS=128`, and `READ4K RD=17 RS=128`; random `FATSEEK` uses 512-byte reads and stays at `RD=32 RS=32`.
+
 ## 2026-06-11 MI2 Save Crash: Tick Batching Into iMUSE's Non-Reentrant INT 08 Hook
 
 ### Symptoms

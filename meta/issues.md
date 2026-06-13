@@ -1,4 +1,3 @@
-- [ ] [Use Multi-Sector BIOS Reads for FAT I/O](issues/use-multi-sector-bios-reads-for-fat-io.md)
 - [ ] [Speed EXEC and Overlay Loads with Direct Multi-Sector Reads](issues/speed-exec-overlay-loads-with-direct-multisector-reads.md)
 - [ ] [Cache FAT Chain Positions for Archive Seeks](issues/cache-fat-chain-positions-for-archive-seeks.md)
 - [ ] [Add Sequential Read-Ahead for Handle Reads](issues/add-sequential-read-ahead-for-handle-reads.md)

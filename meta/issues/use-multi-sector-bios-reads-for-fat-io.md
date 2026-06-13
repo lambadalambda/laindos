@@ -23,3 +23,14 @@ safe, reducing interrupt and CHS setup overhead for sequential reads.
 
 - Relevant code: `src/kernel/disk.inc` `setup_sector_io`, `sector_io_loop`, `finish_sector_io`, and CHS setup.
 - Cap conservatively, likely to the current track and destination boundary rather than chasing maximum BIOS transfer sizes.
+
+## Implementation Notes
+
+- Added `read_sectors` and a multi-sector CHS transfer count capped by request length, current track, and destination 64 KiB DMA boundary.
+- Multi-sector read failures force one-sector retry behavior for the remaining operation without refreshing the retry budget; floppy media-change remount preserves in-flight I/O state.
+- DMA capping uses the low 16 bits of the physical `ES:BX` address, not just the offset. The direct handle-read path falls back to the cache path when a caller buffer starts too close to a DMA page boundary for one sector.
+- Added a full-sector `AH=3Fh` direct-read path for at least two sectors inside the current FAT cluster.
+- `finish_sector_io` advances `ES:BX` using the high word of `512 * sector_count`, keeping the helper safe for future larger transfer counts.
+- The CHS overflow error path returns without popping the already-restored quotient; only the pre-pop DMA no-fit path uses the pop-before-error exit.
+- The direct read path rejects `rf_direct_count >= 128` before BIOS I/O so its 16-bit byte-count updates remain bounded.
+- `make bench-read-paths` now reports `RS` transferred FAT sectors and validates reduced `RD` BIOS calls for 1 KiB/4 KiB sequential reads while keeping random 512-byte `FATSEEK` at `RD=32`.

@@ -225,3 +225,4 @@
 - [x] [Bring up Command & Conquer: Red Alert (DOS)](issues/bring-up-red-alert.md)
 - [x] [Performance Track: Hard-Disk and CD-ROM I/O](issues/performance-harddisk-cdrom-track.md)
 - [x] [Add Read-Side Performance Benchmarks](issues/add-read-side-performance-benchmarks.md)
+- [x] [Use Multi-Sector BIOS Reads for FAT I/O](issues/use-multi-sector-bios-reads-for-fat-io.md)

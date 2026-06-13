@@ -3083,6 +3083,81 @@ int21_handler:
     mov ax, si
     mov bx, [cs:rf_sec_in_cluster]
     call cluster_lba
+    mov [cs:rf_direct_lba], ax
+    mov [cs:rf_direct_lba_hi], dx
+    mov bx, [cs:rf_hoff]
+    test word [cs:bx+handles+H_POS_LO], 511
+    jnz .rf_cache_check
+    cmp word [cs:rf_count], 512
+    jb .rf_cache_check
+    mov ax, [cs:rf_buf_seg]
+    and ax, 0x0FFF
+    mov cl, 4
+    shl ax, cl
+    add ax, [cs:rf_buf_off]
+    jz .rf_dma_ok
+    neg ax
+    cmp ax, 512
+    jb .rf_cache_check
+.rf_dma_ok:
+    mov ax, [cs:rf_count]
+    mov cl, 9
+    shr ax, cl
+    test ax, ax
+    jz .rf_cache_check
+    mov [cs:rf_direct_count], al
+    xor ax, ax
+    mov al, [cs:kspc]
+    sub ax, [cs:rf_sec_in_cluster]
+    cmp al, [cs:rf_direct_count]
+    jae .rf_direct_cluster_ok
+    mov [cs:rf_direct_count], al
+.rf_direct_cluster_ok:
+    mov bx, [cs:rf_hoff]
+    mov ax, [cs:bx+handles+H_SIZE_LO]
+    sub ax, [cs:bx+handles+H_POS_LO]
+    mov dx, [cs:bx+handles+H_SIZE_HI]
+    sbb dx, [cs:bx+handles+H_POS_HI]
+    test dx, dx
+    jnz .rf_direct_file_ok
+    mov cl, 9
+    shr ax, cl
+    test ax, ax
+    jz .rf_cache_check
+    cmp al, [cs:rf_direct_count]
+    jae .rf_direct_file_ok
+    mov [cs:rf_direct_count], al
+.rf_direct_file_ok:
+    cmp byte [cs:rf_direct_count], 1
+    jbe .rf_cache_check
+    test byte [cs:rf_direct_count], 0x80
+    jnz .rf_cache_check
+    mov ax, [cs:rf_direct_lba_hi]
+    mov [cs:kio_lba_hi], ax
+    mov ax, [cs:rf_direct_lba]
+    mov es, [cs:rf_buf_seg]
+    mov bx, [cs:rf_buf_off]
+    xor ch, ch
+    mov cl, [cs:rf_direct_count]
+    call read_sectors
+    jc .rf_err_pop
+    xor ax, ax
+    mov al, [cs:rf_direct_count]
+    mov cx, 512
+    mul cx
+    mov bx, [cs:rf_hoff]
+    add [cs:bx+handles+H_POS_LO], ax
+    adc word [cs:bx+handles+H_POS_HI], 0
+    add [cs:rf_buf_off], ax
+    jnc .rf_direct_buf_ok
+    add word [cs:rf_buf_seg], 0x1000
+.rf_direct_buf_ok:
+    sub [cs:rf_count], ax
+    add [cs:rf_read], ax
+    jmp .rf_loop
+.rf_cache_check:
+    mov ax, [cs:rf_direct_lba]
+    mov dx, [cs:rf_direct_lba_hi]
     cmp byte [cs:rf_cache_valid], 1
     jne .rf_read_sector
     cmp ax, [cs:rf_cache_lba]

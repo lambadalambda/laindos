@@ -35,7 +35,7 @@ PHASE_INFO = {
     "READ1K": "bytes=65536 chunk=1024",
     "READ4K": "bytes=65536 chunk=4096",
     "EXECLOAD": "bytes=49152 load-only",
-    "FATSEEK": "reads=32 chunk=64",
+    "FATSEEK": "reads=32 chunk=512",
     "DIRLOOK": f"dir_entries={DIR_FILLER_COUNT + 1} opens=32 worst-entry",
     "CDSEQ": "bytes=32768 chunk=512",
 }
@@ -132,6 +132,15 @@ def validate_results(results):
         require_counter(results, phase, "RD")
     for phase in ("READ64", "READ512", "READ1K", "READ4K", "EXECLOAD", "FATSEEK"):
         require_counter(results, phase, "FW")
+    for phase in ("READ64", "READ512", "READ1K", "READ4K"):
+        if results[phase].get("RS") != 128:
+            raise ValueError(f"{phase} transferred {results[phase].get('RS', 0)} sectors, expected 128")
+    if results["READ1K"].get("RD", 0) >= results["READ512"].get("RD", 0):
+        raise ValueError("READ1K did not reduce BIOS read calls versus READ512")
+    if results["READ4K"].get("RD", 0) >= results["READ1K"].get("RD", 0):
+        raise ValueError("READ4K did not reduce BIOS read calls versus READ1K")
+    if results["FATSEEK"].get("RD", 0) > 32:
+        raise ValueError(f"FATSEEK regressed random 512-byte reads: RD={results['FATSEEK'].get('RD', 0)}")
     require_counter(results, "CDSEQ", "CD")
 
 
@@ -141,7 +150,7 @@ def print_summary(results):
         counters = results[phase]
         print(
             f"{phase}: {PHASE_INFO[phase]} ticks={counters['TICKS']} "
-            f"rd={counters.get('RD', 0)} cd={counters.get('CD', 0)} "
+            f"rd={counters.get('RD', 0)} read_sectors={counters.get('RS', 0)} cd={counters.get('CD', 0)} "
             f"fat_walk={counters.get('FW', 0)} fat_alloc_scan={counters.get('FS', 0)} "
             f"fat16_hit={counters.get('FH', 0)} fat16_miss={counters.get('FM', 0)}"
         )

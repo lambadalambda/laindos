@@ -112,13 +112,13 @@ run_fat_seek_phase:
     jc fail_seek
     mov bx, [handle]
     mov dx, read_buf
-    mov cx, 64
+    mov cx, 512
     mov ah, 0x3F
     int 0x21
     jc fail_read
-    cmp ax, 64
+    cmp ax, 512
     jne fail_read
-    mov word [verify_len], 64
+    mov word [verify_len], 512
     call verify_read_buf
     jc fail_verify
     inc word [phase_index]
