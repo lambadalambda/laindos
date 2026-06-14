@@ -3088,3 +3088,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Symptom: booting `FREE.COM` directly after the COM loader was made DOS-faithful reported `Conventional 640K used / 0K free` and `Largest executable program size 0`, even though the MCB chain was healthy.
 - Cause: COM programs now receive the largest free block like real DOS. Unlike shell-style tools, `FREE.COM` never moved its stack into its image or shrank its PSP block before walking MCBs, so its own oversized allocation consumed all conventional memory it was trying to report.
 - Fix: `FREE.COM` now sets an internal stack, resizes itself to `free_resident_paras`, restores DS, and then scans the MCB chain. The visible report now shows nonzero conventional free/largest executable memory and states that the LainDOS kernel is resident in high memory.
+
+## 2026-06-14 FAT Archive Seek Cache
+
+- Baseline: the new `FATARCH` phase in `scripts/bench_read_paths.py` failed on the existing one-entry handle cache with `FW=00F4` (244 checked FAT-chain steps) for 32 repeated reads over four hot offsets.
+- Fix direction changed from per-handle slots to a shared four-slot direct-mapped cache keyed by logical drive, first cluster, and file-cluster index. Moving helper code out of the top of `path_dir.inc` avoided broad docs-site line-number churn; two leftover per-handle clear calls caused a NASM phase-error cascade until replaced by shared cache invalidation.
+- Result: `python3 scripts/bench_read_paths.py` now reports `FATARCH FW=11` and `FATSEEK FW=115`; sequential read phases stayed at their previous `FW=15` and sector-read counts.
+- Correctness probe: `tests/programs/trunc0.asm` now opens a file twice, caches a high cluster through handle A, truncates below it through handle B, then verifies handle A reads EOF at the old high offset. `python3 scripts/test_trunc0.py` passes with `PASS: TRUNC0 CACHE`.

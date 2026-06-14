@@ -227,3 +227,4 @@
 - [x] [Add Read-Side Performance Benchmarks](issues/add-read-side-performance-benchmarks.md)
 - [x] [Use Multi-Sector BIOS Reads for FAT I/O](issues/use-multi-sector-bios-reads-for-fat-io.md)
 - [x] [Speed EXEC and Overlay Loads with Direct Multi-Sector Reads](issues/speed-exec-overlay-loads-with-direct-multisector-reads.md)
+- [x] [Cache FAT Chain Positions for Archive Seeks](issues/cache-fat-chain-positions-for-archive-seeks.md)

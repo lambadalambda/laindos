@@ -235,12 +235,9 @@ wf_get_cluster:
     push dx
     call fat_walk_reset
     mov bx, [cs:wf_hoff]
-    mov si, [cs:bx+handles+H_LAST_CLUSTER]
-    mov cx, [cs:bx+handles+H_LAST_INDEX]
-    cmp si, 0
-    je .from_start
-    cmp cx, [cs:wf_cluster_index]
-    jbe .walk
+    mov ax, [cs:wf_cluster_index]
+    call handle_chain_cache_lookup
+    jnc .walk
 .from_start:
     mov bx, [cs:wf_hoff]
     mov si, [cs:bx+handles+H_CLUSTER]
@@ -267,8 +264,7 @@ wf_get_cluster:
     jmp .walk
 .found:
     mov bx, [cs:wf_hoff]
-    mov [cs:bx+handles+H_LAST_CLUSTER], si
-    mov [cs:bx+handles+H_LAST_INDEX], cx
+    call handle_chain_cache_store
     pop dx
     pop cx
     pop bx

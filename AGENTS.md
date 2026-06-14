@@ -51,6 +51,15 @@ LainDOS is a tiny single-tasking DOS implementation targeting x86 real mode. Its
 - Update the log whenever an investigation produces useful information, even if the result is negative.
 - Prefer concise dated entries with commands and observed output markers so future agents do not repeat the same probes.
 
+### Report performance results clearly
+
+- For performance-related work, always include a concise before/after overview in the final response: baseline counters or timings, final counters or timings, improvement ratio or percentage, related unchanged/regressed counters, and the commands used to measure them.
+- Prefer stable counters over wall-clock timings when QEMU tick timing is coarse.
+
+### Obsidian memory
+
+- Do not write to Obsidian memory unless the user explicitly asks for something to be remembered, stored, recalled, updated, or forgotten there.
+
 ### Toolchain workflow
 
 - Use the host tools that are already available in this workspace. NASM, Python, QEMU, and Bochs may be invoked directly.

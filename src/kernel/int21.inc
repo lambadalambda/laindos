@@ -2798,8 +2798,15 @@ int21_handler:
     pop si
     mov ax, [es:si+26]
     mov [cs:di+handles+H_CLUSTER], ax
-    mov [cs:di+handles+H_LAST_CLUSTER], ax
-    mov word [cs:di+handles+H_LAST_INDEX], 0
+    push si
+    cmp ax, 2
+    jb .of_no_chain_cache
+    mov bx, di
+    mov si, ax
+    xor cx, cx
+    call handle_chain_cache_store
+.of_no_chain_cache:
+    pop si
     mov ax, [es:si+28]
     mov [cs:di+handles+H_SIZE_LO], ax
     mov ax, [es:si+30]
@@ -3036,13 +3043,9 @@ int21_handler:
     call pos_to_cluster_sector
     mov [cs:rf_sec_in_cluster], dx
     mov [cs:rf_cluster_index], ax
-    mov si, [cs:bx+handles+H_LAST_CLUSTER]
-    mov cx, [cs:bx+handles+H_LAST_INDEX]
-    test si, si
-    jz .rf_walk_from_start
-    cmp cx, [cs:rf_cluster_index]
-    je .rf_have_cluster
-    jbe .rf_walk_from_cache
+    mov ax, [cs:rf_cluster_index]
+    call handle_chain_cache_lookup
+    jnc .rf_walk_from_cache
     jmp .rf_walk_from_start
 .rf_walk_from_cache:
     call fat_walk_reset
@@ -3076,9 +3079,8 @@ int21_handler:
     jmp .rf_cluster_walk
 .rf_cache_cluster:
     mov bx, [cs:rf_hoff]
-    mov [cs:bx+handles+H_LAST_CLUSTER], si
-    mov ax, [cs:rf_cluster_index]
-    mov [cs:bx+handles+H_LAST_INDEX], ax
+    mov cx, [cs:rf_cluster_index]
+    call handle_chain_cache_store
 .rf_have_cluster:
     mov ax, si
     mov bx, [cs:rf_sec_in_cluster]
@@ -3457,8 +3459,11 @@ int21_handler:
     jc .wf_file_io_pop
     mov si, [cs:wf_hoff]
     mov [cs:si+handles+H_CLUSTER], ax
-    mov [cs:si+handles+H_LAST_CLUSTER], ax
-    mov word [cs:si+handles+H_LAST_INDEX], 0
+    mov bx, si
+    mov si, ax
+    xor cx, cx
+    call handle_chain_cache_store
+    mov si, [cs:wf_hoff]
     mov byte [cs:si+handles+H_DRIVE+1], 1
 .wf_gap_have_first:
     ; extend the chain through the cluster holding the last gap byte
@@ -3496,8 +3501,11 @@ int21_handler:
     jc .wf_file_done
     mov si, [cs:wf_hoff]
     mov [cs:si+handles+H_CLUSTER], ax
-    mov [cs:si+handles+H_LAST_CLUSTER], ax
-    mov word [cs:si+handles+H_LAST_INDEX], 0
+    mov bx, si
+    mov si, ax
+    xor cx, cx
+    call handle_chain_cache_store
+    mov si, [cs:wf_hoff]
     mov byte [cs:si+handles+H_DRIVE+1], 1
 .wf_have_start:
     mov ax, [cs:si+handles+H_POS_LO]
@@ -3642,15 +3650,20 @@ int21_handler:
     call fat_free_chain
 .wf_trunc_fixup:
     mov si, [cs:wf_hoff]
+    call handle_chain_cache_invalidate_all
     mov ax, [cs:si+handles+H_CLUSTER]
-    mov [cs:si+handles+H_LAST_CLUSTER], ax
-    mov word [cs:si+handles+H_LAST_INDEX], 0
+    cmp ax, 2
+    jb .wf_trunc_fixup_done
+    mov bx, si
+    mov si, ax
+    xor cx, cx
+    call handle_chain_cache_store
+.wf_trunc_fixup_done:
     jmp .wf_file_done
 .wf_trunc_all:
     mov ax, [cs:si+handles+H_CLUSTER]
     mov word [cs:si+handles+H_CLUSTER], 0
-    mov word [cs:si+handles+H_LAST_CLUSTER], 0
-    mov word [cs:si+handles+H_LAST_INDEX], 0
+    call handle_chain_cache_invalidate_all
     mov byte [cs:si+handles+H_DRIVE+1], 1
     cmp ax, 2
     jb .wf_file_done

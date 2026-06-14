@@ -32,6 +32,7 @@ COM_START
     call run_seq_read_phase
     call run_exec_load_phase
     call run_fat_seek_phase
+    call run_fat_archive_phase
     call run_dir_lookup_phase
     call run_cd_seq_phase
     PASS_WITH msg_pass
@@ -142,6 +143,44 @@ run_dir_lookup_phase:
     dec word [loop_count]
     jnz .loop
     call phase_end
+    ret
+
+run_fat_archive_phase:
+    PRINT_DOLLAR msg_phase_arch
+    mov dx, fname_readfat
+    mov ax, 0x3D00
+    int 0x21
+    jc fail_open
+    mov [handle], ax
+    call counters_begin
+    mov word [phase_index], 0
+    mov word [loop_count], archive_count
+.loop:
+    mov si, [phase_index]
+    shl si, 1
+    mov dx, [archive_offsets+si]
+    mov [verify_offset], dx
+    mov bx, [handle]
+    xor cx, cx
+    mov ax, 0x4200
+    int 0x21
+    jc fail_seek
+    mov bx, [handle]
+    mov dx, read_buf
+    mov cx, 512
+    mov ah, 0x3F
+    int 0x21
+    jc fail_read
+    cmp ax, 512
+    jne fail_read
+    mov word [verify_len], 512
+    call verify_read_buf
+    jc fail_verify
+    inc word [phase_index]
+    dec word [loop_count]
+    jnz .loop
+    call phase_end
+    call close_handle
     ret
 
 run_cd_seq_phase:
@@ -313,6 +352,7 @@ msg_phase_read1k: db "BENCH: READ1K", 13, 10, "$"
 msg_phase_read4k: db "BENCH: READ4K", 13, 10, "$"
 msg_phase_exec: db "BENCH: EXECLOAD", 13, 10, "$"
 msg_phase_seek: db "BENCH: FATSEEK", 13, 10, "$"
+msg_phase_arch: db "BENCH: FATARCH", 13, 10, "$"
 msg_phase_dir: db "BENCH: DIRLOOK", 13, 10, "$"
 msg_phase_cd: db "BENCH: CDSEQ", 13, 10, "$"
 msg_ticks: db "TICKS=", "$"
@@ -349,6 +389,17 @@ seek_offsets:
     dw 0x9000, 0x6000, 0x8000, 0x7000
 seek_offsets_end:
 seek_count equ (seek_offsets_end - seek_offsets) / 2
+archive_offsets:
+    dw 0xD000, 0xA000, 0x7000, 0x4000
+    dw 0xD000, 0xA000, 0x7000, 0x4000
+    dw 0xD000, 0xA000, 0x7000, 0x4000
+    dw 0xD000, 0xA000, 0x7000, 0x4000
+    dw 0xD000, 0xA000, 0x7000, 0x4000
+    dw 0xD000, 0xA000, 0x7000, 0x4000
+    dw 0xD000, 0xA000, 0x7000, 0x4000
+    dw 0xD000, 0xA000, 0x7000, 0x4000
+archive_offsets_end:
+archive_count equ (archive_offsets_end - archive_offsets) / 2
 
 handle: dw 0
 phase_msg: dw 0

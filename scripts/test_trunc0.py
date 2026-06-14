@@ -13,7 +13,8 @@ def main():
         "TRUNC0  COM",
         [("tests/programs/trunc0.asm", "trunc0.com")],
         required=("PASS: TRUNC0 SIZE", "PASS: TRUNC0 PERSIST",
-                  "PASS: TRUNC0 FREE", "Program exited, code=00", "HALT"),
+                  "PASS: TRUNC0 FREE", "PASS: TRUNC0 CACHE",
+                  "Program exited, code=00", "HALT"),
         forbidden=("FAIL:", "EXC ", "INT 21h AH="),
         pass_message="AH=40h CX=0 truncate test passed.",
     )

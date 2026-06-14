@@ -26,6 +26,7 @@ PHASES = (
     "READ4K",
     "EXECLOAD",
     "FATSEEK",
+    "FATARCH",
     "DIRLOOK",
     "CDSEQ",
 )
@@ -36,6 +37,7 @@ PHASE_INFO = {
     "READ4K": "bytes=65536 chunk=4096",
     "EXECLOAD": "bytes=49152 load-only",
     "FATSEEK": "reads=32 chunk=512",
+    "FATARCH": "reads=32 hot_offsets=4 chunk=512",
     "DIRLOOK": f"dir_entries={DIR_FILLER_COUNT + 1} opens=32 worst-entry",
     "CDSEQ": "bytes=32768 chunk=512",
 }
@@ -128,9 +130,9 @@ def require_counter(results, phase, counter):
 
 
 def validate_results(results):
-    for phase in ("READ64", "READ512", "READ1K", "READ4K", "EXECLOAD", "FATSEEK", "DIRLOOK"):
+    for phase in ("READ64", "READ512", "READ1K", "READ4K", "EXECLOAD", "FATSEEK", "FATARCH", "DIRLOOK"):
         require_counter(results, phase, "RD")
-    for phase in ("READ64", "READ512", "READ1K", "READ4K", "EXECLOAD", "FATSEEK"):
+    for phase in ("READ64", "READ512", "READ1K", "READ4K", "EXECLOAD", "FATSEEK", "FATARCH"):
         require_counter(results, phase, "FW")
     if "LC" not in results["EXECLOAD"]:
         raise ValueError("EXECLOAD did not report an LC loader-copy counter")
@@ -143,6 +145,8 @@ def validate_results(results):
         raise ValueError("READ4K did not reduce BIOS read calls versus READ1K")
     if results["FATSEEK"].get("RD", 0) > 32:
         raise ValueError(f"FATSEEK regressed random 512-byte reads: RD={results['FATSEEK'].get('RD', 0)}")
+    if results["FATARCH"].get("FW", 0) >= 100:
+        raise ValueError(f"FATARCH did not reduce repeated archive FAT walks: FW={results['FATARCH'].get('FW', 0)}")
     if results["EXECLOAD"].get("RS", 0) != 97:
         raise ValueError(f"EXECLOAD transferred {results['EXECLOAD'].get('RS', 0)} sectors, expected 97")
     if results["EXECLOAD"].get("RD", 0) >= results["EXECLOAD"].get("RS", 0):
@@ -184,6 +188,7 @@ def main():
             "BENCH: READ4K",
             "BENCH: EXECLOAD",
             "BENCH: FATSEEK",
+            "BENCH: FATARCH",
             "BENCH: DIRLOOK",
             "BENCH: CDSEQ",
             "PASS: PERFREAD",

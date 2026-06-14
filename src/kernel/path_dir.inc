@@ -2252,3 +2252,156 @@ load_file_direct:
 
 .sec_num: dw 0
 .sec_num_hi: dw 0
+
+; Shared direct-mapped FAT chain-position cache. Entries are keyed by logical
+; drive and first cluster so aliases and reopens of the same file can share hits.
+; Close keeps entries warm; FAT-chain mutation invalidates them.
+; BX = handle table offset, CX = file cluster index, SI = FAT cluster.
+handle_chain_cache_store:
+    push ax
+    push dx
+    push di
+    xor ah, ah
+    mov al, [cs:bx+handles+H_DRIVE]
+    cmp al, MAX_DRIVES
+    jae .fat_handle
+    mov di, ax
+    cmp byte [cs:drive_type+di], DRIVE_TYPE_CDROM
+    je .done
+.fat_handle:
+    mov [cs:bx+handles+H_LAST_CLUSTER], si
+    mov [cs:bx+handles+H_LAST_INDEX], cx
+    cmp word [cs:bx+handles+H_CLUSTER], 2
+    jb .done
+    mov ax, cx
+    and ax, 3
+    mov di, ax
+    mov dl, [cs:bx+handles+H_DRIVE]
+    mov [cs:chain_cache_drive+di], dl
+    shl di, 1
+    mov dx, [cs:bx+handles+H_CLUSTER]
+    mov [cs:chain_cache_first+di], dx
+    mov [cs:chain_cache_index+di], cx
+    mov [cs:chain_cache_cluster+di], si
+.done:
+    pop di
+    pop dx
+    pop ax
+    ret
+
+; BX = handle table offset, AX = target file cluster index.
+; CF clear: CX/SI = cached start index/cluster. CF set: no usable entry.
+handle_chain_cache_lookup:
+    push ax
+    push bx
+    push dx
+    push di
+    mov dx, ax
+    xor ah, ah
+    mov al, [cs:bx+handles+H_DRIVE]
+    cmp al, MAX_DRIVES
+    jae .fat_handle
+    mov di, ax
+    cmp byte [cs:drive_type+di], DRIVE_TYPE_CDROM
+    je .miss
+.fat_handle:
+    mov di, 0xFFFF
+    xor si, si
+    mov ax, [cs:bx+handles+H_LAST_CLUSTER]
+    mov cx, [cs:bx+handles+H_LAST_INDEX]
+    call handle_chain_cache_consider
+    xor ax, ax
+    call handle_chain_cache_consider_slot
+    mov ax, 1
+    call handle_chain_cache_consider_slot
+    mov ax, 2
+    call handle_chain_cache_consider_slot
+    mov ax, 3
+    call handle_chain_cache_consider_slot
+    test si, si
+    jz .miss
+    mov cx, di
+    clc
+    jmp .out
+.miss:
+    stc
+.out:
+    pop di
+    pop dx
+    pop bx
+    pop ax
+    ret
+
+; AX = cache slot, BX = handle, DX = target, DI/SI = current best.
+handle_chain_cache_consider_slot:
+    push bp
+    mov bp, ax
+    mov al, [cs:chain_cache_drive+bp]
+    cmp al, [cs:bx+handles+H_DRIVE]
+    jne .done
+    shl bp, 1
+    mov ax, [cs:chain_cache_first+bp]
+    cmp ax, [cs:bx+handles+H_CLUSTER]
+    jne .done
+    mov cx, [cs:chain_cache_index+bp]
+    mov ax, [cs:chain_cache_cluster+bp]
+    call handle_chain_cache_consider
+.done:
+    pop bp
+    ret
+
+handle_chain_cache_consider:
+    test ax, ax
+    jz .ret
+    ; FFFFh is reserved as the invalid index sentinel; huge files merely miss.
+    cmp cx, 0xFFFF
+    je .ret
+    cmp cx, dx
+    ja .ret
+    cmp di, 0xFFFF
+    je .take
+    cmp cx, di
+    jbe .ret
+.take:
+    mov di, cx
+    mov si, ax
+.ret:
+    ret
+
+handle_chain_cache_invalidate_all:
+    push ax
+    push bx
+    push cx
+    push di
+    xor ax, ax
+    mov [cs:chain_cache_cluster], ax
+    mov [cs:chain_cache_cluster+2], ax
+    mov [cs:chain_cache_cluster+4], ax
+    mov [cs:chain_cache_cluster+6], ax
+    xor bx, bx
+    mov cx, MAX_HANDLES
+.loop:
+    xor ah, ah
+    mov al, [cs:bx+handles+H_DRIVE]
+    cmp al, MAX_DRIVES
+    jae .clear
+    mov di, ax
+    cmp byte [cs:drive_type+di], DRIVE_TYPE_CDROM
+    je .next
+.clear:
+    xor ax, ax
+    mov [cs:bx+handles+H_LAST_CLUSTER], ax
+    mov [cs:bx+handles+H_LAST_INDEX], ax
+.next:
+    add bx, HANDLE_SIZE
+    loop .loop
+    pop di
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+chain_cache_drive: times 4 db 0
+chain_cache_first: times 4 dw 0
+chain_cache_index: times 4 dw 0
+chain_cache_cluster: times 4 dw 0

@@ -364,6 +364,7 @@ fat_free_chain:
     push ax
     push bx
     push si
+    call handle_chain_cache_invalidate_all
     cmp si, 2
     jb .done
     cmp si, [cs:kmax_cluster]
