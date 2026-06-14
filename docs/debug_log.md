@@ -2,6 +2,31 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-14 FAT Direct-Read DMA Boundary Hardening
+
+### Goal
+
+- Keep the FAT direct multi-sector read optimization while preventing aligned-offset reads from overrunning into the unsafe tail before a 64K BIOS DMA boundary.
+
+### Confirmed Facts
+
+- `INT 21h AH=3Fh` uses a 16-bit byte count, so the practical repro is a near-64K read, not a greater-than-64K read.
+- Offset alignment alone does not guarantee that enough whole sectors fit before the next physical 64K DMA boundary because DOS allocations are paragraph-granular.
+- Extending `READMULTI` to read `0xF000` bytes into a segment with low bits `0x0101` reproduced the current bug before the fix: `FAIL: READMULTI READ`.
+
+### Fix
+
+- The FAT direct-read gate now computes whole sectors available before the current 64K DMA boundary and caps `rf_direct_count` to that value.
+- If a later sector would start in the boundary tail, the next read-loop iteration uses the existing staged read-cache/copy path rather than adding a new bounce buffer.
+
+### Verification
+
+- `python3 scripts/test_readmulti.py` passed after the cap.
+- `python3 scripts/run_tests.py scripts/test_readmulti.py scripts/test_readwrap.py` passed.
+- `python3 scripts/bench_read_paths.py` passed; `READ4K RD=17 RS=128` and `CDSTRM CD=8` stayed unchanged.
+- `make`, `make test-monkey-full`, and `make test-mi2-save` passed.
+- `make test` passed `153/153` in 100.54s with `-j 4`.
+
 ## 2026-06-14 Monkey Island FAT Direct-Read Regression
 
 ### Goal

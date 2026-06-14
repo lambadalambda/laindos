@@ -3615,6 +3615,7 @@ rf_cache_drive: db 0
 rf_direct_lba: dw 0
 rf_direct_lba_hi: dw 0
 rf_direct_count: db 0
+rf_dma_count: db 0
 rf_cache_valid: db 0
 floppy_check_tick: dw 0
 rf_buf_off:    dw 0

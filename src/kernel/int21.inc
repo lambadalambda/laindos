@@ -3099,10 +3099,16 @@ int21_handler:
     mov cl, 4
     shl ax, cl
     add ax, [cs:rf_buf_off]
-    jz .rf_dma_ok
+    jz .rf_dma_full_page
     neg ax
     cmp ax, 512
     jb .rf_cache_check
+    mov cl, 9
+    shr ax, cl
+    mov [cs:rf_dma_count], al
+    jmp .rf_dma_ok
+.rf_dma_full_page:
+    mov byte [cs:rf_dma_count], 0x7F
 .rf_dma_ok:
     mov ax, [cs:rf_count]
     mov cl, 9
@@ -3110,6 +3116,11 @@ int21_handler:
     test ax, ax
     jz .rf_cache_check
     mov [cs:rf_direct_count], al
+    mov al, [cs:rf_dma_count]
+    cmp al, [cs:rf_direct_count]
+    jae .rf_direct_dma_ok
+    mov [cs:rf_direct_count], al
+.rf_direct_dma_ok:
     xor ax, ax
     mov al, [cs:kspc]
     sub ax, [cs:rf_sec_in_cluster]

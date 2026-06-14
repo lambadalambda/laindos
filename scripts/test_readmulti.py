@@ -13,7 +13,7 @@ TIMEOUT = 8
 def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
     with open(DATA, "wb") as handle:
-        handle.write(bytes(range(256)) * 40)
+        handle.write(bytes(range(256)) * 300)
     boot = os.path.join(BUILDDIR, "readmulti_boot.bin")
     prog = os.path.join(BUILDDIR, "readmult.exe")
     run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])

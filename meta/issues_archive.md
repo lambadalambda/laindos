@@ -233,3 +233,4 @@
 - [x] [Prefer ATAPI CD-ROM Data Path](issues/prefer-atapi-cdrom-data-path.md)
 - [x] [Triage Full Monkey Island Framebuffer Inactive Smoke](issues/triage-full-monkey-island-framebuffer-inactive-smoke.md)
 - [x] [Triage Monkey Island 2 Save Smoke Copy-Protection Timeout](issues/triage-monkey-island-2-save-smoke-copy-protection-timeout.md)
+- [x] [Harden FAT Direct Reads at DMA Boundaries](issues/harden-fat-direct-reads-at-dma-boundaries.md)
