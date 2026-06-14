@@ -24,6 +24,8 @@ Build the shell-boot Monkey Island demo floppy image:
 make monkey-demo
 ```
 
+`SHELL.COM` is built through `scripts/build_shell_com.py`, which embeds the current `git log -1 --format='%h %s'` value in the startup banner and `VER` output. Direct `nasm programs/shell.asm` builds fall back to `unknown build`.
+
 Build the package published by the `nightly` GitHub release:
 
 ```sh

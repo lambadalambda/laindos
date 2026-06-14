@@ -26,7 +26,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", os.path.join(BUILDDIR, "shell.com")])
+    run_cmd(["python3", "scripts/build_shell_com.py", os.path.join(BUILDDIR, "shell.com")])
     long_lines = []
     for i in range(200):
         long_lines.append(f"LainDOS test data line {i:03d}: this is filler text for the MORE pager test.".encode())

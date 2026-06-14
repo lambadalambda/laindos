@@ -27,7 +27,7 @@ def main():
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
+    run_cmd(["python3", "scripts/build_shell_com.py", SHELL])
     run_cmd(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])
 
     game_files = [

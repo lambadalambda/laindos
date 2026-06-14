@@ -34,7 +34,7 @@ def main():
 
     run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
     run_cmd(["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
+    run_cmd(["python3", "scripts/build_shell_com.py", SHELL])
     run_cmd(["nasm", "-f", "bin", "programs/free.asm", "-o", FREE])
     run_cmd(["nasm", "-f", "bin", "programs/loadfix.asm", "-o", LOADFIX])
     run_cmd(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])

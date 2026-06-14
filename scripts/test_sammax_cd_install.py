@@ -49,7 +49,7 @@ def build_artifacts():
     AUTOEXEC.write_bytes(b"D:\r\nINSTALL\r\nEXIT\r\n")
     run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", str(BOOT)])
     run_cmd(["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm", "-o", str(KERNEL)])
-    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", str(SHELL)])
+    run_cmd(["python3", "scripts/build_shell_com.py", str(SHELL)])
     run_cmd([
         "python3", "scripts/mkimage.py", "--format=hd160m", str(BOOT), str(KERNEL), str(IMG), str(SHELL), str(AUTOEXEC),
     ])

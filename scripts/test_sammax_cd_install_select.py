@@ -44,7 +44,7 @@ def build_artifacts():
     if TRACE_DOS:
         kernel_cmd.insert(1, f"-DTRACE_DOS={TRACE_DOS}")
     run_cmd(kernel_cmd)
-    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", str(SHELL)])
+    run_cmd(["python3", "scripts/build_shell_com.py", str(SHELL)])
     run_cmd([
         "python3", "scripts/mkimage.py", "--format=hd160m",
         str(BOOT), str(KERNEL), str(IMG), str(SHELL), str(AUTOEXEC),

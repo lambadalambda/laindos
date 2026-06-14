@@ -17,7 +17,7 @@ def build_image():
     autoexec = os.path.join(BUILDDIR, "autoexec_batchif.bat")
     run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
     run_cmd(["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", shell])
+    run_cmd(["python3", "scripts/build_shell_com.py", shell])
     run_cmd(["nasm", "-DRET_CODE=7", "-f", "bin", "tests/programs/retchild.asm", "-o", ret7])
     with open(autoexec, "wb") as f:
         f.write(b"echo off\r\n"

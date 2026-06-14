@@ -1,6 +1,10 @@
 [bits 16]
 [org 0x0100]
 
+%ifndef SHELL_BUILD_ID
+%define SHELL_BUILD_ID "unknown build"
+%endif
+
 ATTR_DIR equ 0x10
 
 start:
@@ -3428,12 +3432,12 @@ cmd_match:
     pop ax
     ret
 
-banner: db "LainDOS Shell", 13, 10, "$"
+banner: db "LainDOS Shell ", SHELL_BUILD_ID, 13, 10, "$"
 prompt_drive: db ":\$"
 prompt_end: db ">$"
 crlf: db 13, 10, "$"
 bad_cmd_msg: db "Bad command or file name", 13, 10, "$"
-ver_msg: db "LainDOS", 13, 10, "$"
+ver_msg: db "LainDOS ", SHELL_BUILD_ID, 13, 10, "$"
 path_not_found_msg: db "Path not found", 13, 10, "$"
 file_not_found_msg: db "File not found", 13, 10, "$"
 file_error_msg: db "File error", 13, 10, "$"

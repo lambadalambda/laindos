@@ -20,7 +20,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", os.path.join(BUILDDIR, "shell.com")])
+    run_cmd(["python3", "scripts/build_shell_com.py", os.path.join(BUILDDIR, "shell.com")])
     run_cmd(["nasm", "-f", "bin", "tests/programs/envtest.asm", "-o", os.path.join(BUILDDIR, "envtest.com")])
     run_cmd(["nasm", "-f", "bin", "tests/programs/pathrun.asm", "-o", os.path.join(BUILDDIR, "pathrun.com")])
     run_cmd([

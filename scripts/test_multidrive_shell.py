@@ -33,7 +33,7 @@ def build_images():
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
+    run_cmd(["python3", "scripts/build_shell_com.py", SHELL])
     run_cmd(["nasm", "-f", "bin", "tests/programs/hello.asm", "-o", HELLO])
     run_cmd(["python3", "scripts/mkimage.py", BOOT, KERNEL, FLOPPY_IMG, SHELL])
     run_cmd(["python3", "scripts/mkimage.py", "--format=hd10m", BOOT16, KERNEL, HD_IMG, HELLO, HDONLY])

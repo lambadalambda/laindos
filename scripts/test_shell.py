@@ -5,6 +5,7 @@ import socket
 import subprocess
 import sys
 import time
+import build_shell_com
 from testlib import run_cmd, build_dir, finish_qemu, start_qemu, wait_for_output
 
 QEMU = "qemu-system-i386"
@@ -25,7 +26,7 @@ def build_image():
         "nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm",
         "-o", KERNEL,
     ])
-    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", os.path.join(BUILDDIR, "shell.com")])
+    run_cmd(["python3", "scripts/build_shell_com.py", os.path.join(BUILDDIR, "shell.com")])
     run_cmd(["nasm", "-f", "bin", "tests/programs/hello.asm", "-o", os.path.join(BUILDDIR, "hello.com")])
     run_cmd(["nasm", "-f", "bin", "tests/programs/helloexe.asm", "-o", os.path.join(BUILDDIR, "helloexe.exe")])
     run_cmd(["nasm", "-f", "bin", "tests/programs/exectest.asm", "-o", os.path.join(BUILDDIR, "exectest.com")])
@@ -370,8 +371,9 @@ def main():
     build_image()
     output = run_qemu()
     failed = False
+    build_id = build_shell_com.git_build_id()
     for marker in [
-        "LainDOS Shell",
+        f"LainDOS Shell {build_id}",
         "A:\\>",
         "SHELL    COM",
         "HELLO.COM",

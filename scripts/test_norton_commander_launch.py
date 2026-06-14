@@ -55,7 +55,7 @@ def build_image():
     files = nc.extract_fat12_root(disk1, FILES_DIR)
     run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
     run_cmd(["nasm", '-DBOOT_FILE="NC      EXE"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", SHELL])
+    run_cmd(["python3", "scripts/build_shell_com.py", SHELL])
     run_cmd(["nasm", "-f", "bin", "tests/programs/hello.asm", "-o", HELLO])
     run_cmd(["python3", "scripts/mkimage.py", "--format=hd10m", BOOT, KERNEL, IMG, *files, SHELL, HELLO])
 

@@ -107,7 +107,7 @@ if __name__ == "__main__":
 ## Adding A Game Smoke
 
 1. Keep proprietary archives and extracted files ignored under `vendor/` or generated under `build/`.
-2. Build a disposable image from current `src/boot.asm` and `src/kernel.asm` so the smoke tests the current kernel, not a stale image.
+2. Build a disposable image from current `src/boot.asm`, `src/kernel.asm`, and `scripts/build_shell_com.py` so the smoke tests the current kernel and shell banner, not a stale image.
 3. Use QEMU headlessly with serial captured, monitor sockets for key input, and `screendump` for visual checks.
 4. Route audio to QEMU's `none` backend when a game expects SB16 but the test should stay silent.
 5. Check for positive serial markers such as `LainDOS booted`, `EXE loaded`, shell prompts, or game banners.

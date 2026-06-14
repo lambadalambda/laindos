@@ -62,7 +62,7 @@ def build_artifacts():
     kernel_cmd.extend(shlex.split(os.environ.get("SAMMAX_CD_SETMUSE_KERNEL_DEFINES", "")))
     kernel_cmd.extend(["-f", "bin", "src/kernel.asm", "-o", str(KERNEL)])
     run_cmd(kernel_cmd)
-    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", str(SHELL)])
+    run_cmd(["python3", "scripts/build_shell_com.py", str(SHELL)])
     run_cmd([
         "python3", "scripts/mkimage.py", "--format=hd160m", str(BOOT), str(KERNEL), str(IMG), str(SHELL), str(AUTOEXEC),
     ])

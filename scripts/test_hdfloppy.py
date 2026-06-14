@@ -54,7 +54,7 @@ def build_images():
     run_cmd(["nasm", "-DFAT12=1", "-f", "bin", "src/boot.asm", "-o", boot])
     run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", boot16])
     run_cmd(["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
-    run_cmd(["nasm", "-f", "bin", "programs/shell.asm", "-o", shell])
+    run_cmd(["python3", "scripts/build_shell_com.py", shell])
     run_cmd(["python3", "scripts/mkimage.py", "--format=hd32m", boot16, KERNEL, HD_IMG, shell])
     run_cmd(["python3", "scripts/mkimage.py", boot, KERNEL, DISK1, one])
     run_cmd(["python3", "scripts/mkimage.py", boot, KERNEL, DISK2, two])
