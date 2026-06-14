@@ -2117,6 +2117,70 @@ load_file_direct:
     je .done
 .sec_have_left:
     push cx
+    mov [cs:lf_direct_count], cx
+    cmp word [cs:lf_direct_count], 2
+    jb .direct_no
+    cmp word [cs:lf_left_hi], 0
+    jne .direct_file_ready
+    mov ax, [cs:lf_left_lo]
+    mov cl, 9
+    shr ax, cl
+    cmp ax, [cs:lf_direct_count]
+    jae .direct_file_ready
+    mov [cs:lf_direct_count], ax
+.direct_file_ready:
+    cmp word [cs:lf_direct_count], 2
+    jb .direct_no
+    cmp word [cs:lf_direct_count], 127
+    jbe .direct_count_ready
+    mov word [cs:lf_direct_count], 127
+.direct_count_ready:
+    mov ax, es
+    and ax, 0x0FFF
+    mov cl, 4
+    shl ax, cl
+    add ax, bx
+    jz .direct_dma_ready
+    neg ax
+    mov cl, 9
+    shr ax, cl
+    cmp ax, 2
+    jb .direct_no
+    cmp [cs:lf_direct_count], ax
+    jbe .direct_dma_ready
+    mov [cs:lf_direct_count], ax
+.direct_dma_ready:
+    cmp word [cs:lf_direct_count], 2
+    jb .direct_no
+    push si
+    mov ax, [cs:.sec_num]
+    mov dx, [cs:.sec_num_hi]
+    mov [cs:kio_lba_hi], dx
+    mov cx, [cs:lf_direct_count]
+    call read_sectors
+    pop si
+    jc .direct_err_pop
+    mov ax, [cs:lf_direct_count]
+    mov cx, 512
+    mul cx
+    mov [cs:lf_chunk], ax
+    sub [cs:lf_left_lo], ax
+    sbb word [cs:lf_left_hi], 0
+    mov ax, [cs:lf_direct_count]
+    add [cs:.sec_num], ax
+    adc word [cs:.sec_num_hi], 0
+    pop cx
+    sub cx, [cs:lf_direct_count]
+    jnz .sec_loop
+    call fat_next_checked
+    mov si, ax
+    jmp .load
+.direct_err_pop:
+    pop cx
+    jmp .err
+.direct_no:
+    pop cx
+    push cx
     push si
     mov ax, [cs:.sec_num]
     mov dx, [cs:.sec_num_hi]
@@ -2147,6 +2211,7 @@ load_file_direct:
     mov cx, 512
 .copy_chunk_set:
     mov [cs:lf_chunk], cx
+    PERF_INC perf_loader_copies
     rep movsb
     pop di
     pop si

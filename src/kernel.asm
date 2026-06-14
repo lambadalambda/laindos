@@ -3734,6 +3734,7 @@ rp_component_idx: db 0
 lf_left_lo: dw 0
 lf_left_hi: dw 0
 lf_chunk: dw 0
+lf_direct_count: dw 0
 
 ff_dir_cluster: dw 0
 ff_entry_idx: dw 0
@@ -3804,6 +3805,7 @@ ov_dst_off: dw 0
 ov_sector_offset: dw 0
 ov_sec_in_cluster: dw 0
 ov_chunk: dw 0
+ov_direct_count: dw 0
 ov_reloc_count: dw 0
 ov_reloc_off: dw 0
 ov_image_par: dw 0
@@ -4189,6 +4191,10 @@ perf_counts_print:
     call serial_print
     mov ax, [cs:perf_read_sectors]
     call serial_print_hex_word
+    mov si, msg_perf_lc
+    call serial_print
+    mov ax, [cs:perf_loader_copies]
+    call serial_print_hex_word
     mov si, msg_perf_wr
     call serial_print
     mov ax, [cs:perf_sector_writes]
@@ -4258,6 +4264,7 @@ perf_counts_print:
 
 msg_perf_rd:  db "PERF RD=", 0
 msg_perf_rs:  db " RS=", 0
+msg_perf_lc:  db " LC=", 0
 msg_perf_wr:  db " WR=", 0
 msg_perf_wd:  db " WD=", 0
 msg_perf_cd:  db " CD=", 0
@@ -4276,6 +4283,7 @@ msg_perf_mw:  db " MW=", 0
 
 perf_sector_reads: dw 0
 perf_read_sectors: dw 0
+perf_loader_copies: dw 0
 perf_sector_writes: dw 0
 perf_data_writes: dw 0
 perf_cd_reads: dw 0

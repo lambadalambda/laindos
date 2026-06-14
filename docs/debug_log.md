@@ -37,6 +37,22 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - `make bench-read-paths` passed. Sequential reads now report `READ64 RD=128 RS=128`, `READ512 RD=128 RS=128`, `READ1K RD=65 RS=128`, and `READ4K RD=17 RS=128`; random `FATSEEK` uses 512-byte reads and stays at `RD=32 RS=32`.
 
+## 2026-06-14 Direct Multi-Sector EXEC And Overlay Loads
+
+### Goal
+
+- Reuse the safe FAT multi-sector read helper for load-only `EXEC` and overlay copies so large loader transfers avoid one BIOS call and one `SEC_BUF` bounce copy per sector.
+
+### Confirmed Facts
+
+- Added a conservative direct loader path for aligned full-sector chunks of at least two sectors inside the current FAT cluster. Partial starts, partial tails, and DMA-page no-fit or straddling destinations continue through the existing single-sector `SEC_BUF` copy path.
+- FAT overlay copying uses the same direct path when `ov_sector_offset == 0`; unaligned MZ overlay headers and relocation-sector fetches stay on the existing cache/copy paths.
+- Added `LC` as an opt-in loader bounce-copy chunk counter in `PERF_IO_COUNTS` output. The generated benchmark now requires `EXECLOAD RD < RS` and `EXECLOAD LC < RS`.
+
+### Baseline After Change
+
+- `make bench-read-paths` passed. `EXECLOAD` now reports `RD=14 RS=97 LC=0`, down from the previous `RD=97 RS=97` one-sector loader path. Sequential handle-read counters remain unchanged from the prior multi-sector FAT read path.
+
 ## 2026-06-11 MI2 Save Crash: Tick Batching Into iMUSE's Non-Reentrant INT 08 Hook
 
 ### Symptoms

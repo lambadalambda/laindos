@@ -132,6 +132,8 @@ def validate_results(results):
         require_counter(results, phase, "RD")
     for phase in ("READ64", "READ512", "READ1K", "READ4K", "EXECLOAD", "FATSEEK"):
         require_counter(results, phase, "FW")
+    if "LC" not in results["EXECLOAD"]:
+        raise ValueError("EXECLOAD did not report an LC loader-copy counter")
     for phase in ("READ64", "READ512", "READ1K", "READ4K"):
         if results[phase].get("RS") != 128:
             raise ValueError(f"{phase} transferred {results[phase].get('RS', 0)} sectors, expected 128")
@@ -141,6 +143,12 @@ def validate_results(results):
         raise ValueError("READ4K did not reduce BIOS read calls versus READ1K")
     if results["FATSEEK"].get("RD", 0) > 32:
         raise ValueError(f"FATSEEK regressed random 512-byte reads: RD={results['FATSEEK'].get('RD', 0)}")
+    if results["EXECLOAD"].get("RS", 0) != 97:
+        raise ValueError(f"EXECLOAD transferred {results['EXECLOAD'].get('RS', 0)} sectors, expected 97")
+    if results["EXECLOAD"].get("RD", 0) >= results["EXECLOAD"].get("RS", 0):
+        raise ValueError("EXECLOAD did not reduce BIOS read calls versus sectors transferred")
+    if results["EXECLOAD"].get("LC", 0) >= results["EXECLOAD"].get("RS", 0):
+        raise ValueError("EXECLOAD still bounce-copied every loaded sector")
     require_counter(results, "CDSEQ", "CD")
 
 
@@ -151,7 +159,7 @@ def print_summary(results):
         print(
             f"{phase}: {PHASE_INFO[phase]} ticks={counters['TICKS']} "
             f"rd={counters.get('RD', 0)} read_sectors={counters.get('RS', 0)} cd={counters.get('CD', 0)} "
-            f"fat_walk={counters.get('FW', 0)} fat_alloc_scan={counters.get('FS', 0)} "
+            f"loader_copies={counters.get('LC', 0)} fat_walk={counters.get('FW', 0)} fat_alloc_scan={counters.get('FS', 0)} "
             f"fat16_hit={counters.get('FH', 0)} fat16_miss={counters.get('FM', 0)}"
         )
 

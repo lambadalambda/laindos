@@ -24,3 +24,11 @@ possible.
 
 - Relevant paths include `load_file_direct` and overlay copy/load helpers.
 - This should probably follow the generic multi-sector BIOS-read work so the loader can reuse the safe transfer-count logic.
+
+## Implementation Notes
+
+- Added a direct FAT loader path for full-sector chunks of at least two sectors inside the current cluster, using `read_sectors` directly into the destination `ES:BX`.
+- Kept partial-sector starts/tails and DMA-page no-fit or straddling destinations on the existing `SEC_BUF` bounce-copy path.
+- Applied the same aligned direct-read path to FAT overlay copy ranges; relocation-sector reads and unaligned overlay header skips remain on the existing single-sector path.
+- Added `LC` to opt-in performance output to count loader bounce-copy chunks.
+- `make bench-read-paths` now validates `EXECLOAD RD < RS` and `EXECLOAD LC < RS`; the current synthetic result is `EXECLOAD RD=14 RS=97 LC=0`.

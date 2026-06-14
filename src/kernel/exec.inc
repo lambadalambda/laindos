@@ -427,6 +427,7 @@ load_cd_file_direct:
     mov cx, 2048
 .copy_chunk_set:
     mov [cs:lf_chunk], cx
+    PERF_INC perf_loader_copies
     rep movsb
     pop di
     pop si
@@ -1190,6 +1191,80 @@ overlay_copy_range:
     jae .err_pop
     cmp si, 2
     jb .err_pop
+    cmp word [cs:ov_sector_offset], 0
+    jne .bounce_sector
+    xor ax, ax
+    mov al, [cs:kspc]
+    sub ax, [cs:ov_sec_in_cluster]
+    mov [cs:ov_direct_count], ax
+    cmp word [cs:ov_direct_count], 2
+    jb .bounce_sector
+    cmp word [cs:ov_left_hi], 0
+    jne .direct_file_ready
+    mov ax, [cs:ov_left]
+    mov cl, 9
+    shr ax, cl
+    cmp ax, [cs:ov_direct_count]
+    jae .direct_file_ready
+    mov [cs:ov_direct_count], ax
+.direct_file_ready:
+    cmp word [cs:ov_direct_count], 2
+    jb .bounce_sector
+    cmp word [cs:ov_direct_count], 127
+    jbe .direct_count_ready
+    mov word [cs:ov_direct_count], 127
+.direct_count_ready:
+    mov ax, [cs:ov_dst_seg]
+    and ax, 0x0FFF
+    mov cl, 4
+    shl ax, cl
+    add ax, [cs:ov_dst_off]
+    jz .direct_dma_ready
+    neg ax
+    mov cl, 9
+    shr ax, cl
+    cmp ax, 2
+    jb .bounce_sector
+    cmp [cs:ov_direct_count], ax
+    jbe .direct_dma_ready
+    mov [cs:ov_direct_count], ax
+.direct_dma_ready:
+    cmp word [cs:ov_direct_count], 2
+    jb .bounce_sector
+    push si
+    mov ax, si
+    mov bx, [cs:ov_sec_in_cluster]
+    call cluster_lba
+    mov [cs:kio_lba_hi], dx
+    mov es, [cs:ov_dst_seg]
+    mov bx, [cs:ov_dst_off]
+    mov cx, [cs:ov_direct_count]
+    call read_sectors
+    mov [cs:ov_dst_seg], es
+    mov [cs:ov_dst_off], bx
+    pop si
+    jc .err_pop
+    mov ax, [cs:ov_direct_count]
+    mov cx, 512
+    mul cx
+    mov [cs:ov_chunk], ax
+    sub [cs:ov_left], ax
+    sbb word [cs:ov_left_hi], 0
+    mov ax, [cs:ov_direct_count]
+    add [cs:ov_sec_in_cluster], ax
+    xor ch, ch
+    mov cl, [cs:kspc]
+    cmp [cs:ov_sec_in_cluster], cx
+    jb .copy_loop
+    call fat_next
+    cmp ax, [cs:kfat_eoc]
+    jae .done
+    cmp ax, 2
+    jb .err_pop
+    mov si, ax
+    mov word [cs:ov_sec_in_cluster], 0
+    jmp .copy_loop
+.bounce_sector:
     push si
     mov ax, si
     mov bx, [cs:ov_sec_in_cluster]
@@ -1218,6 +1293,7 @@ overlay_copy_range:
     mov cx, ax
 .chunk_ok:
     mov [cs:ov_chunk], cx
+    PERF_INC perf_loader_copies
     push si
     mov ax, SEC_BUF
     mov ds, ax
@@ -1323,6 +1399,7 @@ overlay_copy_range_cd:
     mov cx, ax
 .chunk_ok:
     mov [cs:ov_chunk], cx
+    PERF_INC perf_loader_copies
     push ds
     mov ax, CD_BUF
     mov ds, ax
