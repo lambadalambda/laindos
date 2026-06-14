@@ -29,6 +29,7 @@ PHASES = (
     "FATARCH",
     "DIRLOOK",
     "CDSEQ",
+    "CDSTRM",
 )
 PHASE_INFO = {
     "READ64": "bytes=65536 chunk=64",
@@ -40,6 +41,7 @@ PHASE_INFO = {
     "FATARCH": "reads=32 hot_offsets=4 chunk=512",
     "DIRLOOK": f"dir_entries={DIR_FILLER_COUNT + 1} opens=32 worst-entry",
     "CDSEQ": "bytes=32768 chunk=512",
+    "CDSTRM": "bytes=32768 chunk=4096",
 }
 PERF_RE = re.compile(r"([A-Z0-9]+)=([0-9A-Fa-f]{4})")
 
@@ -73,20 +75,19 @@ def write_artifacts():
     return dir_paths
 
 
-def build_artifacts():
+def build_artifacts(force_atapi=False):
     dir_paths = write_artifacts()
     run_cmd(["python3", "scripts/mkiso.py", ISO, f"CDSEQ.BIN={CDSEQ}"])
     run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
-    run_cmd([
+    kernel_cmd = [
         "nasm",
         '-DBOOT_FILE="PERFREADCOM"',
         "-DPERF_IO_COUNTS=1",
-        "-f",
-        "bin",
-        "src/kernel.asm",
-        "-o",
-        KERNEL,
-    ])
+    ]
+    if force_atapi:
+        kernel_cmd.append("-DTEST_FORCE_CD_ATAPI=1")
+    kernel_cmd.extend(["-f", "bin", "src/kernel.asm", "-o", KERNEL])
+    run_cmd(kernel_cmd)
     run_cmd(["nasm", "-f", "bin", "tests/programs/perfread.asm", "-o", PROGRAM])
     image_files = [PROGRAM, READFAT, LOADBIG]
     image_files.extend(f"BIGDIR:{path}" for path in dir_paths)
@@ -157,10 +158,13 @@ def validate_results(results):
     if results["EXECLOAD"].get("LC", 0) >= results["EXECLOAD"].get("RS", 0):
         raise ValueError("EXECLOAD still bounce-copied every loaded sector")
     require_counter(results, "CDSEQ", "CD")
+    require_counter(results, "CDSTRM", "CD")
+    if results["CDSTRM"].get("CD", 0) > 8:
+        raise ValueError(f"CDSTRM did not reduce sequential CD commands: CD={results['CDSTRM'].get('CD', 0)}")
 
 
-def print_summary(results):
-    print("\nRead-side benchmark counters:")
+def print_summary(results, title):
+    print(f"\n{title}:")
     for phase in PHASES:
         counters = results[phase]
         print(
@@ -171,8 +175,8 @@ def print_summary(results):
         )
 
 
-def main():
-    build_artifacts()
+def run_benchmark(title, force_atapi=False):
+    build_artifacts(force_atapi=force_atapi)
     output = run_serial_image(
         IMG,
         TIMEOUT,
@@ -194,6 +198,7 @@ def main():
             "BENCH: FATARCH",
             "BENCH: DIRLOOK",
             "BENCH: CDSEQ",
+            "BENCH: CDSTRM",
             "PASS: PERFREAD",
             "Program exited, code=00",
             "HALT",
@@ -212,7 +217,12 @@ def main():
         print(output)
         print("--- end ---")
         sys.exit(1)
-    print_summary(results)
+    print_summary(results, title)
+
+
+def main():
+    run_benchmark("Read-side benchmark counters")
+    run_benchmark("Forced-ATAPI read-side benchmark counters", force_atapi=True)
 
 
 if __name__ == "__main__":

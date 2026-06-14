@@ -229,3 +229,4 @@
 - [x] [Speed EXEC and Overlay Loads with Direct Multi-Sector Reads](issues/speed-exec-overlay-loads-with-direct-multisector-reads.md)
 - [x] [Cache FAT Chain Positions for Archive Seeks](issues/cache-fat-chain-positions-for-archive-seeks.md)
 - [x] [Add Sequential Read-Ahead for Handle Reads](issues/add-sequential-read-ahead-for-handle-reads.md)
+- [x] [Add Multi-Sector CD Sequential Read Path](issues/add-multisector-cd-sequential-read-path.md)

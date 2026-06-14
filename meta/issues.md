@@ -1,3 +1,2 @@
-- [ ] [Add Multi-Sector CD Sequential Read Path](issues/add-multisector-cd-sequential-read-path.md)
 - [ ] [Cache Subdirectory Sectors for Path Searches](issues/cache-subdirectory-sectors-for-path-searches.md)
 - [ ] [Use Word or Dword Copies for Sector Transfers](issues/use-word-or-dword-copies-for-sector-transfers.md)

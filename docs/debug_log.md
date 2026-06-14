@@ -2,6 +2,24 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-14 Multi-Sector CD Sequential Reads
+
+### Goal
+
+- Reduce CD command count for aligned sequential file streaming without changing raw-sector CD users, directory scans, PVD reads, or MSCDEX audio/control paths.
+
+### Confirmed Facts
+
+- Added a generated `CDSTRM` benchmark phase that reads `D:\CDSEQ.BIN` as eight 4096-byte chunks, distinct from the existing 512-byte `CDSEQ` cache benchmark.
+- Baseline with the existing four-slot CD file cache failed the new gate at `CDSTRM CD=16`, one physical CD command per 2048-byte sector.
+- Added a conservative direct handle path for aligned 4096-byte CD reads when the file has at least two sectors remaining and the caller buffer does not cross a 64 KiB DMA page.
+- The direct path issues two-sector BIOS EDD reads through the DAP and two-sector ATAPI READ(10) packets through the ATAPI fallback path. On failure, the handle position and counters are unchanged and the existing one-sector cached path handles the read.
+- Added a `TEST_FORCE_CD_ATAPI` benchmark build so QEMU verifies the ATAPI data path as well as the normal BIOS EDD path.
+
+### Baseline After Change
+
+- `python3 scripts/bench_read_paths.py` passed for both normal and forced-ATAPI builds. `CDSTRM` now reports `CD=8`, down from `CD=16`; existing `CDSEQ` remains `CD=16` and FAT read-path counters remain unchanged from the FAT read-ahead baseline.
+
 ## 2026-06-13 Read-Side Performance Benchmark Baseline
 
 ### Goal

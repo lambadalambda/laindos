@@ -19,7 +19,14 @@ cd_invalidate_file_cache:
 
 cd_read_sector_drive:
     call cd_invalidate_file_cache
-cd_fetch_sector_drive: PERF_INC perf_cd_reads
+cd_fetch_sector_drive:
+    push cx
+    mov cx, 1
+    call cd_fetch_sectors_drive
+    pop cx
+    ret
+
+cd_fetch_sectors_drive: PERF_INC perf_cd_reads
     push ax
     push bx
     push cx
@@ -29,9 +36,10 @@ cd_fetch_sector_drive: PERF_INC perf_cd_reads
     push si
     mov [cs:cd_lba_lo], ax
     mov [cs:cd_lba_hi], dx
+    mov [cs:cd_io_count], cx
     cmp byte [cs:cd_read_method], CD_READ_METHOD_ATAPI
     je .read_atapi
-    mov word [cs:cd_dap+2], 1
+    mov [cs:cd_dap+2], cx
     mov [cs:cd_dap+4], bx
     mov ax, es
     mov [cs:cd_dap+6], ax
@@ -59,7 +67,8 @@ cd_fetch_sector_drive: PERF_INC perf_cd_reads
 .read_atapi:
     mov ax, [cs:cd_lba_lo]
     mov dx, [cs:cd_lba_hi]
-    call atapi_read_sector
+    mov cx, [cs:cd_io_count]
+    call atapi_read_sectors
     jc .err
     clc
     jmp .done
@@ -88,6 +97,13 @@ cd_fetch_sector_current:
     mov [cs:cd_io_drive], al
     pop ax
     jmp cd_fetch_sector_drive
+
+cd_fetch_sectors_current:
+    push ax
+    mov al, [cs:kdrv]
+    mov [cs:cd_io_drive], al
+    pop ax
+    jmp cd_fetch_sectors_drive
 
 cd_cache_slot_seg:
     push bx
@@ -304,6 +320,13 @@ atapi_detect_cdrom:
     ret
 
 atapi_read_sector:
+    push cx
+    mov cx, 1
+    call atapi_read_sectors
+    pop cx
+    ret
+
+atapi_read_sectors:
     push ax
     push bx
     push cx
@@ -312,8 +335,13 @@ atapi_read_sector:
     push es
     push si
     push di
+    test cx, cx
+    jz .err
+    cmp cx, 31
+    ja .err
     mov [cs:cd_lba_lo], ax
     mov [cs:cd_lba_hi], dx
+    mov [cs:cd_io_count], cx
     call atapi_select_current
     call atapi_wait_not_busy
     jc .err
@@ -323,10 +351,13 @@ atapi_read_sector:
     out dx, al
     mov dx, [cs:atapi_base]
     add dx, 4
-    xor al, al
+    mov ax, [cs:cd_io_count]
+    mov cl, 11
+    shl ax, cl
+    mov [cs:atapi_limit], ax
     out dx, al
     inc dx
-    mov al, 8
+    mov al, ah
     out dx, al
     mov dx, [cs:atapi_base]
     add dx, 7
@@ -350,13 +381,18 @@ atapi_read_sector:
     mov ax, [cs:cd_lba_lo]
     mov [cs:atapi_cdb+4], ah
     mov [cs:atapi_cdb+5], al
-    mov byte [cs:atapi_cdb+8], 1
+    mov ax, [cs:cd_io_count]
+    mov [cs:atapi_cdb+7], ah
+    mov [cs:atapi_cdb+8], al
     mov si, atapi_cdb
     mov dx, [cs:atapi_base]
     mov cx, 6
     cld
     rep outsw
     pop es
+.data_loop:
+    cmp word [cs:atapi_limit], 0
+    je .complete
     call atapi_wait_drq
     jc .err
     mov dx, [cs:atapi_base]
@@ -366,13 +402,23 @@ atapi_read_sector:
     inc dx
     in al, dx
     mov byte [cs:atapi_count+1], al
-    cmp word [cs:atapi_count], 2048
-    jb .err
+    cmp word [cs:atapi_count], 0
+    je .err
+    test byte [cs:atapi_count], 1
+    jnz .err
+    mov ax, [cs:atapi_count]
+    cmp ax, [cs:atapi_limit]
+    ja .err
     mov di, bx
     mov dx, [cs:atapi_base]
-    mov cx, 1024
+    mov cx, [cs:atapi_count]
+    shr cx, 1
     cld
     rep insw
+    add bx, [cs:atapi_count]
+    sub [cs:atapi_limit], ax
+    jmp .data_loop
+.complete:
     call atapi_wait_not_busy
     jc .err
     mov dx, [cs:atapi_base]
@@ -634,6 +680,9 @@ mount_bios_cdrom_d:
     mov byte [cs:drive_present+3], 0
     mov byte [cs:cd_present], 0
     mov byte [cs:cd_read_method], CD_READ_METHOD_BIOS
+%ifdef TEST_FORCE_CD_ATAPI
+    jmp .err
+%endif
     mov dl, 0x80
 .probe:
     cmp dl, 0xF0
@@ -1535,6 +1584,53 @@ cd_read_handle:
     ; ax:dx = absolute sector LBA -- reuse any cached file sector.
     mov [cs:cd_rd_cache_req_lba], ax
     mov [cs:cd_rd_cache_req_lba_hi], dx
+.direct_check:
+    test word [cs:bx+handles+H_POS_LO], 2047
+    jnz .cache_search_start
+    cmp word [cs:rf_count], 4096
+    jb .cache_search_start
+    mov ax, [cs:bx+handles+H_SIZE_LO]
+    sub ax, [cs:bx+handles+H_POS_LO]
+    mov dx, [cs:bx+handles+H_SIZE_HI]
+    sbb dx, [cs:bx+handles+H_POS_HI]
+    test dx, dx
+    jnz .direct_size_ok
+    cmp ax, 4096
+    jb .cache_search_start
+.direct_size_ok:
+    mov ax, [cs:rf_buf_off]
+    cmp ax, 0xF000
+    ja .cache_search_start
+    mov ax, [cs:rf_buf_seg]
+    and ax, 0x0FFF
+    mov cl, 4
+    shl ax, cl
+    add ax, [cs:rf_buf_off]
+    jz .direct_dma_ok
+    neg ax
+    cmp ax, 4096
+    jb .cache_search_start
+.direct_dma_ok:
+    mov ax, [cs:cd_rd_cache_req_lba]
+    mov dx, [cs:cd_rd_cache_req_lba_hi]
+    mov es, [cs:rf_buf_seg]
+    mov bx, [cs:rf_buf_off]
+    mov cx, 2
+    call cd_fetch_sectors_current
+    jc .cache_search_start
+    mov bx, [cs:rf_hoff]
+    add word [cs:bx+handles+H_POS_LO], 4096
+    adc word [cs:bx+handles+H_POS_HI], 0
+    add word [cs:rf_buf_off], 4096
+    jnc .direct_buf_ok
+    add word [cs:rf_buf_seg], 0x1000
+.direct_buf_ok:
+    sub word [cs:rf_count], 4096
+    add word [cs:rf_read], 4096
+    jmp .loop
+.cache_search_start:
+    mov ax, [cs:cd_rd_cache_req_lba]
+    mov dx, [cs:cd_rd_cache_req_lba_hi]
     xor si, si
 .cache_lookup:
     cmp si, CD_CACHE_SLOTS

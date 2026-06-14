@@ -3475,6 +3475,7 @@ cd_probe_drive: db 0
 cd_io_drive: db 0
 cd_bios_drive: db 0
 cd_read_method: db CD_READ_METHOD_BIOS
+cd_io_count: dw 1
 cd_seen_name: db 0
 cd_lba_lo: dw 0
 cd_lba_hi: dw 0

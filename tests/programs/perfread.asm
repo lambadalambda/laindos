@@ -35,6 +35,7 @@ COM_START
     call run_fat_archive_phase
     call run_dir_lookup_phase
     call run_cd_seq_phase
+    call run_cd_stream_phase
     PASS_WITH msg_pass
 
 run_seq_read_phase:
@@ -212,6 +213,35 @@ run_cd_seq_phase:
     call close_handle
     ret
 
+run_cd_stream_phase:
+    PRINT_DOLLAR msg_phase_cdstream
+    mov dx, fname_cdseq
+    mov ax, 0x3D00
+    int 0x21
+    jc fail_open
+    mov [handle], ax
+    call counters_begin
+    mov word [verify_offset], 0
+    mov word [loop_count], 8
+.loop:
+    mov bx, [handle]
+    mov dx, read_buf
+    mov cx, 4096
+    mov ah, 0x3F
+    int 0x21
+    jc fail_read
+    cmp ax, 4096
+    jne fail_read
+    mov word [verify_len], 4096
+    call verify_read_buf
+    jc fail_verify
+    add word [verify_offset], 4096
+    dec word [loop_count]
+    jnz .loop
+    call phase_end
+    call close_handle
+    ret
+
 close_handle:
     mov bx, [handle]
     mov ah, 0x3E
@@ -355,6 +385,7 @@ msg_phase_seek: db "BENCH: FATSEEK", 13, 10, "$"
 msg_phase_arch: db "BENCH: FATARCH", 13, 10, "$"
 msg_phase_dir: db "BENCH: DIRLOOK", 13, 10, "$"
 msg_phase_cd: db "BENCH: CDSEQ", 13, 10, "$"
+msg_phase_cdstream: db "BENCH: CDSTRM", 13, 10, "$"
 msg_ticks: db "TICKS=", "$"
 msg_crlf_dollar: db 13, 10, "$"
 msg_pass: db "PASS: PERFREAD", 13, 10, "$"
