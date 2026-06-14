@@ -12,8 +12,10 @@ Current important segment layout:
 0060:0000  FAT scratch buffer
 0180:0000  CD-ROM scratch buffer
 0200:0000  sector buffer
-0220:0000  read cache buffer
-0240:0000  root directory buffer
+0220:0000  four-sector read cache buffer
+02A0:0000  root directory buffer
+06A0:0000  write cache buffer
+06C0:0000  CD file-read cache buffers
 0B00:0000  start of MCB-managed program and environment memory
 A000:0000  VGA graphics memory
 FFFF:0010  relocated kernel in the HMA (A20 enabled at boot)

@@ -18,7 +18,7 @@ and excerpt-adjacent metadata could drift silently.
   but missing from the dosapi tables.
 - docs/site/page_filesystem.jsx listed buffer segments from a pre-CD
   layout (`SEC_BUF 0B00`, `READ_CACHE_BUF 0B20`, `ROOT_SEG 0B40`);
-  the real values are 0200/0220/0240.
+  the then-current values were 0200/0220/0240.
 - docs/site/data.jsx boot walkthrough carried pre-HMA, pre-0x0B00
   values: arena prose said 0x1000, the s4 register table showed the
   kernel CS as 0340, and the free-paragraph figures were 99BFh/614K

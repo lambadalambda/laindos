@@ -139,12 +139,15 @@ def validate_results(results):
     for phase in ("READ64", "READ512", "READ1K", "READ4K"):
         if results[phase].get("RS") != 128:
             raise ValueError(f"{phase} transferred {results[phase].get('RS', 0)} sectors, expected 128")
-    if results["READ1K"].get("RD", 0) >= results["READ512"].get("RD", 0):
-        raise ValueError("READ1K did not reduce BIOS read calls versus READ512")
+    for phase in ("READ64", "READ512"):
+        if results[phase].get("RD", 0) > 48:
+            raise ValueError(f"{phase} did not reduce sequential small-read BIOS calls: RD={results[phase].get('RD', 0)}")
     if results["READ4K"].get("RD", 0) >= results["READ1K"].get("RD", 0):
         raise ValueError("READ4K did not reduce BIOS read calls versus READ1K")
     if results["FATSEEK"].get("RD", 0) > 32:
         raise ValueError(f"FATSEEK regressed random 512-byte reads: RD={results['FATSEEK'].get('RD', 0)}")
+    if results["FATSEEK"].get("RS", 0) > 32:
+        raise ValueError(f"FATSEEK fetched excess random-read sectors: RS={results['FATSEEK'].get('RS', 0)}")
     if results["FATARCH"].get("FW", 0) >= 100:
         raise ValueError(f"FATARCH did not reduce repeated archive FAT walks: FW={results['FATARCH'].get('FW', 0)}")
     if results["EXECLOAD"].get("RS", 0) != 97:

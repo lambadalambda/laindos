@@ -3162,14 +3162,84 @@ int21_handler:
     mov dx, [cs:rf_direct_lba_hi]
     cmp byte [cs:rf_cache_valid], 1
     jne .rf_read_sector
-    cmp ax, [cs:rf_cache_lba]
+    mov bl, [cs:active_drive_num]
+    cmp bl, [cs:rf_cache_drive]
     jne .rf_read_sector
-    cmp dx, [cs:rf_cache_lba_hi]
-    je .rf_have_sector
+    mov cx, ax
+    sub cx, [cs:rf_cache_lba]
+    mov di, dx
+    sbb di, [cs:rf_cache_lba_hi]
+    jne .rf_read_sector
+    test ch, ch
+    jnz .rf_read_sector
+    cmp cl, [cs:rf_cache_count]
+    jae .rf_read_sector
+    xor ah, ah
+    mov al, cl
+    mov cl, 5
+    shl ax, cl
+    add ax, READ_CACHE_BUF
+    mov [cs:rf_cache_seg], ax
+    jmp .rf_have_sector
 .rf_read_sector:
+    cmp byte [cs:rf_cache_valid], 1
+    jne .rf_read_count_one
+    mov bl, [cs:active_drive_num]
+    cmp bl, [cs:rf_cache_drive]
+    jne .rf_read_count_one
+    mov bx, [cs:rf_hoff]
+    test word [cs:bx+handles+H_POS_LO], 511
+    jnz .rf_read_count_one
+    mov si, [cs:rf_cache_lba]
+    xor ch, ch
+    mov cl, [cs:rf_cache_count]
+    add si, cx
+    mov di, [cs:rf_cache_lba_hi]
+    adc di, 0
+    mov ax, [cs:rf_direct_lba]
+    cmp ax, si
+    jne .rf_read_count_one
+    mov dx, [cs:rf_direct_lba_hi]
+    cmp dx, di
+    jne .rf_read_count_one
+    mov byte [cs:rf_cache_count], READ_CACHE_SECTORS
+    xor ch, ch
+    mov cl, [cs:kspc]
+    sub cx, [cs:rf_sec_in_cluster]
+    cmp cl, [cs:rf_cache_count]
+    jae .rf_cluster_limit_ok
+    mov [cs:rf_cache_count], cl
+.rf_cluster_limit_ok:
+    mov bx, [cs:rf_hoff]
+    mov ax, [cs:bx+handles+H_SIZE_LO]
+    sub ax, [cs:bx+handles+H_POS_LO]
+    mov dx, [cs:bx+handles+H_SIZE_HI]
+    sbb dx, [cs:bx+handles+H_POS_HI]
+    test dx, dx
+    jnz .rf_read_count_nonzero
+    add ax, 511
+    jc .rf_read_count_nonzero
+    mov cl, 9
+    shr ax, cl
+    test ax, ax
+    jz .rf_read_count_one
+    cmp al, [cs:rf_cache_count]
+    jae .rf_read_count_nonzero
+    mov [cs:rf_cache_count], al
+    jmp .rf_read_count_nonzero
+.rf_read_count_one:
+    mov byte [cs:rf_cache_count], 1
+.rf_read_count_nonzero:
+    cmp byte [cs:rf_cache_count], 0
+    jne .rf_read_count_ready
+    mov byte [cs:rf_cache_count], 1
+.rf_read_count_ready:
+    mov ax, [cs:rf_direct_lba]
+    mov dx, [cs:rf_direct_lba_hi]
     mov byte [cs:rf_cache_valid], 0
     mov [cs:rf_cache_lba], ax
     mov [cs:rf_cache_lba_hi], dx
+    mov word [cs:rf_cache_seg], READ_CACHE_BUF
     call wf_fill_read_cache_from_write
     jc .rf_err_pop
     cmp al, 1
@@ -3182,10 +3252,14 @@ int21_handler:
     xor bx, bx
     mov dx, READ_CACHE_BUF
     mov es, dx
-    call read_sector
+    xor ch, ch
+    mov cl, [cs:rf_cache_count]
+    call read_sectors
     pop bx
     pop es
     jc .rf_err_pop
+    mov al, [cs:active_drive_num]
+    mov [cs:rf_cache_drive], al
     mov byte [cs:rf_cache_valid], 1
 .rf_have_sector:
     mov si, [cs:rf_hoff]
@@ -3212,7 +3286,7 @@ int21_handler:
     mov dx, [cs:rf_buf_seg]
     mov es, dx
     mov di, [cs:rf_buf_off]
-    mov dx, READ_CACHE_BUF
+    mov dx, [cs:rf_cache_seg]
     mov ds, dx
     xor si, si
     mov bx, [cs:rf_hoff]
@@ -3604,6 +3678,7 @@ int21_handler:
     cmp ax, [cs:si+handles+H_SIZE_LO]
     jae .wf_file_done
 .wf_do_trunc:
+    mov byte [cs:rf_cache_valid], 0
     mov ax, [cs:si+handles+H_POS_LO]
     mov [cs:si+handles+H_SIZE_LO], ax
     mov dx, [cs:si+handles+H_POS_HI]
@@ -3838,6 +3913,7 @@ int21_handler:
     adc ax, cx
     mov [cs:si+handles+H_POS_HI], ax
 .sf_ok:
+    mov byte [cs:rf_cache_valid], 0
     mov ax, [cs:si+handles+H_POS_LO]
     mov dx, [cs:si+handles+H_POS_HI]
     mov [cs:sf_ret_lo], ax

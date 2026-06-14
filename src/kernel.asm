@@ -13,7 +13,7 @@ BPB_SEG   equ 0x0000
 BPB_OFF   equ 0x7C00
 FAT_SEG   equ 0x0060
 FAT_BUF_SECS equ ((CD_BUF - FAT_SEG) / 32)
-ROOT_SEG  equ 0x0240
+ROOT_SEG  equ 0x02A0
 
 HANDLE_SIZE equ 34
 H_USED      equ 0
@@ -3608,6 +3608,9 @@ rf_sec_in_cluster: dw 0
 rf_cluster_index: dw 0
 rf_cache_lba:  dw 0
 rf_cache_lba_hi: dw 0
+rf_cache_seg: dw 0
+rf_cache_count: db 0
+rf_cache_drive: db 0
 rf_direct_lba: dw 0
 rf_direct_lba_hi: dw 0
 rf_direct_count: db 0
@@ -4124,6 +4127,10 @@ wf_fill_read_cache_from_write:
     pop cx
     pop bx
     pop ax
+    mov byte [cs:rf_cache_count], 1
+    mov word [cs:rf_cache_seg], READ_CACHE_BUF
+    mov al, [cs:active_drive_num]
+    mov [cs:rf_cache_drive], al
     mov byte [cs:rf_cache_valid], 1
     mov al, 1
     clc
@@ -4146,6 +4153,7 @@ wf_flush_handle_dir_entry:
 wf_flush_iret_nc:
     call wf_flush_sector_cache
     jc .err
+    mov byte [cs:rf_cache_valid], 0
     jmp iret_nc
 .err:
     mov ax, 5
@@ -4323,7 +4331,7 @@ kernel_end:
 %if (SEC_BUF + SECTOR_BUF_PARAS) > READ_CACHE_BUF
 %error "SEC_BUF overlaps READ_CACHE_BUF"
 %endif
-%if (READ_CACHE_BUF + SECTOR_BUF_PARAS) > ROOT_SEG
+%if (READ_CACHE_BUF + READ_CACHE_PARAS) > ROOT_SEG
 %error "READ_CACHE_BUF overlaps ROOT_SEG"
 %endif
 %if (ROOT_SEG + ROOT_BUF_PARAS) > WRITE_CACHE_BUF

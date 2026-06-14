@@ -3095,3 +3095,10 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Fix direction changed from per-handle slots to a shared four-slot direct-mapped cache keyed by logical drive, first cluster, and file-cluster index. Moving helper code out of the top of `path_dir.inc` avoided broad docs-site line-number churn; two leftover per-handle clear calls caused a NASM phase-error cascade until replaced by shared cache invalidation.
 - Result: `python3 scripts/bench_read_paths.py` now reports `FATARCH FW=11` and `FATSEEK FW=115`; sequential read phases stayed at their previous `FW=15` and sector-read counts.
 - Correctness probe: `tests/programs/trunc0.asm` now opens a file twice, caches a high cluster through handle A, truncates below it through handle B, then verifies handle A reads EOF at the old high offset. `python3 scripts/test_trunc0.py` passes with `PASS: TRUNC0 CACHE`.
+
+## 2026-06-14 Sequential Handle Read-Ahead
+
+- Baseline after the FAT archive cache: `python3 scripts/bench_read_paths.py` reported `READ64 RD=128 RS=128`, `READ512 RD=128 RS=128`, `READ1K RD=65 RS=128`, `READ4K RD=17 RS=128`, and random `FATSEEK RD=32 RS=32`.
+- Fix: grew `READ_CACHE_BUF` from one to four sectors by moving `ROOT_SEG` to `02A0h`, `WRITE_CACHE_BUF` to `06A0h`, and `CD_CACHE_BUF` to `06C0h`, all still below `MCB_START=0B00h`. `AH=3Fh` now treats the FAT read cache as a contiguous window: ordinary misses read one sector, but an aligned miss at the exact end of the previous window prefetches up to four sectors capped by current cluster remainder and EOF.
+- Correctness choices: the read-ahead window is tagged with the active logical drive, and successful seeks, actual truncates, writes, disk reset, and drive switches invalidate it. Dirty write-cache hits still fill only one sector from `WRITE_CACHE_BUF`, avoiding mixed cached/media refill state.
+- Result: `python3 scripts/bench_read_paths.py` now reports `READ64 RD=34 RS=128` and `READ512 RD=34 RS=128`; `FATSEEK` remains `RD=32 RS=32`, so random 512-byte reads do not fetch extra sectors.

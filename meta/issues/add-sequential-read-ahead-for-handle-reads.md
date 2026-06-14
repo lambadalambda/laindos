@@ -24,3 +24,4 @@ cluster and measured before implementation.
 
 - This may share transfer-count logic with multi-sector BIOS reads.
 - If memory pressure is high, prefer a small two- or four-sector read-ahead buffer over a full cluster cache.
+- 2026-06-14 implementation: `READ_CACHE_BUF` is now four sectors and tagged by active logical drive. Sequential continuation misses prefetch up to four sectors, capped by the current FAT cluster and EOF; non-sequential misses and dirty write-cache fills stay one sector. `bench_read_paths.py` now enforces reduced `READ64`/`READ512` BIOS calls and no extra sectors for random `FATSEEK` reads.

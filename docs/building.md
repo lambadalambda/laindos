@@ -76,7 +76,7 @@ Run the focused read-side hot-path benchmark:
 make bench-read-paths
 ```
 
-This boots generated FAT16 hard-disk and ISO media under `PERF_IO_COUNTS=1`, then reports sequential `AH=3Fh` read phases with 64-byte, 512-byte, 1 KiB, and 4 KiB chunks, load-only `EXEC`, random FAT-file seeks, repeated archive-style FAT seeks, worst-entry subdirectory lookup, and sequential CD reads. `RD` counts FAT BIOS read calls, `RS` counts transferred FAT sectors, `LC` counts loader bounce-copy chunks, and `FW` records checked FAT chain-walk steps separately from allocation scan steps (`FS`).
+This boots generated FAT16 hard-disk and ISO media under `PERF_IO_COUNTS=1`, then reports sequential `AH=3Fh` read phases with 64-byte, 512-byte, 1 KiB, and 4 KiB chunks, load-only `EXEC`, random FAT-file seeks, repeated archive-style FAT seeks, worst-entry subdirectory lookup, and sequential CD reads. `RD` counts FAT BIOS read calls, `RS` counts transferred FAT sectors, `LC` counts loader bounce-copy chunks, and `FW` records checked FAT chain-walk steps separately from allocation scan steps (`FS`). The runner fails if small sequential reads lose read-ahead or random 512-byte seeks fetch extra sectors.
 
 The BIOS tick field is coarse, so very fast phases can legitimately report zero ticks; the sector and FAT-walk counters are the stable baseline signal.
 
