@@ -131,4 +131,5 @@ if __name__ == "__main__":
 - `tests/programs/execparam.asm` plus `scripts/test_execparam.py`: parent/child `EXEC` parameter coverage.
 - `scripts/test_shell.py`: interactive shell, batch, PATH, directory, and command coverage.
 - `scripts/test_savewrite.py` and `scripts/test_dirmut.py`: persistent FAT write and mutation checks.
+- `scripts/test_readwrap.py` and `scripts/test_readmulti.py`: handle reads into boundary-sensitive buffers and hard-disk multi-sector read coverage.
 - `scripts/test_shell_monkey.py`: shell-launched game smoke using QEMU monitor input and a framebuffer check.

@@ -3090,6 +3090,8 @@ int21_handler:
     mov bx, [cs:rf_hoff]
     test word [cs:bx+handles+H_POS_LO], 511
     jnz .rf_cache_check
+    test word [cs:rf_buf_off], 511
+    jnz .rf_cache_check
     cmp word [cs:rf_count], 512
     jb .rf_cache_check
     mov ax, [cs:rf_buf_seg]

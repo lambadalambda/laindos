@@ -2,6 +2,33 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-14 Monkey Island FAT Direct-Read Regression
+
+### Goal
+
+- Restore full Monkey Island 1 and Monkey Island 2 startup/save smokes after recent read-path optimization work.
+
+### Confirmed Facts
+
+- `make test-monkey-full` failed on `866b448`: `EXE loaded` appeared on serial, but the game screen stayed at a read-error class framebuffer.
+- `make test-mi2-save` failed on `866b448` before the copy-protection prompt.
+- Temporary worktree isolation found `885feea` good and `2a484f8` bad, making `perf: batch FAT handle reads` the first bad commit.
+- Tracing full Monkey showed the game uses large `AH=3Fh` reads into unaligned buffers such as `4A34:000E`, `2E75:0006`, and `4B1E:000E`.
+- Routing unaligned destination buffers away from the direct BIOS read path restores both Monkey smokes while keeping aligned benchmark transfers eligible for direct multi-sector reads.
+
+### Fix
+
+- `AH=3Fh` FAT direct multi-sector reads now require both the file position and caller buffer offset to be sector-aligned. Unaligned buffers use the staged read-cache/copy path, which preserves compatibility for SCUMM resource loads.
+- Added `scripts/test_readmulti.py` / `tests/programs/readmulti.asm` to keep hard-disk multi-sector reads covered for aligned and near-wrap destination buffers.
+- Aligned `tests/programs/perfread.asm`'s benchmark buffer so `READ4K` continues to measure the direct path explicitly.
+
+### Verification
+
+- `make test-monkey-full` passed.
+- `make test-mi2-save` passed and created `SAVEGAME.002`.
+- `python3 scripts/test_readmulti.py` passed.
+- `python3 scripts/bench_read_paths.py` passed; `READ4K RD=17 RS=128` remains the direct-read benchmark path, and `CDSTRM CD=8` remains unchanged.
+
 ## 2026-06-14 ATAPI-First CD Mounting
 
 ### Goal

@@ -111,6 +111,7 @@ DEFAULT_TESTS = [
     "scripts/test_termflush.py",
     "scripts/test_dirmut.py",
     "scripts/test_readwrap.py",
+    "scripts/test_readmulti.py",
     "scripts/test_pathbuf.py",
     "scripts/test_execseg.py",
     "scripts/test_linebuf.py",

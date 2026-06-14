@@ -441,4 +441,5 @@ tick_start_lo: dw 0
 elapsed_ticks: dw 0
 verify_offset: dw 0
 verify_len: dw 0
+align 512, db 0
 read_buf: times 4096 db 0

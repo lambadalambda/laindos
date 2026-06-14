@@ -231,3 +231,5 @@
 - [x] [Add Sequential Read-Ahead for Handle Reads](issues/add-sequential-read-ahead-for-handle-reads.md)
 - [x] [Add Multi-Sector CD Sequential Read Path](issues/add-multisector-cd-sequential-read-path.md)
 - [x] [Prefer ATAPI CD-ROM Data Path](issues/prefer-atapi-cdrom-data-path.md)
+- [x] [Triage Full Monkey Island Framebuffer Inactive Smoke](issues/triage-full-monkey-island-framebuffer-inactive-smoke.md)
+- [x] [Triage Monkey Island 2 Save Smoke Copy-Protection Timeout](issues/triage-monkey-island-2-save-smoke-copy-protection-timeout.md)

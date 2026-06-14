@@ -51,8 +51,9 @@ start:
 %endmacro
 
 ; Standard small-EXE MZ header (4-paragraph header, SS/SP at the image top,
-; entry at image_start). The program defines image_start and file_end.
-%macro MZ_HEADER 0
+; entry at image_start). Optional arguments override min/max allocation.
+; The program defines image_start and file_end.
+%macro MZ_HEADER 0-2 0x0010, 0xFFFF
 [bits 16]
 
 hdr_size equ 4
@@ -63,8 +64,8 @@ mz_header:
     dw ((file_end - mz_header) + 511) / 512
     dw 0
     dw hdr_size
-    dw 0x0010
-    dw 0xFFFF
+    dw %1
+    dw %2
     dw 0x0000
     dw 0xFFFE
     dw 0x0000
