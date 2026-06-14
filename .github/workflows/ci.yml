@@ -20,7 +20,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y nasm qemu-system-x86
       - name: Run regression suite
         run: make test
-      - name: Build Monkey Island demo package
+      - name: Build nightly packages
         run: make nightly-package
       - name: Publish nightly release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -42,4 +42,6 @@ jobs:
           gh release upload nightly \
             build/laindos-monkey-demo-nightly.zip \
             build/laindos-monkey-demo-nightly.zip.sha256 \
+            build/laindos-installer-nightly.zip \
+            build/laindos-installer-nightly.zip.sha256 \
             --clobber

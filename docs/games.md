@@ -12,7 +12,7 @@ make monkey-demo
 
 The generated image is `build/shell_monkey.img`. Booting it starts the LainDOS shell at `A:\>`; run the demo with `midemo`.
 
-The `nightly` GitHub release is updated after each successful push to `main` with `laindos-monkey-demo-nightly.zip`, containing the bootable demo floppy image and usage notes.
+The `nightly` GitHub release is updated after each successful push to `main` with `laindos-monkey-demo-nightly.zip`, containing the bootable demo floppy image and usage notes. The same release also carries `laindos-installer-nightly.zip`, the bootable hard-disk installer/updater floppy.
 
 Build the older direct-boot Monkey Island demo image:
 

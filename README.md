@@ -16,7 +16,8 @@ Every change is gated by an automated QEMU regression ladder that currently pass
 
 ## Try it
 
-- Download `laindos-monkey-demo-nightly.zip` from the [nightly release](https://github.com/lambadalambda/laindos/releases/tag/nightly) — a bootable floppy image for any PC emulator.
+- Download `laindos-monkey-demo-nightly.zip` from the [nightly release](https://github.com/lambadalambda/laindos/releases/tag/nightly) — a bootable Monkey Island demo floppy image for any PC emulator.
+- Download `laindos-installer-nightly.zip` from the same release for a bootable installer/updater floppy. Boot from the floppy, attach a raw hard-disk image as the first IDE disk, then run `INSTALL` from `A:\>` to format a blank disk or update an existing LainDOS FAT16 install in place.
 - Or read the [interactive documentation site](https://lambadalambda.github.io/laindos/), annotated source walkthroughs with the same floppy bootable in-page via an embedded v86 emulator.
 - Or build and run it yourself (needs NASM, Python 3, and QEMU):
 

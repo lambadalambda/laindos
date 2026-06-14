@@ -255,7 +255,7 @@ test-installer:
 monkey-demo: $(MONKEY_DEMO_FILES)
 	$(PYTHON) scripts/build_shell_monkey.py
 
-nightly-package: monkey-demo
+nightly-package: monkey-demo installer
 	$(PYTHON) scripts/package_nightly.py
 
 run-monkey-demo: monkey-demo
