@@ -23,7 +23,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `make test-cd-exec`: run the generated-ISO `EXEC` and overlay-load probe for COM and EXE programs loaded from `D:`.
 - `make test-cd-media-swap`: run the generated-ISO QEMU monitor media-swap regression for CD volume, directory, and file state invalidation.
 - `make test-cd-86box`: run the generated-ISO read-only `D:` file probe in 86Box with an ATAPI CD-ROM attached as IDE secondary master.
-- `make test-installer`: build the self-booting installer floppy, install to a blank QEMU hard disk, and verify the resulting FAT16 boot volume host-side.
+- `make test-installer`: build the self-booting installer/updater floppy, install to a blank QEMU hard disk, verify `A:\INSTALL` refuses to run from a C: boot, then update an existing LainDOS FAT16 image with user data; all results are verified host-side.
 - `make test-sammax-cd-files`: with local Sam & Max media, extract the cue/bin data track and verify `D:\SAMNMAX` file reads.
 - `make test-sammax-cd-install`: with local Sam & Max media, launch root `D:\INSTALL.EXE` under QEMU `-icount shift=6` and verify the CDReader/Bestseller installer screen appears without Borland Pascal `Runtime error 200`.
 - `make test-sammax-cd-install-select`: with local Sam & Max media, drive the root installer menu to `Demo: The Dig` and verify the installer-launched shell opens `start.bat`.

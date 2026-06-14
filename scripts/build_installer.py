@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Build a self-booting LainDOS installer floppy.
+"""Build a self-booting LainDOS installer/updater floppy.
 
-The floppy boots LainDOS to a shell; running INSTALL.COM formats a target
-hard disk to FAT16 (sized to the detected disk) and copies the system
-files onto it, making it bootable. The floppy carries:
+The floppy boots LainDOS to a shell; running INSTALL.COM updates an existing
+LainDOS FAT16 hard disk in place, or formats an unrecognized target hard disk
+to FAT16 (sized to the detected disk) and copies the system files onto it.
+The floppy carries:
 
   - a FAT12 boot sector + KERNEL.SYS (BOOT_FILE=SHELL) to boot itself
   - SHELL.COM / FREE.COM / TIME.COM  -- the system files to install
@@ -50,7 +51,7 @@ def main():
         SHELL, FREE, TIME, INSTALL, BOOT16,
     ])
     print(f"Built installer floppy {IMG}")
-    print("Boot it, then run INSTALL to format and populate a hard disk.")
+    print("Boot from it, then run INSTALL to update or populate a hard disk.")
 
 
 if __name__ == "__main__":

@@ -75,7 +75,7 @@ boot:
     sti
     cld
     mov [drv],dl
-    mov [0x500],dl
+    mov [0x500],dl          ; kernel and INSTALL read the raw BIOS boot drive
 
     mov ax,[bpb+BPB_SECS_PER_FAT]
     movzx cx,byte[bpb+BPB_NUM_FATS]
