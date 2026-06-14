@@ -2,6 +2,22 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-14 ATAPI-First CD Mounting
+
+### Goal
+
+- Prefer the native ATAPI CD-ROM data path for QEMU and 86Box while preserving BIOS EDD as a fallback for BIOS-only CD configurations.
+
+### Confirmed Facts
+
+- The CD media refresh path already tries ATAPI before BIOS once a CD is mounted; the remaining BIOS-first behavior was only in the initial D: mount routine.
+- `mount_bios_cdrom_d` now tries `mount_atapi_cdrom_d` first, keeps `TEST_FORCE_CD_ATAPI` as an ATAPI-only test build, and falls back to the existing BIOS EDD probe only after ATAPI mount failure.
+- If ATAPI mount fails before the BIOS fallback, the cached ATAPI port fields are cleared so the fallback probe does not silently re-enter the failed ATAPI path from `cd_fetch_sectors_drive`.
+
+### Baseline After Change
+
+- `python3 scripts/bench_read_paths.py` passed for both the normal ATAPI-first build and the forced-ATAPI build. Both reported `CDSTRM CD=8`, with `CDSEQ CD=16` unchanged.
+
 ## 2026-06-14 Multi-Sector CD Sequential Reads
 
 ### Goal
@@ -14,7 +30,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Baseline with the existing four-slot CD file cache failed the new gate at `CDSTRM CD=16`, one physical CD command per 2048-byte sector.
 - Added a conservative direct handle path for aligned 4096-byte CD reads when the file has at least two sectors remaining and the caller buffer does not cross a 64 KiB DMA page.
 - The direct path issues two-sector BIOS EDD reads through the DAP and two-sector ATAPI READ(10) packets through the ATAPI fallback path. On failure, the handle position and counters are unchanged and the existing one-sector cached path handles the read.
-- Added a `TEST_FORCE_CD_ATAPI` benchmark build so QEMU verifies the ATAPI data path as well as the normal BIOS EDD path.
+- Added a `TEST_FORCE_CD_ATAPI` benchmark build so QEMU verifies the ATAPI data path without falling back to BIOS.
 
 ### Baseline After Change
 

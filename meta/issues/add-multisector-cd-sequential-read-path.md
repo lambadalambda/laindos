@@ -24,5 +24,5 @@ measured multi-sector sequential CD read path for generated ISO workloads.
 - Relevant code: `src/kernel/cdrom.inc` `cd_fetch_sector_drive`, ATAPI packet read code, EDD DAP setup, and `cd_read_handle`.
 - Validate on QEMU first; 86Box should be treated as a separate discriminator when the local harness is useful.
 - Added `CDSTRM` to `scripts/bench_read_paths.py`: 32768 bytes from `D:\CDSEQ.BIN` in 4096-byte chunks.
-- Baseline before the direct path: `CDSTRM CD=16`; after the two-sector path: `CDSTRM CD=8` in both normal BIOS EDD and forced-ATAPI benchmark builds. Existing `CDSEQ` stays at `CD=16` for the 512-byte cache workload.
+- Baseline before the direct path: `CDSTRM CD=16`; after the two-sector path: `CDSTRM CD=8` in both normal and forced-ATAPI benchmark builds. Existing `CDSEQ` stays at `CD=16` for the 512-byte cache workload.
 - The implementation only takes the direct path for aligned 4096-byte handle reads with at least two sectors left and a DMA-safe destination; failures fall back to the existing one-sector cache path without advancing the handle.

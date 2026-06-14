@@ -680,9 +680,15 @@ mount_bios_cdrom_d:
     mov byte [cs:drive_present+3], 0
     mov byte [cs:cd_present], 0
     mov byte [cs:cd_read_method], CD_READ_METHOD_BIOS
+    call mount_atapi_cdrom_d
+    jnc .done
 %ifdef TEST_FORCE_CD_ATAPI
-    jmp .err
+    stc
+    jmp .done
 %endif
+    mov word [cs:atapi_base], 0
+    mov word [cs:atapi_ctrl], 0
+    mov byte [cs:cd_read_method], CD_READ_METHOD_BIOS
     mov dl, 0x80
 .probe:
     cmp dl, 0xF0
@@ -716,8 +722,6 @@ mount_bios_cdrom_d:
     inc dl
     jmp .probe
 .err:
-    call mount_atapi_cdrom_d
-    jnc .done
     stc
 .done:
     pop di
@@ -1829,8 +1833,8 @@ atapi_packet_in:
     stc
     ret
 
-; The EDD probe wins the mount under QEMU and leaves atapi_base unset;
-; audio commands bring the ATAPI transport up on first use.
+; BIOS fallback mounts can leave atapi_base unset; audio commands bring the
+; ATAPI transport up on first use.
 cd_audio_atapi_ready:
     cmp word [cs:atapi_base], 0
     jne .ok
