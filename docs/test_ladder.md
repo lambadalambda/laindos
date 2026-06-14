@@ -7,7 +7,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - Tiny DOS programs: NASM programs in `tests/programs/` call one API surface, print `PASS:` or `FAIL:` on serial-visible output, and exit through `INT 21h AH=4Ch`.
 - Host runners: Python scripts under `scripts/test_*.py` build a disposable boot image, run QEMU headlessly, and check serial markers with helpers from `scripts/testlib.py`.
 - Shell and filesystem runs: broader scripts such as `scripts/test_shell.py`, `scripts/test_savewrite.py`, and `scripts/test_dirmut.py` exercise multiple APIs plus persistent disk-image state.
-- Game smokes: scripts such as `scripts/test_shell_monkey.py`, `scripts/test_wolf3d_smoke.py`, `scripts/test_ascendancy_smoke.py`, and `scripts/test_shortline_smoke.py` boot local media, drive QEMU through the monitor, and confirm a live framebuffer.
+- Game smokes: scripts such as `scripts/test_shell_monkey.py`, `scripts/test_wolf3d_smoke.py`, `scripts/test_ascendancy_smoke.py`, and `scripts/test_shortline_smoke.py` boot local media, drive QEMU or 86Box through monitor/RPC hooks, and confirm a live framebuffer.
 
 ## Commands
 
@@ -32,7 +32,9 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `make test-sammax-cd-setmuse-save`: with local Sam & Max media, boot a writable C: image plus the CD as D:, configure SETMUSE for Sound Blaster 16 port 220, exit/save, and verify `C:\SAMNMAX.CD\SETMUSE.INI` is created.
 - `make test-sammax-cd-dig`: with local Sam & Max media, run `D:\DEMOS\DIG\START.BAT`, pass the two batch pauses, and verify IMUSE opens `.\imuse.exe` from the current CD directory and reaches `C:\LECDEMOS\DIG\IMUSE.INI` without the previous sound-engine fatal error.
 - `make test-monkey-demo`: smoke-test the shell-launched Monkey Island demo image.
-- `make test-game-smokes`: run the standard game smoke ladder for Monkey Island, Wolfenstein 3D, and Ascendancy when local media is present.
+- `make test-game-smokes-qemu`: run the QEMU-backed vendor game smoke ladder when local media is present.
+- `make test-game-smokes-86box`: run the 86Box-backed game smoke cross-checks when local media and the headless 86Box harness are present.
+- `make test-game-smokes`: run both game smoke groups.
 - `make test-shortline-smoke`: run the Shortline-specific smoke with QEMU `-icount shift=6` for its timer calibration.
 - `make test-norton-commander`: run the Norton Commander startup, launch, copy, rename/delete, and mkdir/rmdir smokes from the local archive.
 - Site docs edits: run `make check-docs-sync`, JSX parsing checks, and a local browser or Playwright smoke when one is available.
@@ -111,7 +113,7 @@ if __name__ == "__main__":
 5. Check for positive serial markers such as `LainDOS booted`, `EXE loaded`, shell prompts, or game banners.
 6. Reject negative markers such as `FAIL:`, `EXC `, `INT 21h AH=`, and known game-level fatal exits.
 7. Use `framebuffer_active` when serial output alone cannot prove the game reached interactive video.
-8. Add a Makefile target only if the smoke depends on local media or non-default QEMU pacing; add it to `test-game-smokes` only when it is deterministic under the standard game-smoke assumptions.
+8. Add a Makefile target only if the smoke depends on local media or non-default emulator pacing; add it to `test-game-smokes-qemu` or `test-game-smokes-86box` only when it is deterministic under that emulator's game-smoke assumptions.
 
 ## Debugging And Documentation
 

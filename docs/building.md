@@ -99,7 +99,7 @@ make installer
 make test-installer
 ```
 
-Game smoke tests keep the emulated SB16 device when a game expects it, and Wolf3D plus the Sam & Max CD launcher also add QEMU's separate AdLib device. Automated runs route those devices to QEMU's `none` audio backend so tests stay silent.
+Game smoke tests keep the emulated SB16 device when a game expects it, and Wolf3D plus the Sam & Max CD launcher also add QEMU's separate AdLib device. Automated QEMU runs route those devices to QEMU's `none` audio backend so tests stay silent. Use `make test-game-smokes-qemu` for the QEMU-backed ladder, `make test-game-smokes-86box` for headless 86Box game cross-checks, or `make test-game-smokes` for both groups.
 
 Build and boot the local extras hard-disk image, which combines local archives that are not part of `vendor/FreeDOS.VHD` into `build/extras_hd.img`:
 

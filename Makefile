@@ -53,6 +53,8 @@ DISK_IMG := $(BUILDDIR)/disk.img
 MONKEY_DEMO_FILES := vendor/midemo.exe vendor/disk01.lec vendor/000.lfl vendor/901.lfl vendor/902.lfl vendor/904.lfl vendor/monkey.txt vendor/readme
 NIGHTLY_PACKAGE := $(BUILDDIR)/laindos-monkey-demo-nightly.zip
 DEFAULT_SITE_IMAGE := $(BUILDDIR)/shell_monkey.img
+QEMU_GAME_SMOKES := test-monkey-demo test-monkey-full test-mi2-save test-attached-hd-shell test-sammax-cd-files test-sammax-cd-start test-sammax-cd-setmuse test-sammax-cd-setmuse-save test-sammax-cd-install test-sammax-cd-install-select test-sammax-cd-dig test-normality-install test-wolf3d-smoke test-ascendancy-smoke test-norton-commander test-shortline-smoke test-stunt-island-smoke test-civ-smoke test-simon-smoke test-mm2-smoke test-wc-smoke test-settlers2-smoke
+GAME_SMOKES_86BOX := test-civ-86box
 SITE_IMAGE_DEPS :=
 ifeq ($(origin SITE_IMAGE),undefined)
 SITE_IMAGE := $(DEFAULT_SITE_IMAGE)
@@ -60,7 +62,7 @@ SITE_IMAGE_DEPS := monkey-demo
 endif
 SITE_IMAGE_ARG := $(if $(SITE_IMAGE),--image $(SITE_IMAGE),)
 
-.PHONY: all clean run site check-docs-sync test test-serial bench-disk-write bench-io-hot-paths bench-fat16-alloc bench-metadata bench-cd-cache bench-read-paths installer test-installer monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell test-shell-batch-builtins extras-hd run-extras-hd test-cd-bios test-cd-file test-cd-subdir test-cd-find test-cd-mscdex test-cd-audio test-cd-chunks test-cd-share test-boot-mem test-cd-exec test-cd-media-swap test-cd-86box test-sammax-cd-files test-sammax-cd-start test-sammax-cd-setmuse test-sammax-cd-setmuse-save test-sammax-cd-install test-sammax-cd-install-select test-sammax-cd-dig test-normality-install test-monkey-full test-mi2-save test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-norton-commander-launch test-norton-commander-copy test-norton-commander-rename-delete test-norton-commander-mkdir-rmdir test-norton-commander test-shortline-smoke test-stunt-island-smoke test-civ-smoke test-civ-86box test-simon-smoke test-mm2-smoke test-wc-smoke test-settlers2-smoke test-game-smokes
+.PHONY: all clean run site check-docs-sync test test-serial bench-disk-write bench-io-hot-paths bench-fat16-alloc bench-metadata bench-cd-cache bench-read-paths installer test-installer monkey-demo nightly-package run-monkey-demo test-monkey-demo test-attached-hd-shell test-shell-batch-builtins extras-hd run-extras-hd test-cd-bios test-cd-file test-cd-subdir test-cd-find test-cd-mscdex test-cd-audio test-cd-chunks test-cd-share test-boot-mem test-cd-exec test-cd-media-swap test-cd-86box test-sammax-cd-files test-sammax-cd-start test-sammax-cd-setmuse test-sammax-cd-setmuse-save test-sammax-cd-install test-sammax-cd-install-select test-sammax-cd-dig test-normality-install test-monkey-full test-mi2-save test-wolf3d-smoke test-ascendancy-smoke test-norton-commander-smoke test-norton-commander-launch test-norton-commander-copy test-norton-commander-rename-delete test-norton-commander-mkdir-rmdir test-norton-commander test-shortline-smoke test-stunt-island-smoke test-civ-smoke test-civ-86box test-simon-smoke test-mm2-smoke test-wc-smoke test-settlers2-smoke test-game-smokes-qemu test-game-smokes-86box test-game-smokes
 
 all: $(DISK_IMG)
 
@@ -387,7 +389,11 @@ test-wc-smoke: vendor/wing-commander_202104/disk1.ima
 test-settlers2-smoke: vendor/die-siedler-2-gold/CD01.cue
 	$(RUN_TEST) $(PYTHON) scripts/test_settlers2_smoke.py
 
-test-game-smokes: test-monkey-demo test-monkey-full test-wolf3d-smoke test-ascendancy-smoke
+test-game-smokes-qemu: $(QEMU_GAME_SMOKES)
+
+test-game-smokes-86box: $(GAME_SMOKES_86BOX)
+
+test-game-smokes: test-game-smokes-qemu test-game-smokes-86box
 
 clean:
 	rm -rf $(BUILDDIR)

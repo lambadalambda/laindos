@@ -22,6 +22,16 @@ python3 scripts/build_monkey.py
 
 The Monkey Island demo loose files are tracked under `vendor/`; other game archives and loose game files remain ignored and should be provided locally before running the full-game builders or smoke tests.
 
+Run the aggregate vendor smoke ladders with:
+
+```sh
+make test-game-smokes-qemu
+make test-game-smokes-86box
+make test-game-smokes
+```
+
+The QEMU aggregate covers the vendor game smoke tests that run under QEMU, including Monkey Island, Monkey Island 2, Sam & Max, Normality, Wolfenstein 3D, Ascendancy, Norton Commander, Shortline, Stunt Island, Civilization, Simon, Micro Machines 2, Wing Commander, Settlers II, and the attached hard-disk shell smoke. The 86Box aggregate covers the headless 86Box Civilization cross-check.
+
 ## Full Monkey Island and the All-Games Image
 
 Build the full VGA Monkey Island hard-disk image from `vendor/monkey_full.zip`:
