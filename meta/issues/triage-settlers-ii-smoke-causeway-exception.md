@@ -22,3 +22,8 @@
 - Installer steps passed: drive/default-path selection, copy finished, reboot returned to the shell.
 - Launch output included `CauseWay DOS Extender v3.14`, `Exception: 0D, Error code: F000`, and `DOS/4GW fatal error (1313): can't resolve external references`.
 - Failure: `no menu screen within 120s; last stats: (2, 18317)`.
+
+## Resolution
+
+- Resolved 2026-06-15 at `04823ad` with `make -k test-game-smokes`.
+- The smoke now passes with installer copy, reboot back to shell, `DOS/4GW Protected Mode Run-time`, active 640x480 menu screen, and BIOS tick advancement.

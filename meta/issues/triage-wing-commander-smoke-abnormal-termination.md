@@ -22,3 +22,8 @@
 - Installer steps passed: disk 2/3 swaps, copied all disks, and completed.
 - Serial output showed `C:\WING>wc`, then `Abnormal program termination`.
 - Harness symptom after that: `no known quiz question found in guest RAM`.
+
+## Resolution
+
+- Resolved 2026-06-15 at `04823ad` with `make -k test-game-smokes`.
+- The smoke now passes with disk 2/3 swaps, full installer copy, quiz detection/answering, active bar scene, and BIOS tick advancement.

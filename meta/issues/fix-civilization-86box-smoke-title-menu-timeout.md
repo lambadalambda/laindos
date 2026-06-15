@@ -21,3 +21,8 @@
 - Observed 2026-06-14 at `866b448` with `make -k test-game-smokes`.
 - The smoke passed `LainDOS shell prompt over 86Box serial` and typed `cd civ`, `loadfix civ`.
 - Failure: `no title-menu screen within 240s; last stats: (1, 0)`.
+
+## Resolution
+
+- Resolved 2026-06-15 at `04823ad` with `make -k test-game-smokes`.
+- The 86Box cross-check now passes with the LainDOS shell prompt over serial and a captured Civilization title-menu screen.

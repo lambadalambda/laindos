@@ -1,7 +1,2 @@
 - [ ] [Cache Subdirectory Sectors for Path Searches](issues/cache-subdirectory-sectors-for-path-searches.md)
 - [ ] [Use Word or Dword Copies for Sector Transfers](issues/use-word-or-dword-copies-for-sector-transfers.md)
-- [ ] [Triage Civilization QEMU Intro Smoke Timeout](issues/triage-civilization-qemu-intro-smoke-timeout.md)
-- [ ] [Triage Micro Machines 2 Smoke Reboot on Launch](issues/triage-micro-machines-2-smoke-reboot-on-launch.md)
-- [ ] [Triage Wing Commander Smoke Abnormal Termination](issues/triage-wing-commander-smoke-abnormal-termination.md)
-- [ ] [Triage Settlers II Smoke CauseWay Exception](issues/triage-settlers-ii-smoke-causeway-exception.md)
-- [ ] [Fix Civilization 86Box Smoke Title Menu Timeout](issues/fix-civilization-86box-smoke-title-menu-timeout.md)

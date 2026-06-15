@@ -22,3 +22,8 @@
 - Installer steps passed: disk 2/3/4 swaps and `installer completed`.
 - Failure: no game screen within 150 seconds, missing `DOS/4GW Protected Mode Run-time`.
 - Serial output showed `C:\MM2>mm2` followed by a fresh `LainDOS booted` banner and shell prompt.
+
+## Resolution
+
+- Resolved 2026-06-15 at `04823ad` with `make -k test-game-smokes`.
+- The smoke now passes with disk 2/3/4 swaps, installer completion, `DOS/4GW Protected Mode Run-time`, active game screen, and BIOS tick advancement.

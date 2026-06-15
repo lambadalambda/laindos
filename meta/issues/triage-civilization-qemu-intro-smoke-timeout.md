@@ -21,3 +21,8 @@
 - Observed 2026-06-14 at `866b448` with `make -k test-game-smokes`.
 - The smoke passed `bare CIV reaches the graphics menu (children load above 64K)`.
 - Failure: `no active intro framebuffer within 120s; last stats: (2, 5218)`.
+
+## Resolution
+
+- Resolved 2026-06-15 at `04823ad` with `make -k test-game-smokes`.
+- The smoke now passes with `bare CIV reaches the graphics menu (children load above 64K)`, `intro framebuffer active`, and BIOS tick advancement.

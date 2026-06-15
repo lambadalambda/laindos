@@ -240,3 +240,8 @@
 - [x] [Triage Monkey Island 2 Save Smoke Copy-Protection Timeout](issues/triage-monkey-island-2-save-smoke-copy-protection-timeout.md)
 - [x] [Harden FAT Direct Reads at DMA Boundaries](issues/harden-fat-direct-reads-at-dma-boundaries.md)
 - [x] [Triage Normality Install Smoke Framebuffer Check](issues/triage-normality-install-smoke-framebuffer-check.md)
+- [x] [Triage Civilization QEMU Intro Smoke Timeout](issues/triage-civilization-qemu-intro-smoke-timeout.md)
+- [x] [Triage Micro Machines 2 Smoke Reboot on Launch](issues/triage-micro-machines-2-smoke-reboot-on-launch.md)
+- [x] [Triage Wing Commander Smoke Abnormal Termination](issues/triage-wing-commander-smoke-abnormal-termination.md)
+- [x] [Triage Settlers II Smoke CauseWay Exception](issues/triage-settlers-ii-smoke-causeway-exception.md)
+- [x] [Fix Civilization 86Box Smoke Title Menu Timeout](issues/fix-civilization-86box-smoke-title-menu-timeout.md)
