@@ -118,6 +118,7 @@
 - [x] [Bound resolve_path name_buf writes](issues/bound-resolve-path-namebuf-writes.md)
 - [x] [Validate EXEC env source segment](issues/validate-exec-env-source-segment.md)
 - [x] [Clamp buffered line read for max=1](issues/clamp-buffered-line-read-for-max-1.md)
+- [x] [Fix Stunt Island Smoke Bad Command Launch](issues/fix-stunt-island-smoke-bad-command-launch.md)
 - [x] [Distinguish no-separator from offset 0 in ff_scan](issues/distinguish-no-separator-from-offset-0-in-ff-scan.md)
 - [x] [Reorder drive switch before cur_dir_cluster read](issues/reorder-drive-switch-before-cur-dir-cluster-read.md)
 - [x] [Use program size in exec_com_dyn stack top](issues/use-program-size-in-exec-com-dyn-stack-top.md)

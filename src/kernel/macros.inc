@@ -27,6 +27,12 @@
     sti
     cmp ah, 0x40
     je %%done
+    push ax
+    call wf_flush_sector_cache
+    pop ax
+    jc %%done
+    cmp byte [cs:wf_sec_cache_valid], 1
+    jne %%done
     cmp byte [cs:wf_sec_cache_dirty], 1
     je %%done
     mov byte [cs:wf_sec_cache_valid], 0

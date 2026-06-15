@@ -2,6 +2,32 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-15 Stunt Island Smoke Write-Cache Lifetime
+
+### Goal
+
+- Restore `make test-stunt-island-smoke` after the installer completed but the launched game stayed on a black screen.
+
+### Confirmed Facts
+
+- The current failure was not the old frozen-tick prompt wait: after `C:\STUNTISL>stunt`, BIOS ticks kept advancing while framebuffer stats stayed at `(1, 0)`.
+- Comparing no-snapshot installs against a known-good `549c360` image showed the installer source files were identical, but `24` installed `STUNTISL` files differed. Examples included `STUNT.EXE`, `RES/SPRITES.RES`, `RES/DIALOG.RES`, `RES/MUSIC1.ESS`, and `VAULT/BALLOON.TKE`.
+- The corrupted files had contiguous, sufficiently long FAT chains, so the defect was write-data lifetime, not a short or jumped final chain.
+- A diagnostic flush immediately after every `AH=40h` sector update made the installed `STUNTISL` tree byte-identical to the known-good image, proving the hard-disk write-back data cache was involved.
+- More specific probes that flushed on FAT16 window hits or before raw `write_sector` calls did not change the `24` differing installed files.
+
+### Fix
+
+- `INT21_STI` now flushes a dirty staged hard-disk data sector at the start of non-`AH=40h` INT 21h calls and invalidates the clean one-sector write cache. Adjacent `AH=40h` writes still coalesce on the same sector.
+- The entry flush preserves `AX`; without that, the flush helper overwrote `AL` with the active drive number before saving registers, turning an `AH=42h AL=0` seek into a seek-from-EOF and breaking the same-handle read-before-close benchmark.
+
+### Verification
+
+- A no-snapshot Stunt installer run followed by a FAT tree comparison against `/var/folders/_k/0yhtrj754g59m75jw73827q80000gn/T/opencode/laindos-stunt-good/build/stunt_hd.img` reports `diff_count 0` for `STUNTISL`.
+- `make test-stunt-island-smoke` passes and reaches the prompt-class screen with `208` colors, `217732` nonblack pixels, and advancing BIOS ticks.
+- `make bench-disk-write` passes with coalescing preserved: `WRITE512`, `WRITE128`, and `WRITE64` all report `WR=132` and `WD=128`.
+- `make test-normality-install` and `make test-cd-shellcopy-large` still pass, preserving the earlier Normality write-cache corruption fix.
+
 ## 2026-06-15 Normality Install Write-Cache Corruption
 
 ### Goal
