@@ -21,6 +21,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `make test-cd-find`: run the generated-ISO read-only `D:` directory enumeration probe, including explicit-subdirectory and current-directory wildcard searches.
 - `make test-cd-mscdex`: run the generated-ISO MSCDEX detection probe.
 - `make test-cd-exec`: run the generated-ISO `EXEC` and overlay-load probe for COM and EXE programs loaded from `D:`.
+- `make test-cd-shellcopy-large`: run the generated CD-to-hard-disk child-shell copy regression that checks large FAT16 writes across FAT-sector boundaries.
 - `make test-cd-media-swap`: run the generated-ISO QEMU monitor media-swap regression for CD volume, directory, and file state invalidation.
 - `make test-cd-86box`: run the generated-ISO read-only `D:` file probe in 86Box with an ATAPI CD-ROM attached as IDE secondary master.
 - `make test-installer`: build the self-booting installer/updater floppy, install to a blank QEMU hard disk, verify `A:\INSTALL` refuses to run from a C: boot, then update an existing LainDOS FAT16 image with user data; all results are verified host-side.
@@ -131,5 +132,6 @@ if __name__ == "__main__":
 - `tests/programs/execparam.asm` plus `scripts/test_execparam.py`: parent/child `EXEC` parameter coverage.
 - `scripts/test_shell.py`: interactive shell, batch, PATH, directory, and command coverage.
 - `scripts/test_savewrite.py` and `scripts/test_dirmut.py`: persistent FAT write and mutation checks.
+- `scripts/test_cd_shellcopy_large.py`: generated child-shell CD copy replay for large FAT16 writes and GFX-style wildcard copies.
 - `scripts/test_readwrap.py` and `scripts/test_readmulti.py`: handle reads into boundary-sensitive buffers, hard-disk multi-sector reads, and FAT direct-read DMA-boundary coverage.
 - `scripts/test_shell_monkey.py`: shell-launched game smoke using QEMU monitor input and a framebuffer check.

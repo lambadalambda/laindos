@@ -2,7 +2,7 @@
 
 ## Summary
 
-`make test-normality-install` drives the Normality installer from the Sam & Max CD image and launches `NORM.EXE`, but the final framebuffer activity check fails.
+`make test-normality-install` drove the Normality installer from the Sam & Max CD image and launched `NORM.EXE`, but the final framebuffer activity check failed because installed files were corrupted by the hard-disk write-back cache.
 
 ## Requirements
 
@@ -21,3 +21,7 @@
 - Observed 2026-06-14 at `866b448` with `make -k test-game-smokes`.
 - Installer flow completed and printed `PASS: NORM.EXE launched`.
 - Failure: `Normality framebuffer inactive (4 colors, 269491 nonblack pixels)` after the current post-launch wait.
+- 2026-06-15 root cause: `NORMINC/NORM.EXE` contained `GFX/TWEEN.DAT` bytes from offset `172032`, and `NORMINC/GFX/TWEEN.DAT` had a short FAT chain. Dirty staged data sectors were allowed to remain live while the next FAT chain walk/extension crossed FAT16 sector boundaries.
+- Added `scripts/test_cd_shellcopy_large.py` / `tests/programs/cdshcopy.asm`, a generated child-shell CD copy replay that failed pre-fix with the same `NORM.EXE` offset and GFX chain truncation pattern.
+- The fix flushes staged write data before sparse gap allocation, first-cluster allocation, and uncached FAT chain walks/extensions while preserving same-sector write coalescing.
+- `make test-normality-install` now passes and installed `NORM.EXE` / `GFX/TWEEN.DAT` match the CD source bytes.

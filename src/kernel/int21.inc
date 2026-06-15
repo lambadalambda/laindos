@@ -3536,6 +3536,9 @@ int21_handler:
     ; host-backed disk, but minutes of churn on real-speed IDE (the
     ; Red Alert "hang on the DOS/4GW screen"). On a zero-initialised
     ; volume the freshly allocated clusters still read back as zero.
+    call wf_flush_sector_cache
+    jc .wf_file_io_pop
+    mov si, [cs:wf_hoff]
     mov ax, [cs:si+handles+H_POS_LO]
     mov [cs:wf_target_lo], ax
     mov ax, [cs:si+handles+H_POS_HI]
@@ -3584,6 +3587,9 @@ int21_handler:
     mov si, [cs:wf_hoff]
     cmp word [cs:si+handles+H_CLUSTER], 0
     jne .wf_have_start
+    call wf_flush_sector_cache
+    jc .wf_file_io_pop
+    mov si, [cs:wf_hoff]
     call fat_alloc_cluster
     jc .wf_file_done
     mov si, [cs:wf_hoff]
@@ -3600,7 +3606,18 @@ int21_handler:
     call pos_to_cluster_sector
     mov [cs:wf_cluster_index], ax
     mov [cs:wf_sec_in_cluster], dx
-    mov cx, ax
+    mov bx, [cs:wf_hoff]
+    ; H_LAST_INDEX == target makes wf_get_cluster return from its cache without FAT I/O.
+    mov ax, [cs:bx+handles+H_LAST_CLUSTER]
+    cmp ax, 2
+    jb .wf_flush_before_get
+    mov ax, [cs:bx+handles+H_LAST_INDEX]
+    cmp ax, [cs:wf_cluster_index]
+    je .wf_get_cached_cluster
+.wf_flush_before_get:
+    call wf_flush_sector_cache
+    jc .wf_file_io_pop
+.wf_get_cached_cluster:
     call wf_get_cluster
     jc .wf_file_done
     mov [cs:wf_cluster], si

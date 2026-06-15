@@ -153,6 +153,7 @@ DEFAULT_TESTS = [
     "scripts/test_switchar.py",
     "scripts/test_shellredir.py",
     "scripts/test_shellcopy.py",
+    "scripts/test_cd_shellcopy_large.py",
     "scripts/test_batchparm.py",
     "scripts/test_batchif.py",
     "scripts/test_shelltab.py",

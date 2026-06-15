@@ -2,6 +2,35 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-15 Normality Install Write-Cache Corruption
+
+### Goal
+
+- Fix `make test-normality-install` failing after the installer completed and `NORM.EXE` launched.
+
+### Confirmed Facts
+
+- The framebuffer failure was a real installed-file corruption, not a screenshot threshold issue: the launch produced DOS/4GW fatal output before the fix.
+- `NORMINC/NORM.EXE` had the correct directory size and a full FAT chain, but first differed from the CD source at offset `172032`.
+- `NORMINC/GFX/TWEEN.DAT` had directory size `1152512`, but its FAT chain covered only `1011712` bytes.
+- The bad `NORM.EXE` bytes at offset `172032` matched CD source `DEMOS/NORMALIT/GFX/TWEEN.DAT` at offset `1011712`, showing that later GFX copy data was written into earlier `NORM.EXE` clusters.
+- The failing FAT pattern included `OPTSCRLO.MGL` jumping from cluster `1023` to `1280`, and `TWEEN.DAT` stopping at cluster `1536`; both are FAT16 sector-boundary symptoms.
+- A generated non-vendor replay (`scripts/test_cd_shellcopy_large.py` / `tests/programs/cdshcopy.asm`) reproduces the pre-fix corruption: without the write flush, it reports `NORMINC/NORM.EXE differs at offset 172032`, `OPTSCRLO.MGL cluster chain only covers 20480 bytes`, and `TWEEN.DAT cluster chain only covers 1036288 bytes`.
+- Pre-fix generated replay output included `FAIL: NORMINC/NORM.EXE differs at offset 172032: got 89, expected 2A`.
+- Pre-fix generated replay output included `FAIL: NORMINC/GFX/OPTSCRLO.MGL cluster chain only covers 20480 bytes`.
+- Pre-fix generated replay output included `FAIL: NORMINC/GFX/TWEEN.DAT cluster chain only covers 1036288 bytes`.
+
+### Fix
+
+- `AH=40h` file writes now flush any dirty staged data sector before sparse gap allocation, first-cluster allocation, or an uncached FAT chain walk/extension. This prevents the write-back data cache from remaining dirty while `wf_get_cluster` consults or extends FAT16 chains, without forcing same-sector partial writes to flush on every DOS call.
+
+### Verification
+
+- `python3 scripts/test_cd_shellcopy_large.py` passes with byte-for-byte checks for every generated file copied into `NORMINC` and `NORMINC/GFX`.
+- `make test-normality-install` passes; `NORM.EXE` launches and the Normality framebuffer is active.
+- `make bench-disk-write` passes with `WRITE512`, `WRITE128`, and `WRITE64` all at `WR=132` and `WD=128`, preserving hard-disk write coalescing.
+- Post-run image comparison confirms installed `NORMINC/NORM.EXE` and `NORMINC/GFX/TWEEN.DAT` match the Sam & Max CD source bytes exactly.
+
 ## 2026-06-14 FAT Direct-Read DMA Boundary Hardening
 
 ### Goal
