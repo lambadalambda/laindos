@@ -3471,6 +3471,9 @@ cd_rd_cache_req_lba: dw 0
 cd_rd_cache_req_lba_hi: dw 0
 cd_rd_cache_seg: dw 0
 cd_rd_cache_next: db 0
+%ifdef TEST_CD_REFRESH_METHOD_API
+test_cd_force_atapi_fail: db 0
+%endif
 cd_probe_drive: db 0
 cd_io_drive: db 0
 cd_bios_drive: db 0
@@ -3731,6 +3734,9 @@ fat16_value: dw 0
 fat16_cache_sector: dw 0
 fat16_cache_valid: db 0
 fat16_cache_dirty: db 0
+%ifdef TEST_FAT16_WINDOW_FLUSH_FAIL_ONCE
+fat16_window_flush_fail_once: db 0
+%endif
 
 rp_path: dw 0
 rp_path_seg: dw 0

@@ -34,6 +34,7 @@ cd_fetch_sectors_drive: PERF_INC perf_cd_reads
     push ds
     push es
     push si
+    push di
     mov [cs:cd_lba_lo], ax
     mov [cs:cd_lba_hi], dx
     mov [cs:cd_io_count], cx
@@ -75,6 +76,10 @@ cd_fetch_sectors_drive: PERF_INC perf_cd_reads
 .err:
     stc
 .done:
+%ifdef TEST_CD_FETCH_DI_CLOBBER
+    mov di, 0xD1E0
+%endif
+    pop di
     pop si
     pop es
     pop ds
@@ -335,6 +340,10 @@ atapi_read_sectors:
     push es
     push si
     push di
+%ifdef TEST_CD_REFRESH_METHOD_API
+    cmp byte [cs:test_cd_force_atapi_fail], 0
+    jne .err
+%endif
     test cx, cx
     jz .err
     cmp cx, 31
@@ -615,6 +624,7 @@ cd_refresh_media:
     call cd_read_pvd_atapi
     jnc .validate_atapi
 .try_bios:
+    mov byte [cs:cd_read_method], CD_READ_METHOD_BIOS
     call cd_read_pvd_current
     jnc .validate_bios
 .bios_reset:
@@ -630,6 +640,7 @@ cd_refresh_media:
 .validate_bios:
     call cd_validate_pvd
     jc .err
+    mov byte [cs:cd_read_method], CD_READ_METHOD_BIOS
     clc
     jmp .done
 .validate_atapi:

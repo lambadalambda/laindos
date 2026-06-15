@@ -2,6 +2,35 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-15 Performance Work Follow-Up Error-Path Review
+
+### Goal
+
+- Audit the recent disk/CD performance work for latent bugs that vendor game smokes did not exercise, then fix the confirmed findings with focused regressions.
+
+### Confirmed Facts
+
+- `fat16_window_flush` cleared `fat16_cache_dirty` after a failed FAT-sector write. A later FAT16 window load could then overwrite `FAT_SEG` and permanently lose unflushed chain updates.
+- `flush_fat` returned immediately when `fat_io_error` was already set, so a dirty FAT16 write-back window could remain unpersisted while the pending error was reported.
+- `cd_refresh_media` tried to fall back to BIOS PVD reads after ATAPI failures, but the fallback did not first force `cd_read_method` to BIOS. A previous ATAPI method therefore kept the fallback read on the failing ATAPI path.
+- `cd_fetch_sectors_drive` did not preserve `DI`; current callers were mostly protected, but the helper itself was not register-safe across BIOS/ATAPI reads.
+
+### Fixes
+
+- `fat16_window_flush` now returns explicit carry status, clears `fat16_cache_dirty` only after all FAT copies are written successfully, and leaves the dirty window valid on failure.
+- `fat16_window_load` now aborts if evicting a dirty window fails, so it cannot overwrite unflushed FAT data with another FAT sector.
+- The FAT16 branch of `flush_fat` now attempts to flush the dirty window before consuming/reporting a pending `fat_io_error`.
+- CD refresh now switches to `CD_READ_METHOD_BIOS` before BIOS fallback PVD reads and records BIOS as the active method after BIOS validation succeeds.
+- `cd_fetch_sectors_drive` now saves and restores `DI`.
+
+### Verification
+
+- Added `scripts/test_fat16_flush_fail.py` / `tests/programs/f16ferr.asm`, which injects a one-shot FAT16 window flush failure during a large write, covers the internal eviction retry plus close-level stale-error retry, and verifies the final `F16FERR.DAT` chain and data host-side.
+- Added `scripts/test_fat16_pending_error_flush.py` / `tests/programs/f16perr.asm`, which sets a pending FAT error after dirtying a FAT16 window, avoids termination retry, and verifies the FAT chain is already persisted.
+- Added `scripts/test_cd_refresh_method.py` / `tests/programs/cdrefmet.asm`, which forces ATAPI failures after boot and verifies BIOS fallback refresh leaves later CD file reads working.
+- Added `scripts/test_cd_fetch_di.py` / `tests/programs/cdfetchd.asm`, which uses a test-only clobber to prove `cd_fetch_sectors_drive` restores `DI`.
+- All four new focused tests pass individually after their fixes.
+
 ## 2026-06-15 Stunt Island Smoke Write-Cache Lifetime
 
 ### Goal

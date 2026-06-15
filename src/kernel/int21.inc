@@ -5284,6 +5284,18 @@ int21_handler:
     cmp al, 1
     je .perf_print
 %endif
+%ifdef TEST_FAT_ERROR_API
+    cmp al, 2
+    je .test_set_fat_error
+%endif
+%ifdef TEST_CD_REFRESH_METHOD_API
+    cmp al, 3
+    je .test_force_cd_atapi_fail
+%endif
+%ifdef TEST_CD_FETCH_DI_API
+    cmp al, 4
+    je .test_cd_fetch_di
+%endif
     cmp al, 0
     je .test_handle_count
     RET_ERR 1
@@ -5324,4 +5336,43 @@ int21_handler:
     pop cx
     pop bx
     jmp iret_nc
+%ifdef TEST_FAT_ERROR_API
+.test_set_fat_error:
+    mov byte [cs:fat_io_error], 1
+    jmp iret_nc
+%endif
+%ifdef TEST_CD_REFRESH_METHOD_API
+.test_force_cd_atapi_fail:
+    mov byte [cs:cd_read_method], CD_READ_METHOD_ATAPI
+    mov byte [cs:test_cd_force_atapi_fail], 1
+    jmp iret_nc
+%endif
+%ifdef TEST_CD_FETCH_DI_API
+.test_cd_fetch_di:
+    push bx
+    push dx
+    push es
+    push di
+    mov di, 0xBEEF
+    mov ax, CD_BUF
+    mov es, ax
+    xor bx, bx
+    mov ax, 16
+    xor dx, dx
+    call cd_fetch_sector_current
+    jc .test_cd_fetch_di_err
+    cmp di, 0xBEEF
+    jne .test_cd_fetch_di_err
+    pop di
+    pop es
+    pop dx
+    pop bx
+    jmp iret_nc
+.test_cd_fetch_di_err:
+    pop di
+    pop es
+    pop dx
+    pop bx
+    RET_ERR 5
+%endif
 %endif

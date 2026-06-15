@@ -122,6 +122,7 @@ fat16_window_load:
     push ax
     call fat16_window_flush
     pop ax
+    jc .flush_err
     mov [cs:fat16_cache_sector], ax
     add ax, [cs:kfat_start]
     mov word [cs:kio_lba_hi], 0
@@ -133,6 +134,9 @@ fat16_window_load:
     mov byte [cs:fat16_cache_valid], 1
     mov byte [cs:fat16_cache_dirty], 0
     clc
+    jmp .ret
+.flush_err:
+    stc
     jmp .ret
 .hit:
     PERF_INC perf_fat16_hits
@@ -153,15 +157,21 @@ fat16_window_load:
 ; No-op when the window is clean or invalid. Sets fat_io_error on failure.
 fat16_window_flush:
     cmp byte [cs:fat16_cache_valid], 1
-    jne .none
+    jne .clean
     cmp byte [cs:fat16_cache_dirty], 1
-    jne .none
+    jne .clean
     PERF_INC_THEN_PUSH_AX perf_fat16_flushes
     push bx
     push cx
     push dx
     push es
     mov byte [cs:fat_copy_idx], 0
+%ifdef TEST_FAT16_WINDOW_FLUSH_FAIL_ONCE
+    cmp byte [cs:fat16_window_flush_fail_once], 0
+    jne .copy
+    mov byte [cs:fat16_window_flush_fail_once], 1
+    jmp .ioerr
+%endif
 .copy:
     xor ax, ax
     mov al, [cs:knum_fats]
@@ -184,14 +194,20 @@ fat16_window_flush:
     jmp .copy
 .ioerr:
     mov byte [cs:fat_io_error], 1
+    stc
+    jmp .restore
 .done:
     mov byte [cs:fat16_cache_dirty], 0
+    clc
+.restore:
     pop es
     pop dx
     pop cx
     pop bx
     pop ax
-.none:
+    ret
+.clean:
+    clc
     ret
 
 fat16_find_first_free_hint:
@@ -392,10 +408,12 @@ fat_free_chain:
     ret
 
 flush_fat: PERF_INC perf_fat_flushes
+    cmp byte [cs:kfat_bits], 16
+    je .fat16
     cmp byte [cs:fat_io_error], 0
     jne .fat_err
-    cmp byte [cs:kfat_bits], 16
-    jne .fat12
+    jmp .fat12
+.fat16:
     ; FAT16 keeps one write-back window; persist it to all FAT copies
     call fat16_window_flush
     cmp byte [cs:fat_io_error], 0
@@ -411,11 +429,11 @@ flush_fat: PERF_INC perf_fat_flushes
 
 ; `fat_io_error` is a consumed-on-flush diagnostic: it latches a pending
 ; FAT I/O error between the most recent fat_set/fat_next and this call,
-; and flush_fat clears it (both in the success path via implicit carry=0
-; fallthrough and explicitly in .fat_err). Callers should consult the
-; carry return, not the flag, after flush_fat. Future diagnostics that
-; need a sticky flag should use a separate variable; do not change this
-; consume-on-flush contract without auditing every flush_fat caller.
+; and flush_fat clears it explicitly in .fat_err. The FAT16 path still
+; tries to drain a dirty write-back window before consuming the error.
+; Callers should consult the carry return, not the flag, after flush_fat.
+; Future diagnostics that need a sticky flag should use a separate variable;
+; do not change this consume-on-flush contract without auditing every caller.
 .fat12:
     cmp byte [cs:fat_dirty], 0
     je .clean
