@@ -35,7 +35,7 @@ read_sectors:
     ret
 
 write_sector: PERF_INC perf_sector_writes
-    mov byte [cs:rf_cache_valid], 0
+    call subdir_cache_invalidate
     mov byte [cs:kio_op], 3
     mov cx, 1
     call setup_sector_io

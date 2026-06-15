@@ -27,6 +27,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `python3 scripts/test_cd_fetch_di.py`: verify the low-level CD sector fetch helper preserves `DI` even when a test hook clobbers it internally.
 - `python3 scripts/test_fat16_flush_fail.py`: inject a FAT16 write-back window flush failure and verify a later retry persists the full file chain.
 - `python3 scripts/test_fat16_pending_error_flush.py`: verify a dirty FAT16 window is written before a pending FAT error is reported.
+- `python3 scripts/test_subdir_cache.py`: verify FAT subdirectory sector cache hit counters, mutation invalidation, drive-switch invalidation, and failed directory-flush cache poisoning guards.
 - `make test-cd-86box`: run the generated-ISO read-only `D:` file probe in 86Box with an ATAPI CD-ROM attached as IDE secondary master.
 - `make test-installer`: build the self-booting installer/updater floppy, install to a blank QEMU hard disk, verify `A:\INSTALL` refuses to run from a C: boot, then update an existing LainDOS FAT16 image with user data; all results are verified host-side.
 - `make test-sammax-cd-files`: with local Sam & Max media, extract the cue/bin data track and verify `D:\SAMNMAX` file reads.
@@ -139,5 +140,6 @@ if __name__ == "__main__":
 - `scripts/test_cd_shellcopy_large.py`: generated child-shell CD copy replay for large FAT16 writes and GFX-style wildcard copies.
 - `scripts/test_fat16_flush_fail.py` and `scripts/test_fat16_pending_error_flush.py`: FAT16 write-back-window error-path regressions that use one-shot kernel test hooks plus host-side FAT chain verification.
 - `scripts/test_cd_refresh_method.py` and `scripts/test_cd_fetch_di.py`: CD-ROM fallback and register-preservation regressions using generated ISOs and test-only kernel hooks.
+- `scripts/test_subdir_cache.py`: adversarial FAT subdirectory cache regression covering repeated worst-entry lookups, create/delete/rename/attribute/mkdir/rmdir invalidation, drive-switch invalidation, and failed-flush retry behavior.
 - `scripts/test_readwrap.py` and `scripts/test_readmulti.py`: handle reads into boundary-sensitive buffers, hard-disk multi-sector reads, and FAT direct-read DMA-boundary coverage.
 - `scripts/test_shell_monkey.py`: shell-launched game smoke using QEMU monitor input and a framebuffer check.

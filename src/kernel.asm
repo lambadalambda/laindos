@@ -711,7 +711,7 @@ init_drive_table:
     jnc .hd_have_floppy
     mov al, 2
     call load_drive_slot_geometry
-    mov byte [cs:rf_cache_valid], 0
+    call subdir_cache_invalidate
     mov byte [cs:fat16_cache_valid], 0
     mov byte [cs:drive_req], 2
     call load_active_volume_buffers
@@ -1173,7 +1173,7 @@ floppy_media_remount:
     mov word [cs:kpart_lba_hi], 0
     mov word [cs:cur_dir_cluster], ROOT_CLUSTER
     mov byte [cs:cur_dir_path], 0
-    mov byte [cs:rf_cache_valid], 0
+    call subdir_cache_invalidate
     mov byte [cs:fat16_cache_valid], 0
     mov byte [cs:fat_dirty], 0
     mov al, [cs:active_drive_num]
@@ -1446,7 +1446,7 @@ activate_drive:
     call save_active_drive_cwd
     mov al, [cs:drive_req]
     call load_drive_slot_geometry
-    mov byte [cs:rf_cache_valid], 0
+    call subdir_cache_invalidate
     mov byte [cs:fat16_cache_valid], 0
     mov byte [cs:fat_dirty], 0
     call load_active_volume_buffers
@@ -1471,7 +1471,7 @@ activate_drive:
     jae .err
     mov [cs:drive_req], al
     call load_drive_slot_geometry
-    mov byte [cs:rf_cache_valid], 0
+    call subdir_cache_invalidate
     mov byte [cs:fat16_cache_valid], 0
     mov byte [cs:fat_dirty], 0
     call load_active_volume_buffers
@@ -3620,6 +3620,13 @@ rf_direct_lba_hi: dw 0
 rf_direct_count: db 0
 rf_dma_count: db 0
 rf_cache_valid: db 0
+subdir_cache_lba: times SUBDIR_CACHE_SLOTS dw 0
+subdir_cache_lba_hi: times SUBDIR_CACHE_SLOTS dw 0
+subdir_cache_drive: times SUBDIR_CACHE_SLOTS db 0
+subdir_cache_valid: times SUBDIR_CACHE_SLOTS db 0
+subdir_cache_next: db 0
+subdir_cache_req_lba: dw 0
+subdir_cache_req_lba_hi: dw 0
 floppy_check_tick: dw 0
 rf_buf_off:    dw 0
 rf_buf_seg:    dw 0
@@ -4008,7 +4015,7 @@ int2f_iret_nc:
     iret
 
 wf_mark_sector_cache:
-    mov byte [cs:rf_cache_valid], 0
+    call subdir_cache_invalidate
     mov ax, [cs:wf_sector_lba]
     mov [cs:wf_sec_cache_lba], ax
     mov ax, [cs:wf_sector_lba_hi]
@@ -4161,7 +4168,7 @@ wf_flush_handle_dir_entry:
 wf_flush_iret_nc:
     call wf_flush_sector_cache
     jc .err
-    mov byte [cs:rf_cache_valid], 0
+    call subdir_cache_invalidate
     jmp iret_nc
 .err:
     mov ax, 5
@@ -4243,6 +4250,14 @@ perf_counts_print:
     call serial_print
     mov ax, [cs:perf_dir_flushes]
     call serial_print_hex_word
+    mov si, msg_perf_dch
+    call serial_print
+    mov ax, [cs:perf_subdir_cache_hits]
+    call serial_print_hex_word
+    mov si, msg_perf_dcm
+    call serial_print
+    mov ax, [cs:perf_subdir_cache_misses]
+    call serial_print_hex_word
     mov si, msg_perf_wfc
     call serial_print
     mov ax, [cs:perf_write_calls]
@@ -4296,6 +4311,8 @@ msg_perf_fw:  db " FW=", 0
 msg_perf_fh:  db " FH=", 0
 msg_perf_fm:  db " FM=", 0
 msg_perf_mw:  db " MW=", 0
+msg_perf_dch: db " DCH=", 0
+msg_perf_dcm: db " DCM=", 0
 
 perf_sector_reads: dw 0
 perf_read_sectors: dw 0
@@ -4315,6 +4332,8 @@ perf_fat_walk_steps: dw 0
 perf_fat16_hits: dw 0
 perf_fat16_misses: dw 0
 perf_fat_mirror_writes: dw 0
+perf_subdir_cache_hits: dw 0
+perf_subdir_cache_misses: dw 0
 perf_counts_end:
 %endif
 
@@ -4353,6 +4372,12 @@ kernel_end:
 %endif
 %if (CD_CACHE_BUF + (CD_CACHE_SLOTS * CD_CACHE_SLOT_PARAS)) > MCB_START
 %error "CD cache overlaps MCB arena"
+%endif
+%if (CD_CACHE_BUF + (CD_CACHE_SLOTS * CD_CACHE_SLOT_PARAS)) > SUBDIR_CACHE_BUF
+%error "CD cache overlaps subdirectory cache"
+%endif
+%if (SUBDIR_CACHE_BUF + (SUBDIR_CACHE_SLOTS * SUBDIR_CACHE_SLOT_PARAS)) > MCB_START
+%error "subdirectory cache overlaps MCB arena"
 %endif
 %if MCB_START >= MEM_TOP
 %error "MCB arena is empty"

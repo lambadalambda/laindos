@@ -2,6 +2,34 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-15 FAT Subdirectory Sector Cache
+
+### Goal
+
+- Reduce repeated path-search and FindFirst-style physical reads in FAT subdirectories without reintroducing stale-cache directory corruption.
+
+### Confirmed Facts
+
+- Root directories already live in `ROOT_SEG`, but FAT subdirectory scans repeatedly loaded every directory sector through `SEC_BUF` on each lookup.
+- The generated `DIRLOOK` benchmark's worst-entry repeated open path read the same nine subdirectory sectors on every iteration: before this change it reported `DIRLOOK RD=288` for `32` opens.
+- A cache that serves directory sectors must still copy hits into `SEC_BUF`, because callers such as delete, rename, attribute set, and handle metadata flushes modify `ES:DI` in place and then flush `SEC_BUF`.
+- Failed directory-slot writes must not leave a mutated, unpersisted sector visible through the cache.
+
+### Fixes
+
+- Added a sixteen-slot FAT subdirectory sector cache in `SUBDIR_CACHE_BUF`, keyed by active drive and 32-bit LBA.
+- `LOAD_SUBDIR_SECTOR` and `load_dir_slot` now read FAT subdirectory sectors through `load_subdir_sector_cached`, which flushes pending write-back data before serving hits, copies hits into `SEC_BUF`, and fills cache slots only after successful physical reads.
+- All `write_sector` calls invalidate the subdirectory cache, and `flush_dir_slot` also invalidates before its test-failure hook so failed directory writes cannot expose dirty `SEC_BUF` contents as cached directory data.
+- Performance counters now report `DCH` and `DCM` for subdirectory cache hits and misses.
+
+### Verification
+
+- Added `scripts/test_subdir_cache.py` / `tests/programs/dircache.asm`, which performs `32` repeated worst-entry opens in a generated `CACHE` subdirectory, then exercises create/delete/rename/attribute/mkdir/rmdir invalidation in the same subdirectory.
+- Added `tests/programs/dircfail.asm` under the same runner with `TEST_FLUSH_DIR_SLOT_FAIL_AFTER=1`; it primes the cache, forces a create flush failure, verifies the failed name is not findable, then retries a different create successfully.
+- Added `tests/programs/dircdrv.asm` under the same runner; it primes cached subdirectory lookups on both `A:` and `C:` and verifies drive switches force fresh misses rather than reusing the previous drive's slots.
+- The focused regression passes with `rd=10 hits=279 misses=9`.
+- `make bench-read-paths` passes. `DIRLOOK` now reports `RD=9 DCH=279 DCM=9` for both BIOS and forced-ATAPI benchmark runs, down from the previous `RD=288` baseline. Other read-side counters remain in their expected ranges: `READ64 RD=34`, `READ512 RD=34`, `READ1K RD=65`, `READ4K RD=17`, `EXECLOAD RD=14`, `FATSEEK RD=32`, `FATARCH RD=32`, `CDSEQ CD=16`, and `CDSTRM CD=8`.
+
 ## 2026-06-15 Performance Work Follow-Up Error-Path Review
 
 ### Goal

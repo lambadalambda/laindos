@@ -35,22 +35,17 @@ load_dir_slot:
     clc
     ret
 .subdir:
-    mov ax, SEC_BUF
-    mov es, ax
-    xor bx, bx
-    mov ax, [cs:dir_flush_lba_hi]
-    mov [cs:kio_lba_hi], ax
+    mov dx, [cs:dir_flush_lba_hi]
     mov ax, [cs:dir_flush_lba]
-    call read_sector
+    call load_subdir_sector_cached
     jc .done
-    mov ax, SEC_BUF
-    mov es, ax
     mov di, [cs:dir_slot_off]
     clc
 .done:
     ret
 
 flush_dir_slot:
+    call subdir_cache_invalidate
 %ifdef TEST_FLUSH_DIR_SLOT_FAIL
     call test_flush_dir_slot_fail
     jnc .fds_no_test_fail

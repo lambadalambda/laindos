@@ -92,6 +92,7 @@ DEFAULT_TESTS = [
     "scripts/test_gap_write.py",
     "scripts/test_installer.py",
     "scripts/test_highdir.py",
+    "scripts/test_subdir_cache.py",
     "scripts/test_badfat.py",
     "scripts/test_free.py",
     "scripts/test_dirextfail.py",

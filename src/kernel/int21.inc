@@ -3575,7 +3575,7 @@ int21_handler:
     mov [cs:si+handles+H_POS_HI], ax
     mov [cs:si+handles+H_SIZE_HI], ax
     mov byte [cs:si+handles+H_DRIVE+1], 1
-    mov byte [cs:rf_cache_valid], 0
+    call subdir_cache_invalidate
     jmp .wf_file_loop
 .wf_file_loop:
     cmp word [cs:wf_count], 0
@@ -3708,7 +3708,7 @@ int21_handler:
     cmp ax, [cs:si+handles+H_SIZE_LO]
     jae .wf_file_done
 .wf_do_trunc:
-    mov byte [cs:rf_cache_valid], 0
+    call subdir_cache_invalidate
     mov ax, [cs:si+handles+H_POS_LO]
     mov [cs:si+handles+H_SIZE_LO], ax
     mov dx, [cs:si+handles+H_POS_HI]

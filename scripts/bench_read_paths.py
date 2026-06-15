@@ -151,6 +151,10 @@ def validate_results(results):
         raise ValueError(f"FATSEEK fetched excess random-read sectors: RS={results['FATSEEK'].get('RS', 0)}")
     if results["FATARCH"].get("FW", 0) >= 100:
         raise ValueError(f"FATARCH did not reduce repeated archive FAT walks: FW={results['FATARCH'].get('FW', 0)}")
+    require_counter(results, "DIRLOOK", "DCH")
+    require_counter(results, "DIRLOOK", "DCM")
+    if results["DIRLOOK"].get("RD", 0) > 32:
+        raise ValueError(f"DIRLOOK did not use subdirectory sector caching: RD={results['DIRLOOK'].get('RD', 0)}")
     if results["EXECLOAD"].get("RS", 0) != 97:
         raise ValueError(f"EXECLOAD transferred {results['EXECLOAD'].get('RS', 0)} sectors, expected 97")
     if results["EXECLOAD"].get("RD", 0) >= results["EXECLOAD"].get("RS", 0):
@@ -171,7 +175,8 @@ def print_summary(results, title):
             f"{phase}: {PHASE_INFO[phase]} ticks={counters['TICKS']} "
             f"rd={counters.get('RD', 0)} read_sectors={counters.get('RS', 0)} cd={counters.get('CD', 0)} "
             f"loader_copies={counters.get('LC', 0)} fat_walk={counters.get('FW', 0)} fat_alloc_scan={counters.get('FS', 0)} "
-            f"fat16_hit={counters.get('FH', 0)} fat16_miss={counters.get('FM', 0)}"
+            f"fat16_hit={counters.get('FH', 0)} fat16_miss={counters.get('FM', 0)} "
+            f"subdir_hit={counters.get('DCH', 0)} subdir_miss={counters.get('DCM', 0)}"
         )
 
 

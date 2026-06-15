@@ -47,6 +47,7 @@ const MEMMAP = [
   { seg: "FFFF", name: "Relocated kernel (HMA)", note: "HMA_SEG:0010 — stack top at FFF0h, A20 kept on", key: "kernel" },
   { seg: "A000", name: "VGA graphics memory", note: "MEM_TOP — mode 13h framebuffer", key: "vga" },
   { seg: "0B00", name: "Program + environment arena", note: "MCB_START — where games live", key: "arena", grow: true },
+  { seg: "08C0", name: "Subdirectory cache", note: "SUBDIR_CACHE_BUF", key: "subdircache" },
   { seg: "06C0", name: "CD file cache buffers", note: "CD_CACHE_BUF", key: "cdcache" },
   { seg: "06A0", name: "Write cache buffer", note: "WRITE_CACHE_BUF", key: "write" },
   { seg: "02A0", name: "Root directory buffer", note: "ROOT_SEG", key: "root" },

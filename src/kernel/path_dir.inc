@@ -26,20 +26,140 @@ alloc_handle:
     ret
 
 %macro LOAD_SUBDIR_SECTOR 3
+    mov dx, [cs:%2]
+    mov ax, [cs:%1]
+    push cx
+    call load_subdir_sector_cached
+    pop cx
+    jc %3
+%endmacro
+
+subdir_cache_invalidate:
+    mov byte [cs:rf_cache_valid], 0
+    push ax
+    push cx
+    push di
+    push es
+    push cs
+    pop es
+    mov di, subdir_cache_valid
+    xor ax, ax
+    mov cx, SUBDIR_CACHE_SLOTS
+    cld
+    rep stosb
+    mov byte [cs:subdir_cache_next], 0
+    pop es
+    pop di
+    pop cx
+    pop ax
+    ret
+
+subdir_cache_slot_seg:
+    push bx
+    push cx
+    xor bh, bh
+    mov ax, bx
+    mov cl, 5
+    shl ax, cl
+    add ax, SUBDIR_CACHE_BUF
+    pop cx
+    pop bx
+    ret
+
+; DX:AX = absolute sector LBA. Returns the sector in SEC_BUF with ES:DI at
+; SEC_BUF:0. Preserves CX, DX, DS, and SI; clobbers AX, BX, ES, and DI.
+load_subdir_sector_cached:
+    mov [cs:subdir_cache_req_lba], ax
+    mov [cs:subdir_cache_req_lba_hi], dx
+    push cx
+    push dx
+    push ds
+    push si
+    call wf_flush_sector_cache
+    jc .err
+    xor bx, bx
+.lookup:
+    cmp bx, SUBDIR_CACHE_SLOTS
+    jae .miss
+    cmp byte [cs:subdir_cache_valid+bx], 1
+    jne .next
+    mov al, [cs:active_drive_num]
+    cmp al, [cs:subdir_cache_drive+bx]
+    jne .next
+    mov si, bx
+    shl si, 1
+    mov ax, [cs:subdir_cache_req_lba]
+    cmp ax, [cs:si+subdir_cache_lba]
+    jne .next
+    mov ax, [cs:subdir_cache_req_lba_hi]
+    cmp ax, [cs:si+subdir_cache_lba_hi]
+    je .hit
+.next:
+    inc bx
+    jmp .lookup
+.hit:
+    PERF_INC perf_subdir_cache_hits
+    call subdir_cache_slot_seg
+    mov ds, ax
+    mov ax, SEC_BUF
+    mov es, ax
+    xor si, si
+    xor di, di
+    mov cx, 256
+    cld
+    rep movsw
+    jmp .ok
+.miss:
+    PERF_INC perf_subdir_cache_misses
+    mov dx, [cs:subdir_cache_req_lba_hi]
+    mov [cs:kio_lba_hi], dx
     mov ax, SEC_BUF
     mov es, ax
     xor bx, bx
-    mov ax, [cs:%2]
-    mov [cs:kio_lba_hi], ax
-    mov ax, [cs:%1]
-    push cx
+    mov ax, [cs:subdir_cache_req_lba]
     call read_sector
+    jc .err
+    xor bh, bh
+    mov bl, [cs:subdir_cache_next]
+    inc byte [cs:subdir_cache_next]
+    and byte [cs:subdir_cache_next], SUBDIR_CACHE_SLOTS - 1
+    call subdir_cache_slot_seg
+    mov dx, ax
+    mov ax, SEC_BUF
+    mov ds, ax
+    mov es, dx
+    xor si, si
+    xor di, di
+    mov cx, 256
+    cld
+    rep movsw
+    mov al, [cs:active_drive_num]
+    mov [cs:subdir_cache_drive+bx], al
+    mov si, bx
+    shl si, 1
+    mov ax, [cs:subdir_cache_req_lba]
+    mov [cs:si+subdir_cache_lba], ax
+    mov ax, [cs:subdir_cache_req_lba_hi]
+    mov [cs:si+subdir_cache_lba_hi], ax
+    mov byte [cs:subdir_cache_valid+bx], 1
+.ok:
+    pop si
+    pop ds
+    pop dx
     pop cx
-    jc %3
     mov ax, SEC_BUF
     mov es, ax
+    xor bx, bx
     xor di, di
-%endmacro
+    clc
+    ret
+.err:
+    pop si
+    pop ds
+    pop dx
+    pop cx
+    stc
+    ret
 
 
 psp_mark_handle_open:

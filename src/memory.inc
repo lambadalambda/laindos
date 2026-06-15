@@ -13,11 +13,17 @@ CD_CACHE_SLOTS equ 4
 %error "CD_CACHE_SLOTS must be a power of two"
 %endif
 CD_CACHE_SLOT_PARAS equ CD_BUF_PARAS
+SUBDIR_CACHE_SLOTS equ 16
+%if (SUBDIR_CACHE_SLOTS & (SUBDIR_CACHE_SLOTS - 1)) != 0
+%error "SUBDIR_CACHE_SLOTS must be a power of two"
+%endif
+SUBDIR_CACHE_SLOT_PARAS equ SECTOR_BUF_PARAS
 CD_BUF equ 0x0180
 SEC_BUF equ 0x0200
 READ_CACHE_BUF equ (SEC_BUF + SECTOR_BUF_PARAS)
 WRITE_CACHE_BUF equ 0x06A0
 CD_CACHE_BUF equ (WRITE_CACHE_BUF + SECTOR_BUF_PARAS)
+SUBDIR_CACHE_BUF equ (CD_CACHE_BUF + (CD_CACHE_SLOTS * CD_CACHE_SLOT_PARAS))
 ; Real DOS systems never hand out program memory this low: IO.SYS,
 ; MSDOS.SYS, buffers, and stacks consumed the first ~45-80 KB, so the
 ; first PSP on period machines sat at roughly 0x0B00 or above. Era

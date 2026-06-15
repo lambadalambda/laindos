@@ -245,3 +245,4 @@
 - [x] [Triage Wing Commander Smoke Abnormal Termination](issues/triage-wing-commander-smoke-abnormal-termination.md)
 - [x] [Triage Settlers II Smoke CauseWay Exception](issues/triage-settlers-ii-smoke-causeway-exception.md)
 - [x] [Fix Civilization 86Box Smoke Title Menu Timeout](issues/fix-civilization-86box-smoke-title-menu-timeout.md)
+- [x] [Cache Subdirectory Sectors for Path Searches](issues/cache-subdirectory-sectors-for-path-searches.md)
