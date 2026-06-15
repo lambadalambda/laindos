@@ -737,6 +737,9 @@ print_dir_summary:
     call print_dword_dec_width10
     mov dx, dir_bytes_msg
     call print_dollar
+    mov ax, [dir_bytes_lo]
+    mov dx, [dir_bytes_hi]
+    call print_dir_human_suffix
     call dir_line_end
     mov ax, [dir_dir_count]
     xor dx, dx
@@ -749,7 +752,102 @@ print_dir_summary:
     call print_dword_dec_width10
     mov dx, dir_free_msg
     call print_dollar
+    mov ax, [dir_free_lo]
+    mov dx, [dir_free_hi]
+    call print_dir_human_suffix
     call dir_line_end
+    ret
+
+print_dir_human_suffix:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    mov [dir_human_lo], ax
+    mov [dir_human_hi], dx
+    mov dx, dir_human_open_msg
+    call print_dollar
+    mov ax, [dir_human_lo]
+    mov dx, [dir_human_hi]
+    test dx, dx
+    jnz .kilobytes
+    cmp ax, 1024
+    jae .kilobytes
+    call print_dword_dec
+    mov dx, dir_human_b_msg
+    call print_dollar
+    jmp .done
+.kilobytes:
+    mov ax, [dir_human_lo]
+    mov dx, [dir_human_hi]
+    mov cx, 10
+    call shift_dword_right
+    mov [dir_human_unit_lo], ax
+    mov [dir_human_unit_hi], dx
+    test dx, dx
+    jnz .megabytes
+    cmp ax, 1024
+    jae .megabytes
+    mov bx, [dir_human_lo]
+    and bx, 0x03FF
+    mov si, dir_human_kb_msg
+    jmp .print_scaled
+.megabytes:
+    mov bx, [dir_human_unit_lo]
+    and bx, 0x03FF
+    mov ax, [dir_human_unit_lo]
+    mov dx, [dir_human_unit_hi]
+    mov cx, 10
+    call shift_dword_right
+    mov [dir_human_unit_lo], ax
+    mov [dir_human_unit_hi], dx
+    test dx, dx
+    jnz .gigabytes
+    cmp ax, 1024
+    jae .gigabytes
+    mov si, dir_human_mb_msg
+    jmp .print_scaled
+.gigabytes:
+    mov bx, [dir_human_unit_lo]
+    and bx, 0x03FF
+    mov ax, [dir_human_unit_lo]
+    mov dx, [dir_human_unit_hi]
+    mov cx, 10
+    call shift_dword_right
+    mov [dir_human_unit_lo], ax
+    mov [dir_human_unit_hi], dx
+    mov si, dir_human_gb_msg
+.print_scaled:
+    mov ax, [dir_human_unit_lo]
+    mov dx, [dir_human_unit_hi]
+    call print_dword_dec
+    mov al, '.'
+    call print_char_al
+    mov ax, bx
+    mov cx, 10
+    mul cx
+    mov cx, 1024
+    div cx
+    add al, '0'
+    call print_char_al
+    mov dx, si
+    call print_dollar
+.done:
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+shift_dword_right:
+    jcxz .done
+.loop:
+    shr dx, 1
+    rcr ax, 1
+    loop .loop
+.done:
     ret
 
 get_dir_free_bytes:
@@ -923,6 +1021,57 @@ print_dword_dec_width10:
     mov al, ' '
     call print_char_al
     jmp .next
+.start:
+    mov byte [dir_dec_started], 1
+.digit:
+    mov al, bl
+    add al, '0'
+    call print_char_al
+.next:
+    add si, 4
+    loop .power
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+print_dword_dec:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    mov [dir_dec_lo], ax
+    mov [dir_dec_hi], dx
+    mov byte [dir_dec_started], 0
+    mov si, dir_pow10_table
+    mov cx, dir_pow10_count
+.power:
+    xor bl, bl
+.subtract:
+    mov ax, [dir_dec_hi]
+    cmp ax, [si + 2]
+    jb .emit
+    ja .can_subtract
+    mov ax, [dir_dec_lo]
+    cmp ax, [si]
+    jb .emit
+.can_subtract:
+    mov ax, [si]
+    sub [dir_dec_lo], ax
+    mov ax, [si + 2]
+    sbb [dir_dec_hi], ax
+    inc bl
+    jmp .subtract
+.emit:
+    cmp byte [dir_dec_started], 0
+    jne .digit
+    test bl, bl
+    jnz .start
+    cmp cx, 1
+    jne .next
 .start:
     mov byte [dir_dec_started], 1
 .digit:
@@ -3551,6 +3700,11 @@ dir_file_count_msg: db " File(s) ", "$"
 dir_dir_count_msg: db " Dir(s) ", "$"
 dir_bytes_msg: db " bytes", "$"
 dir_free_msg: db " bytes free", "$"
+dir_human_open_msg: db " (", "$"
+dir_human_b_msg: db " B)", "$"
+dir_human_kb_msg: db " KB)", "$"
+dir_human_mb_msg: db " MB)", "$"
+dir_human_gb_msg: db " GB)", "$"
 dir_pause_msg: db "Press any key to continue . . .", "$"
 copy_success_msg: db "        1 File(s) copied.", 13, 10, "$"
 copy_self_msg: db "File cannot be copied onto itself", 13, 10, "$"
@@ -3631,6 +3785,10 @@ dir_free_lo: dw 0
 dir_free_hi: dw 0
 dir_mul_lo: dw 0
 dir_mul_hi: dw 0
+dir_human_lo: dw 0
+dir_human_hi: dw 0
+dir_human_unit_lo: dw 0
+dir_human_unit_hi: dw 0
 dir_dec_lo: dw 0
 dir_dec_hi: dw 0
 dir_dec_started: db 0

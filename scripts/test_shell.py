@@ -183,7 +183,7 @@ def send_keys(output_chunks):
     dir_midemo = send_command(sock, output_chunks, "dir midemo")
     require_command_output("dir midemo", dir_midemo, ["Directory of A:\\midemo", "SUBTEST  DAT"])
     dir_midemo_dat = send_command(sock, output_chunks, "dir midemo\\*.dat")
-    require_command_output("dir midemo\\*.dat", dir_midemo_dat, ["SUBTEST  DAT"], ["HELLOEXE EXE"])
+    require_command_output("dir midemo\\*.dat", dir_midemo_dat, ["SUBTEST  DAT", "32 bytes (32 B)"], ["HELLOEXE EXE"])
     dir_com = send_command(sock, output_chunks, "dir *.com")
     require_command_output("dir *.com", dir_com, ["SHELL    COM", "HELLO    COM"], ["HELLOEXE EXE"])
     dir_wide = send_command(sock, output_chunks, "dir /w")
@@ -441,6 +441,15 @@ def main():
     else:
         print("  FAIL: expected exactly two bad commands")
         failed = True
+    for pattern, description in [
+        (r"File\(s\)\s+\d+ bytes \(\d+\.\d+ (?:KB|MB|GB)\)", "human-readable DIR used space"),
+        (r"Dir\(s\)\s+\d+ bytes free \(\d+\.\d+ (?:KB|MB|GB)\)", "human-readable DIR free space"),
+    ]:
+        if re.search(pattern, output):
+            print(f"  PASS: found {description}")
+        else:
+            print(f"  FAIL: missing {description}")
+            failed = True
     for marker in ["FAIL:", "EXC ", "INT 21h AH=", "Invalid MCB chain"]:
         if marker in output:
             print(f"  FAIL: unexpected '{marker}'")
