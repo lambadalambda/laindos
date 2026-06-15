@@ -14,6 +14,9 @@ copy the system files, then:
 The test also boots the installer against an existing LainDOS FAT16 image with
 stale system files plus user data. That path must update the managed system
 files and boot sector without reformatting or deleting unrelated files.
+The existing image includes enough unrelated data to force the first replacement
+KERNEL.SYS allocation above the old 16-bit boot-loader LBA boundary; the update
+must still boot from C: after a reboot.
 It also boots from the installed C: hard disk with the installer floppy still
 attached and verifies A:\\INSTALL refuses to run, since direct BIOS writes to a
 mounted boot volume can leave the install inconsistent.
@@ -35,7 +38,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(__file__))
-from fatlib import FatImage, entry_cluster
+from fatlib import FatImage, entry_cluster, entry_size
 from testlib import (build_dir, qemu_binary, start_qemu, stop_qemu,
                      open_monitor, monitor_text_screen, monitor_quit,
                      send_monitor_text, send_monitor_key, run_cmd,
@@ -57,6 +60,7 @@ SOURCES = {
 KEYMAP = {":": "shift-semicolon"}
 KEEP_BYTES = (b"preserve this user file\r\n" * 19) + b"end\r\n"
 SUB_BYTES = (b"subdirectory data survives updater\r\n" * 181) + b"done\r\n"
+FILLER_SIZE = 36 * 1024 * 1024
 
 
 def screen(sock, retries=5):
@@ -240,15 +244,18 @@ def prepare_existing_install():
         stale_paths[name] = dst
     keep = os.path.join(EXISTING, "keep.dat")
     sub = os.path.join(EXISTING, "sub.dat")
+    filler = os.path.join(EXISTING, "filler.bin")
     with open(keep, "wb") as f:
         f.write(KEEP_BYTES)
     with open(sub, "wb") as f:
         f.write(SUB_BYTES)
+    with open(filler, "wb") as f:
+        f.truncate(FILLER_SIZE)
     run_cmd([
         "python3", "scripts/mkimage.py", "--format=hd160m",
         BOOT16, stale_paths["KERNEL.SYS"], HD,
         stale_paths["SHELL.COM"], stale_paths["FREE.COM"],
-        stale_paths["TIME.COM"], keep, f"DATA:{sub}",
+        stale_paths["TIME.COM"], filler, keep, f"DATA:{sub}",
     ])
     old_chains = managed_chains(FatImage.from_file(HD))
     with open(HD, "r+b") as f:
@@ -280,15 +287,21 @@ def verify_updated_host(old_boot):
         got = img.read_file(name)
         want = open(src, "rb").read()
         assert got == want, f"{name} was not updated byte-exact"
+    kernel_entry = img.find("KERNEL.SYS")
+    kernel_lba = (img.cluster_off(entry_cluster(kernel_entry)) - img.offset) // img.bps
+    assert kernel_lba > 0xFFFF, f"KERNEL.SYS first LBA {kernel_lba} did not exceed 65535"
     assert img.read_file("KEEP.DAT") == KEEP_BYTES, "root user file was not preserved"
     assert img.read_file("DATA/SUB.DAT") == SUB_BYTES, "subdirectory user file was not preserved"
+    filler = img.find("FILLER.BIN")
+    assert filler is not None, "large user file was not preserved"
+    assert entry_size(filler) == FILLER_SIZE, "large user file size changed"
     print("  PASS: existing LainDOS image updated without deleting user files")
 
 
 def verify_old_chains_released(old_chains):
     img = FatImage.from_file(HD)
     referenced = set()
-    for name in list(SOURCES) + ["KEEP.DAT", "DATA", "DATA/SUB.DAT"]:
+    for name in list(SOURCES) + ["FILLER.BIN", "KEEP.DAT", "DATA", "DATA/SUB.DAT"]:
         entry = img.find(name)
         referenced.update(img.cluster_chain(entry_cluster(entry)))
     for name, chain in old_chains.items():
@@ -371,6 +384,8 @@ def main():
         print("  last installer screen:")
         print("\n".join(l for l in s.splitlines() if l.strip()))
         sys.exit(1)
+    run_cmd([sys.executable, "scripts/test_installer.py", "--boot-check"])
+    print("  PASS: updated high-cluster install boots from C:")
     print("\nInstaller test passed.")
 
 

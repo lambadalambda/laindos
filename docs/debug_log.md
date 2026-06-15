@@ -2,6 +2,44 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-15 Installer Update Leaves Hard Disk Temporarily Unbootable
+
+### Symptoms
+
+- User reports running the installer from the floppy against an existing hard-disk install performs a long hard-disk read phase before copying from the floppy.
+- After that first update and reboot, the hard disk does not boot.
+- Running another update from the floppy makes the same hard disk boot again, with no obvious data loss.
+- A prior case with booting from `C:` and then launching `A:\INSTALL` had a similar first-reboot failure pattern; the installer now refuses that mode, so the remaining bug appears to be the legitimate floppy-boot updater path.
+
+### Current Hypotheses
+
+- The updater may be replacing a managed file with a chain that grows beyond the old allocation and leaves boot-critical FAT or root metadata inconsistent until a second run rewrites it.
+- The existing test updates a hand-built stale image and verifies host-side FAT contents, but does not gate on a real fresh-install-then-update-then-C:-boot sequence.
+
+### Confirmed Facts
+
+- Extending `scripts/test_installer.py` with a large unrelated `FILLER.BIN` makes the update preserve all files host-side but fail the fresh-process C: boot check before any fix.
+- In that failing image, `KERNEL.SYS` starts at cluster `9238`, data LBA `74241`, with `spc=8` and data area starting at LBA `353`.
+- `src/boot.asm` FAT16 cluster-to-LBA math keeps only the low 16 bits: `(cluster-2)*spc + dsta` is passed in `AX` to `rs`, so any boot-critical cluster above LBA `65535` wraps during boot. The FAT chain itself is valid; the boot loader cannot read the high cluster.
+
+### Fix
+
+- The FAT16 boot path now carries the high word of the cluster data LBA into `rs` as `DX:AX`, stores it in `lbh`, reloads it before CHS conversion, and increments it when multi-sector reads cross a 64 KiB sector-number boundary.
+- The boot sector stayed within 512 bytes by removing redundant size work: `NUM_FATS_V` is a build-time two-FAT invariant, the second `sectors-per-cluster` reload before `rs` was removed, the FAT16-only dead `cy` storage was removed, and the final `DL` reload before kernel entry was dropped because the kernel reads the boot drive from `0x500`.
+- A follow-up FAT12 divide-fault risk came from replacing the old two-FAT `mul` with `add ax,ax`: the old `mul` also cleared `DX`, while the new sequence left BIOS state in `DX`, so hard-disk boots reliably divided a stale `DX:AX` during max-cluster calculation and floppy boots depended on BIOS-cleared `DH`. The FAT12 path now clears `DX` explicitly before that `div`.
+
+### Verification
+
+- Before the fix, `make test-installer` failed at the fresh-process `scripts/test_installer.py --boot-check` step after host-side update verification passed.
+- After the fix, `nasm -DFAT16=1 -f bin src/boot.asm -o build/boot16_test.bin` and `nasm -DFAT12=1 -f bin src/boot.asm -o build/boot12_test.bin` both produced 512-byte boot sectors.
+- After the fix, `make test-installer` passes and reports `PASS: updated high-cluster install boots from C:`.
+- After the FAT12 `DX` correction, `python3 scripts/test_drive.py` and `python3 scripts/test_readmulti.py` both pass again for FAT12 hard-disk images.
+
+### Final Checks
+
+- `make test-installer`, `python3 scripts/test_drive.py`, `python3 scripts/test_readmulti.py`, and `python3 scripts/test_boot_chain_bounds.py` pass after the final boot-sector changes. `test_boot_chain_bounds.py` now also relocates a FAT16 `KERNEL.SYS` to a cluster whose multi-sector read crosses LBA `65535`, exercising the `lbh` carry path.
+- Full `make test` passes with `SUMMARY: 159/159 tests passed in 106.89s with -j 4`.
+
 ## 2026-06-15 Word Copies for Sector Transfers
 
 ### Goal

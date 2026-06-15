@@ -15,6 +15,10 @@ ROOT_SEG equ 0x0A20
 %if FAT12 + FAT16 != 1
 %error "Build must pass -DFAT12=1 or -DFAT16=1"
 %endif
+%define NUM_FATS_V 2
+%if NUM_FATS_V != 2
+%error "Boot sector assumes two FAT copies"
+%endif
 
 %if FAT12
 %define FAT_EOC         FAT12_EOC
@@ -49,7 +53,7 @@ bpb:
     dw 512
     db SECS_PER_CLUS_V
     dw 1
-    db 2
+    db NUM_FATS_V
     dw ROOT_ENTRIES_V
     dw TOT_SECS_16_V
     db MEDIA_BYTE
@@ -78,8 +82,7 @@ boot:
     mov [0x500],dl          ; kernel and INSTALL read the raw BIOS boot drive
 
     mov ax,[bpb+BPB_SECS_PER_FAT]
-    movzx cx,byte[bpb+BPB_NUM_FATS]
-    mul cx
+    add ax,ax               ; NUM_FATS_V is fixed at 2 above.
     add ax,[bpb+BPB_RSV_SEC_COUNT]
     mov [rsta],ax
     mov ax,[bpb+BPB_ROOT_ENT_COUNT]
@@ -91,6 +94,7 @@ boot:
     mov bx,[bpb+BPB_TOT_SECS_16]
     sub bx,ax
     mov ax,bx
+    xor dx,dx
 %else
     mov ax,[bpb+BPB_TOT_SECS_16]
     xor dx,dx
@@ -120,6 +124,7 @@ mtc:sub ax,[dsta]
     mov es,ax
     xor bx,bx
     mov ax,[rsta]
+    xor dx,dx
     mov cx,[rsc]
     call rs
     jc nf
@@ -161,7 +166,7 @@ ld: cmp si,FAT_EOC
     movzx cx,byte[bpb+BPB_SECS_PER_CLUS]
     mul cx
     add ax,[dsta]
-    movzx cx,byte[bpb+BPB_SECS_PER_CLUS]
+    adc dx,0
     call rs
     pop si
     jc nf
@@ -169,7 +174,6 @@ ld: cmp si,FAT_EOC
     mov si,ax
     jmp ld
 ldk:
-    mov dl,[drv]
     db 0xEA
     dw HMA_OFF
     dw ENTRY_SEG
@@ -205,6 +209,7 @@ fat_next:
     push bx
     xor bx,bx
     mov cx,1
+    xor dx,dx
     push word FAT_SEG
     pop es
     call rs
@@ -225,9 +230,16 @@ f16r:
 %endif
 
 rs: mov [lb],ax
+%if !FAT12
+    mov [lbh],dx
+%endif
     mov [cnt],cx
 r1: mov ax,[lb]
+%if !FAT12
+    mov dx,[lbh]
+%else
     xor dx,dx
+%endif
 %if !FAT12
     add ax,[bpb+BPB_HIDDEN_SECS]
     adc dx,[bpb+BPB_HIDDEN_SECS+2]
@@ -239,7 +251,6 @@ r1: mov ax,[lb]
     div word[bpb+BPB_NUM_HEADS]
     mov [hd],dl
 %if !FAT12
-    mov [cy],ax
     mov ch,al
     mov cl,ah
     shl cl,6
@@ -261,6 +272,11 @@ r1: mov ax,[lb]
     add ax,0x1000
     mov es,ax
 rnb:inc word [lb]
+%if !FAT12
+    jnz rnc
+    inc word [lbh]
+rnc:
+%endif
     dec word [cnt]
     jnz r1
     clc
@@ -298,13 +314,14 @@ rsc: dw 0
 dsta:dw 0
 mcl: dw 0
 lb:  dw 0
+%if !FAT12
+lbh: dw 0
+%endif
 cnt: dw 0
 sc:  db 0
 hd:  db 0
 %if FAT12
 cy:  db 0
-%else
-cy:  dw 0
 %endif
 ret_:db 3
 

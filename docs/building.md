@@ -103,7 +103,7 @@ make installer
 make test-installer
 ```
 
-`make test-installer` verifies both paths: a blank hard disk is formatted and populated, then an existing LainDOS FAT16 image with stale system files plus user data is updated in place without reformatting. It also boots from the installed hard disk with the installer floppy attached and verifies `A:\INSTALL` refuses to run, because the installer must be booted from the floppy before it writes the target disk directly.
+`make test-installer` verifies both paths: a blank hard disk is formatted and populated, then an existing LainDOS FAT16 image with stale system files plus user data is updated in place without reformatting. The update fixture includes enough unrelated data to force the first replacement `KERNEL.SYS` allocation above the old 16-bit boot-loader LBA boundary, then verifies the updated disk boots from `C:`. It also boots from the installed hard disk with the installer floppy attached and verifies `A:\INSTALL` refuses to run, because the installer must be booted from the floppy before it writes the target disk directly.
 
 Game smoke tests keep the emulated SB16 device when a game expects it, and Wolf3D plus the Sam & Max CD launcher also add QEMU's separate AdLib device. Automated QEMU runs route those devices to QEMU's `none` audio backend so tests stay silent. Use `make test-game-smokes-qemu` for the QEMU-backed ladder, `make test-game-smokes-86box` for headless 86Box game cross-checks, or `make test-game-smokes` for both groups.
 
