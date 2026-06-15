@@ -3320,7 +3320,7 @@ int21_handler:
     mov cx, ax
 .rf_copy_now:
     push cx
-    rep movsb
+    COPY_BYTES_WORDS
     pop cx
     pop si
     pop ds
@@ -3665,7 +3665,7 @@ int21_handler:
     mov ax, [cs:wf_buf_seg]
     mov ds, ax
     mov si, [cs:wf_buf_off]
-    rep movsb
+    COPY_BYTES_WORDS
     pop es
     pop ds
     pop cx

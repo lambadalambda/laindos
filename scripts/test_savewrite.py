@@ -94,6 +94,16 @@ def verify_disk_file():
         print("  FAIL: GAP.DAT sparse write gap was not zero-filled")
         return False
 
+    odd_entry = find_entry(root, "ODDWR.DAT")
+    if odd_entry is None:
+        print("  FAIL: ODDWR.DAT missing from disk image")
+        return False
+    expected_odd = bytes([(i + 1) & 0xFF for i in range(513)])
+    odd_data = img.read_chain(entry_cluster(odd_entry), entry_size(odd_entry))
+    if entry_size(odd_entry) != len(expected_odd) or odd_data != expected_odd:
+        print("  FAIL: ODDWR.DAT odd unaligned write contents mismatch")
+        return False
+
     midemo = find_entry(root, "MIDEMO")
     if midemo is None:
         print("  FAIL: MIDEMO directory missing")

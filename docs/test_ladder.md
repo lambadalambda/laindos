@@ -17,7 +17,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `python3 scripts/test_irqmask.py`: run one focused test directly.
 - `make test-cd-bios`: run the generated-ISO BIOS CD-ROM probe.
 - `make test-cd-file`: run the generated-ISO read-only `D:` file API probe.
-- `make test-cd-subdir`: run the generated-ISO read-only `D:` subdirectory file API probe, including current-directory CD file attributes.
+- `make test-cd-subdir`: run the generated-ISO read-only `D:` subdirectory file API probe, including current-directory CD file attributes and odd unaligned CD reads.
 - `make test-cd-find`: run the generated-ISO read-only `D:` directory enumeration probe, including explicit-subdirectory and current-directory wildcard searches.
 - `make test-cd-mscdex`: run the generated-ISO MSCDEX detection probe.
 - `make test-cd-exec`: run the generated-ISO `EXEC` and overlay-load probe for COM and EXE programs loaded from `D:`.
@@ -136,7 +136,7 @@ if __name__ == "__main__":
 - `tests/programs/irqmask.asm` plus `scripts/test_irqmask.py`: focused API/hardware guard regression.
 - `tests/programs/execparam.asm` plus `scripts/test_execparam.py`: parent/child `EXEC` parameter coverage.
 - `scripts/test_shell.py`: interactive shell, batch, PATH, directory, and command coverage.
-- `scripts/test_savewrite.py` and `scripts/test_dirmut.py`: persistent FAT write and mutation checks.
+- `scripts/test_savewrite.py` and `scripts/test_dirmut.py`: persistent FAT write and mutation checks, including odd unaligned staged write-buffer transfers.
 - `scripts/test_cd_shellcopy_large.py`: generated child-shell CD copy replay for large FAT16 writes and GFX-style wildcard copies.
 - `scripts/test_fat16_flush_fail.py` and `scripts/test_fat16_pending_error_flush.py`: FAT16 write-back-window error-path regressions that use one-shot kernel test hooks plus host-side FAT chain verification.
 - `scripts/test_cd_refresh_method.py` and `scripts/test_cd_fetch_di.py`: CD-ROM fallback and register-preservation regressions using generated ISOs and test-only kernel hooks.

@@ -512,6 +512,50 @@ start:
     int 0x21
     jc fail_cd
 
+    mov dx, odd_name
+    xor cx, cx
+    mov ah, 0x3C
+    int 0x21
+    jc fail_create
+    mov [handle], ax
+
+    mov bx, ax
+    mov dx, pattern + 1
+    mov cx, odd_size
+    mov ah, 0x40
+    int 0x21
+    jc fail_write
+    cmp ax, odd_size
+    jne fail_write
+
+    mov bx, [handle]
+    mov ah, 0x3E
+    int 0x21
+    jc fail_close
+
+    mov dx, odd_name
+    xor al, al
+    mov ah, 0x3D
+    int 0x21
+    jc fail_open
+    mov [handle], ax
+
+    mov bx, ax
+    mov dx, read_buf + 3
+    mov cx, odd_size
+    mov ah, 0x3F
+    int 0x21
+    jc fail_read
+    cmp ax, odd_size
+    jne fail_read
+    call compare_odd
+    jc fail_compare
+
+    mov bx, [handle]
+    mov ah, 0x3E
+    int 0x21
+    jc fail_close
+
     mov dx, reuse_name
     xor al, al
     mov ah, 0x3D
@@ -593,6 +637,22 @@ compare_gap:
     stc
     ret
 
+compare_odd:
+    push cs
+    pop es
+    mov si, pattern + 1
+    mov di, read_buf + 3
+    mov cx, odd_size
+.loop:
+    cmpsb
+    jne .bad
+    loop .loop
+    clc
+    ret
+.bad:
+    stc
+    ret
+
 seek_start:
     mov bx, [handle]
     mov ax, 0x4200
@@ -663,6 +723,7 @@ print_fail:
 src_name: db "SAVEWR.DAT", 0
 dst_name: db "SAVEDONE.DAT", 0
 reuse_name: db "REUSED.DAT", 0
+odd_name: db "ODDWR.DAT", 0
 readonly_name: db "READONLY.DAT", 0
 stale_name: db "STALE.DAT", 0
 gap_name: db "GAP.DAT", 0
@@ -701,6 +762,7 @@ fail_path_msg: db "FAIL: PATH", 13, 10, "$"
 handle: dw 0
 gap_pos equ 600
 gap_size equ gap_pos + 1
+odd_size equ 513
 pattern_size equ 700
 pattern: times pattern_size db 0
 read_buf: times pattern_size db 0

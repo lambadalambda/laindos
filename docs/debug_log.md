@@ -2,6 +2,33 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-15 Word Copies for Sector Transfers
+
+### Goal
+
+- Reduce memory-copy overhead in hot sector-transfer paths without breaking odd-byte tails, unaligned buffers, partial sectors, or 64 KiB boundary clamps.
+
+### Confirmed Facts
+
+- The hot byte-copy paths were the staged FAT `AH=3Fh` read cache, staged `AH=40h` write cache, CD file read cache, CD direct EXEC load, FAT overlay bounce-sector copy, and CD overlay bounce-sector copy.
+- Each target loop already clamps `CX` to a sector remainder, file/request remainder, and destination offset wrap limit before copying, so the safe local transformation is to copy `CX >> 1` words and one optional tail byte.
+- Existing `scripts/test_readmulti.py` already covers an odd `0x20A5` staged FAT read into an unaligned destination plus near-64K direct-read boundaries, while `scripts/test_readwrap.py`, `scripts/test_ovlbig.py`, and `scripts/test_ovlrel.py` cover wrap and overlay cases.
+
+### Fixes
+
+- Added `COPY_BYTES_WORDS`, a shared macro that performs `rep movsw` plus an odd-byte `movsb` tail.
+- Converted the six hot sector-buffer byte-copy loops in `src/kernel/int21.inc`, `src/kernel/cdrom.inc`, and `src/kernel/exec.inc` to use the macro.
+- Extended `scripts/test_savewrite.py` / `tests/programs/savewr.asm` with a 513-byte write from `pattern+1` and readback into `read_buf+3`, plus host-side verification of `ODDWR.DAT`.
+- Extended `scripts/test_cd_subdir.py` / `tests/programs/cdsubdir.asm` with a seek-to-byte-1 CD read of the odd-length tail into `buf+65`.
+
+### Verification
+
+- Before implementation, the new `SAVEWR` and `CDSUBDIR` odd/unaligned probes passed against the byte-copy code, proving the tests were valid regressions.
+- After implementation, focused checks passed: `python3 scripts/test_readwrap.py`, `python3 scripts/test_readmulti.py`, `python3 scripts/test_savewrite.py`, `python3 scripts/test_cd_subdir.py`, `python3 scripts/test_ovlbig.py`, and `python3 scripts/test_ovlrel.py`.
+- `make bench-read-paths` passed with unchanged I/O counters: `READ64 RD=34`, `READ512 RD=34`, `READ1K RD=65`, `READ4K RD=17`, `EXECLOAD RD=14`, `FATSEEK RD=32`, `FATARCH RD=32`, `DIRLOOK RD=9`, `CDSEQ CD=16`, and `CDSTRM CD=8`.
+- `make bench-disk-write` passed with write coalescing preserved: `WRITE512 WR=132 WD=128`, `WRITE128 WR=132 WD=128`, and `WRITE64 WR=132 WD=128`.
+- `make test-cd-shellcopy-large`, `make check-docs-sync`, and `git diff --check` passed.
+
 ## 2026-06-15 FAT Subdirectory Sector Cache
 
 ### Goal

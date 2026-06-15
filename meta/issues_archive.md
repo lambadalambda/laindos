@@ -246,3 +246,4 @@
 - [x] [Triage Settlers II Smoke CauseWay Exception](issues/triage-settlers-ii-smoke-causeway-exception.md)
 - [x] [Fix Civilization 86Box Smoke Title Menu Timeout](issues/fix-civilization-86box-smoke-title-menu-timeout.md)
 - [x] [Cache Subdirectory Sectors for Path Searches](issues/cache-subdirectory-sectors-for-path-searches.md)
+- [x] [Use Word or Dword Copies for Sector Transfers](issues/use-word-or-dword-copies-for-sector-transfers.md)

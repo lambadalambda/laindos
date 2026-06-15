@@ -428,7 +428,7 @@ load_cd_file_direct:
 .copy_chunk_set:
     mov [cs:lf_chunk], cx
     PERF_INC perf_loader_copies
-    rep movsb
+    COPY_BYTES_WORDS
     pop di
     pop si
     pop ds
@@ -1301,7 +1301,7 @@ overlay_copy_range:
     mov ax, [cs:ov_dst_seg]
     mov es, ax
     mov di, [cs:ov_dst_off]
-    rep movsb
+    COPY_BYTES_WORDS
     pop si
     mov ax, [cs:ov_dst_off]
     add ax, [cs:ov_chunk]
@@ -1407,7 +1407,7 @@ overlay_copy_range_cd:
     mov ax, [cs:ov_dst_seg]
     mov es, ax
     mov di, [cs:ov_dst_off]
-    rep movsb
+    COPY_BYTES_WORDS
     pop ds
     mov ax, [cs:ov_dst_off]
     add ax, [cs:ov_chunk]

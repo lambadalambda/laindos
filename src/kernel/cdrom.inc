@@ -1723,7 +1723,7 @@ cd_read_handle:
     mov cx, ax
 .copy:
     push cx
-    rep movsb
+    COPY_BYTES_WORDS
     pop cx
     mov bx, [cs:rf_hoff]
     add [cs:bx+handles+H_POS_LO], cx

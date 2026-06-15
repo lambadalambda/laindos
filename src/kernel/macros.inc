@@ -23,6 +23,14 @@
     push ax
 %endmacro
 
+%macro COPY_BYTES_WORDS 0
+    shr cx, 1
+    rep movsw
+    jnc %%done
+    movsb
+%%done:
+%endmacro
+
 %macro INT21_STI 0
     sti
     cmp ah, 0x40
