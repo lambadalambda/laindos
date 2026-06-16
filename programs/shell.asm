@@ -1602,7 +1602,7 @@ do_md:
     jc .err
     ret
 .err:
-    mov dx, path_not_found_msg
+    mov dx, make_dir_error_msg
     call print_dollar
     ret
 .missing:
@@ -1619,8 +1619,7 @@ do_rd:
     jc .err
     ret
 .err:
-    mov dx, path_not_found_msg
-    call print_dollar
+    call print_rd_error
     ret
 .missing:
     mov dx, missing_arg_msg
@@ -1683,8 +1682,7 @@ del_one_file:
     call print_dollar
     ret
 .err:
-    mov dx, file_error_msg
-    call print_dollar
+    call print_file_error
     ret
 
 parse_del_args:
@@ -1791,8 +1789,7 @@ do_ren:
     call print_dollar
     ret
 .err:
-    mov dx, file_error_msg
-    call print_dollar
+    call print_file_error
     ret
 
 parse_ren_args:
@@ -3590,6 +3587,9 @@ ver_msg: db "LainDOS ", SHELL_BUILD_ID, 13, 10, "$"
 path_not_found_msg: db "Path not found", 13, 10, "$"
 file_not_found_msg: db "File not found", 13, 10, "$"
 file_error_msg: db "File error", 13, 10, "$"
+access_denied_msg: db "Access denied", 13, 10, "$"
+dir_access_msg: db "Directory not empty or access denied", 13, 10, "$"
+make_dir_error_msg: db "Unable to create directory", 13, 10, "$"
 missing_arg_msg: db "Missing argument", 13, 10, "$"
 wildcard_not_supported_msg: db "Wildcard not supported", 13, 10, "$"
 resize_fail_msg: db "Shell resize failed", 13, 10, "$"
@@ -3603,6 +3603,7 @@ md_cmd: db "MD", 0
 mkdir_cmd: db "MKDIR", 0
 rd_cmd: db "RD", 0
 rmdir_cmd: db "RMDIR", 0
+deltree_cmd: db "DELTREE", 0
 copy_cmd: db "COPY", 0
 del_cmd: db "DEL", 0
 erase_cmd: db "ERASE", 0
@@ -3633,6 +3634,7 @@ command_table:
     dw mkdir_cmd, do_md
     dw rd_cmd, do_rd
     dw rmdir_cmd, do_rd
+    dw deltree_cmd, do_deltree
     dw copy_cmd, do_copy
     dw del_cmd, do_del
     dw erase_cmd, do_del
@@ -3713,6 +3715,12 @@ copy_overwrite_msg: db "Overwrite ", "$"
 confirm_suffix: db "? (Y/N)", "$"
 del_confirm_msg: db "Delete ", "$"
 del_not_deleted_msg: db "File not deleted.", 13, 10, "$"
+deltree_confirm_msg: db "Delete directory tree ", "$"
+deltree_deleted_msg: db "Deleted directory tree", 13, 10, "$"
+deltree_not_deleted_msg: db "Directory tree not deleted.", 13, 10, "$"
+root_dir_msg: db "Cannot delete root directory", 13, 10, "$"
+current_dir_msg: db "Cannot delete current directory", 13, 10, "$"
+deltree_pattern: db "*.*", 0
 invalid_dst_msg: db "Invalid destination", 13, 10, "$"
 too_many_args_msg: db "Too many arguments", 13, 10, "$"
 dir_page_lines equ 22
@@ -3735,6 +3743,383 @@ dir_wide_width equ 15
 copy_path_size equ 80
 type_buf_size equ 8192
 batch_buf_size equ 512
+
+do_deltree:
+    call parse_deltree_args
+    cmp byte [deltree_arg_count], 0
+    je .missing
+    cmp byte [deltree_arg_count], 1
+    ja .too_many
+    call deltree_trim_path
+    mov si, del_path
+    call path_has_wildcard
+    jc .wildcard
+    call deltree_path_is_root
+    jc .root
+    mov si, del_path
+    call path_basename_ptr
+    cmp byte [si], 0
+    je .current
+    call deltree_leaf_is_dot
+    jc .current
+    mov [deltree_top_leaf], si
+    mov dx, del_path
+    xor al, al
+    mov ah, 0x43
+    int 0x21
+    jc .path_err
+    test cl, ATTR_DIR
+    jz .access_err
+    cmp byte [deltree_yes], 0
+    jne .confirmed
+    mov dx, deltree_confirm_msg
+    mov si, del_path
+    call confirm_yn_prompt
+    jc .cancel
+.confirmed:
+    call deltree_save_cwd
+    jc .access_err
+    mov dx, del_path
+    mov ah, 0x3B
+    int 0x21
+    jc .path_restore_err
+    call deltree_empty_current
+    mov byte [deltree_failed], 0
+    jnc .empty_ok
+    mov byte [deltree_failed], 1
+.empty_ok:
+    cmp byte [deltree_failed], 0
+    jne .empty_err
+    mov dx, parent_arg
+    mov ah, 0x3B
+    int 0x21
+    jc .parent_err
+    mov dx, [deltree_top_leaf]
+    mov ah, 0x3A
+    int 0x21
+    jc .rd_restore_err
+    call deltree_restore_cwd
+    mov dx, deltree_deleted_msg
+    call print_dollar
+    ret
+.empty_err:
+    call deltree_restore_cwd
+    jmp .access_err
+.parent_err:
+    call deltree_restore_cwd
+    jmp .access_err
+.path_restore_err:
+    call deltree_restore_cwd
+.path_err:
+    mov dx, path_not_found_msg
+    call print_dollar
+    ret
+.rd_restore_err:
+    push ax
+    call deltree_restore_cwd
+    pop ax
+    call print_rd_error
+    ret
+.access_err:
+    mov dx, dir_access_msg
+    call print_dollar
+    ret
+.root:
+    mov dx, root_dir_msg
+    call print_dollar
+    ret
+.current:
+    mov dx, current_dir_msg
+    call print_dollar
+    ret
+.cancel:
+    mov dx, deltree_not_deleted_msg
+    call print_dollar
+    ret
+.wildcard:
+    mov dx, wildcard_not_supported_msg
+    call print_dollar
+    ret
+.too_many:
+    mov dx, too_many_args_msg
+    call print_dollar
+    ret
+.missing:
+    mov dx, missing_arg_msg
+    call print_dollar
+    ret
+
+parse_deltree_args:
+    mov byte [deltree_yes], 0
+    mov byte [deltree_arg_count], 0
+.loop:
+    call skip_spaces
+    cmp byte [si], 0
+    je .done
+    cmp byte [si], '/'
+    je .switch
+    cmp byte [si], '-'
+    je .switch
+    cmp byte [deltree_arg_count], 0
+    jne .extra
+    mov di, del_path
+    mov cx, copy_path_size - 1
+    call copy_path_token
+    inc byte [deltree_arg_count]
+    jmp .loop
+.extra:
+    inc byte [deltree_arg_count]
+    call skip_token_chars
+    jmp .loop
+.switch:
+    inc si
+.switch_loop:
+    cmp byte [si], 0
+    je .done
+    cmp byte [si], ' '
+    je .loop
+    mov al, [si]
+    and al, 0xDF
+    cmp al, 'Y'
+    je .set_yes
+    inc si
+    jmp .switch_loop
+.set_yes:
+    mov byte [deltree_yes], 1
+    inc si
+    jmp .switch_loop
+.done:
+    ret
+
+deltree_trim_path:
+    mov bx, del_path
+    cmp byte [bx+1], ':'
+    jne .find_end
+    add bx, 2
+.find_end:
+    mov di, del_path
+.scan:
+    cmp byte [di], 0
+    je .trim
+    inc di
+    jmp .scan
+.trim:
+    cmp di, bx
+    jbe .done
+    dec di
+.trim_loop:
+    cmp di, bx
+    jbe .done
+    mov al, [di]
+    cmp al, '\'
+    je .strip
+    cmp al, '/'
+    je .strip
+    jmp .done
+.strip:
+    mov byte [di], 0
+    dec di
+    jmp .trim_loop
+.done:
+    ret
+
+deltree_path_is_root:
+    mov si, del_path
+    cmp byte [si+1], ':'
+    jne .check
+    add si, 2
+.check:
+    cmp byte [si], '\'
+    je .sep
+    cmp byte [si], '/'
+    je .sep
+    clc
+    ret
+.sep:
+    inc si
+.skip:
+    cmp byte [si], '\'
+    je .advance
+    cmp byte [si], '/'
+    je .advance
+    cmp byte [si], 0
+    je .yes
+    clc
+    ret
+.advance:
+    inc si
+    jmp .skip
+.yes:
+    stc
+    ret
+
+deltree_leaf_is_dot:
+    cmp byte [si], '.'
+    jne .no
+    mov al, [si+1]
+    test al, al
+    jz .yes
+    cmp al, '.'
+    jne .no
+    cmp byte [si+2], 0
+    je .yes
+.no:
+    clc
+    ret
+.yes:
+    stc
+    ret
+
+deltree_save_cwd:
+    mov ah, 0x19
+    int 0x21
+    mov [deltree_saved_drive], al
+    mov si, cwd_buf
+    xor dl, dl
+    mov ah, 0x47
+    int 0x21
+    jc .err
+    push cs
+    pop es
+    mov si, cwd_buf
+    mov di, deltree_restore_path
+    mov al, '\'
+    stosb
+.copy:
+    lodsb
+    stosb
+    test al, al
+    jnz .copy
+    clc
+    ret
+.err:
+    stc
+    ret
+
+deltree_restore_cwd:
+    mov dl, [deltree_saved_drive]
+    mov ah, 0x0E
+    int 0x21
+    mov dx, deltree_restore_path
+    mov ah, 0x3B
+    int 0x21
+    ret
+
+deltree_empty_current:
+.restart:
+    mov dx, copy_dta
+    mov ah, 0x1A
+    int 0x21
+    mov dx, deltree_pattern
+    mov cx, ATTR_DIR | 0x06
+    mov ah, 0x4E
+    int 0x21
+    jc .done
+.entry:
+    call deltree_dta_is_dot
+    jc .next
+    test byte [copy_dta+0x15], ATTR_DIR
+    jnz .dir
+    mov dx, copy_dta + 0x1E
+    mov ah, 0x41
+    int 0x21
+    jc .err
+    jmp .restart
+.dir:
+    mov si, copy_dta + 0x1E
+    mov di, deltree_child_name
+.copy_dir_name:
+    lodsb
+    mov [di], al
+    inc di
+    test al, al
+    jnz .copy_dir_name
+    mov dx, deltree_child_name
+    mov ah, 0x3B
+    int 0x21
+    jc .err
+    push word [deltree_child_name]
+    push word [deltree_child_name+2]
+    push word [deltree_child_name+4]
+    push word [deltree_child_name+6]
+    push word [deltree_child_name+8]
+    push word [deltree_child_name+10]
+    push word [deltree_child_name+12]
+    call deltree_empty_current
+    pop word [deltree_child_name+12]
+    pop word [deltree_child_name+10]
+    pop word [deltree_child_name+8]
+    pop word [deltree_child_name+6]
+    pop word [deltree_child_name+4]
+    pop word [deltree_child_name+2]
+    pop word [deltree_child_name]
+    jc .err
+    mov dx, parent_arg
+    mov ah, 0x3B
+    int 0x21
+    jc .err
+    mov dx, deltree_child_name
+    mov ah, 0x3A
+    int 0x21
+    jc .err
+    jmp .restart
+.next:
+    mov ah, 0x4F
+    int 0x21
+    jnc .entry
+.done:
+    clc
+    ret
+.err:
+    stc
+    ret
+
+deltree_dta_is_dot:
+    cmp byte [copy_dta+0x1E], '.'
+    jne .no
+    mov al, [copy_dta+0x1F]
+    test al, al
+    jz .yes
+    cmp al, '.'
+    jne .no
+    cmp byte [copy_dta+0x20], 0
+    jne .no
+.yes:
+    stc
+    ret
+.no:
+    clc
+    ret
+
+print_rd_error:
+    cmp ax, 3
+    je .path
+    mov dx, dir_access_msg
+    call print_dollar
+    ret
+.path:
+    mov dx, path_not_found_msg
+    call print_dollar
+    ret
+
+print_file_error:
+    cmp ax, 2
+    je .not_found
+    cmp ax, 3
+    je .not_found
+    cmp ax, 5
+    je .access
+    mov dx, file_error_msg
+    call print_dollar
+    ret
+.not_found:
+    mov dx, file_not_found_msg
+    call print_dollar
+    ret
+.access:
+    mov dx, access_denied_msg
+    call print_dollar
+    ret
 
 line_buf: times 128 db 0
 line_input: db 64, 0
@@ -3760,12 +4145,19 @@ copy_src_path: times copy_path_size db 0
 copy_dst_path: times copy_path_size db 0
 copy_dst_final: times copy_path_size db 0
 del_path: times copy_path_size db 0
+deltree_restore_path: times copy_path_size db 0
+deltree_child_name: times 14 db 0
 ren_src_path: times copy_path_size db 0
 ren_dst_path: times copy_path_size db 0
 copy_yes: db 0
 copy_arg_count: db 0
 del_prompt: db 0
 del_has_arg: db 0
+deltree_yes: db 0
+deltree_arg_count: db 0
+deltree_saved_drive: db 0
+deltree_failed: db 0
+deltree_top_leaf: dw 0
 ren_arg_count: db 0
 copy_src_handle: dw 0
 copy_dst_handle: dw 0
