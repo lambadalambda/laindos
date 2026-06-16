@@ -119,7 +119,7 @@ C:\>CD CIV
 C:\CIV>LOADFIX CIV
 ```
 
-The vendor-gated smoke verifies both halves — the bare launch fails with the era message and the LOADFIX launch reaches the startup menus and an animating VGA intro:
+The vendor-gated smoke launches through LOADFIX and verifies the startup menus plus an animating VGA intro:
 
 ```sh
 make test-civ-smoke
@@ -139,7 +139,7 @@ Build a bootable hard-disk image with the Simon the Sorcerer demo in `C:\SIMON` 
 python3 scripts/build_simon_hd.py
 ```
 
-Launch with `CD SIMON`, then `SIMON` (the bundled batch runs `RUNVGA GDEMO /3`). The AGOS engine boots straight to its interactive in-game scene with the verb interface and mouse cursor — no compatibility work was needed. The vendor-gated smoke verifies the scene and an advancing BIOS tick:
+Launch with `CD SIMON`, then `SIMON` (the bundled batch runs `RUNVGA GDEMO /3`). The smoke image uses an EMS-less boot profile because the demo's EMS path still needs fuller EMM compatibility than LainDOS' default backed EMS provides. In that profile, the AGOS engine boots to its interactive in-game scene with the verb interface and mouse cursor; the vendor-gated smoke verifies the scene and an advancing BIOS tick:
 
 ```sh
 make test-simon-smoke

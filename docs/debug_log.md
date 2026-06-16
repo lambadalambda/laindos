@@ -2,6 +2,33 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-16 Game Smokes After Default EMS
+
+### Symptoms
+
+- `make test-game-smokes` stopped at `test-civ-smoke`: bare `CIV` printed `Packed file is corrupt` at `C:\CIV>`.
+- Continuing the remaining smokes individually showed `test-simon-smoke` failing under QEMU: first with `Not enough memory to run Simon.` plus `EXC 06 at 0000:0003`, then after multi-handle EMS work as a black-screen timeout before the in-game scene.
+
+### Confirmed Facts
+
+- Civilization's 86Box smoke already used `LOADFIX CIV` and still passed. The QEMU smoke was the inconsistent path: it launched bare `CIV` even though the docs already describe EXEPACK's below-1000h failure and the DOS 5 LOADFIX answer.
+- A disposable Simon A/B passed when `build/simon_hd.img` was patched with a kernel compiled as `-DENABLE_EMS=0`: it reached the in-game scene with `75` colors and an advancing BIOS tick.
+- A temporary `TRACE_EMS` build showed Simon's first EMS failure path: `AH=40,41,42,43,44,44,44,44,43`, with the second allocation failing against the single-handle implementation.
+- After adding multi-handle EMS, the allocation failure disappeared; a second trace showed Simon repeatedly mapping handle 2 logical page 3 into physical slot 3 (`AX=4403 BX=0003 DX=0002`) before the black-screen timeout. The remaining Simon EMS path needs fuller EMM compatibility, so the smoke now uses an EMS-less boot profile rather than hiding default EMS globally.
+
+### Fix In This Slice
+
+- EMS now has a small handle table (`1..16`) and page ownership, so multiple EMS handles map to distinct high backing pages. `scripts/test_emsmulti.py` failed before this with `FAIL: EMSMULTI ALLOC2` and now passes.
+- Redundant `AH=44h` mappings of an already-mapped global EMS page return success without copying 16 KiB out and back through BIOS `INT 15h AH=87h`.
+- `scripts/test_civ_smoke.py` now launches `LOADFIX CIV`, matching the 86Box smoke and the documented EXEPACK workaround.
+- `scripts/build_simon_hd.py` builds the Simon smoke image with `-DENABLE_EMS=0`, documenting that this target currently needs an EMS-less DOS-era boot profile.
+
+### Checks
+
+- Passed focused EMS checks: `test_emsmulti.py`, `test_ems.py`, `test_emslarge.py`, and `test_emsxms.py`.
+- Before the final smoke-script updates, all game smokes except QEMU Civilization and QEMU Simon had passed in this run: Monkey demo/full, MI2 save, attached HD shell, Sam & Max/Normality, Wolf3D, Ascendancy, Norton Commander suite, Shortline, Stunt Island, Micro Machines 2, Wing Commander, Settlers II, and Civilization 86Box.
+- Final verification passed `make test` (`168/168`) and `make test-game-smokes`, including QEMU Civilization through `LOADFIX CIV`, Simon with the EMS-less profile, and the Civilization 86Box cross-check.
+
 ## 2026-06-16 Millennia EMS And Conventional Memory
 
 ### Symptoms
@@ -3328,7 +3355,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ## 2026-06-11 Simon The Sorcerer Demo Bring-Up
 
-- The AGOS engine needed no compatibility work at all: `RUNVGA GDEMO /3` from a generated hd32m image boots to the interactive in-game forest scene (verb interface, inventory, mouse cursor) in ~35 seconds on the faithful kernel — the fourth engine family running under LainDOS with zero kernel changes.
+- At this point in the bring-up, before default EMS was exposed, the AGOS engine needed no compatibility work at all: `RUNVGA GDEMO /3` from a generated hd32m image booted to the interactive in-game forest scene (verb interface, inventory, mouse cursor) in ~35 seconds on the faithful kernel.
 - The only failure during bring-up was self-inflicted: the first builder used the hd10m mkimage format, which is FAT12, while the boot sector was assembled with `-DFAT16=1`; the mismatch dies at the boot sector with its `NoK` serial marker. Switched the image to hd32m (FAT16), matching the other game builders.
 - `scripts/test_simon_smoke.py` covers it vendor-gated: in-game scene framebuffer signature plus an advancing BIOS tick.
 
@@ -3386,7 +3413,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 - Followed the boot-com-largest-block issue to its conclusion: both the boot launcher and the EXEC path used to size a `.COM` allocation to the file plus ~4 KiB of slack (the boot path additionally placing it at the top of the arena), with `exec_com_dyn`'s small-block rule parking SP at the block top. Real DOS loads a COM into the largest free block — `.COM` images carry no BSS, and era programs assume the room past their image is theirs. Both paths now take the largest free block, and the COM entry stack is DOS-exact: SP=0xFFFE with the zero word at [SP] (the old sequence entered two bytes lower).
 - The fallout was a parade of our own test programs relying on the cramped convention: anything that allocates (AH=48h) or execs while owning all of memory now needs the DOS-canonical prologue — move SP inside the kept region, then AH=4Ah-shrink — exactly what real COM programs did before spawning. Twenty-five test programs and the bundled LOADFIX gained the prologue; `highmcb` re-pins the new arena layout (env, program, free tail), and `bootmem` pins the contract itself.
-- Two layout consequences, both era-faithful: the shell now sits resident at the bottom of the arena (its children load at ~0x10D2, above the EXEPACK 64 KiB danger line, so bare CIV starts without LOADFIX — the corrupt-EXEPACK demo stage in the civ smoke is gone with it), and the top of the arena no longer hosts the boot program's stack right under the EBDA, where SeaBIOS's INT 13h extra stack lives — removing the exact trampling hazard the cdhang forensics documented.
+- Two layout consequences were era-faithful in that slice: the shell sat resident low enough that children loaded at ~0x10D2, above the EXEPACK 64 KiB danger line, and the top of the arena no longer hosted the boot program's stack right under the EBDA, where SeaBIOS's INT 13h extra stack lives — removing the exact trampling hazard the cdhang forensics documented. Later shell residency shrinkage made LOADFIX the Civilization smoke path again.
 - Placement-sensitive vendor smokes all pass on the new layout: MI2 save, full Monkey, Civilization, Settlers II, Wing Commander, Micro Machines 2; the default ladder is 145/145 with `test_boot_mem` added.
 
 ## 2026-06-12 Red Alert: The Share-Bits Handle Leak

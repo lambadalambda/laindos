@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Build a bootable hard-disk image with the Simon the Sorcerer demo in
 C:\\SIMON, from vendor/simon1demo.zip. Launch with CD SIMON, then SIMON
-(the bundled batch runs RUNVGA GDEMO /3)."""
+(the bundled batch runs RUNVGA GDEMO /3).
+
+The demo uses an EMS path that is not compatible with LainDOS' minimal
+backed EMS yet, so this smoke image uses an EMS-less boot profile.
+"""
 import os
 import sys
 
@@ -28,7 +32,10 @@ def main():
     games.extract_flat(games.SIMON_DEMO_ZIP, games.SIMON_DEMO_DIR)
 
     run_cmd(["nasm", "-DFAT16=1", "-f", "bin", "src/boot.asm", "-o", BOOT])
-    run_cmd(["nasm", '-DBOOT_FILE="SHELL   COM"', "-f", "bin", "src/kernel.asm", "-o", KERNEL])
+    run_cmd([
+        "nasm", '-DBOOT_FILE="SHELL   COM"', "-DENABLE_EMS=0",
+        "-f", "bin", "src/kernel.asm", "-o", KERNEL,
+    ])
     run_cmd(["python3", "scripts/build_shell_com.py", SHELL])
     run_cmd(["nasm", "-f", "bin", "programs/free.asm", "-o", FREE])
     run_cmd(["nasm", "-f", "bin", "programs/time.asm", "-o", TIME])

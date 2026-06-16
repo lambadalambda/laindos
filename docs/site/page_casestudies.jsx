@@ -217,7 +217,7 @@ const CASES = [
       "                                     ; SP at the cramped block top",
     ],
     fix:
-      "Make the assumption hold, as the real platform did: both the boot launcher and EXEC now grant a .COM the largest free block, with the DOS-exact entry stack. Twenty-five test programs gained the canonical shrink prologue that real programs always carried - and as a bonus, programs now load above the 64 KiB line, which retired the EXEPACK 'Packed file is corrupt' failure class along with the need for LOADFIX.",
+      "Make the assumption hold, as the real platform did: both the boot launcher and EXEC now grant a .COM the largest free block, with the DOS-exact entry stack. Twenty-five test programs gained the canonical shrink prologue that real programs always carried. This fixed the test corruption; EXEPACK binaries that still need a 1000h-or-above load segment use the bundled LOADFIX path, just as DOS 5 did.",
     file: "src/kernel/exec.inc",
     code: [
       [240, ".com_largest:"],

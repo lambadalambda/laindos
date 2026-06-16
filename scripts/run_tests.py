@@ -51,6 +51,7 @@ DEFAULT_TESTS = [
     "scripts/test_mouseratio.py",
     "scripts/test_xms.py",
     "scripts/test_ems.py",
+    "scripts/test_emsmulti.py",
     "scripts/test_emsmem.py",
     "scripts/test_emslarge.py",
     "scripts/test_emsxms.py",

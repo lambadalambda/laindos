@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Vendor-gated Simon the Sorcerer demo smoke.
 
-Builds the demo image from vendor/simon1demo.zip, boots it, launches the
-bundled SIMON.BAT (RUNVGA GDEMO /3), and verifies the AGOS engine reaches
-its in-game scene: a rich VGA framebuffer with the BIOS tick advancing.
+Builds the demo image from vendor/simon1demo.zip with an EMS-less boot
+profile, boots it, launches the bundled SIMON.BAT (RUNVGA GDEMO /3), and
+verifies the AGOS engine reaches its in-game scene: a rich VGA framebuffer
+with the BIOS tick advancing.
 """
 import os
 import struct

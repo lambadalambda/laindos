@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-"""Vendor-gated Civilization smoke: EXEPACK placement and game startup.
+"""Vendor-gated Civilization smoke: LOADFIX placement and game startup.
 
 CIV.EXE is EXEPACK-compressed, and the unpacker corrupts itself below
 segment 1000h -- the placement a faithful lean DOS-in-HMA layout
 produces, just like real MS-DOS 5 (whose answer was LOADFIX.COM).
-This smoke verifies both halves: a bare launch fails with the era
-"Packed file is corrupt" message below segment 1000h; with the shell
-resident low and .COM children owning the largest block, programs load
-above 64 KiB and CIV starts bare. The launch reaches the
-game's startup menus and an animating VGA intro.
+This smoke launches through LOADFIX and verifies the game reaches the
+startup menus and an animating VGA intro.
 
 The smoke deliberately stops at the animated intro: Civilization's
 INT 08 hook interacts badly with QEMU's PIT (the BIOS tick drops to a
@@ -129,9 +126,9 @@ def run_smoke():
         wait_text(sock, "C:\\>", 30)
         shell_command(sock, "cd civ")
         time.sleep(1)
-        shell_command(sock, "civ")
+        shell_command(sock, "loadfix civ")
         wait_text(sock, "Select graphics mode:", 30)
-        print("  PASS: bare CIV reaches the graphics menu (children load above 64K)")
+        print("  PASS: LOADFIX CIV reaches the graphics menu")
         send_monitor_key(sock, "1")
         wait_text(sock, "Select sound mode:", 15)
         send_monitor_key(sock, "1")

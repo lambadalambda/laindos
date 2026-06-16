@@ -2430,6 +2430,8 @@ int67_absent_handler:
 %endif
 
 %if ENABLE_EMS
+EMS_MAX_HANDLES equ 16
+
 int67_handler:
     cmp byte [cs:ems_available], 0
     jne .dispatch
@@ -2470,29 +2472,48 @@ int67_handler:
     xor ah, ah
     iret
 .alloc:
-    cmp word [cs:ems_alloc_pages], 0
-    jne .no_pages
     test bx, bx
     jz .no_pages
-    cmp bx, [cs:ems_total_pages]
+    mov ax, [cs:ems_total_pages]
+    sub ax, [cs:ems_alloc_pages]
+    cmp bx, ax
     ja .no_pages
-    mov [cs:ems_alloc_pages], bx
-    call ems_clear_map
-    mov dx, 1
+    call ems_find_free_handle
+    jc .no_handles
+    call ems_find_page_run
+    jc .no_pages
+    mov [cs:si+ems_handle_pages], bx
+    mov [cs:si+ems_handle_base], ax
+    add [cs:ems_alloc_pages], bx
+    call ems_mark_pages
     xor ah, ah
     iret
 .no_pages:
     mov ah, 0x88
     iret
+.no_handles:
+    mov ah, 0x85
+    iret
 .map:
-    cmp dx, 1
-    jne .bad_handle
-    cmp word [cs:ems_alloc_pages], 0
-    je .bad_handle
+    call ems_handle_offset
+    jc .bad_handle
     cmp al, 3
     ja .bad_page
-    cmp bx, [cs:ems_alloc_pages]
+    cmp bx, [cs:si+ems_handle_pages]
     jae .bad_page
+    push bx
+    add bx, [cs:si+ems_handle_base]
+    push si
+    mov [cs:ems_req_logical], bx
+    push bx
+    xor bh, bh
+    mov bl, al
+    shl bx, 1
+    mov si, bx
+    pop bx
+    cmp bx, [cs:si+ems_map_pages]
+    pop si
+    je .map_already
     push bx
     push cx
     push dx
@@ -2542,6 +2563,11 @@ int67_handler:
     pop dx
     pop cx
     pop bx
+    pop bx
+    xor ah, ah
+    iret
+.map_already:
+    pop bx
     xor ah, ah
     iret
 .map_io_error:
@@ -2552,18 +2578,22 @@ int67_handler:
     pop dx
     pop cx
     pop bx
+    pop bx
     mov ah, 0x80
     iret
 .bad_page:
     mov ah, 0x8A
     iret
 .free:
-    cmp dx, 1
-    jne .bad_handle
-    cmp word [cs:ems_alloc_pages], 0
-    je .bad_handle
-    mov word [cs:ems_alloc_pages], 0
-    call ems_clear_map
+    call ems_handle_offset
+    jc .bad_handle
+    call ems_clear_handle_maps
+    mov ax, [cs:si+ems_handle_base]
+    mov bx, [cs:si+ems_handle_pages]
+    call ems_clear_owner_pages
+    sub [cs:ems_alloc_pages], bx
+    mov word [cs:si+ems_handle_pages], 0
+    mov word [cs:si+ems_handle_base], 0
     xor ah, ah
     iret
 .version:
@@ -2572,14 +2602,12 @@ int67_handler:
     iret
 .handles:
     xor ah, ah
-    mov bx, 1
+    mov bx, EMS_MAX_HANDLES
     iret
 .info:
-    cmp dx, 1
-    jne .bad_handle
-    cmp word [cs:ems_alloc_pages], 0
-    je .bad_handle
-    mov bx, [cs:ems_alloc_pages]
+    call ems_handle_offset
+    jc .bad_handle
+    mov bx, [cs:si+ems_handle_pages]
     xor ah, ah
     iret
 .bad_handle:
@@ -2665,6 +2693,7 @@ ems_copy_16k:
     pop bx
     pop ax
     ret
+
 %endif
 
 restore_psp_vectors:
@@ -2706,8 +2735,7 @@ do_terminate:
     mov word [cs:mouse_callback_seg], 0
     mov byte [cs:mouse_in_callback], 0
 %if ENABLE_EMS
-    mov word [cs:ems_alloc_pages], 0
-    call ems_clear_map
+    call ems_reset_handles
 %endif
     mov word [cs:xms_alloc_kb], 0
     call release_inherited_handles
@@ -3961,6 +3989,9 @@ ems_available: db 0
 ems_total_pages: dw 0
 ems_backing_hi: dw 0
 ems_alloc_pages: dw 0
+ems_handle_pages: times EMS_MAX_HANDLES dw 0
+ems_handle_base: times EMS_MAX_HANDLES dw 0
+ems_page_owner: times EMS_TOTAL_PAGES db 0
 ems_map_pages: times 4 dw 0xFFFF
 ems_req_logical: dw 0
 ems_req_phys: db 0
@@ -4484,6 +4515,167 @@ enable_ems_frame_shadow:
     pop dx
     pop eax
 %endif
+    ret
+
+ems_handle_offset:
+    push ax
+    mov ax, dx
+    test ax, ax
+    jz .bad
+    cmp ax, EMS_MAX_HANDLES
+    ja .bad
+    dec ax
+    shl ax, 1
+    mov si, ax
+    cmp word [cs:si+ems_handle_pages], 0
+    je .bad
+    clc
+    jmp .done
+.bad:
+    stc
+.done:
+    pop ax
+    ret
+
+ems_find_free_handle:
+    xor si, si
+    mov dx, 1
+    mov cx, EMS_MAX_HANDLES
+.loop:
+    cmp word [cs:si+ems_handle_pages], 0
+    je .found
+    add si, 2
+    inc dx
+    loop .loop
+    stc
+    ret
+.found:
+    clc
+    ret
+
+ems_find_page_run:
+    push bx
+    push cx
+    push dx
+    push si
+    xor ax, ax
+    xor dx, dx
+    xor si, si
+    mov cx, [cs:ems_total_pages]
+.loop:
+    cmp byte [cs:si+ems_page_owner], 0
+    jne .used
+    test dx, dx
+    jnz .extend
+    mov ax, si
+.extend:
+    inc dx
+    cmp dx, bx
+    jae .found
+    jmp .next
+.used:
+    xor dx, dx
+.next:
+    inc si
+    loop .loop
+    stc
+    jmp .done
+.found:
+    clc
+.done:
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    ret
+
+ems_mark_pages:
+    push ax
+    push bx
+    push cx
+    push si
+    mov si, ax
+    mov cx, bx
+.loop:
+    mov [cs:si+ems_page_owner], dl
+    inc si
+    loop .loop
+    pop si
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+ems_clear_owner_pages:
+    push ax
+    push bx
+    push cx
+    push si
+    mov si, ax
+    mov cx, bx
+.loop:
+    mov byte [cs:si+ems_page_owner], 0
+    inc si
+    loop .loop
+    pop si
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+ems_clear_handle_maps:
+    push ax
+    push bx
+    push cx
+    push dx
+    push di
+    mov ax, [cs:si+ems_handle_base]
+    mov bx, ax
+    add bx, [cs:si+ems_handle_pages]
+    xor di, di
+    mov cx, 4
+.loop:
+    mov dx, [cs:di+ems_map_pages]
+    cmp dx, 0xFFFF
+    je .next
+    cmp dx, ax
+    jb .next
+    cmp dx, bx
+    jae .next
+    mov word [cs:di+ems_map_pages], 0xFFFF
+.next:
+    add di, 2
+    loop .loop
+    pop di
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+ems_reset_handles:
+    push ax
+    push cx
+    push di
+    push es
+    push cs
+    pop es
+    xor ax, ax
+    mov word [cs:ems_alloc_pages], 0
+    mov di, ems_handle_pages
+    mov cx, EMS_MAX_HANDLES
+    rep stosw
+    mov di, ems_handle_base
+    mov cx, EMS_MAX_HANDLES
+    rep stosw
+    mov di, ems_page_owner
+    mov cx, EMS_TOTAL_PAGES
+    rep stosb
+    call ems_clear_map
+    pop es
+    pop di
+    pop cx
+    pop ax
     ret
 %endif
 
