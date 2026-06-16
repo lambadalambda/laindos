@@ -2104,6 +2104,8 @@ int2f_cd_dev_req:
 .ioctl_input:
     lds si, [es:bx+14]
     mov al, [si]
+    cmp al, 0
+    je .device_header
     cmp al, 6
     je .dev_status
     cmp al, 7
@@ -2121,6 +2123,11 @@ int2f_cd_dev_req:
     cmp al, 15
     je .audio_status
     jmp .unknown_cmd
+
+.device_header:
+    mov word [si+1], cd_device_header
+    mov word [si+3], cs
+    jmp .ok
 
 .dev_status:
     ; cooked reads, audio capable, Red Book addressing
@@ -2301,3 +2308,53 @@ int2f_cd_dev_req:
     call atapi_packet_in
     jc .fail
     jmp .ok
+
+; Exposed through MSCDEX AX=1501h/IOCTL 0, not linked into the DOS device chain.
+cd_device_header:
+    dw 0xFFFF, 0xFFFF
+    dw 0xC800
+    dw cd_device_strategy
+    dw cd_device_interrupt
+    db 'LAINCD  '
+    dw 0
+    db 0
+    db 1
+
+cd_device_req_off: dw 0
+cd_device_req_seg: dw 0
+
+cd_device_strategy:
+    mov [cs:cd_device_req_off], bx
+    mov [cs:cd_device_req_seg], es
+    retf
+
+cd_device_interrupt:
+    cmp word [cs:cd_device_req_seg], 0
+    jne cd_device_interrupt_have_req
+    retf
+cd_device_interrupt_have_req:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    push es
+    mov bx, [cs:cd_device_req_off]
+    mov es, [cs:cd_device_req_seg]
+    mov word [cs:cd_device_req_off], 0
+    mov word [cs:cd_device_req_seg], 0
+    mov cx, 3
+    mov ax, 0x1510
+    ; Reuse the MSCDEX request decoder so direct-driver calls stay identical.
+    int 0x2F
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    retf

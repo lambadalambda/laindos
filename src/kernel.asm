@@ -2072,6 +2072,8 @@ old_int15: dw 0, 0
 int2f_handler:
     cmp ax, 0x1500
     je int2f_cd_install_check
+    cmp ax, 0x1501
+    je int2f_cd_drive_device_list
     cmp ax, 0x150B
     je int2f_cd_drive_check
     cmp ax, 0x150C
@@ -3967,6 +3969,15 @@ int2f_cd_install_check:
 .none:
     xor bx, bx
     xor cx, cx
+    jmp int2f_iret_nc
+
+int2f_cd_drive_device_list:
+    call int2f_cd_ensure
+    jc .done
+    mov byte [es:bx], 0
+    mov word [es:bx+1], cd_device_header
+    mov word [es:bx+3], cs
+.done:
     jmp int2f_iret_nc
 
 int2f_cd_drive_check:

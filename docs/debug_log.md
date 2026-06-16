@@ -2,6 +2,35 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-16 Biing SETSOUND MSCDEX AX=1501h Crash
+
+### Symptoms
+
+- After installing Biing and choosing `CD Audio (nur CD ROM-Version)` in `D:\SETSOUND.EXE`, selecting any listed CD audio track appeared to hang the configuration program.
+
+### Confirmed Facts
+
+- Headless 86Box with `vendor/biing/SPI_047_03.CUE` mounted as a mixed-mode ATAPI CD reproduced the failure from `D:\SETSOUND`.
+- The apparent hang was an invalid-opcode crash: `EXC 06 at C73E:8C20` with the faulting bytes all `FF`.
+- A temporary `INT 2Fh` trace showed the last MSCDEX calls before the crash: `AX=1500h` followed by `AX=1501h` with `ES:BX=15E9:0002`.
+- RBIL and `https://makbit.com/articles/mscdex.txt` define `AX=1501h` as Get CD-ROM Drive Device List: `ES:BX` points to a caller buffer, filled with five bytes per CD drive: one subunit byte plus a far pointer to the CD-ROM device-driver header.
+- LainDOS implemented `AX=1500h/150Bh/150Ch/150Dh/1510h` but left `AX=1501h` unhandled. SETSOUND read the unfilled caller buffer as a device-header pointer and jumped through garbage.
+
+### Fix
+
+- Added `INT 2Fh AX=1501h` to fill the caller buffer for the single `D:` CD-ROM drive with subunit `0` and a far pointer to a kernel-owned MSCDEX-style CD device header.
+- Added a resident CD device header with attributes `C800h`, strategy and interrupt entry offsets, a `LAINCD` name, reserved field, drive-letter field, and one supported unit.
+- Added IOCTL Input control code `0` so device requests can return the same CD device-header address.
+- The strategy entry saves the request-header pointer passed in `ES:BX`; the interrupt entry consumes that saved pointer and forwards it through the existing `INT 2Fh AX=1510h` handler so direct driver callers and MSCDEX device-request callers share the same CD audio implementation.
+- Extended `tests/programs/cdmscdex.asm` to call `AX=1501h`, validate the returned header, and far-call the strategy/interrupt entries with an Audio Disc Info IOCTL request.
+
+### Verification
+
+- `make` builds with the new kernel size `43786` bytes.
+- `python3 scripts/test_cd_mscdex.py` passes with the new `AX=1501h` direct-driver regression.
+- `python3 scripts/test_cd_audio.py` still passes through the existing `AX=1510h` path.
+- A headless 86Box Biing SETSOUND probe with the original mixed-mode cue/bin mounted no longer emits `EXC 06` or unhandled serial markers after selecting a listed CD audio track.
+
 ## 2026-06-16 Biing Installer AH=6Ch/AH=32h Compatibility
 
 ### Symptoms

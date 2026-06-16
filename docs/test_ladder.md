@@ -19,7 +19,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `make test-cd-file`: run the generated-ISO read-only `D:` file API probe.
 - `make test-cd-subdir`: run the generated-ISO read-only `D:` subdirectory file API probe, including current-directory CD file attributes and odd unaligned CD reads.
 - `make test-cd-find`: run the generated-ISO read-only `D:` directory enumeration probe, including explicit-subdirectory and current-directory wildcard searches.
-- `make test-cd-mscdex`: run the generated-ISO MSCDEX detection probe.
+- `make test-cd-mscdex`: run the generated-ISO MSCDEX detection, drive-list, and device-header probe.
 - `make test-cd-exec`: run the generated-ISO `EXEC` and overlay-load probe for COM and EXE programs loaded from `D:`.
 - `make test-cd-shellcopy-large`: run the generated CD-to-hard-disk child-shell copy regression that checks large FAT16 writes across FAT-sector boundaries.
 - `make test-cd-media-swap`: run the generated-ISO QEMU monitor media-swap regression for CD volume, directory, and file state invalidation.
