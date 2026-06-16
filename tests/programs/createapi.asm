@@ -135,6 +135,76 @@ start:
     cmp byte [bad_temp_tail], 0
     jne fail_temp_restore
 
+    mov ax, 0x6C00
+    mov bx, 0x2000
+    xor cx, cx
+    mov dx, 0x0001
+    mov si, new_name
+    int 0x21
+    jc fail_ext_open
+    cmp cx, 1
+    jne fail_ext_open
+    mov [new_handle], ax
+
+    mov bx, [new_handle]
+    mov dx, read_buf
+    mov cx, new_data_len
+    mov ah, 0x3F
+    int 0x21
+    jc fail_ext_read
+    cmp ax, new_data_len
+    jne fail_ext_read
+    mov si, new_data
+    mov di, read_buf
+    mov cx, new_data_len
+    repe cmpsb
+    jne fail_ext_read
+
+    mov bx, [new_handle]
+    mov ah, 0x3E
+    int 0x21
+    jc fail_close
+
+    mov ax, 0x6C00
+    mov bx, 0x2000
+    xor cx, cx
+    mov dx, 0x0001
+    mov si, missing_name
+    int 0x21
+    jnc fail_ext_missing
+    cmp ax, 2
+    jne fail_ext_missing
+
+    mov ax, 0x6C00
+    mov bx, 0x2002
+    xor cx, cx
+    mov dx, 0x0012
+    mov si, ext_name
+    int 0x21
+    jc fail_ext_create
+    cmp cx, 2
+    jne fail_ext_create
+    mov [new_handle], ax
+    mov bx, [new_handle]
+    mov ah, 0x3E
+    int 0x21
+    jc fail_close
+
+    mov ax, 0x6C00
+    mov bx, 0x2002
+    xor cx, cx
+    mov dx, 0x0012
+    mov si, ext_name
+    int 0x21
+    jc fail_ext_replace
+    cmp cx, 3
+    jne fail_ext_replace
+    mov [new_handle], ax
+    mov bx, [new_handle]
+    mov ah, 0x3E
+    int 0x21
+    jc fail_close
+
     mov dx, pass_msg
     mov ah, 0x09
     int 0x21
@@ -195,6 +265,21 @@ fail_temp_restore:
     jmp fail
 fail_read:
     mov dx, fail_read_msg
+    jmp fail
+fail_ext_open:
+    mov dx, fail_ext_open_msg
+    jmp fail
+fail_ext_read:
+    mov dx, fail_ext_read_msg
+    jmp fail
+fail_ext_missing:
+    mov dx, fail_ext_missing_msg
+    jmp fail
+fail_ext_create:
+    mov dx, fail_ext_create_msg
+    jmp fail
+fail_ext_replace:
+    mov dx, fail_ext_replace_msg
 fail:
     mov ah, 0x09
     int 0x21
@@ -202,6 +287,8 @@ fail:
     int 0x21
 
 new_name: db 'NEWFILE.DAT', 0
+missing_name: db 'MISSING.DAT', 0
+ext_name: db 'XOCFILE.DAT', 0
 seed_temp_name: db 'A:\LD0000.TMP', 0
 temp_path: db 'A:\', 13 dup(0)
 temp_path2: db 'A:\', 13 dup(0)
@@ -215,7 +302,7 @@ temp_data: db 'TEMP-OK'
 temp_data_len equ $ - temp_data
 new_handle: dw 0
 temp_handle: dw 0
-read_buf: times temp_data_len db 0
+read_buf: times new_data_len db 0
 
 pass_msg: db 'PASS: CREATEAPI', 13, 10, '$'
 fail_handles_msg: db 'FAIL: CREATEAPI AH67', 13, 10, '$'
@@ -230,3 +317,8 @@ fail_open_temp_msg: db 'FAIL: CREATEAPI TEMP OPEN', 13, 10, '$'
 fail_bad_temp_msg: db 'FAIL: CREATEAPI BAD TEMP', 13, 10, '$'
 fail_temp_restore_msg: db 'FAIL: CREATEAPI TEMP RESTORE', 13, 10, '$'
 fail_read_msg: db 'FAIL: CREATEAPI READ', 13, 10, '$'
+fail_ext_open_msg: db 'FAIL: CREATEAPI AH6C OPEN', 13, 10, '$'
+fail_ext_read_msg: db 'FAIL: CREATEAPI AH6C READ', 13, 10, '$'
+fail_ext_missing_msg: db 'FAIL: CREATEAPI AH6C MISSING', 13, 10, '$'
+fail_ext_create_msg: db 'FAIL: CREATEAPI AH6C CREATE', 13, 10, '$'
+fail_ext_replace_msg: db 'FAIL: CREATEAPI AH6C REPLACE', 13, 10, '$'

@@ -39,7 +39,7 @@ def check_output(label, output):
     return check_markers(
         output,
         required=("PASS: DRIVEDATA", "Program exited, code=00", "HALT"),
-        forbidden=("FAIL:", "EXC ", "INT 21h AH=1B", "INT 21h AH=1C"),
+        forbidden=("FAIL:", "EXC ", "INT 21h AH=1B", "INT 21h AH=1C", "INT 21h AH=32"),
         output_label=f"QEMU serial output ({label})",
     )
 

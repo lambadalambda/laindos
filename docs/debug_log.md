@@ -2,6 +2,34 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-16 Biing Installer AH=6Ch/AH=32h Compatibility
+
+### Symptoms
+
+- Running `INSTALL.EXE` from the Biing mixed-mode CD initially stayed at the shell prompt until an extra Enter was pressed.
+- After selecting install option `1`, the installer displayed `Eine Hard-Disk mit diesem Namen konnte nicht lokalisiert werden!` for the default `C:\BIING!` target.
+
+### Confirmed Facts
+
+- The CD data track was extracted from `vendor/biing/SPI_047_03.CUE` with `scripts/extract_mode1_2352.py` to `build/biing_data.iso`; the primary volume contains `INSTALL.EXE;1` and the game data directories.
+- The startup stall logged unhandled `INT 21h AH=6C AX=6C00 BX=2000 CX=0000 DX=0001`, i.e. DOS 4 extended open/create with open-existing/fail-missing action bits.
+- The drive-not-found screen logged unhandled `INT 21h AH=32` with `DL=03`, i.e. Get Drive Parameter Block for `C:`.
+- Focused regressions failed before the fix: `scripts/test_createapi.py` hit unhandled `AH=6C`, and `scripts/test_drivedata.py` hit unhandled `AH=32` on both floppy and hard-disk images.
+
+### Fix
+
+- Added `INT 21h AH=32h` with a kernel-owned DOS 4-style DPB populated from the active FAT BPB/geometry; unavailable or non-FAT drives return `AL=FFh` like existing drive-data calls.
+- Added `INT 21h AX=6C00h` extended open/create dispatch. The handler validates DOS action bits, probes path existence, then delegates real handle work to the existing `AH=3Dh` open or `AH=3Ch` create/truncate paths while returning `CX=1` opened, `CX=2` created, or `CX=3` replaced.
+- Extended `tests/programs/drivedata.asm` and `tests/programs/createapi.asm` to cover the new APIs and updated `docs/site/page_dosapi.jsx` to document the recognized calls.
+
+### Verification
+
+- `make` builds with the new kernel size `43647` bytes.
+- `python3 scripts/test_drivedata.py` passes for both floppy and FAT16 hard-disk images, including `AH=32h` DPB checks.
+- `python3 scripts/test_createapi.py` passes with `AX=6C00h` open-existing, missing-file failure, create, and replace status checks.
+- A headless QEMU Biing probe with `build/biing_probe/c.img` and `build/biing_data.iso` reaches the installer menu without an extra Enter and reports no unhandled `AH=6C` or `AH=32` serial markers.
+- Selecting option `1` and accepting `C:\BIING!` completes with `Installation beendet`, no unhandled `AH=6C`/`AH=32`, and no drive-not-found screen.
+
 ## 2026-06-15 Installer Update Leaves Hard Disk Temporarily Unbootable
 
 ### Symptoms

@@ -25,6 +25,13 @@ floppy_tests:
     jc fail_drive_default
     call check_floppy_info
 
+    mov ah, 0x32
+    xor dl, dl
+    int 0x21
+    cmp al, 0
+    jne fail_dpb_default
+    call check_floppy_dpb
+
     mov ah, 0x1C
     mov dl, 1
     int 0x21
@@ -42,6 +49,12 @@ floppy_tests:
     int 0x21
     cmp al, 0xFF
     jne fail_high_invalid
+
+    mov ah, 0x32
+    mov dl, 2
+    int 0x21
+    cmp al, 0xFF
+    jne fail_dpb_invalid
 
     jmp pass
 
@@ -69,6 +82,13 @@ hd_tests:
     jc fail_drive_c
     call check_hd_info
 
+    mov ah, 0x32
+    mov dl, 3
+    int 0x21
+    cmp al, 0
+    jne fail_dpb_c
+    call check_hd_dpb
+
     mov ah, 0x1C
     mov dl, 4
     int 0x21
@@ -80,6 +100,12 @@ hd_tests:
     int 0x21
     cmp al, 0xFF
     jne fail_high_invalid
+
+    mov ah, 0x32
+    mov dl, 4
+    int 0x21
+    cmp al, 0xFF
+    jne fail_dpb_invalid
 
 pass:
     push cs
@@ -118,6 +144,44 @@ check_hd_info:
     jne fail_media
     ret
 
+check_floppy_dpb:
+    cmp bx, 0
+    je fail_dpb_info
+    cmp byte [ds:bx], 0
+    jne fail_dpb_info
+    cmp word [ds:bx+2], 512
+    jne fail_dpb_info
+    cmp byte [ds:bx+4], 0
+    jne fail_dpb_info
+    cmp byte [ds:bx+8], 2
+    jne fail_dpb_info
+    cmp word [ds:bx+9], 224
+    jne fail_dpb_info
+    cmp byte [ds:bx+0x17], 0xF0
+    jne fail_dpb_info
+    cmp byte [ds:bx+0x18], 0
+    jne fail_dpb_info
+    ret
+
+check_hd_dpb:
+    cmp bx, 0
+    je fail_dpb_info
+    cmp byte [ds:bx], 2
+    jne fail_dpb_info
+    cmp word [ds:bx+2], 512
+    jne fail_dpb_info
+    cmp byte [ds:bx+4], 7
+    jne fail_dpb_info
+    cmp byte [ds:bx+8], 2
+    jne fail_dpb_info
+    cmp word [ds:bx+9], 512
+    jne fail_dpb_info
+    cmp byte [ds:bx+0x17], 0xF8
+    jne fail_dpb_info
+    cmp byte [ds:bx+0x18], 0
+    jne fail_dpb_info
+    ret
+
 fail_initial:
     mov dx, fail_initial_msg
     jmp fail
@@ -135,6 +199,18 @@ fail_drive_b:
     jmp fail
 fail_drive_c:
     mov dx, fail_drive_c_msg
+    jmp fail
+fail_dpb_default:
+    mov dx, fail_dpb_default_msg
+    jmp fail
+fail_dpb_c:
+    mov dx, fail_dpb_c_msg
+    jmp fail
+fail_dpb_info:
+    mov dx, fail_dpb_info_msg
+    jmp fail
+fail_dpb_invalid:
+    mov dx, fail_dpb_invalid_msg
     jmp fail
 fail_info:
     mov dx, fail_info_msg
@@ -162,6 +238,10 @@ fail_drive_default_msg: db 'FAIL: DRIVEDATA AH1C DEFAULT', 13, 10, '$'
 fail_drive_a_msg: db 'FAIL: DRIVEDATA AH1C A', 13, 10, '$'
 fail_drive_b_msg: db 'FAIL: DRIVEDATA AH1C B', 13, 10, '$'
 fail_drive_c_msg: db 'FAIL: DRIVEDATA AH1C C', 13, 10, '$'
+fail_dpb_default_msg: db 'FAIL: DRIVEDATA AH32 DEFAULT', 13, 10, '$'
+fail_dpb_c_msg: db 'FAIL: DRIVEDATA AH32 C', 13, 10, '$'
+fail_dpb_info_msg: db 'FAIL: DRIVEDATA DPB INFO', 13, 10, '$'
+fail_dpb_invalid_msg: db 'FAIL: DRIVEDATA DPB INVALID', 13, 10, '$'
 fail_info_msg: db 'FAIL: DRIVEDATA INFO', 13, 10, '$'
 fail_media_msg: db 'FAIL: DRIVEDATA MEDIA', 13, 10, '$'
 fail_invalid_msg: db 'FAIL: DRIVEDATA INVALID', 13, 10, '$'

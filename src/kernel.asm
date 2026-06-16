@@ -3678,6 +3678,11 @@ cf_entry_off: dw 0
 cf_found: db 0
 cf_new_only: db 0
 cf_status: dw 0
+xoc_active: db 0
+xoc_action: db 0
+xoc_mode: db 0
+xoc_attr: dw 0
+xoc_status: dw 0
 tm_end_off: dw 0
 tm_tries: dw 0
 temp_counter: dw 0
@@ -3863,6 +3868,7 @@ entry_caller_ss: dw 0
 entry_caller_sp: dw 0
 exc_vec: db 0
 bpb_copy: times 64 db 0
+drive_parameter_block: times 34 db 0
 %if TRACE_EXEC_STATE
 trace_psp_top: dw 0
 trace_parent_psp: dw 0

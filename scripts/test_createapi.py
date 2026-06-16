@@ -8,7 +8,7 @@ def main():
         "CREATEAPCOM",
         [("tests/programs/createapi.asm", "createap.com")],
         required=("PASS: CREATEAPI", "Program exited, code=00", "HALT"),
-        forbidden=("FAIL:", "EXC ", "INT 21h AH=5A", "INT 21h AH=5B", "INT 21h AH=67"),
+        forbidden=("FAIL:", "EXC ", "INT 21h AH=5A", "INT 21h AH=5B", "INT 21h AH=67", "INT 21h AH=6C"),
         pass_message="Create API test passed.",
     )
 

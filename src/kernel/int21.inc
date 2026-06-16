@@ -459,6 +459,8 @@ int21_handler:
     je .get_version
     cmp ah, 0x31
     je near .terminate_tsr
+    cmp ah, 0x32
+    je near .get_drive_parameter_block
     cmp ah, 0x33
     je .break_check
     cmp ah, 0x34
@@ -507,6 +509,8 @@ int21_handler:
     je .set_handle_count
     cmp ah, 0x68
     je .commit_file
+    cmp ah, 0x6C
+    je near .extended_open_create
     cmp ah, 0x71
     je .lfn_unsupported
 %ifdef TEST_HANDLE_COUNT_QUERY
@@ -2448,9 +2452,11 @@ int21_handler:
     INT21_POP_FRAME_DS_SI_ES_DI_BX_CX_DX
     RET_ERR_STATUS rd_status
 .create_file:
+    mov byte [cs:xoc_active], 0
     mov byte [cs:cf_new_only], 0
     jmp .create_file_start
 .create_new_file:
+    mov byte [cs:xoc_active], 0
     mov byte [cs:cf_new_only], 1
 .create_file_start:
     push ds
@@ -2550,6 +2556,10 @@ int21_handler:
     mul cx
     mov bx, ax
     mov al, 2
+    cmp byte [cs:xoc_active], 0
+    je .cr_mode_ready
+    mov al, [cs:xoc_mode]
+.cr_mode_ready:
     call init_handle_entry
     mov ax, [cs:cf_entry_lba]
     mov [cs:bx+handles+H_DIR_LBA], ax
@@ -2563,6 +2573,7 @@ int21_handler:
     call psp_mark_handle_open
     INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     mov ax, [cs:cf_handle]
+    call .xoc_success_status
     jmp iret_nc
 .cr_device:
     call alloc_device_handle
@@ -2571,8 +2582,10 @@ int21_handler:
     call psp_mark_handle_open
     INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     mov ax, [cs:cf_handle]
+    call .xoc_success_status
     jmp iret_nc
 .cr_device_err:
+    call .xoc_clear
     mov [cs:cf_status], ax
     INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     RET_ERR_STATUS cf_status
@@ -2594,11 +2607,13 @@ int21_handler:
 .cr_io_err:
     mov ax, 5
 .cr_err:
+    call .xoc_clear
     mov [cs:cf_status], ax
     INT21_POP_FRAME_DS_SI_ES_DI_BX_CX
     RET_ERR_STATUS cf_status
 
 .create_temp_file:
+    mov byte [cs:xoc_active], 0
     push ax
     push bx
     push cx
@@ -2693,6 +2708,8 @@ int21_handler:
     pop ax
     ret
 .open_file:
+    mov byte [cs:xoc_active], 0
+.open_file_start:
     cmp word [cs:trace_left], 0
     je .of_no_path_trace
     dec word [cs:trace_left]
@@ -2737,6 +2754,7 @@ int21_handler:
     call resolve_path
     jnc .of_found
 .of_not_found:
+    call .xoc_clear
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     RET_ERR 2
 .of_cd:
@@ -2771,8 +2789,10 @@ int21_handler:
     pop ax
     call psp_mark_handle_open
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
+    call .xoc_success_status
     jmp iret_nc
 .of_cd_access:
+    call .xoc_clear
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     RET_ERR 5
 .of_found:
@@ -2837,6 +2857,7 @@ int21_handler:
     call serial_print_hex_word
     TRACE_END of_handle
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
+    call .xoc_success_status
     jmp iret_nc
 .of_device:
     call alloc_device_handle
@@ -2850,12 +2871,15 @@ int21_handler:
     TRACE_END of_device
     pop ax
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
+    call .xoc_success_status
     jmp iret_nc
 .of_device_err:
+    call .xoc_clear
     mov [cs:of_status], ax
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     RET_ERR_STATUS of_status
 .of_no_handles:
+    call .xoc_clear
     INT21_POP_FRAME_ES_DS_BX_CX_DX_SI_DI
     RET_ERR 4
 .close_file:
@@ -5260,6 +5284,200 @@ int21_handler:
     pop ax
 .cm_bad_handle:
     RET_ERR 6
+
+.get_drive_parameter_block:
+    test dl, dl
+    jz .gdpb_valid_drive
+    mov al, [cs:dos_drive_count]
+    cmp dl, al
+    jbe .gdpb_valid_drive
+    mov al, 0xFF
+    jmp iret_nc
+.gdpb_valid_drive:
+    call activate_drive_for_dl
+    jc .gdpb_invalid_drive
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .gdpb_invalid_drive
+    call .fill_drive_parameter_block
+    push cs
+    pop ds
+    mov bx, drive_parameter_block
+    xor al, al
+    jmp iret_nc
+.gdpb_invalid_drive:
+    mov al, 0xFF
+    jmp iret_nc
+.fill_drive_parameter_block:
+    push ax
+    push bx
+    push cx
+    push di
+    push es
+    push cs
+    pop es
+    mov di, drive_parameter_block
+    xor ax, ax
+    mov cx, 17
+    cld
+    rep stosw
+    mov al, [cs:active_drive_num]
+    mov [cs:drive_parameter_block+0x00], al
+    mov ax, [cs:bpb_copy+BPB_BYTES_PER_SEC]
+    mov [cs:drive_parameter_block+0x02], ax
+    mov al, [cs:kspc]
+    dec al
+    mov [cs:drive_parameter_block+0x04], al
+    mov al, [cs:kspc]
+    xor cl, cl
+.gdpb_shift_loop:
+    cmp al, 1
+    jbe .gdpb_shift_done
+    shr al, 1
+    inc cl
+    jmp .gdpb_shift_loop
+.gdpb_shift_done:
+    mov [cs:drive_parameter_block+0x05], cl
+    mov ax, [cs:bpb_copy+BPB_RSV_SEC_COUNT]
+    mov [cs:drive_parameter_block+0x06], ax
+    mov al, [cs:knum_fats]
+    mov [cs:drive_parameter_block+0x08], al
+    mov ax, [cs:kroot_entries]
+    mov [cs:drive_parameter_block+0x09], ax
+    mov ax, [cs:kdsta]
+    mov [cs:drive_parameter_block+0x0B], ax
+    mov ax, [cs:kmax_cluster]
+    dec ax
+    mov [cs:drive_parameter_block+0x0D], ax
+    mov ax, [cs:kfat_secs]
+    mov [cs:drive_parameter_block+0x0F], ax
+    mov ax, [cs:krsta]
+    mov [cs:drive_parameter_block+0x11], ax
+    mov word [cs:drive_parameter_block+0x13], 0xFFFF
+    mov word [cs:drive_parameter_block+0x15], 0xFFFF
+    mov al, [cs:bpb_copy+BPB_MEDIA]
+    mov [cs:drive_parameter_block+0x17], al
+    mov byte [cs:drive_parameter_block+0x18], 0
+    mov word [cs:drive_parameter_block+0x19], 0xFFFF
+    mov word [cs:drive_parameter_block+0x1B], 0xFFFF
+    mov ax, [cs:fat_alloc_hint]
+    mov [cs:drive_parameter_block+0x1D], ax
+    mov word [cs:drive_parameter_block+0x1F], 0xFFFF
+    pop es
+    pop di
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+.extended_open_create:
+    cmp al, 0
+    jne .xoc_invalid
+    test dh, dh
+    jnz .xoc_invalid
+    mov al, dl
+    and al, 0xF0
+    cmp al, 0x10
+    ja .xoc_invalid
+    mov al, dl
+    and al, 0x0F
+    cmp al, 2
+    ja .xoc_invalid
+    mov [cs:xoc_action], dl
+    mov [cs:xoc_mode], bl
+    mov [cs:xoc_attr], cx
+    mov dx, si
+    call .xoc_path_exists
+    jc .xoc_missing
+    mov al, [cs:xoc_action]
+    and al, 0x0F
+    cmp al, 1
+    je .xoc_open
+    cmp al, 2
+    je .xoc_replace
+    mov byte [cs:xoc_active], 0
+    RET_ERR 80
+.xoc_missing:
+    mov al, [cs:xoc_action]
+    and al, 0xF0
+    cmp al, 0x10
+    je .xoc_create
+    mov byte [cs:xoc_active], 0
+    RET_ERR 2
+.xoc_open:
+    mov byte [cs:xoc_active], 1
+    mov word [cs:xoc_status], 1
+    mov al, [cs:xoc_mode]
+    mov dx, si
+    jmp .open_file_start
+.xoc_create:
+    mov byte [cs:xoc_active], 1
+    mov word [cs:xoc_status], 2
+    mov cx, [cs:xoc_attr]
+    mov dx, si
+    mov byte [cs:cf_new_only], 1
+    jmp .create_file_start
+.xoc_replace:
+    mov byte [cs:xoc_active], 1
+    mov word [cs:xoc_status], 3
+    mov cx, [cs:xoc_attr]
+    mov dx, si
+    mov byte [cs:cf_new_only], 0
+    jmp .create_file_start
+.xoc_invalid:
+    mov byte [cs:xoc_active], 0
+    RET_ERR 1
+.xoc_path_exists:
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push es
+    push si
+    push di
+    mov si, dx
+    call detect_device_path
+    jnc .xoc_exists_ok
+    mov si, dx
+    call activate_drive_for_path
+    jc .xoc_exists_no
+    cmp byte [cs:kdrive_type], DRIVE_TYPE_CDROM
+    je .xoc_exists_cd
+    mov si, dx
+    call resolve_path
+    jnc .xoc_exists_ok
+    jmp .xoc_exists_no
+.xoc_exists_cd:
+    mov si, dx
+    call cd_open_path
+    jc .xoc_exists_no
+.xoc_exists_ok:
+    clc
+    jmp .xoc_exists_done
+.xoc_exists_no:
+    stc
+.xoc_exists_done:
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+.xoc_success_status:
+    push ax
+    cmp byte [cs:xoc_active], 0
+    je .xoc_success_done
+    mov cx, [cs:xoc_status]
+    mov byte [cs:xoc_active], 0
+.xoc_success_done:
+    pop ax
+    ret
+.xoc_clear:
+    mov byte [cs:xoc_active], 0
+    ret
 
 .set_handle_count:
     push ax
