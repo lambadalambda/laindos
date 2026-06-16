@@ -1847,8 +1847,6 @@ init_interrupts:
     mov [es:0x01*4+2], cs
     mov [es:0x06*4], word exc06_handler
     mov [es:0x06*4+2], cs
-    mov [es:0x0D*4], word exc0d_handler
-    mov [es:0x0D*4+2], cs
     pop es
     pop ds
     popa
@@ -1909,9 +1907,6 @@ exc06_handler:
     pop bp
     mov al, 0x06
     jmp exc_noerr
-exc0d_handler:
-    add sp, 2
-    mov al, 0x0D
 exc_noerr:
     mov [cs:exc_vec], al
     push bp

@@ -2,6 +2,49 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-16 Biing SETSOUND SB16 DMA Check
+
+### Symptoms
+
+- With 86Box's ISA Sound Blaster 16 PnP model, Biing SETSOUND accepts `Soundblaster` and `Soundblaster PRO`, but the `Soundblaster 16 / AWE32` path reports or hangs around the DMA compatibility/system check.
+
+### Confirmed Facts
+
+- 86Box's `sb16_pnp` model starts with DSP address, IRQ, low DMA, and high DMA disabled until ISA PnP configuration is applied. LainDOS does not implement ISA PnP resource assignment, so the PnP SB16 model is not a good default target for pure LainDOS game runs.
+- 86Box's non-PnP `sb16` model has legacy defaults matching LainDOS's `BLASTER=A220 I5 D1 H5 P330 T6`.
+- A headless Biing SETSOUND probe with non-PnP `sb16`, explicit port `220`, IRQ `5`, and DMA `1` still sits at `SYSTEM CHECK`, even after a one-off helper unmasked IRQ5 at PIC port `21h`.
+- LainDOS was installing `exc0d_handler` on IVT vector `0Dh`. On the PC BIOS real-mode PIC layout, vector `0Dh` is hardware IRQ5, the default Sound Blaster IRQ. That handler was an exception dump/halt path and did not belong on IRQ5.
+
+### Fix In This Slice
+
+- Removed the `INT 0Dh` hook so IRQ5 stays owned by the BIOS or by a program/sound driver that installs a real handler.
+- Extended `tests/programs/irqmask.asm` to fail if IRQ5's vector segment matches the kernel INT 21h handler segment, preventing future accidental ownership of the SB16 IRQ vector.
+
+### Open Questions
+
+- Biing's SB16 system check still waits in the headless 86Box repro after the IRQ5-vector fix, so the remaining issue is likely in the SB16/Miles high-DMA probe, 86Box's headless SB16 audio/DMA path, or an uninitialized PnP/high-DMA resource path rather than DOS file/API behavior.
+- For gameplay, use the non-PnP `sb16` profile and Biing's `Soundblaster` or `Soundblaster PRO` SETSOUND option for now. Avoid `sb16_pnp` unless an ISA PnP initializer such as Creative CTCM has configured the card first.
+
+## 2026-06-16 Biing SETSOUND CD Audio White Noise
+
+### Symptoms
+
+- After the `AX=1501h` fix, `D:\SETSOUND.EXE` no longer crashes when selecting a CD-audio test track, but the heard output was reported as white noise.
+
+### Confirmed Facts
+
+- A temporary `TRACE_CD_AUDIO` build in headless 86Box traced the SETSOUND Play Audio request after selecting `reLINE Theme`: `CDPLAY M=00 ST=A33C:0003 LN=055B:0000 CDB=35:00:2E-35:12:43`.
+- A second trace after selecting `Gods in White` showed `CDPLAY M=00 ST=1ABF:0004 LN=10B5:0000 CDB=3B:30:29-3C:2D:2B`.
+- Both requests are HSG mode, not Red Book mode; LainDOS converts them to MSF ranges inside the audio-track area of `vendor/biing/SPI_047_03.CUE`, so the noise is not caused by playing track 1 data sectors.
+- Sampling the original Biing BIN at the first SETSOUND track LBA shows smooth PCM only when the audio bytes are interpreted as big-endian 16-bit samples; little-endian interpretation produces large random-looking jumps, which matches the white-noise symptom in 86Box's little-endian CDDA output path.
+- The known-working Settlers II mixed-mode image shows the opposite pattern: its audio track is smooth as little-endian PCM, matching 86Box's expected raw-CDDA byte order.
+- The archive.org `biing_pcaplus` rip has a similar cue layout but is not the same dump: its BIN is `649819968` bytes / `276284` sectors, 768 sectors larger than local `SPI_047_03.BIN`. HTTP range samples from track 2, track 8, and track 9 are smooth as little-endian PCM and noisy as big-endian, so that rip does not have the local byte-swapped-audio problem.
+
+### Workaround Artifact
+
+- Created a disposable corrected cue/bin at `build/biing_audio_fixed/SPI_047_03_swapped.CUE` / `.BIN` by byte-swapping only the audio-track region starting at cue index `52:56:46`, leaving the MODE1 data track unchanged.
+- SETSOUND still boots from the swapped cue and emits the same valid `CDPLAY` request for the first listed track.
+
 ## 2026-06-16 Biing SETSOUND MSCDEX AX=1501h Crash
 
 ### Symptoms

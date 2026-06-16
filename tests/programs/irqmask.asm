@@ -21,6 +21,15 @@ start:
     test al, 0x02
     jnz fail_initial
 
+    mov ax, 0x3521
+    int 0x21
+    mov [kernel_int21_seg], es
+    mov ax, 0x350D
+    int 0x21
+    mov ax, es
+    cmp ax, [kernel_int21_seg]
+    je fail_irq5_vector
+
     push ds
     xor ax, ax
     mov ds, ax
@@ -94,6 +103,9 @@ fail_exec:
 fail_child:
     mov dx, fail_child_msg
     jmp fail
+fail_irq5_vector:
+    mov dx, fail_irq5_vector_msg
+    jmp fail
 fail_term_restore:
     mov dx, fail_term_restore_msg
 fail:
@@ -111,6 +123,7 @@ fail:
 
 old_int9_off: dw 0
 old_int9_seg: dw 0
+kernel_int21_seg: dw 0
 initial_pic: db 0
 child_path: db "IRQTERM.COM", 0
 empty_tail: db 0, 13
@@ -125,4 +138,5 @@ fail_mask_msg: db "FAIL: IRQMASK MASK", 13, 10, "$"
 fail_restore_msg: db "FAIL: IRQMASK RESTORE", 13, 10, "$"
 fail_exec_msg: db "FAIL: IRQMASK EXEC", 13, 10, "$"
 fail_child_msg: db "FAIL: IRQMASK CHILD", 13, 10, "$"
+fail_irq5_vector_msg: db "FAIL: IRQMASK IRQ5 VECTOR", 13, 10, "$"
 fail_term_restore_msg: db "FAIL: IRQMASK TERMRESTORE", 13, 10, "$"

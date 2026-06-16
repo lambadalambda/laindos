@@ -228,7 +228,7 @@ const STAGES = [
     title: "Installing the interrupts",
     prose: [
       "This is the moment LainDOS becomes a DOS. The Interrupt Vector Table lives at physical 0 — 256 entries, each a 4-byte far pointer (offset word, then segment word). By writing its own routines into specific slots, the kernel makes the standard DOS software interrupts call its code.",
-      "INT 21h is the DOS API itself; INT 20h terminates a program; INT 2Fh is the multiplex used here for XMS and MSCDEX-style CD-ROM probes; INT 33h is the built-in mouse driver. It also claims the CPU fault vectors (01h/06h/0Dh) so a crashing program dumps state over serial instead of hanging silently.",
+      "INT 21h is the DOS API itself; INT 20h terminates a program; INT 2Fh is the multiplex used here for XMS and MSCDEX-style CD-ROM probes; INT 33h is the built-in mouse driver. It also claims the CPU fault vectors (01h/06h) so a crashing program dumps state over serial instead of hanging silently; 0Dh is deliberately left alone because it is hardware IRQ5 on the PC BIOS PIC layout.",
     ],
     code: [
       [1808, "init_interrupts:"],
