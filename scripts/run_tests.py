@@ -82,6 +82,7 @@ DEFAULT_TESTS = [
     "scripts/test_ioctlstat.py",
     "scripts/test_ioctlext.py",
     "scripts/test_irqmask.py",
+    "scripts/test_sbirq.py",
     "scripts/test_fat16.py",
     "scripts/test_fat16_bounds.py",
     "scripts/test_partitioned_fat16.py",

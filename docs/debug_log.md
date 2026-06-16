@@ -14,6 +14,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - 86Box's non-PnP `sb16` model has legacy defaults matching LainDOS's `BLASTER=A220 I5 D1 H5 P330 T6`.
 - A headless Biing SETSOUND probe with non-PnP `sb16`, explicit port `220`, IRQ `5`, and DMA `1` still sits at `SYSTEM CHECK`, even after a one-off helper unmasked IRQ5 at PIC port `21h`.
 - LainDOS was installing `exc0d_handler` on IVT vector `0Dh`. On the PC BIOS real-mode PIC layout, vector `0Dh` is hardware IRQ5, the default Sound Blaster IRQ. That handler was an exception dump/halt path and did not belong on IRQ5.
+- Added `tests/programs/sbirq.asm` and `scripts/test_sbirq.py` as a narrow discriminator: under QEMU `-device sb16`, the program installs an IRQ5 handler, unmasks PIC bit 5, resets the DSP, sends DSP command `F2h`, observes the IRQ, acknowledges it, and exits with `PASS: SBIRQ IRQ5`. This proves the generic LainDOS vector/PIC path can deliver an SB-generated IRQ5 after the vector fix.
 
 ### Fix In This Slice
 
@@ -22,7 +23,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Open Questions
 
-- Biing's SB16 system check still waits in the headless 86Box repro after the IRQ5-vector fix, so the remaining issue is likely in the SB16/Miles high-DMA probe, 86Box's headless SB16 audio/DMA path, or an uninitialized PnP/high-DMA resource path rather than DOS file/API behavior.
+- Biing's SB16 system check still reports an interrupt error after the IRQ5-vector fix, while the focused QEMU SB IRQ trigger passes. The remaining issue is likely in the SB16/Miles high-DMA or DMA-compatibility probe, 86Box's SB16 IRQ/DMA configuration, or an uninitialized PnP/high-DMA resource path rather than DOS file/API behavior.
 - For gameplay, use the non-PnP `sb16` profile and Biing's `Soundblaster` or `Soundblaster PRO` SETSOUND option for now. Avoid `sb16_pnp` unless an ISA PnP initializer such as Creative CTCM has configured the card first.
 
 ## 2026-06-16 Biing SETSOUND CD Audio White Noise
