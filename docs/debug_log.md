@@ -15,6 +15,12 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - A headless Biing SETSOUND probe with non-PnP `sb16`, explicit port `220`, IRQ `5`, and DMA `1` still sits at `SYSTEM CHECK`, even after a one-off helper unmasked IRQ5 at PIC port `21h`.
 - LainDOS was installing `exc0d_handler` on IVT vector `0Dh`. On the PC BIOS real-mode PIC layout, vector `0Dh` is hardware IRQ5, the default Sound Blaster IRQ. That handler was an exception dump/halt path and did not belong on IRQ5.
 - Added `tests/programs/sbirq.asm` and `scripts/test_sbirq.py` as a narrow discriminator: under QEMU `-device sb16`, the program installs an IRQ5 handler, unmasks PIC bit 5, resets the DSP, sends DSP command `F2h`, observes the IRQ, acknowledges it, and exits with `PASS: SBIRQ IRQ5`. This proves the generic LainDOS vector/PIC path can deliver an SB-generated IRQ5 after the vector fix.
+- Additional focused probes show 86Box and QEMU both handle SB16 mixer IRQ/DMA register programming, DSP command `80h`, generic `F2h` IRQs, single-cycle 8-bit DMA command `C0h`, and single-cycle 16-bit DMA command `B0h`.
+- Biing's failing SB16 path uses DSP commands `D1h`, `40h D2h`, then SB16 8-bit auto-init DMA command `C6h` with mode byte `21h` and lengths `7FFFh`/`0FFFh`. Stock 86Box starts the command but never raises the DMA-completion IRQ; QEMU raises IRQ5 and Biing passes.
+- Extending `tests/programs/sb16dma.asm` with a tiny `C6h 21h` auto-init transfer reproduces the emulator split: QEMU passes while stock 86Box fails with `SB16DMA ST8=21 ST16=22 STAUTO=00` / `FAIL: SB16DMA AUTO8`.
+- 86Box's 8-bit playback switch consumes formats `00h`, `10h`, `20h`, and `30h`. It does not consume `21h`, so the 8-bit auto-init transfer never advances to the IRQ point. QEMU's SB16 generic DMA path uses only the mode byte's signed/stereo bits (`d0 >> 4` and `d0 >> 5`), effectively treating `21h` as `20h`.
+- A temporary local 86Box patch that masks SB16 generic DMA mode bytes with `& 0x30` for `B?h`/`C?h` commands makes the focused `C6h 21h` probe pass and makes Biing SETSOUND report `digitale Portadresse: OK`, `Digital-Interrupt: OK`, `digitaler DMA-Kanal: OK`, and `DMA-Chip kompatibel: ja`.
+- Booting `vendor/Windows 98 Second Edition Boot.img` (DOS 7 / MSCDEX 2.25) under stock 86Box with the same non-PnP `sb16` profile and Biing CD reproduces the same `INTERUPT-ERROR` screen. DOS 7 assigns the CD as `D:` and SETSOUND still reports `DMA-Chip kompatibel: no`, so the failure is independent of LainDOS's DOS API and CD stack.
 
 ### Fix In This Slice
 
@@ -23,8 +29,8 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 
 ### Open Questions
 
-- Biing's SB16 system check still reports an interrupt error after the IRQ5-vector fix, while the focused QEMU SB IRQ trigger passes. The remaining issue is likely in the SB16/Miles high-DMA or DMA-compatibility probe, 86Box's SB16 IRQ/DMA configuration, or an uninitialized PnP/high-DMA resource path rather than DOS file/API behavior.
-- For gameplay, use the non-PnP `sb16` profile and Biing's `Soundblaster` or `Soundblaster PRO` SETSOUND option for now. Avoid `sb16_pnp` unless an ISA PnP initializer such as Creative CTCM has configured the card first.
+- The remaining Biing SB16 `INTERUPT-ERROR` under stock 86Box is an 86Box SB16 emulation issue, not a LainDOS DOS/API issue. Use QEMU, patch 86Box's SB16 generic DMA mode-byte handling, or select Biing's non-SB16 Sound Blaster profile in stock 86Box.
+- Avoid 86Box `sb16_pnp` unless an ISA PnP initializer such as Creative CTCM has configured the card first; pure LainDOS profiles should use non-PnP `sb16`.
 
 ## 2026-06-16 Biing SETSOUND CD Audio White Noise
 

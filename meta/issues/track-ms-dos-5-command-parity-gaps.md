@@ -23,10 +23,11 @@ LainDOS should not chase full `COMMAND.COM` or external utility parity by defaul
 | `CD` / `CHDIR` | Mostly supported | Includes `CD..`, `CD\`, and drive-qualified paths. | `docs/site/page_shell.jsx:15` |
 | `MD` / `MKDIR` | Supported | Creates directories. | `docs/site/page_shell.jsx:16` |
 | `RD` / `RMDIR` | Supported | Removes empty directories. | `docs/site/page_shell.jsx:17` |
-| `COPY` | Partial | Supports file and wildcard copies plus `/Y` and `/-Y`; no full `COPY` syntax such as concatenation or `/A`/`/B`. | `docs/site/page_shell.jsx:18` |
+| `COPY` | Partial | Supports file and wildcard copies plus `/Y` and `/-Y`; no full `COPY` syntax such as concatenation or `/A`/`/B`. | `docs/site/page_shell.jsx:19` |
 | `DEL` / `ERASE` | Partial | Supports file and wildcard deletion plus optional `/P`. | `docs/site/page_shell.jsx:19` |
-| `REN` / `RENAME` | Partial | One file, same-directory rename; destination must be a filename. | `docs/site/page_shell.jsx:20` |
-| `TYPE` | Supported | Streams one file to stdout. | `docs/site/page_shell.jsx:21` |
+| `DELTREE` | Supported extension | DOS 6-style recursive delete with optional `/Y`; useful for current workflows but not an MS-DOS 5 command. | `docs/site/page_shell.jsx:18` |
+| `REN` / `RENAME` | Partial | One file, same-directory rename; destination must be a filename. | `docs/site/page_shell.jsx:21` |
+| `TYPE` | Supported | Streams one file to stdout. | `docs/site/page_shell.jsx:22` |
 | `CLS` | Supported | Clears screen via form feed. | `docs/site/page_shell.jsx:22` |
 | `ECHO` | Partial | Prints text; `ECHO ON/OFF` are accepted as quiet no-ops, not full echo-state behavior. | `docs/site/page_shell.jsx:23` |
 | `REM` | Supported | Batch/comment no-op. | `docs/site/page_shell.jsx:24` |
@@ -39,7 +40,7 @@ LainDOS should not chase full `COMMAND.COM` or external utility parity by defaul
 | `EXIT` | Supported | Terminates the shell. | `docs/site/page_shell.jsx:12` |
 | `VER` | Supported | Prints the LainDOS version/banner. | `docs/site/page_shell.jsx:13` |
 | Drive switches | Supported | `A:`, `B:`, `C:`, etc. work when the drive is mounted. | `docs/site/page_shell.jsx:29` |
-| Program launch | Partial | Runs `.COM`, `.EXE`, and `.BAT` from current directory or `PATH`. | `docs/site/page_shell.jsx:30` |
+| Program launch | Partial | Runs `.COM`, `.EXE`, and `.BAT` from current directory or `PATH`; commands inherit partial stdout redirection with `>`/`>>`. | `docs/site/page_shell.jsx:30`, `docs/site/page_shell.jsx:69` |
 
 ## Bundled External/User Tools
 
@@ -85,7 +86,7 @@ LainDOS should not chase full `COMMAND.COM` or external utility parity by defaul
 
 ## Notes
 
-- The open command table in `programs/shell.asm` currently includes `EXIT`, `VER`, `DIR`, `CD`, `CD..`, `CHDIR`, `MD`, `MKDIR`, `RD`, `RMDIR`, `COPY`, `DEL`, `ERASE`, `REN`, `RENAME`, `TYPE`, `CLS`, `ECHO`, `REM`, `IF`, `GOTO`, `PAUSE`, `BREAK`, `MODE`, and `MORE`.
+- The open command table in `programs/shell.asm` currently includes `EXIT`, `VER`, `DIR`, `CD`, `CD..`, `CHDIR`, `MD`, `MKDIR`, `RD`, `RMDIR`, `COPY`, `DEL`, `ERASE`, `DELTREE`, `REN`, `RENAME`, `TYPE`, `CLS`, `ECHO`, `REM`, `IF`, `GOTO`, `PAUSE`, `BREAK`, `MODE`, and `MORE`.
 - See `track-ms-dos-5-compatibility-gaps.md` for the system-level shell compatibility view; this tracker keeps the per-command rows.
 - The current shell behavior is intentionally scoped to games, installers, and regression tests rather than full `COMMAND.COM` compatibility.
 - Treat this tracker as a warning against broad command-suite churn.

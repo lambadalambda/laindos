@@ -16,6 +16,9 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `TEST_JOBS=1 make test` or `make test-serial`: run the default ladder serially when debugging timing or interleaved logs.
 - `python3 scripts/test_irqmask.py`: run one focused test directly.
 - `python3 scripts/test_sbirq.py`: run the focused Sound Blaster IRQ5 trigger probe with QEMU SB16 hardware.
+- `python3 scripts/test_sb16stat.py`: verify SB16 mixer IRQ/DMA register reporting and mixer IRQ-status bits with QEMU SB16 hardware.
+- `python3 scripts/test_sb16dma.py`: verify SB16 single-cycle 8-bit, single-cycle 16-bit, and auto-init 8-bit DMA completion IRQs with QEMU SB16 hardware.
+- `python3 scripts/test_sbpause.py`: verify the DSP pause/silence command interrupt path with QEMU SB16 hardware.
 - `make test-cd-bios`: run the generated-ISO BIOS CD-ROM probe.
 - `make test-cd-file`: run the generated-ISO read-only `D:` file API probe.
 - `make test-cd-subdir`: run the generated-ISO read-only `D:` subdirectory file API probe, including current-directory CD file attributes and odd unaligned CD reads.
