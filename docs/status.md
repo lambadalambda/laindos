@@ -19,12 +19,12 @@ What LainDOS implements today, and the compatibility decisions behind it.
 - Installs Micro Machines 2 through its real four-floppy Codemasters installer (language selection, SHR unpacking, three disk swaps) and launches the installed game through DOS/4GW to its interactive copy-protection screen, verified by the vendor-gated `make test-mm2-smoke`.
 - Installs Wing Commander through its real three-floppy Origin installer (drive selection, two disk swaps picked up by the media check) and runs it past the Claw Marks copy-protection quiz, the Vega campaign menu, the simulator name entry, and into the animated bar scene, verified by the vendor-gated `make test-wc-smoke`.
 - Installs The Settlers II Gold Edition from its CD data track through the real Blue Byte installer and launches the installed game through DOS/4GW to its 640x480 VESA main menu, verified by the vendor-gated `make test-settlers2-smoke`. Under QEMU the menu's timer-driven input pump never runs (an emulator interaction of the Civilization PIT class); under 86Box the game is fully playable.
-- Runs the Simon the Sorcerer demo (AGOS engine) to its interactive in-game scene with verb interface and mouse cursor from an EMS-less smoke boot profile, verified by the vendor-gated `make test-simon-smoke`.
+- Runs the Simon the Sorcerer demo (AGOS engine) to its interactive in-game scene with verb interface and mouse cursor on the default EMS-enabled kernel, verified by the vendor-gated `make test-simon-smoke`.
 - Runs Sid Meier's Civilization to its startup menus and animating VGA intro through the bundled `LOADFIX.COM` because CIV.EXE is EXEPACK-compressed and corrupts itself below segment 1000h on lean DOS layouts, verified by the vendor-gated `make test-civ-smoke`. Under the headless 86Box build the same image reaches the title menu (`make test-civ-86box`); under QEMU further progress is blocked by an emulator PIT-timing interaction that also reproduces under FreeDOS.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
 - Provides vendor-gated `make test-sammax-cd-files`, `make test-sammax-cd-start`, `make test-sammax-cd-setmuse`, `make test-sammax-cd-setmuse-save`, `make test-sammax-cd-install`, `make test-sammax-cd-install-select`, `make test-sammax-cd-dig`, and `make test-normality-install` smokes for the Sam & Max Hit the Road CD data track from its cue/bin archive. The Normality smoke drives the Gremlin installer end to end (its copy phase runs `COPY`/`MD` through `COMSPEC /C`) and launches the installed demo.
-- `make test` currently runs the automated QEMU regression ladder and passes `168/168` tests.
+- `make test` currently runs the automated QEMU regression ladder and passes `169/169` tests.
 
 ## Scope
 

@@ -14,20 +14,22 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - Civilization's 86Box smoke already used `LOADFIX CIV` and still passed. The QEMU smoke was the inconsistent path: it launched bare `CIV` even though the docs already describe EXEPACK's below-1000h failure and the DOS 5 LOADFIX answer.
 - A disposable Simon A/B passed when `build/simon_hd.img` was patched with a kernel compiled as `-DENABLE_EMS=0`: it reached the in-game scene with `75` colors and an advancing BIOS tick.
 - A temporary `TRACE_EMS` build showed Simon's first EMS failure path: `AH=40,41,42,43,44,44,44,44,43`, with the second allocation failing against the single-handle implementation.
-- After adding multi-handle EMS, the allocation failure disappeared; a second trace showed Simon repeatedly mapping handle 2 logical page 3 into physical slot 3 (`AX=4403 BX=0003 DX=0002`) before the black-screen timeout. The remaining Simon EMS path needs fuller EMM compatibility, so the smoke now uses an EMS-less boot profile rather than hiding default EMS globally.
+- After adding multi-handle EMS, the allocation failure disappeared; a second trace showed Simon repeatedly mapping handle 2 logical page 3 into physical slot 3 (`AX=4403 BX=0003 DX=0002`) before the black-screen timeout.
+- The root cause of the remaining Simon hang was EMS register preservation: `INT 67h` handle-taking paths used registers such as `SI` as kernel scratch but returned without restoring them, even though LIM EMS callers expect non-result registers to survive.
 
 ### Fix In This Slice
 
 - EMS now has a small handle table (`1..16`) and page ownership, so multiple EMS handles map to distinct high backing pages. `scripts/test_emsmulti.py` failed before this with `FAIL: EMSMULTI ALLOC2` and now passes.
 - Redundant `AH=44h` mappings of an already-mapped global EMS page return success without copying 16 KiB out and back through BIOS `INT 15h AH=87h`.
+- EMS `INT 67h` now preserves caller registers except documented return values. `scripts/test_emspreserve.py` failed before this with `FAIL: EMSPRESERVE ALLOC REGS` and now passes.
 - `scripts/test_civ_smoke.py` now launches `LOADFIX CIV`, matching the 86Box smoke and the documented EXEPACK workaround.
-- `scripts/build_simon_hd.py` builds the Simon smoke image with `-DENABLE_EMS=0`, documenting that this target currently needs an EMS-less DOS-era boot profile.
+- `scripts/build_simon_hd.py` uses the default EMS-enabled kernel; Simon now reaches the in-game scene without a boot-profile workaround.
 
 ### Checks
 
-- Passed focused EMS checks: `test_emsmulti.py`, `test_ems.py`, `test_emslarge.py`, and `test_emsxms.py`.
+- Passed focused EMS checks: `test_emspreserve.py`, `test_emsmulti.py`, `test_ems.py`, `test_emslarge.py`, and `test_emsxms.py`.
 - Before the final smoke-script updates, all game smokes except QEMU Civilization and QEMU Simon had passed in this run: Monkey demo/full, MI2 save, attached HD shell, Sam & Max/Normality, Wolf3D, Ascendancy, Norton Commander suite, Shortline, Stunt Island, Micro Machines 2, Wing Commander, Settlers II, and Civilization 86Box.
-- Final verification passed `make test` (`168/168`) and `make test-game-smokes`, including QEMU Civilization through `LOADFIX CIV`, Simon with the EMS-less profile, and the Civilization 86Box cross-check.
+- Final verification before the register-preservation follow-up passed `make test` (`168/168`) and `make test-game-smokes`, including QEMU Civilization through `LOADFIX CIV`, Simon with an EMS-less profile, and the Civilization 86Box cross-check. After the preservation fix, `make test-simon-smoke` passes on the default EMS-enabled kernel.
 
 ## 2026-06-16 Millennia EMS And Conventional Memory
 

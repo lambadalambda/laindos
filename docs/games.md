@@ -139,7 +139,7 @@ Build a bootable hard-disk image with the Simon the Sorcerer demo in `C:\SIMON` 
 python3 scripts/build_simon_hd.py
 ```
 
-Launch with `CD SIMON`, then `SIMON` (the bundled batch runs `RUNVGA GDEMO /3`). The smoke image uses an EMS-less boot profile because the demo's EMS path still needs fuller EMM compatibility than LainDOS' default backed EMS provides. In that profile, the AGOS engine boots to its interactive in-game scene with the verb interface and mouse cursor; the vendor-gated smoke verifies the scene and an advancing BIOS tick:
+Launch with `CD SIMON`, then `SIMON` (the bundled batch runs `RUNVGA GDEMO /3`). The AGOS engine boots to its interactive in-game scene with the verb interface and mouse cursor on the default EMS-enabled kernel; the vendor-gated smoke verifies the scene and an advancing BIOS tick:
 
 ```sh
 make test-simon-smoke

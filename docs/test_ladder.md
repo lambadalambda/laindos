@@ -17,6 +17,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `python3 scripts/test_emsmem.py`: verify default EMS is present while the largest free conventional block still clears Millennia's 580 KiB launch gate.
 - `python3 scripts/test_emslarge.py`: verify the default EMS pool provides 384 logical pages (6 MiB) and preserves high-page backing.
 - `python3 scripts/test_emsmulti.py`: verify multiple EMS handles map to distinct backing pages.
+- `python3 scripts/test_emspreserve.py`: verify EMS calls preserve caller registers except documented return values.
 - `python3 scripts/test_emsxms.py`: verify a 15 MiB XMS allocation and 6 MiB EMS allocation can coexist without backing-store aliasing.
 - `python3 scripts/test_shellmem.py`: boot `SHELL.COM`, run a child from AUTOEXEC, and verify the child receives at least a 580 KiB allocation.
 - `python3 scripts/test_irqmask.py`: run one focused test directly.

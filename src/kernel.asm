@@ -2433,10 +2433,19 @@ int67_absent_handler:
 EMS_MAX_HANDLES equ 16
 
 int67_handler:
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+    push ds
+    push es
     cmp byte [cs:ems_available], 0
     jne .dispatch
     mov ah, 0x80
-    iret
+    jmp .iret_status
 .dispatch:
     cmp ah, 0x40
     je .ok
@@ -2457,20 +2466,20 @@ int67_handler:
     cmp ah, 0x4C
     je .info
     mov ah, 0x80
-    iret
+    jmp .iret_status
 .ok:
     xor ah, ah
-    iret
+    jmp .iret_status
 .frame:
     xor ah, ah
     mov bx, EMS_FRAME_SEG
-    iret
+    jmp .iret_bx
 .pages:
     mov bx, [cs:ems_total_pages]
     sub bx, [cs:ems_alloc_pages]
     mov dx, [cs:ems_total_pages]
     xor ah, ah
-    iret
+    jmp .iret_bx_dx
 .alloc:
     test bx, bx
     jz .no_pages
@@ -2487,13 +2496,13 @@ int67_handler:
     add [cs:ems_alloc_pages], bx
     call ems_mark_pages
     xor ah, ah
-    iret
+    jmp .iret_dx
 .no_pages:
     mov ah, 0x88
-    iret
+    jmp .iret_status
 .no_handles:
     mov ah, 0x85
-    iret
+    jmp .iret_status
 .map:
     call ems_handle_offset
     jc .bad_handle
@@ -2565,11 +2574,11 @@ int67_handler:
     pop bx
     pop bx
     xor ah, ah
-    iret
+    jmp .iret_status
 .map_already:
     pop bx
     xor ah, ah
-    iret
+    jmp .iret_status
 .map_io_error:
     pop es
     pop ds
@@ -2580,10 +2589,10 @@ int67_handler:
     pop bx
     pop bx
     mov ah, 0x80
-    iret
+    jmp .iret_status
 .bad_page:
     mov ah, 0x8A
-    iret
+    jmp .iret_status
 .free:
     call ems_handle_offset
     jc .bad_handle
@@ -2595,23 +2604,60 @@ int67_handler:
     mov word [cs:si+ems_handle_pages], 0
     mov word [cs:si+ems_handle_base], 0
     xor ah, ah
-    iret
+    jmp .iret_status
 .version:
-    xor ah, ah
-    mov al, 0x40
-    iret
+    mov ax, 0x0040
+    jmp .iret_ax
 .handles:
     xor ah, ah
     mov bx, EMS_MAX_HANDLES
-    iret
+    jmp .iret_bx
 .info:
     call ems_handle_offset
     jc .bad_handle
     mov bx, [cs:si+ems_handle_pages]
     xor ah, ah
-    iret
+    jmp .iret_bx
 .bad_handle:
     mov ah, 0x83
+    jmp .iret_status
+
+.iret_ax:
+    push bp
+    mov bp, sp
+    mov [bp+18], ax
+    jmp .iret_common
+.iret_bx_dx:
+    push bp
+    mov bp, sp
+    mov [bp+16], bx
+    mov [bp+12], dx
+    jmp .iret_common
+.iret_bx:
+    push bp
+    mov bp, sp
+    mov [bp+16], bx
+    jmp .iret_common
+.iret_dx:
+    push bp
+    mov bp, sp
+    mov [bp+12], dx
+    jmp .iret_common
+.iret_status:
+    push bp
+    mov bp, sp
+.iret_common:
+    mov [bp+19], ah
+    pop bp
+    pop es
+    pop ds
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
     iret
 
 ems_clear_map:
