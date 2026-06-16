@@ -2,6 +2,36 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-16 Millennia EMS And Conventional Memory
+
+### Symptoms
+
+- Millennia installs mostly under 86Box, but the installed launcher refuses to run with `WARNING: Not Enough Free Base Memory ! (580k Required).` and `EMM Not Found ! You Must Have 6 Megabytes Of Expanded Memory Free`.
+
+### Confirmed Facts
+
+- A 64 KiB EMS page frame inside conventional memory cannot satisfy a 580 KiB free-base gate: `580 KiB + 64 KiB` already exceeds the 640 KiB conventional address space before DOS buffers or the arena base are counted.
+- Current opt-in EMS at `9000h` passed the old small EMS test but overlapped the DOS MCB arena. Moving the frame to `E000h` without chipset setup failed `FAIL: EMS BACKING` under QEMU because the upper-memory region was not writable/backed.
+- A disposable `build/pamprobe.asm` proved that QEMU's PCI PAM shadow controls can make `D0000h-DFFFFh` writable, and BIOS `INT 15h AH=87h` can copy to that `D000h` frame after enabling shadow RAM.
+- The same disposable probe proved the BIOS block-move path accepts 386 descriptor base bits above 16 MiB when `xms_set_desc` fills descriptor byte 7, so EMS backing can live above the capped 15 MiB XMS pool on large-memory QEMU runs.
+- Added focused regressions: `scripts/test_emsmem.py` for default EMS plus a 580 KiB largest conventional block, `scripts/test_emslarge.py` for a 384-page/6 MiB EMS allocation, and `scripts/test_emsxms.py` for non-overlapping 15 MiB XMS plus 6 MiB EMS backing.
+- The direct `EMSMEM` regression did not cover the resident shell. A disposable 86Box launch of `C:\TAKE2\MILLENIA\MIL.BAT` showed EMS was accepted, but `FREE` reported only `567 K (581616 bytes)` largest executable size and Millennia still printed `WARNING: Not Enough Free Base Memory ! (580k Required).`
+
+### Fix In This Slice
+
+- Default builds now enable EMS when the `D000h` upper-memory frame probe succeeds. `INT 67h` and `EMMXXXX0` stay unavailable if the frame or backing pool cannot be initialized.
+- EMS backing is placed after the active XMS pool. On large-memory systems this preserves the existing 15 MiB XMS cap; on smaller systems XMS is reduced only enough to reserve the 6 MiB EMS pool.
+- `xms_set_desc` now writes the high base byte in BIOS move descriptors, allowing EMS backing above 16 MiB while preserving existing XMS move behavior.
+- `SHELL.COM` no longer keeps its 8 KiB COPY/TYPE buffer or 4 KiB MORE buffer resident; those buffers are allocated with `AH=48h` only while the built-ins run, and the batch read buffer was reduced to 256 bytes. This raises the shell-launched largest executable block to the Millennia threshold.
+
+### Checks
+
+- Before the fix, the new default-kernel tests failed with `FAIL: EMSMEM EMS`, `FAIL: EMSLARGE STATUS`, and `FAIL: EMSXMS EMS`.
+- After the fix, `python3 scripts/test_ems.py`, `python3 scripts/test_emsmem.py`, `python3 scripts/test_emslarge.py`, `python3 scripts/test_emsxms.py`, and `python3 scripts/test_xms.py` pass under QEMU.
+- Before the shell footprint fix, `LAINDOS_TEST_BUILD_DIR=build/shellmem_before python3 scripts/test_shellmem.py` failed with `FAIL: SHELLMEM`; after the fix, `LAINDOS_TEST_BUILD_DIR=build/shellmem_after python3 scripts/test_shellmem.py` passes.
+- `LAINDOS_TEST_BUILD_DIR=build/shell_after python3 scripts/test_shell.py` passes, covering COPY, TYPE, MORE, and batch behavior after the transient-buffer change.
+- Disposable headless 86Box Millennia verification against a copied and patched raw disk now reports `Largest executable program size            580 K (593952 bytes)` and reaches the language prompt without either memory warning.
+
 ## 2026-06-16 Biing SETSOUND SB16 DMA Check
 
 ### Symptoms

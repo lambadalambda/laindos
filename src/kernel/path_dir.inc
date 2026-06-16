@@ -228,8 +228,8 @@ alloc_device_handle:
     cmp al, DEV_NUL
     je .supported
 %if ENABLE_EMS
-    cmp al, DEV_EMM
-    je .supported
+    call allow_emm_device
+    jnc .supported
 %endif
     mov ax, 5
     stc
@@ -642,7 +642,7 @@ detect_device_path:
     je .not_found
 %if ENABLE_EMS
     push si
-    call match_emm_device
+    call match_available_emm_device
     pop si
     jnc .found_emm
 %endif

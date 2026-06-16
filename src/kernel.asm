@@ -42,14 +42,14 @@ KERNEL_STACK_GUARD_BYTES equ 0x0800
 %ifndef XMS_MAX_KB
 %define XMS_MAX_KB 15360
 %endif
-EMS_TOTAL_PAGES equ 64
+XMS_BASE_HI equ 0x0011
+EMS_TOTAL_PAGES equ 384
 %ifndef EMS_FRAME_SEG
-%define EMS_FRAME_SEG 0x9000
+%define EMS_FRAME_SEG 0xD000
 %endif
 EMS_FRAME_PARAS equ 0x1000
 EMS_FRAME_PHYS_LO equ ((EMS_FRAME_SEG << 4) & 0xFFFF)
 EMS_FRAME_PHYS_HI equ ((EMS_FRAME_SEG << 4) >> 16)
-EMS_BACKING_HI equ 0x0020
 
 ATTR_RDONLY equ 0x01
 ATTR_HIDDEN equ 0x02
@@ -114,7 +114,7 @@ DEV_EMM equ 5
 %endif
 
 %ifndef ENABLE_EMS
-%define ENABLE_EMS 0
+%define ENABLE_EMS 1
 %endif
 
 kernel_entry:
@@ -2038,14 +2038,16 @@ init_xms_size:
     cmp ax, 64
     jbe .done
     sub ax, 64
-    cmp ax, XMS_MAX_KB - 64
-    jbe .store
-    mov ax, XMS_MAX_KB - 64
-.store:
-    mov [cs:xms_total_kb], ax
+    call init_xms_store
 .done:
     pop ax
     ret
+
+
+
+
+
+
 %endif
 
 %if ENABLE_XMS
@@ -2325,7 +2327,7 @@ xms_entry:
     je .bad_handle
     mov ax, 1
     xor bx, bx
-    mov dx, 0x0011
+    mov dx, XMS_BASE_HI
     retf
 .unlock:
     cmp dx, 1
@@ -2387,7 +2389,7 @@ xms_current_endpoint_phys:
     jz .ok
     cmp bx, 1
     jne .bad
-    add dx, 0x0011
+    add dx, XMS_BASE_HI
 .ok:
     clc
     ret
@@ -2417,7 +2419,8 @@ xms_set_desc:
     mov [di+2], bx
     mov [di+4], dl
     mov byte [di+5], 0x93
-    mov word [di+6], 0
+    mov byte [di+6], 0
+    mov [di+7], dh
     ret
 
 %if !ENABLE_EMS
@@ -2428,6 +2431,11 @@ int67_absent_handler:
 
 %if ENABLE_EMS
 int67_handler:
+    cmp byte [cs:ems_available], 0
+    jne .dispatch
+    mov ah, 0x80
+    iret
+.dispatch:
     cmp ah, 0x40
     je .ok
     cmp ah, 0x41
@@ -2456,9 +2464,9 @@ int67_handler:
     mov bx, EMS_FRAME_SEG
     iret
 .pages:
-    mov bx, EMS_TOTAL_PAGES
+    mov bx, [cs:ems_total_pages]
     sub bx, [cs:ems_alloc_pages]
-    mov dx, EMS_TOTAL_PAGES
+    mov dx, [cs:ems_total_pages]
     xor ah, ah
     iret
 .alloc:
@@ -2466,7 +2474,7 @@ int67_handler:
     jne .no_pages
     test bx, bx
     jz .no_pages
-    cmp bx, EMS_TOTAL_PAGES
+    cmp bx, [cs:ems_total_pages]
     ja .no_pages
     mov [cs:ems_alloc_pages], bx
     call ems_clear_map
@@ -2595,7 +2603,7 @@ ems_logical_phys:
     shl ax, 1
     rcl dx, 1
     loop .shift
-    add dx, EMS_BACKING_HI
+    add dx, [cs:ems_backing_hi]
     pop cx
     ret
 
@@ -3949,6 +3957,9 @@ xms_dst_phys: dd 0
 xms_gdt: times 48 db 0
 xms_total_kb: dw 0
 %if ENABLE_EMS
+ems_available: db 0
+ems_total_pages: dw 0
+ems_backing_hi: dw 0
 ems_alloc_pages: dw 0
 ems_map_pages: times 4 dw 0xFFFF
 ems_req_logical: dw 0
@@ -4349,6 +4360,133 @@ perf_subdir_cache_misses: dw 0
 perf_counts_end:
 %endif
 
+%if ENABLE_XMS
+init_xms_store:
+    push bx
+%if ENABLE_EMS
+    mov word [cs:ems_total_pages], 0
+    mov word [cs:ems_backing_hi], 0
+    cmp ax, (EMS_TOTAL_PAGES * 16)
+    jb .xms_only
+    mov bx, ax
+    cmp bx, (XMS_MAX_KB - 64 + (EMS_TOTAL_PAGES * 16))
+    jb .reserve_ems
+    mov ax, XMS_MAX_KB - 64
+    jmp .store_ems
+.reserve_ems:
+    mov ax, bx
+    sub ax, (EMS_TOTAL_PAGES * 16)
+.store_ems:
+    and ax, 0xFFC0
+    mov [cs:xms_total_kb], ax
+    mov bx, ax
+    shr bx, 6
+    add bx, XMS_BASE_HI
+    mov [cs:ems_backing_hi], bx
+    mov word [cs:ems_total_pages], EMS_TOTAL_PAGES
+    call init_ems_frame
+    jmp .done
+.xms_only:
+%endif
+    cmp ax, XMS_MAX_KB - 64
+    jbe .store
+    mov ax, XMS_MAX_KB - 64
+.store:
+    mov [cs:xms_total_kb], ax
+%if ENABLE_EMS
+    call init_ems_frame
+%endif
+.done:
+    pop bx
+    ret
+%endif
+
+%if ENABLE_EMS
+allow_emm_device:
+    cmp al, DEV_EMM
+    jne .no
+    cmp byte [cs:ems_available], 0
+    je .no
+    clc
+    ret
+.no:
+    stc
+    ret
+
+match_available_emm_device:
+    cmp byte [cs:ems_available], 0
+    je .no
+    call match_emm_device
+    ret
+.no:
+    stc
+    ret
+
+init_ems_frame:
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+    mov byte [cs:ems_available], 0
+    cmp word [cs:ems_total_pages], 0
+    je .done
+    call enable_ems_frame_shadow
+    mov ax, EMS_FRAME_SEG
+    mov es, ax
+    xor bx, bx
+    mov cx, 4
+.probe:
+    mov dx, [es:bx]
+    mov ax, 0xA55A
+    mov [es:bx], ax
+    cmp [es:bx], ax
+    jne .done
+    mov ax, 0x5AA5
+    mov [es:bx], ax
+    cmp [es:bx], ax
+    jne .done
+    mov [es:bx], dx
+    add bx, 0x4000
+    loop .probe
+    mov byte [cs:ems_available], 1
+.done:
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+enable_ems_frame_shadow:
+%if EMS_FRAME_SEG == 0xD000
+    push eax
+    push dx
+    mov dx, 0x0CF8
+    mov eax, 0x8000005C
+    out dx, eax
+    mov dx, 0x0CFC
+    in eax, dx
+    or eax, 0x00003333
+    out dx, eax
+    pop dx
+    pop eax
+%elif EMS_FRAME_SEG == 0xE000
+    push eax
+    push dx
+    mov dx, 0x0CF8
+    mov eax, 0x8000005C
+    out dx, eax
+    mov dx, 0x0CFC
+    in eax, dx
+    or eax, 0x33330000
+    out dx, eax
+    pop dx
+    pop eax
+%endif
+    ret
+%endif
+
 kernel_end:
 
 %if mouse_callback_seg != (mouse_callback_off + 2)
@@ -4394,11 +4532,11 @@ kernel_end:
 %if MCB_START >= MEM_TOP
 %error "MCB arena is empty"
 %endif
-%if ENABLE_EMS && EMS_FRAME_SEG <= MCB_START
-%error "EMS frame must be inside conventional arena"
+%if ENABLE_EMS && EMS_FRAME_SEG < 0xD000
+%error "EMS frame must use an upper-memory window at D000h or above"
 %endif
-%if ENABLE_EMS && EMS_FRAME_SEG == MEM_TOP
-%error "EMS frame must not overlap VGA graphics memory"
+%if ENABLE_EMS && !ENABLE_XMS
+%error "EMS requires XMS backing support"
 %endif
 %if ENABLE_EMS && (EMS_FRAME_SEG + EMS_FRAME_PARAS) > 0xF000
 %error "EMS frame must remain below system ROM"

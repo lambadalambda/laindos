@@ -15,7 +15,7 @@ def build_image():
     os.makedirs(BUILDDIR, exist_ok=True)
     boot = os.path.join(BUILDDIR, "boot.bin")
     test_com = os.path.join(BUILDDIR, "emstest.com")
-    kernel_defines = ['-DBOOT_FILE="EMSTEST COM"', "-DENABLE_EMS=1"]
+    kernel_defines = ['-DBOOT_FILE="EMSTEST COM"']
     frame_seg = os.environ.get("LAINDOS_EMS_FRAME_SEG")
     if frame_seg:
         kernel_defines.append(f"-DEMS_FRAME_SEG={frame_seg}")

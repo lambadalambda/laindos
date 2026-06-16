@@ -14,6 +14,10 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `make test`: build the default image and run the full automated regression ladder from `scripts/run_tests.py`.
 - `make check-docs-sync`: verify docs/site source excerpts, documented Makefile targets, local file references, and hardcoded test counts.
 - `TEST_JOBS=1 make test` or `make test-serial`: run the default ladder serially when debugging timing or interleaved logs.
+- `python3 scripts/test_emsmem.py`: verify default EMS is present while the largest free conventional block still clears Millennia's 580 KiB launch gate.
+- `python3 scripts/test_emslarge.py`: verify the default EMS pool provides 384 logical pages (6 MiB) and preserves high-page backing.
+- `python3 scripts/test_emsxms.py`: verify a 15 MiB XMS allocation and 6 MiB EMS allocation can coexist without backing-store aliasing.
+- `python3 scripts/test_shellmem.py`: boot `SHELL.COM`, run a child from AUTOEXEC, and verify the child receives at least a 580 KiB allocation.
 - `python3 scripts/test_irqmask.py`: run one focused test directly.
 - `python3 scripts/test_sbirq.py`: run the focused Sound Blaster IRQ5 trigger probe with QEMU SB16 hardware.
 - `python3 scripts/test_sb16stat.py`: verify SB16 mixer IRQ/DMA register reporting and mixer IRQ-status bits with QEMU SB16 hardware.
@@ -140,6 +144,7 @@ if __name__ == "__main__":
 
 - `tests/programs/irqmask.asm` plus `scripts/test_irqmask.py`: focused API/hardware guard regression.
 - `tests/programs/execparam.asm` plus `scripts/test_execparam.py`: parent/child `EXEC` parameter coverage.
+- `tests/programs/shellmem.asm` plus `scripts/test_shellmem.py`: shell-resident conventional-memory floor coverage for Millennia-style launchers.
 - `scripts/test_shell.py`: interactive shell, batch, PATH, directory, and command coverage.
 - `scripts/test_savewrite.py` and `scripts/test_dirmut.py`: persistent FAT write and mutation checks, including odd unaligned staged write-buffer transfers.
 - `scripts/test_cd_shellcopy_large.py`: generated child-shell CD copy replay for large FAT16 writes and GFX-style wildcard copies.

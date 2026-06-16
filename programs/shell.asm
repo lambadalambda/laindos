@@ -1191,6 +1191,72 @@ print_char_dl:
     pop ax
     ret
 
+alloc_type_buffer:
+    push ax
+    push bx
+    mov bx, type_buf_paras
+    mov ah, 0x48
+    int 0x21
+    jc .fail
+    mov [type_buf_seg], ax
+    clc
+    jmp .done
+.fail:
+    mov word [type_buf_seg], 0
+    stc
+.done:
+    pop bx
+    pop ax
+    ret
+
+free_type_buffer:
+    push ax
+    push es
+    mov ax, [type_buf_seg]
+    test ax, ax
+    jz .done
+    mov es, ax
+    mov ah, 0x49
+    int 0x21
+    mov word [type_buf_seg], 0
+.done:
+    pop es
+    pop ax
+    ret
+
+alloc_more_buffer:
+    push ax
+    push bx
+    mov bx, more_buf_paras
+    mov ah, 0x48
+    int 0x21
+    jc .fail
+    mov [more_buf_seg], ax
+    clc
+    jmp .done
+.fail:
+    mov word [more_buf_seg], 0
+    stc
+.done:
+    pop bx
+    pop ax
+    ret
+
+free_more_buffer:
+    push ax
+    push es
+    mov ax, [more_buf_seg]
+    test ax, ax
+    jz .done
+    mov es, ax
+    mov ah, 0x49
+    int 0x21
+    mov word [more_buf_seg], 0
+.done:
+    pop es
+    pop ax
+    ret
+
 do_copy:
     call parse_copy_args
     cmp byte [copy_arg_count], 0
@@ -1273,21 +1339,31 @@ copy_one_file:
     int 0x21
     jc .create_error
     mov [copy_dst_handle], ax
+    call alloc_type_buffer
+    jc .alloc_error
 .read:
     mov bx, [copy_src_handle]
-    mov dx, type_buf
+    mov ax, [type_buf_seg]
+    mov ds, ax
+    xor dx, dx
     mov cx, type_buf_size
     mov ah, 0x3F
     int 0x21
+    push cs
+    pop ds
     jc .io_error
     test ax, ax
     jz .success
     mov [copy_io_count], ax
     mov bx, [copy_dst_handle]
     mov cx, ax
-    mov dx, type_buf
+    mov ax, [type_buf_seg]
+    mov ds, ax
+    xor dx, dx
     mov ah, 0x40
     int 0x21
+    push cs
+    pop ds
     jc .io_error
     cmp ax, [copy_io_count]
     jne .io_error
@@ -1299,6 +1375,7 @@ copy_one_file:
     mov bx, [copy_src_handle]
     mov ah, 0x3E
     int 0x21
+    call free_type_buffer
     mov dx, copy_success_msg
     call print_dollar
     ret
@@ -1314,6 +1391,14 @@ copy_one_file:
     mov ah, 0x3E
     int 0x21
     jmp .file_error
+.alloc_error:
+    mov bx, [copy_dst_handle]
+    mov ah, 0x3E
+    int 0x21
+    mov bx, [copy_src_handle]
+    mov ah, 0x3E
+    int 0x21
+    jmp .file_error
 .io_error:
     mov bx, [copy_dst_handle]
     mov ah, 0x3E
@@ -1321,6 +1406,7 @@ copy_one_file:
     mov bx, [copy_src_handle]
     mov ah, 0x3E
     int 0x21
+    call free_type_buffer
 .file_error:
     mov dx, file_error_msg
     call print_dollar
@@ -1860,28 +1946,47 @@ do_type:
     int 0x21
     jc .open_err
     mov [type_handle], ax
+    call alloc_type_buffer
+    jc .alloc_err
 .read:
     mov bx, [type_handle]
-    mov dx, type_buf
+    mov ax, [type_buf_seg]
+    mov ds, ax
+    xor dx, dx
     mov cx, type_buf_size
     mov ah, 0x3F
     int 0x21
+    push cs
+    pop ds
     jc .io_err
     test ax, ax
     jz .done
     mov bx, 1
     mov cx, ax
-    mov dx, type_buf
+    mov ax, [type_buf_seg]
+    mov ds, ax
+    xor dx, dx
     mov ah, 0x40
     int 0x21
+    push cs
+    pop ds
     jc .io_err
     jmp .read
 .done:
     mov bx, [type_handle]
     mov ah, 0x3E
     int 0x21
+    call free_type_buffer
     ret
 .io_err:
+    mov bx, [type_handle]
+    mov ah, 0x3E
+    int 0x21
+    call free_type_buffer
+    mov dx, file_error_msg
+    call print_dollar
+    ret
+.alloc_err:
     mov bx, [type_handle]
     mov ah, 0x3E
     int 0x21
@@ -2483,13 +2588,19 @@ more_display_file:
     int 0x21
     jc .open_err
     mov [more_handle], ax
+    call alloc_more_buffer
+    jc .alloc_err
     mov word [more_line_count], 0
 .read_loop:
     mov bx, [more_handle]
-    mov dx, more_buf
+    mov ax, [more_buf_seg]
+    mov ds, ax
+    xor dx, dx
     mov cx, more_buf_size
     mov ah, 0x3F
     int 0x21
+    push cs
+    pop ds
     jc .read_err
     cmp ax, 0
     je .cleanup
@@ -2506,6 +2617,10 @@ more_display_file:
 .read_err:
     mov dx, file_error_msg
     call print_dollar
+    jmp .cleanup
+.alloc_err:
+    mov dx, file_error_msg
+    call print_dollar
 .cleanup:
     cmp word [more_handle], 0
     je .skip_close
@@ -2516,6 +2631,7 @@ more_display_file:
     pop ax
     mov word [more_handle], 0
 .skip_close:
+    call free_more_buffer
     pop ds
     pop dx
     pop cx
@@ -2528,20 +2644,22 @@ more_pump:
     push bx
     push cx
     push di
+    push es
     push word [more_bytes]
     pop ax
     sub ax, [more_pos]
     jle .done
     mov si, [more_pos]
-    mov bx, more_buf
-    add bx, si
+    mov ax, [more_buf_seg]
+    mov es, ax
+    mov bx, si
     mov cx, [more_bytes]
     sub cx, si
     jle .done
 .more_line:
     cmp cx, 0
     jle .done
-    mov al, [bx]
+    mov al, [es:bx]
     cmp al, 13
     je .emit_cr
     cmp al, 10
@@ -2562,7 +2680,7 @@ more_pump:
 .more_line_check_lf:
     cmp cx, 0
     jle .emit_cr_line
-    mov al, [bx]
+    mov al, [es:bx]
     cmp al, 10
     jne .emit_cr_line
     inc si
@@ -2605,6 +2723,7 @@ more_pump:
     mov [more_pos], si
     mov ax, 1
 .restore:
+    pop es
     pop di
     pop cx
     pop bx
@@ -3691,7 +3810,8 @@ more_pos: dw 0
 more_line_count: dw 0
 more_lines_per_page: dw 24
 more_buf_size equ 4096
-more_buf: times more_buf_size db 0
+more_buf_paras equ ((more_buf_size + 15) / 16)
+more_buf_seg: dw 0
 autoexec_name: db "AUTOEXEC.BAT", 0
 dir_default_pattern: db "*.*", 0
 dir_volume_msg: db " Volume in drive ", "$"
@@ -3742,7 +3862,8 @@ dir_wide_columns equ 5
 dir_wide_width equ 15
 copy_path_size equ 80
 type_buf_size equ 8192
-batch_buf_size equ 512
+type_buf_paras equ ((type_buf_size + 15) / 16)
+batch_buf_size equ 256
 
 do_deltree:
     call parse_deltree_args
@@ -4188,7 +4309,7 @@ dir_ampm: db 0
 dir_name_buf: times 11 db 0
 dir_dta: times 64 db 0
 type_handle: dw 0
-type_buf: times type_buf_size db 0
+type_buf_seg: dw 0
 batch_handle: dw 0
 batch_active: db 0
 batch_buf_pos: dw 0
