@@ -2,6 +2,34 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-17 Millennia Post-Intro EXEC Resume State
+
+### Symptoms
+
+- Millennia now clears the EMS, conventional-memory, and MSCDEX version gates, plays its intro, then hangs at a black/blinking cursor after ESC under the installed 86Box repro.
+- A disposable root-only 86Box repro produced `EXC 06 at 0330:4913`, which resolves to physical `0x7C13` inside boot-sector BPB bytes, suggesting a bad real-mode return/jump after the intro child exits.
+
+### Confirmed Facts
+
+- The old EXEC path stored the suspended parent `SS:SP` and the previous `kstack_base` in global words while a child ran.
+- `saved_ss`/`saved_sp` happened to be restored by the INT 21h EXEC frame after a nested child returned, so a simple repeated `A -> B -> C` test passed before the fix.
+- `saved_kbase` was not restored by that frame, leaving the kernel stack base dependent on the innermost EXEC return path until the outer child terminated.
+
+### Fix In This Slice
+
+- EXEC launch now records the parent resume `SS:SP` and previous `kstack_base` in the child program's MCB header, keeping suspend state keyed to the terminating process instead of a single global.
+- PSP construction initializes those MCB resume slots from the parent process so `EXEC AL=01h` load-only programs still have a valid termination target if the caller later transfers control manually; load-and-run overwrites the slots with the actual suspended EXEC frame.
+- Termination and TSR termination load that MCB-backed resume state before owned MCBs are released/coalesced, then return through the existing `exec_resume_parent` path.
+- Added `scripts/test_nestexec.py` with `tests/programs/nestexec.asm`, `nestmid.asm`, and `nestchd.asm` to cover repeated nested `EXEC` chains and DOS entry-register expectations.
+
+### Checks
+
+- `python3 scripts/test_nestexec.py`, `python3 scripts/test_spawn.py`, `python3 scripts/test_tsr.py`, and `python3 scripts/test_indosexec.py` pass after the fix.
+- The first implementation attempt left `ES` pointing at the child MCB on program entry; the new nested regression caught this as `FAIL: NESTEXEC RESIZE`, and restoring `ES=PSP` before `retf` fixed it.
+- `python3 scripts/test_execload.py` initially rebooted repeatedly after `PASS: EXECLOAD RUN` because load-only children had no launch-prologue MCB resume state; inheriting the parent's resume slots during PSP construction fixed it.
+- Full verification passed `make test` (`170/170`), `deno check docs/site/*.jsx`, `git diff --check`, and all existing game smokes. The first `make test-game-smokes` attempt hit a transient MI2 difficulty-screen timeout; `python3 scripts/test_mi2_save.py` passed immediately afterward, the rerun reached Wing Commander before the wrapper timeout, and the remaining `make test-settlers2-smoke` plus `make test-civ-86box` targets passed individually.
+- Millennia still needs the vendor-gated post-intro smoke promoted and rerun to prove whether this EXEC-state fix resolves the black-cursor blocker.
+
 ## 2026-06-17 Millennia MSCDEX Version Gate
 
 ### Symptoms

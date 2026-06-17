@@ -20,6 +20,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `python3 scripts/test_emspreserve.py`: verify EMS calls preserve caller registers except documented return values.
 - `python3 scripts/test_emsxms.py`: verify a 15 MiB XMS allocation and 6 MiB EMS allocation can coexist without backing-store aliasing.
 - `python3 scripts/test_shellmem.py`: boot `SHELL.COM`, run a child from AUTOEXEC, and verify the child receives at least a 580 KiB allocation.
+- `python3 scripts/test_nestexec.py`: verify repeated nested `EXEC` chains restore parent resume state and DOS entry registers.
 - `python3 scripts/test_irqmask.py`: run one focused test directly.
 - `python3 scripts/test_sbirq.py`: run the focused Sound Blaster IRQ5 trigger probe with QEMU SB16 hardware.
 - `python3 scripts/test_sb16stat.py`: verify SB16 mixer IRQ/DMA register reporting and mixer IRQ-status bits with QEMU SB16 hardware.
@@ -146,6 +147,7 @@ if __name__ == "__main__":
 
 - `tests/programs/irqmask.asm` plus `scripts/test_irqmask.py`: focused API/hardware guard regression.
 - `tests/programs/execparam.asm` plus `scripts/test_execparam.py`: parent/child `EXEC` parameter coverage.
+- `tests/programs/nestexec.asm`, `nestmid.asm`, and `nestchd.asm` plus `scripts/test_nestexec.py`: repeated nested `EXEC` coverage for parent resume state.
 - `tests/programs/shellmem.asm` plus `scripts/test_shellmem.py`: shell-resident conventional-memory floor coverage for Millennia-style launchers.
 - `scripts/test_shell.py`: interactive shell, batch, PATH, directory, and command coverage.
 - `scripts/test_savewrite.py` and `scripts/test_dirmut.py`: persistent FAT write and mutation checks, including odd unaligned staged write-buffer transfers.

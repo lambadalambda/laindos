@@ -61,6 +61,7 @@ DEFAULT_TESTS = [
     "scripts/test_execparam.py",
     "scripts/test_exectail.py",
     "scripts/test_spawn.py",
+    "scripts/test_nestexec.py",
     "scripts/test_tsr.py",
     "scripts/test_jft.py",
     "scripts/test_shell.py",

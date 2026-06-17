@@ -161,13 +161,8 @@
 %endmacro
 
 %macro INT21_POP_EXEC_PROGRAM_FRAME 0
-; Special-cased exec frame: pops 5 caller-pushed values into
-; saved_sp/saved_ss/dta_off/dta_seg/cur_psp (ax), then di, si, es, ds,
-; dx, cx, bx in that order.
-    pop ax
-    mov [cs:saved_sp], ax
-    pop ax
-    mov [cs:saved_ss], ax
+; Special-cased exec frame: pops 3 caller-pushed values into
+; dta_off/dta_seg/cur_psp (ax), then di, si, es, ds, dx, cx, bx in that order.
     pop ax
     mov [cs:dta_off], ax
     pop ax
@@ -1977,8 +1972,6 @@ int21_handler:
     push word [cs:cur_psp]
     push word [cs:dta_seg]
     push word [cs:dta_off]
-    push word [cs:saved_ss]
-    push word [cs:saved_sp]
     mov [cs:exec_param_off], bx
     mov [cs:exec_param_seg], es
     mov [cs:exec_path_off], dx

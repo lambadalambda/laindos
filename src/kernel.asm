@@ -16,6 +16,9 @@ FAT_BUF_SECS equ ((CD_BUF - FAT_SEG) / 32)
 ROOT_SEG  equ 0x02A0
 
 HANDLE_SIZE equ 34
+MCB_EXEC_SS    equ 5
+MCB_EXEC_SP    equ 7
+MCB_EXEC_KBASE equ 9
 H_USED      equ 0
 H_MODE      equ 1
 H_CLUSTER   equ 2
@@ -2770,10 +2773,30 @@ restore_psp_vectors:
     pop ax
     ret
 
+load_exec_resume_state:
+    push ax
+    push ds
+    mov ax, [cs:cur_psp]
+    test ax, ax
+    jz .done
+    dec ax
+    mov ds, ax
+    mov ax, [ds:MCB_EXEC_SS]
+    mov [cs:term_resume_ss], ax
+    mov ax, [ds:MCB_EXEC_SP]
+    mov [cs:term_resume_sp], ax
+    mov ax, [ds:MCB_EXEC_KBASE]
+    mov [cs:term_resume_kbase], ax
+.done:
+    pop ds
+    pop ax
+    ret
+
 do_terminate:
     push ds
     push si
     push ax
+    call load_exec_resume_state
     call restore_psp_vectors
     call restore_irq1_null_mask
     mov word [cs:mouse_callback_mask], 0
@@ -2812,17 +2835,18 @@ do_terminate:
     mov ax, cs
     mov ds, ax
     mov es, ax
-    mov ax, [cs:saved_ss]
+    mov ax, [cs:term_resume_ss]
     cli
     mov ss, ax
-    mov sp, [cs:saved_sp]
-    mov ax, [cs:saved_kbase]
+    mov sp, [cs:term_resume_sp]
+    mov ax, [cs:term_resume_kbase]
     mov [cs:kstack_base], ax
     sti
 ; @anchor: do_terminate_return_to_parent
     jmp exec_resume_parent
 
 do_terminate_tsr:
+    call load_exec_resume_state
     call restore_psp_vectors
     call restore_irq1_null_mask
     call release_inherited_handles
@@ -2880,11 +2904,11 @@ do_terminate_tsr:
     mov ax, cs
     mov ds, ax
     mov es, ax
-    mov ax, [cs:saved_ss]
+    mov ax, [cs:term_resume_ss]
     cli
     mov ss, ax
-    mov sp, [cs:saved_sp]
-    mov ax, [cs:saved_kbase]
+    mov sp, [cs:term_resume_sp]
+    mov ax, [cs:term_resume_kbase]
     mov [cs:kstack_base], ax
     sti
     jmp exec_resume_parent
@@ -3474,8 +3498,8 @@ tsr_keep_par: dw 0
 tsr_parent: dw 0
 tsr_psp_mcb: dw 0
 tsr_env_mcb: dw 0
-saved_ss:  dw 0
-saved_sp:  dw 0
+term_resume_ss:  dw 0
+term_resume_sp:  dw 0
 com_stack_top: dw 0
 exec_env_seg: dw 0
 exec_env_owned: db 0
@@ -3942,7 +3966,7 @@ trace_left: dw 0
 indos_flag: db 0
 kstack_seg: dw 0
 kstack_base: dw 0
-saved_kbase: dw 0
+term_resume_kbase: dw 0
 entry_caller_ss: dw 0
 entry_caller_sp: dw 0
 exc_vec: db 0

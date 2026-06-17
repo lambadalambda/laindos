@@ -1450,24 +1450,29 @@ overlay_copy_range_cd:
 .lba_lo: dw 0
 .lba_hi: dw 0
 
-; Terminate lands here after restoring saved_ss:saved_sp; the ret pops
+; Terminate lands here after restoring the parent resume SS:SP; the ret pops
 ; the suspended exec caller's return address (the INT 21h EXEC handler
 ; or the boot launcher), resuming it as if exec_*_dyn just returned.
 exec_resume_parent:
     ret
 
-; Shared child-launch prologue for exec_exe_dyn/exec_com_dyn. saved_sp
-; must record the SP at the exec_*_dyn entry (so exec_resume_parent's
+; Shared child-launch prologue for exec_exe_dyn/exec_com_dyn. The resume
+; SP must record the SP at the exec_*_dyn entry (so exec_resume_parent's
 ; ret returns to its caller), hence the +2 over this helper's frame.
 exec_begin_child:
     mov byte [cs:ret_code], 0
     mov word [cs:running], 1
-    push ss
-    pop ax
-    mov [cs:saved_ss], ax
     mov ax, sp
     add ax, 2
-    mov [cs:saved_sp], ax
+    push ss
+    pop dx
+    mov bx, [cs:prog_seg]
+    dec bx
+    mov es, bx
+    mov [es:MCB_EXEC_SS], dx
+    mov [es:MCB_EXEC_SP], ax
+    mov ax, [cs:kstack_base]
+    mov [es:MCB_EXEC_KBASE], ax
     call reset_keyboard_buffer
     fninit
     ret
@@ -1573,6 +1578,7 @@ build_psp:
     pop ax
     mov bx, [cs:cur_psp]
     mov [es:0x16], bx
+    call inherit_exec_resume_state
     mov bx, [cs:exec_env_seg]
     mov [es:0x2C], bx
     mov [cs:dta_seg], ax
@@ -1581,6 +1587,38 @@ build_psp:
     call assign_exec_environment_owner
 ; @anchor: build_psp_copy_fcbs
     call exec_copy_default_fcbs
+    ret
+
+inherit_exec_resume_state:
+    push ax
+    push bx
+    push cx
+    push ds
+    push es
+    dec ax
+    mov es, ax
+    test bx, bx
+    jz .clear
+    dec bx
+    mov ds, bx
+    mov cx, [ds:MCB_EXEC_SS]
+    mov [es:MCB_EXEC_SS], cx
+    mov cx, [ds:MCB_EXEC_SP]
+    mov [es:MCB_EXEC_SP], cx
+    mov cx, [ds:MCB_EXEC_KBASE]
+    mov [es:MCB_EXEC_KBASE], cx
+    jmp .done
+.clear:
+    xor cx, cx
+    mov [es:MCB_EXEC_SS], cx
+    mov [es:MCB_EXEC_SP], cx
+    mov [es:MCB_EXEC_KBASE], cx
+.done:
+    pop es
+    pop ds
+    pop cx
+    pop bx
+    pop ax
     ret
 
 exec_copy_default_fcbs:
@@ -1777,11 +1815,14 @@ exec_exe_dyn:
     push ax
     push word [cs:exe_ip]
     dec byte [cs:indos_flag]
-    mov ax, [cs:kstack_base]
-    mov [cs:saved_kbase], ax
-    mov ax, [cs:saved_sp]
+    mov ax, [cs:prog_seg]
+    dec ax
+    mov es, ax
+    mov ax, [es:MCB_EXEC_SP]
     sub ax, 32
     mov [cs:kstack_base], ax
+    mov ax, [cs:prog_seg]
+    mov es, ax
     xor ax, ax
     sti
     retf
@@ -1816,11 +1857,14 @@ exec_com_dyn:
     push ax
     push word 0x0100
     dec byte [cs:indos_flag]
-    mov ax, [cs:kstack_base]
-    mov [cs:saved_kbase], ax
-    mov ax, [cs:saved_sp]
+    mov ax, [cs:prog_seg]
+    dec ax
+    mov es, ax
+    mov ax, [es:MCB_EXEC_SP]
     sub ax, 32
     mov [cs:kstack_base], ax
+    mov ax, [cs:prog_seg]
+    mov es, ax
     xor ax, ax
     sti
 ; @anchor: exec_com_entry_jump
