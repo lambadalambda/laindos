@@ -53,6 +53,15 @@ EMS_TOTAL_PAGES equ 384
 EMS_FRAME_PARAS equ 0x1000
 EMS_FRAME_PHYS_LO equ ((EMS_FRAME_SEG << 4) & 0xFFFF)
 EMS_FRAME_PHYS_HI equ ((EMS_FRAME_SEG << 4) >> 16)
+EMS_BOUNCE_PHYS_LO equ ((EMS_BOUNCE_BUF << 4) & 0xFFFF)
+EMS_BOUNCE_PHYS_HI equ ((EMS_BOUNCE_BUF << 4) >> 16)
+EMS_BOUNCE_BYTES equ (EMS_BOUNCE_PARAS * 16)
+EMS_BOUNCE_WORDS equ (EMS_BOUNCE_BYTES / 2)
+EMS_BOUNCE_DWORDS equ (EMS_BOUNCE_BYTES / 4)
+EMS_PAGE_BYTES equ 0x4000
+EMS_COPY_GDT_BUF equ SEC_BUF
+EMS_COPY_GDT_PHYS_LO equ ((EMS_COPY_GDT_BUF << 4) & 0xFFFF)
+EMS_COPY_GDT_PHYS_HI equ ((EMS_COPY_GDT_BUF << 4) >> 16)
 
 ATTR_RDONLY equ 0x01
 ATTR_HIDDEN equ 0x02
@@ -2433,7 +2442,7 @@ int67_absent_handler:
 %endif
 
 %if ENABLE_EMS
-EMS_MAX_HANDLES equ 16
+EMS_MAX_HANDLES equ 32
 
 int67_handler:
     push ax
@@ -2468,6 +2477,8 @@ int67_handler:
     je .handles
     cmp ah, 0x4C
     je .info
+    cmp ah, 0x50
+    je .map_multi
     mov ah, 0x80
     jmp .iret_status
 .ok:
@@ -2507,91 +2518,10 @@ int67_handler:
     mov ah, 0x85
     jmp .iret_status
 .map:
-    call ems_handle_offset
-    jc .bad_handle
-    cmp al, 3
-    ja .bad_page
-    cmp bx, [cs:si+ems_handle_pages]
-    jae .bad_page
-    push bx
-    add bx, [cs:si+ems_handle_base]
-    push si
-    mov [cs:ems_req_logical], bx
-    push bx
-    xor bh, bh
-    mov bl, al
-    shl bx, 1
-    mov si, bx
-    pop bx
-    cmp bx, [cs:si+ems_map_pages]
-    pop si
-    je .map_already
-    push bx
-    push cx
-    push dx
-    push si
-    push di
-    push ds
-    push es
-    mov [cs:ems_req_phys], al
-    mov [cs:ems_req_logical], bx
-    xor bh, bh
-    mov bl, al
-    shl bx, 1
-    mov si, bx
-    mov bx, [cs:si+ems_map_pages]
-    cmp bx, 0xFFFF
-    je .map_load_new
-    call ems_logical_phys
-    mov [cs:xms_dst_phys], ax
-    mov [cs:xms_dst_phys+2], dx
-    mov al, [cs:ems_req_phys]
-    call ems_frame_phys
-    mov [cs:xms_src_phys], ax
-    mov [cs:xms_src_phys+2], dx
-    call ems_copy_16k
-    jc .map_io_error
-.map_load_new:
-    mov bx, [cs:ems_req_logical]
-    call ems_logical_phys
-    mov [cs:xms_src_phys], ax
-    mov [cs:xms_src_phys+2], dx
-    mov al, [cs:ems_req_phys]
-    call ems_frame_phys
-    mov [cs:xms_dst_phys], ax
-    mov [cs:xms_dst_phys+2], dx
-    call ems_copy_16k
-    jc .map_io_error
-    xor bh, bh
-    mov bl, [cs:ems_req_phys]
-    shl bx, 1
-    mov si, bx
-    mov bx, [cs:ems_req_logical]
-    mov [cs:si+ems_map_pages], bx
-    pop es
-    pop ds
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop bx
-    xor ah, ah
+    call ems_map_request
     jmp .iret_status
-.map_already:
-    pop bx
-    xor ah, ah
-    jmp .iret_status
-.map_io_error:
-    pop es
-    pop ds
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop bx
-    mov ah, 0x80
+.map_multi:
+    call ems_map_multi_request
     jmp .iret_status
 .bad_page:
     mov ah, 0x8A
@@ -2698,7 +2628,208 @@ ems_frame_phys:
     pop cx
     ret
 
+ems_map_request:
+    call ems_handle_offset
+    jc .bad_handle
+    cmp al, 3
+    ja .bad_page
+    cmp bx, [cs:si+ems_handle_pages]
+    jae .bad_page
+    push bx
+    add bx, [cs:si+ems_handle_base]
+    push si
+    mov [cs:ems_req_logical], bx
+    push bx
+    xor bh, bh
+    mov bl, al
+    shl bx, 1
+    mov si, bx
+    pop bx
+    cmp bx, [cs:si+ems_map_pages]
+    pop si
+    je .map_already
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    push es
+    mov [cs:ems_req_phys], al
+    mov [cs:ems_req_logical], bx
+    xor bh, bh
+    mov bl, al
+    shl bx, 1
+    mov si, bx
+    mov bx, [cs:si+ems_map_pages]
+    cmp bx, 0xFFFF
+    je .map_load_new
+    call ems_logical_phys
+    mov [cs:xms_dst_phys], ax
+    mov [cs:xms_dst_phys+2], dx
+    mov al, [cs:ems_req_phys]
+    call ems_frame_phys
+    mov [cs:xms_src_phys], ax
+    mov [cs:xms_src_phys+2], dx
+    call ems_copy_16k
+    jc .map_io_error
+.map_load_new:
+    mov bx, [cs:ems_req_logical]
+    call ems_logical_phys
+    mov [cs:xms_src_phys], ax
+    mov [cs:xms_src_phys+2], dx
+    mov al, [cs:ems_req_phys]
+    call ems_frame_phys
+    mov [cs:xms_dst_phys], ax
+    mov [cs:xms_dst_phys+2], dx
+    call ems_copy_16k
+    jc .map_io_error
+    xor bh, bh
+    mov bl, [cs:ems_req_phys]
+    shl bx, 1
+    mov si, bx
+    mov bx, [cs:ems_req_logical]
+    mov [cs:si+ems_map_pages], bx
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop bx
+    xor ah, ah
+    clc
+    ret
+.map_already:
+    pop bx
+    xor ah, ah
+    clc
+    ret
+.map_io_error:
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop bx
+    mov ah, 0x80
+    stc
+    ret
+.bad_page:
+    mov ah, 0x8A
+    stc
+    ret
+.bad_handle:
+    mov ah, 0x83
+    stc
+    ret
+
+ems_unmap_phys_page:
+    cmp al, 3
+    ja .bad_page
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push ds
+    push es
+    mov [cs:ems_req_phys], al
+    xor bh, bh
+    mov bl, al
+    shl bx, 1
+    mov si, bx
+    mov bx, [cs:si+ems_map_pages]
+    cmp bx, 0xFFFF
+    je .ok
+    call ems_logical_phys
+    mov [cs:xms_dst_phys], ax
+    mov [cs:xms_dst_phys+2], dx
+    mov al, [cs:ems_req_phys]
+    call ems_frame_phys
+    mov [cs:xms_src_phys], ax
+    mov [cs:xms_src_phys+2], dx
+    call ems_copy_16k
+    jc .io_error
+    xor bh, bh
+    mov bl, [cs:ems_req_phys]
+    shl bx, 1
+    mov si, bx
+    mov word [cs:si+ems_map_pages], 0xFFFF
+.ok:
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    xor ah, ah
+    clc
+    ret
+.io_error:
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    mov ah, 0x80
+    stc
+    ret
+.bad_page:
+    mov ah, 0x8A
+    stc
+    ret
+
+ems_map_multi_request:
+    cmp al, 0
+    jne .bad_subfunction
+    mov [cs:ems_multi_count], cx
+    mov [cs:ems_multi_ptr], si
+.loop:
+    cmp word [cs:ems_multi_count], 0
+    je .ok
+    mov si, [cs:ems_multi_ptr]
+    mov bx, [ds:si]
+    mov ax, [ds:si+2]
+    cmp bx, 0xFFFF
+    je .unmap
+    cmp ax, 3
+    ja .bad_page
+    call ems_map_request
+    jc .done
+    jmp .next
+.unmap:
+    cmp ax, 3
+    ja .bad_page
+    call ems_unmap_phys_page
+    jc .done
+.next:
+    add word [cs:ems_multi_ptr], 4
+    dec word [cs:ems_multi_count]
+    jmp .loop
+.ok:
+    xor ah, ah
+    clc
+.done:
+    ret
+.bad_subfunction:
+    mov ah, 0x8F
+    stc
+    ret
+.bad_page:
+    mov ah, 0x8A
+    stc
+    ret
+
 ems_copy_16k:
+    pushf
+    cli
     push ax
     push bx
     push cx
@@ -2707,31 +2838,61 @@ ems_copy_16k:
     push di
     push ds
     push es
-    push cs
-    pop ds
-    mov ax, 0x3FFF
-    mov di, xms_gdt + 0x10
-    mov bx, [cs:xms_src_phys]
+    cmp word [cs:xms_dst_phys+2], EMS_FRAME_PHYS_HI
+    je .load_frame
+.save_frame:
+    mov ax, [cs:xms_src_phys]
     mov dx, [cs:xms_src_phys+2]
-    call xms_set_desc
-    mov ax, 0x3FFF
-    mov di, xms_gdt + 0x18
-    mov bx, [cs:xms_dst_phys]
-    mov dx, [cs:xms_dst_phys+2]
-    call xms_set_desc
-    mov ax, 0x8700
-    mov cx, 0x2000
-    mov si, xms_gdt
-    push cs
-    pop es
-    int 0x15
-    jc .fail
-    test ah, ah
-    jnz .fail
+    call ems_phys_to_seg
+    mov [cs:ems_copy_frame_seg], ax
+    mov ax, [cs:xms_dst_phys]
+    mov [cs:ems_copy_high_lo], ax
+    mov ax, [cs:xms_dst_phys+2]
+    mov [cs:ems_copy_high_hi], ax
+    mov word [cs:ems_copy_offset], 0
+.save_loop:
+    mov ax, [cs:ems_copy_frame_seg]
+    mov bx, [cs:ems_copy_offset]
+    shr bx, 4
+    add ax, bx
+    mov dx, EMS_BOUNCE_BUF
+    call ems_copy_real_chunk
+    mov word [cs:xms_src_phys], EMS_BOUNCE_PHYS_LO
+    mov word [cs:xms_src_phys+2], EMS_BOUNCE_PHYS_HI
+    call ems_set_dst_high_offset
+    call ems_flat_copy_chunk
+    jc .done
+    add word [cs:ems_copy_offset], EMS_BOUNCE_BYTES
+    cmp word [cs:ems_copy_offset], EMS_PAGE_BYTES
+    jb .save_loop
     clc
     jmp .done
-.fail:
-    stc
+.load_frame:
+    mov ax, [cs:xms_dst_phys]
+    mov dx, [cs:xms_dst_phys+2]
+    call ems_phys_to_seg
+    mov [cs:ems_copy_frame_seg], ax
+    mov ax, [cs:xms_src_phys]
+    mov [cs:ems_copy_high_lo], ax
+    mov ax, [cs:xms_src_phys+2]
+    mov [cs:ems_copy_high_hi], ax
+    mov word [cs:ems_copy_offset], 0
+.load_loop:
+    call ems_set_src_high_offset
+    mov word [cs:xms_dst_phys], EMS_BOUNCE_PHYS_LO
+    mov word [cs:xms_dst_phys+2], EMS_BOUNCE_PHYS_HI
+    call ems_flat_copy_chunk
+    jc .done
+    mov ax, EMS_BOUNCE_BUF
+    mov dx, [cs:ems_copy_frame_seg]
+    mov bx, [cs:ems_copy_offset]
+    shr bx, 4
+    add dx, bx
+    call ems_copy_real_chunk
+    add word [cs:ems_copy_offset], EMS_BOUNCE_BYTES
+    cmp word [cs:ems_copy_offset], EMS_PAGE_BYTES
+    jb .load_loop
+    clc
 .done:
     pop es
     pop ds
@@ -2741,6 +2902,149 @@ ems_copy_16k:
     pop cx
     pop bx
     pop ax
+    pushf
+    pop word [cs:ems_copy_result_flags]
+    pop word [cs:ems_copy_saved_flags]
+    and word [cs:ems_copy_saved_flags], ~CF
+    test word [cs:ems_copy_result_flags], CF
+    jz .restore_flags
+    or word [cs:ems_copy_saved_flags], CF
+.restore_flags:
+    push word [cs:ems_copy_saved_flags]
+    popf
+    ret
+
+ems_set_src_high_offset:
+    push ax
+    push dx
+    mov ax, [cs:ems_copy_high_lo]
+    mov dx, [cs:ems_copy_high_hi]
+    add ax, [cs:ems_copy_offset]
+    adc dx, 0
+    mov [cs:xms_src_phys], ax
+    mov [cs:xms_src_phys+2], dx
+    pop dx
+    pop ax
+    ret
+
+ems_set_dst_high_offset:
+    push ax
+    push dx
+    mov ax, [cs:ems_copy_high_lo]
+    mov dx, [cs:ems_copy_high_hi]
+    add ax, [cs:ems_copy_offset]
+    adc dx, 0
+    mov [cs:xms_dst_phys], ax
+    mov [cs:xms_dst_phys+2], dx
+    pop dx
+    pop ax
+    ret
+
+ems_phys_to_seg:
+    push bx
+    mov bx, ax
+    shr bx, 4
+    mov ax, dx
+    shl ax, 12
+    or ax, bx
+    pop bx
+    ret
+
+ems_copy_real_chunk:
+    pushf
+    push cx
+    push si
+    push di
+    push ds
+    push es
+    mov ds, ax
+    mov es, dx
+    xor si, si
+    xor di, di
+    mov cx, EMS_BOUNCE_WORDS
+    cld
+    rep movsw
+    pop es
+    pop ds
+    pop di
+    pop si
+    pop cx
+    popf
+    ret
+
+ems_flat_copy_chunk:
+    pushf
+    cli
+    push eax
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
+    push ds
+    push es
+    mov ax, cs
+    mov [cs:xms_unreal_real_cs], ax
+    mov ax, EMS_COPY_GDT_BUF
+    mov es, ax
+    xor di, di
+    xor ax, ax
+    mov cx, 12
+    rep stosw
+    mov word [es:8], 0xFFFF
+    mov word [es:10], 0
+    mov byte [es:12], 0
+    mov byte [es:13], 0x93
+    mov byte [es:14], 0xCF
+    mov byte [es:15], 0
+    xor eax, eax
+    mov ax, cs
+    shl eax, 4
+    mov ebx, eax
+    mov word [es:16], 0xFFFF
+    mov word [es:18], bx
+    shr ebx, 16
+    mov byte [es:20], bl
+    mov byte [es:21], 0x9A
+    mov byte [es:22], 0
+    mov byte [es:23], bh
+    mov word [cs:xms_unreal_gdtr], 0x0017
+    mov word [cs:xms_unreal_gdtr+2], EMS_COPY_GDT_PHYS_LO
+    mov word [cs:xms_unreal_gdtr+4], EMS_COPY_GDT_PHYS_HI
+    mov esi, [cs:xms_src_phys]
+    mov edi, [cs:xms_dst_phys]
+    push cs
+    pop ds
+    lgdt [xms_unreal_gdtr]
+    mov eax, cr0
+    or al, 1
+    mov cr0, eax
+    jmp 0x0010:.pmode
+.pmode:
+    mov bx, 0x0008
+    mov ds, bx
+    mov es, bx
+    xor ecx, ecx
+    mov cx, EMS_BOUNCE_DWORDS
+    cld
+    a32 rep movsd
+    mov eax, cr0
+    and al, 0xFE
+    mov cr0, eax
+    push word [cs:xms_unreal_real_cs]
+    push word .real_mode
+    retf
+.real_mode:
+    pop es
+    pop ds
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    popf
+    clc
     ret
 
 %endif
@@ -4053,6 +4357,8 @@ xms_dst_off: dd 0
 xms_src_phys: dd 0
 xms_dst_phys: dd 0
 xms_gdt: times 48 db 0
+xms_unreal_gdtr: dw 0, 0, 0
+xms_unreal_real_cs: dw 0
 xms_total_kb: dw 0
 %if ENABLE_EMS
 ems_available: db 0
@@ -4065,6 +4371,14 @@ ems_page_owner: times EMS_TOTAL_PAGES db 0
 ems_map_pages: times 4 dw 0xFFFF
 ems_req_logical: dw 0
 ems_req_phys: db 0
+ems_copy_frame_seg: dw 0
+ems_copy_high_lo: dw 0
+ems_copy_high_hi: dw 0
+ems_copy_offset: dw 0
+ems_multi_count: dw 0
+ems_multi_ptr: dw 0
+ems_copy_saved_flags: dw 0
+ems_copy_result_flags: dw 0
 %endif
 
 int2f_cd_install_check:
@@ -4772,6 +5086,9 @@ kernel_end:
 %endif
 %if (READ_CACHE_BUF + READ_CACHE_PARAS) > ROOT_SEG
 %error "READ_CACHE_BUF overlaps ROOT_SEG"
+%endif
+%if ENABLE_EMS && (EMS_BOUNCE_BUF + EMS_BOUNCE_PARAS) > WRITE_CACHE_BUF
+%error "EMS bounce buffer overlaps WRITE_CACHE_BUF"
 %endif
 %if (ROOT_SEG + ROOT_BUF_PARAS) > WRITE_CACHE_BUF
 %error "ROOT_SEG overlaps WRITE_CACHE_BUF"

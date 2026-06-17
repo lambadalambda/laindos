@@ -10,7 +10,7 @@ What LainDOS implements today, and the compatibility decisions behind it.
 - Implements the core DOS file APIs used by the current suite: open/read/write/seek/close, create/truncate, delete, rename, attributes, timestamps, disk free, FindFirst/FindNext, and writable FAT12/FAT16 paths.
 - Mounts ISO-9660 CD-ROM media as read-only `D:` for file open/read/attributes/`EXEC`/overlay load through subdirectories, root and current-directory `FindFirst`/`FindNext`, and MSCDEX coverage including the 2.10 version report (`AX=150Ch`), drive-device-list/header path (`AX=1501h`), and the INT 2Fh AX=1510h device-request path games use for CD audio: TOC-backed IOCTL Input control blocks (disc/track info, Q-channel, audio status, device status, volume size) and Play/Stop/Resume Audio commands served over ATAPI packets (Stop pauses with a resume point, and the request status word carries the spec's busy bit while audio plays — CD player UIs poll it to track playback), with CD path opens refreshing the PVD/root/volume state through ATAPI when available so QEMU media swaps cannot reuse stale BIOS EDD sectors.
 - Provides a built-in `INT 33h` mouse service backed by PS/2 mouse packets, including movement, button press/release queries, callbacks (with cumulative mickey counters, as real drivers pass), scaling, edge clamping, driver info (AX=0024h reports an MS 8.20-style PS/2 driver), and state size/save/restore (AX=0015h-0017h).
-- Provides minimal single-handle XMS APIs for game startup detection and backed XMS moves, using BIOS-reported extended memory capped at 15 MiB when enough RAM is available. Backed EMS is enabled in default builds with a validated `D000h` upper-memory page frame, 16 handles, four physical frame pages, and 384 logical pages (6 MiB) for EMS-required launchers.
+- Provides minimal single-handle XMS APIs for game startup detection and backed XMS moves, using BIOS-reported extended memory capped at 15 MiB when enough RAM is available. Backed EMS is enabled in default builds with a validated `D000h` upper-memory page frame, 32 handles, four physical frame pages, 384 logical pages (6 MiB), and EMS 4.0 physical-page map/unmap support for EMS-required launchers.
 - Builds and runs the bundled shell-boot Monkey Island demo floppy.
 - Runs the full VGA Monkey Island image when `vendor/monkey_full.zip` is present.
 - Runs the full Monkey Island 2: LeChuck's Revenge with working in-game save and load, verified end to end by the vendor-gated `make test-mi2-save` smoke.
@@ -24,7 +24,7 @@ What LainDOS implements today, and the compatibility decisions behind it.
 - Runs Ascendancy under 86Box and under a locally patched QEMU with the `SAHF` condition-code fix documented in `docs/qemu-sahf-ccop.patch`.
 - Runs Wolfenstein 3D shareware to visible first-level gameplay when `vendor/wolf3dsw.zip` is present.
 - Provides vendor-gated `make test-sammax-cd-files`, `make test-sammax-cd-start`, `make test-sammax-cd-setmuse`, `make test-sammax-cd-setmuse-save`, `make test-sammax-cd-install`, `make test-sammax-cd-install-select`, `make test-sammax-cd-dig`, and `make test-normality-install` smokes for the Sam & Max Hit the Road CD data track from its cue/bin archive. The Normality smoke drives the Gremlin installer end to end (its copy phase runs `COPY`/`MD` through `COMSPEC /C`) and launches the installed demo.
-- `make test` currently runs the automated QEMU regression ladder and passes `170/170` tests.
+- `make test` currently runs the automated QEMU regression ladder and passes `171/171` tests.
 
 ## Scope
 

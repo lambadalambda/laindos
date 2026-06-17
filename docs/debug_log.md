@@ -2,6 +2,33 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-17 Millennia EMS Map Compatibility
+
+### Symptoms
+
+- After the nested EXEC resume fix, the disposable Millennia 86Box repro still went black after the intro and logged `EXC 06 at 0330:48F9`/`0330:4913`.
+- Setting the disposable `build/millennia/rootfiles/HMISET.CFG` to `No MIDI Device` avoided that path, but the game then exposed EMS failures: either `EMM Not Found !` / `You Must Have 6 Megabytes Of Expanded Memory Free` / `Ex:FF13h`, or a hang during early EMS page mapping.
+
+### Confirmed Facts
+
+- The `0330` fault segment matches the configured MT-32 `DevicePort = 0x330`. Single-step tracing reached `HMIMDRV.DRV`'s MT-32 path (`1E58:00CE`), which had unbalanced stack behavior before a far return. This is a vendor audio-configuration path, not the EXEC/IRQ/IVT resume bug.
+- In the same 86Box profile, `FREE` reported `Total Expanded (EMS)       6 M (6291456 bytes)`, so the launch gate could see LainDOS EMS.
+- A verbose EMS probe hung on the first `INT 67h AH=44h` map before user data was written into the EMS frame, pointing at LainDOS' frame/backing copy path rather than program data corruption.
+- Millennia then allocated more than 16 EMS handles and called EMS 4.0 `INT 67h AH=50h AL=00h` map/unmap multiple handle pages.
+
+### Fix In This Slice
+
+- EMS frame/backing transfers now copy through a 2 KiB conventional bounce buffer and a local GDT instead of relying on BIOS `INT 15h AH=87h` for upper-memory page-frame copies.
+- The EMS handle table now exposes 32 handles.
+- EMS 4.0 `AH=50h AL=00h` now maps or unmaps `{logical page, physical page}` entries; segment-address mode remains unsupported.
+- Added `tests/programs/emsmap40.asm` and `scripts/test_emsmap40.py` to cover 17+ handles plus `AH=50h` map, remap, unmap, and dirty backing preservation.
+
+### Checks
+
+- `python3 scripts/test_emsmap40.py` passes.
+- `python3 scripts/run_tests.py scripts/test_ems.py scripts/test_emsmulti.py scripts/test_emsmap40.py scripts/test_emspreserve.py scripts/test_emsmem.py scripts/test_emslarge.py scripts/test_emsxms.py scripts/test_xms.py -j 4` passes with `SUMMARY: 8/8 tests passed`.
+- The disposable Millennia No-MIDI 86Box repro gets a nonblack post-ESC screen after the EMS fixes: before ESC `stats=(251, 179932)`, after ESC `stats=(176, 196444)`, with no serial `EXC` and no `EMM Not Found` message.
+
 ## 2026-06-17 Millennia Post-Intro EXEC Resume State
 
 ### Symptoms
@@ -28,7 +55,7 @@ Running notes for non-trivial investigations. Keep this updated with symptoms, c
 - The first implementation attempt left `ES` pointing at the child MCB on program entry; the new nested regression caught this as `FAIL: NESTEXEC RESIZE`, and restoring `ES=PSP` before `retf` fixed it.
 - `python3 scripts/test_execload.py` initially rebooted repeatedly after `PASS: EXECLOAD RUN` because load-only children had no launch-prologue MCB resume state; inheriting the parent's resume slots during PSP construction fixed it.
 - Full verification passed `make test` (`170/170`), `deno check docs/site/*.jsx`, `git diff --check`, and all existing game smokes. The first `make test-game-smokes` attempt hit a transient MI2 difficulty-screen timeout; `python3 scripts/test_mi2_save.py` passed immediately afterward, the rerun reached Wing Commander before the wrapper timeout, and the remaining `make test-settlers2-smoke` plus `make test-civ-86box` targets passed individually.
-- Millennia still needs the vendor-gated post-intro smoke promoted and rerun to prove whether this EXEC-state fix resolves the black-cursor blocker.
+- Rebuilt the disposable root-only Millennia 86Box image from current `boot.asm`, `kernel.asm`, `SHELL.COM`, and `build/millennia/rootfiles/*` after commit `7b25ff9`. Launching `MIL.BAT`, selecting English, waiting for the intro, and pressing ESC still failed with active pre-ESC video, black post-ESC video, and serial `EXC 06 at 0330:48F9`; the follow-up entry above identified this as the MT-32 vendor path plus EMS compatibility work, not an EXEC-resume regression.
 
 ## 2026-06-17 Millennia MSCDEX Version Gate
 
