@@ -33,7 +33,7 @@ start:
     mov ax, 0x150C
     xor bx, bx
     int 0x2F
-    cmp bx, 0x0200
+    cmp bx, 0x020A
     jne fail_version
 
     mov byte [drive_list], 0xFF

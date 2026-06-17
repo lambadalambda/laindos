@@ -4081,7 +4081,7 @@ int2f_cd_drive_check:
 int2f_cd_version:
     call int2f_cd_ensure
     jc .none
-    mov bx, 0x0200
+    mov bx, 0x020A
     jmp int2f_iret_nc
 .none:
     xor bx, bx

@@ -2,6 +2,30 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-17 Millennia MSCDEX Version Gate
+
+### Symptoms
+
+- After the EMS and conventional-memory fixes, Millennia reaches its language prompt and then exits after `Searching For CD-ROM...` with `MSCDEX version 2.1 or later is required.`
+
+### Confirmed Facts
+
+- LainDOS already exposes the MSCDEX install check, drive check, drive list, device-header list, and device-request paths used by existing CD tests, but `INT 2Fh AX=150Ch` reported `BX=0200h`.
+- Millennia treats that as MSCDEX 2.00 and requires at least MSCDEX 2.10 before it continues its CD search.
+- A disposable real-DOS reference probe booted `vendor/Windows 98 Second Edition Boot.img` with the generated CD ISO attached and ran `INT 2Fh AX=150Ch` after `MSCDEX.EXE`; MSCDEX 2.25 returned `BX=0219h`, confirming the minor byte is binary decimal (`25`), not BCD.
+
+### Fix In This Slice
+
+- `INT 2Fh AX=150Ch` now reports `BX=020Ah`, matching real MSCDEX's binary decimal minor version encoding for MSCDEX 2.10.
+- `tests/programs/cdmscdex.asm` now pins the generated-ISO MSCDEX probe to the 2.10 version floor.
+
+### Checks
+
+- Before the fix, `python3 scripts/test_cd_mscdex.py` failed with `FAIL: CDMSCDEX VERSION`.
+- After the fix, `python3 scripts/test_cd_mscdex.py`, `python3 scripts/test_cd_audio.py`, and `python3 scripts/test_cd_file.py` pass.
+- The real-DOS reference probe printed `MSCDEX_INSTALL_BX_CX=0001 0003`, `MSCDEX_VERSION_BX=0219`, and `MSCVERS_DONE`.
+- Broader non-regression verification passed `make test-cd-mscdex`, `make test` (`169/169`), and `make test-game-smokes`; Millennia is not yet covered by an automated smoke.
+
 ## 2026-06-16 Game Smokes After Default EMS
 
 ### Symptoms
