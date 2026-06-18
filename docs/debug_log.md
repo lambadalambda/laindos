@@ -2,6 +2,44 @@
 
 Running notes for non-trivial investigations. Keep this updated with symptoms, confirmed facts, failed hypotheses, commands, and next probes.
 
+## 2026-06-17 Millennia Main-Game Digital Audio Silence
+
+### Symptoms
+
+- Millennia setup PCM/MIDI and protected-mode intro PCM work, but main-game digital SFX remain silent after skipping the intro.
+- Main-game MIDI and graphics loading continue normally.
+
+### Confirmed Facts
+
+- Temporary QEMU SB16/DMA tracing shows the intro path programs SB16 8-bit auto-init DMA command `C4h` at 11025 Hz on DMA channel 1 with a 4096-byte buffer at physical `0x26180`; DMA reads non-silence and the raw WAV capture is nonzero through the intro.
+- During the ESC-to-main transition the game sends DSP `DAh`, resets the DSP, then the real-mode HMI driver programs SB16 8-bit auto-init DMA command `C4h` at 11025 Hz on DMA channel 1 with a 2048-byte buffer at physical `0x20600`; IRQs continue and are acknowledged.
+- The main-game DMA buffer is unsigned 8-bit silence (`0x80`) only. The raw QEMU WAV capture is exact zero after the intro, and `build/millennia/qemu_millennia_after_main_mem.bin` shows `0x20600..0x20dff` all `0x80`.
+- DOS trace shows the main game loads `HMIDRV.DRV`'s real-mode `sb168m.com` module, sets `INT 0Dh = 2010:04B4`, executes `ECGAME.EXE`, `ECMCGA.OVL`, and `MAIN.OVL`, then opens `sound\*.wav` files for existence/size checks. `sound\service.wav` opens with the correct size and closes immediately; no sample read follows in the driven startup path.
+- A temporary EMS trace on the disposable image showed 27 successful EMS allocations during main-game startup, no EMS allocation failures, and no additional unimplemented EMS calls in the main-game startup path; the only unimplemented EMS call observed was an early `AH=DEh` probe.
+- Post-main IVT dump shows `INT 08 = 2AD0:036D`, `INT 0D = 2010:04B4`, and `INT 1C = F000:FF53`, so the game/driver has installed both a timer hook and the SB IRQ handler.
+
+### Real-DOS Control
+
+- Downloaded the FreeDOS `jemm` package version 5.84 from the official ibiblio FreeDOS repository into `build/millennia/jemm-5.84.zip`; SHA1 matched the repository metadata: `8e4e3ff35490d89a62e7aac5ab8608183eab6373`.
+- Extracted `JEMM386.EXE`/`JEMMEX.EXE` into the disposable `build/millennia/rootfiles/` tree. Under `vendor/Windows 98 Second Edition Boot.img`, `JEMMEX LOAD` correctly refused because `HIMEM.SYS` was already installed, while `JEMM386 LOAD` succeeded with page frame `D800`.
+- Booting the Win98 floppy with CD support, `file=fat:rw:build/millennia/rootfiles` as `C:`, the Millennia ISO as CD-ROM, and `JEMM386 LOAD` before `MIL` reached the same post-ESC main screen. QEMU WAV capture was nonzero during intro and exact zero after the transition.
+- The real-DOS control's SB trace matched the LainDOS pattern: intro DMA used a non-silent 4096-byte auto-init buffer, then the main real-mode HMI driver reset the DSP and started a 2048-byte auto-init buffer at physical `0x2c800` containing unsigned 8-bit silence (`0x80`) while IRQs continued.
+
+### Failed Or Blocked Probes
+
+- QEMU HMP in the local build can dump physical memory (`xp`, `pmemsave`) but has no direct physical-memory write command, so the quick DMA-buffer injection probe would need gdbstub or additional emulator instrumentation.
+
+### Status
+
+- Tabled for now. The issue is acceptable for current Millennia bring-up because setup PCM/MIDI, intro PCM, main-game MIDI, and main-game graphics work, and the same automatic post-intro digital-silence behavior reproduces under a real-DOS boot path in the same QEMU/game setup.
+
+### Next Probes
+
+- De-prioritize LainDOS kernel DOS/EMS/SB debugging for the automatic post-intro silence: the same SB/DMA/silence behavior reproduces under a real-DOS boot path with JEMM386 in the same QEMU/game setup.
+- If staying in LainDOS, actively trigger more in-game events while tracing `INT 21h` reads to see whether any `sound\*.wav` payload is ever read after startup; zero reads would mean the game/HMI logic is choosing no active digital voices.
+- Compare with a known-good interactive run or stronger input-driving path to prove which cockpit/menu actions should trigger SFX; passive post-ESC startup may simply leave the real-mode mixer running silence until an event requests a sample.
+- Use gdbstub, Bochs, or a narrower QEMU memory/write trace to prove whether the timer/mixer routine repeatedly writes `0x80` to `0x20600` or leaves the initial silence fill untouched.
+
 ## 2026-06-17 Millennia EMS Map Compatibility
 
 ### Symptoms
