@@ -12,4 +12,4 @@ exec "$engine" run --rm \
   -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
   -w /work \
   "$image" \
-  sh -lc 'npm ci --no-audit --no-fund && npx playwright test "$@"' sh "$@"
+  sh -c 'npm ci --no-audit --no-fund && node node_modules/@playwright/test/cli.js test "$@"' sh "$@"

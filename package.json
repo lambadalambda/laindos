@@ -2,7 +2,7 @@
   "name": "laindos",
   "private": true,
   "scripts": {
-    "test:site": "playwright test"
+    "test:site": "node node_modules/@playwright/test/cli.js test"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1"

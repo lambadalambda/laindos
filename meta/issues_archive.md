@@ -248,3 +248,4 @@
 - [x] [Cache Subdirectory Sectors for Path Searches](issues/cache-subdirectory-sectors-for-path-searches.md)
 - [x] [Use Word or Dword Copies for Sector Transfers](issues/use-word-or-dword-copies-for-sector-transfers.md)
 - [x] [Fix Docs Site Layout And Runtime Regressions](issues/fix-docs-site-layout-and-runtime-regressions.md)
+- [x] [Fix Playwright Container CI Permission Error](issues/fix-playwright-container-ci-permission-error.md)
