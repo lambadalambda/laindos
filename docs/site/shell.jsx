@@ -150,10 +150,19 @@ function MemoryMap({ touches = [], compact = false }) {
   );
 }
 
+function codeLineId(value) {
+  if (value && typeof value === "object" && value.a) return value.a;
+  return value;
+}
+function codeLineLabel(value) {
+  const id = codeLineId(value);
+  if (id === null || id === undefined) return " ";
+  return id === "" ? " " : String(id);
+}
 function CodeBlock({ file, code, hi = [], kind = "NASM · 16-bit" }) {
-  const hiSet = new Set(hi);
+  const hiSet = new Set(hi.map(codeLineId));
   return (
-    <div style={{ background: CODE_BG, border: `1px solid ${CODE_LINE}`, borderRadius: 9, overflow: "hidden",
+    <div style={{ background: CODE_BG, border: `1px solid ${CODE_LINE}`, borderRadius: 9, overflow: "hidden", minWidth: 0,
       boxShadow: "0 8px 24px rgba(40,28,52,0.14)" }}>
       {file && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 13px", borderBottom: `1px solid ${CODE_LINE}`,
@@ -162,18 +171,19 @@ function CodeBlock({ file, code, hi = [], kind = "NASM · 16-bit" }) {
           <span style={{ marginLeft: "auto", color: CODE_NUM }}>{kind}</span>
         </div>
       )}
-      <div style={{ display: "flex", fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, lineHeight: "22px", padding: "10px 0" }}>
+      <div style={{ display: "flex", fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, lineHeight: "22px", padding: "10px 0", minWidth: 0 }}>
         <div style={{ color: CODE_NUM, textAlign: "right", padding: "0 12px", userSelect: "none", flex: "0 0 auto" }}>
-          {code.map((l, i) => <div key={i}>{l[0] === "" ? " " : l[0]}</div>)}
+          {code.map((l, i) => <div key={i}>{codeLineLabel(l[0])}</div>)}
         </div>
-        <div style={{ padding: "0 14px 0 0", whiteSpace: "pre", flex: 1, overflowX: "auto" }}>
-          {code.map((l, i) => (
-            <div key={i} style={{ background: hiSet.has(l[0]) ? "rgba(255,154,212,0.13)" : "transparent",
-              boxShadow: hiSet.has(l[0]) ? `inset 2px 0 0 ${CODE.mnem}` : "none",
+        <div style={{ padding: "0 14px 0 0", whiteSpace: "pre", flex: 1, minWidth: 0, overflowX: "auto" }}>
+          {code.map((l, i) => {
+            const highlighted = hiSet.has(codeLineId(l[0]));
+            return <div key={i} style={{ background: highlighted ? "rgba(255,154,212,0.13)" : "transparent",
+              boxShadow: highlighted ? `inset 2px 0 0 ${CODE.mnem}` : "none",
               paddingLeft: 12, marginLeft: -12 }}>
               {l[1] === "" ? " " : <window.AsmLine text={l[1]} mono={CODE} />}
-            </div>
-          ))}
+            </div>;
+          })}
         </div>
       </div>
     </div>

@@ -134,12 +134,31 @@ function renderNode(node) {
 
 function siteCss() {
   return `
-  html, body { margin: 0; padding: 0; background: #f7f1e6; }
+  html, body { margin: 0; padding: 0; background: #f7f1e6; width: 100%; }
   * { box-sizing: border-box; }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb { background: #d8c9ad; border-radius: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   body { scrollbar-color: #d8c9ad transparent; }
+  .site-main { min-width: 0; }
+  .site-main > div, .site-main header, .site-main section,
+  .site-two-col, .site-run-grid, .site-boot-layout { min-width: 0; }
+  .site-two-col, .site-run-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px) !important;
+  }
+  .site-two-col > *, .site-run-grid > *, .site-boot-layout > * { min-width: 0; }
+  .site-boot-side {
+    min-width: 0;
+    max-width: 100%;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .site-boot-side *, .site-run-grid > :last-child * { min-width: 0; }
+  .site-two-col > :last-child .glossary-popover,
+  .site-run-grid > :last-child .glossary-popover { left: auto; right: 0; }
+  .site-two-col > :last-child .glossary-popover::after,
+  .site-run-grid > :last-child .glossary-popover::after { left: auto; right: 14px; }
   .run-scan {
     background: repeating-linear-gradient(to bottom,
       rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px);
@@ -152,7 +171,7 @@ function siteCss() {
       linear-gradient(135deg, #2a1d3a 0%, #3a2230 45%, #5a334b 100%);
   }
   .v86-screen { color: #e9e7da; overflow: hidden; }
-  .v86-screen > div { white-space: pre; font: 15px/1.04 'IBM Plex Mono', monospace; }
+  .v86-screen > div { white-space: pre; font: 15px/1.2 'IBM Plex Mono', monospace; }
   .v86-screen > div, .v86-screen canvas { flex: 0 0 auto; transform-origin: center center; }
   .v86-screen canvas { image-rendering: pixelated; max-width: 100%; max-height: 100%; }
   .v86-term {
@@ -221,7 +240,7 @@ function siteCss() {
     .site-sidebar { position: static !important; width: 100% !important; height: auto !important; border-right: 0 !important; border-bottom: 1px solid #e6dac4 !important; }
     .site-main { margin-left: 0 !important; }
     .site-two-col, .site-run-grid, .site-boot-layout { display: block !important; }
-    .site-boot-side { position: static !important; width: auto !important; margin-top: 18px; }
+    .site-boot-side { position: static !important; width: auto !important; max-height: none !important; overflow: visible !important; margin-top: 18px; }
     .site-main header, .site-main > div > div { padding-left: 22px !important; padding-right: 22px !important; }
     .site-main h1 { font-size: 52px !important; line-height: 56px !important; }
     .dosapi-call-row { grid-template-columns: 44px 1fr !important; }

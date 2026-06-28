@@ -45,3 +45,16 @@ jobs:
             build/laindos-installer-nightly.zip \
             build/laindos-installer-nightly.zip.sha256 \
             --clobber
+
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2.0.4
+        with:
+          deno-version: v2.8.0
+      - name: Run Playwright site smoke
+        run: make test-site SITE_IMAGE=
+        env:
+          CONTAINER_ENGINE: docker

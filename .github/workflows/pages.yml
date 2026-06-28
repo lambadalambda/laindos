@@ -31,6 +31,11 @@ jobs:
       - name: Build static site
         run: make site
 
+      - name: Run Playwright site smoke
+        run: sh scripts/run_site_playwright_container.sh
+        env:
+          CONTAINER_ENGINE: docker
+
       - name: Stage site
         run: |
           test -f build/site/index.html

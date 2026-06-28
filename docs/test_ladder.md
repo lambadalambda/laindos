@@ -56,7 +56,7 @@ LainDOS tests are small, caller-driven compatibility proofs. Add a focused repro
 - `make test-game-smokes`: run both game smoke groups.
 - `make test-shortline-smoke`: run the Shortline-specific smoke with QEMU `-icount shift=6` for its timer calibration.
 - `make test-norton-commander`: run the Norton Commander startup, launch, copy, rename/delete, and mkdir/rmdir smokes from the local archive.
-- Site docs edits: run `make check-docs-sync`, JSX parsing checks, and a local browser or Playwright smoke when one is available.
+- Site docs edits: run `make check-docs-sync`, JSX parsing checks, and `make test-site` for the containerized Playwright smoke.
 
 ## Adding A Focused DOS API Test
 
@@ -139,7 +139,7 @@ if __name__ == "__main__":
 - Record non-trivial investigations in `docs/debug_log.md` before switching approaches.
 - Keep issue details in `meta/issues/` current while triaging a target.
 - Update README or site docs when adding commands, workflows, or test categories.
-- When editing `docs/site/`, run `deno check docs/site/*.jsx` plus a browser or Playwright smoke if the local environment has one.
+- When editing `docs/site/`, run `deno check docs/site/*.jsx scripts/build_site.jsx` plus `make test-site`.
 - When editing quoted source excerpts, run `make check-docs-sync` so stale line numbers fail before review.
 - Run `git diff --check` before review or commit.
 - Before committing non-trivial changes, request the required `code-reviewer-zai` review.

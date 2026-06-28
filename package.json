@@ -1,0 +1,10 @@
+{
+  "name": "laindos",
+  "private": true,
+  "scripts": {
+    "test:site": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1"
+  }
+}

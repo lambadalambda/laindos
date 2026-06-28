@@ -14,6 +14,14 @@ make site SITE_IMAGE=
 
 To use a custom prebuilt image, pass it explicitly with `SITE_IMAGE=path/to/image.img`.
 
+Run the browser regression smoke in the pinned Playwright container after site layout or runtime changes:
+
+```sh
+make test-site
+```
+
+The local target uses Podman by default through `scripts/run_site_playwright_container.sh`. Set `CONTAINER_ENGINE=docker` to use the same script in GitHub Actions or another Docker-based runner.
+
 The build emits real static HTML pages for the top-level routes:
 
 ```text
@@ -45,4 +53,4 @@ External browser assets are intentionally not vendored into the repository:
 - The v86 BIOS blobs are loaded from `raw.githubusercontent.com/copy/v86/e37189a/bios/` because those files are not exposed by the pinned npm package.
 - The generated `shell_monkey.img` URL includes a `?v=<sha256>` query when the site build has an image, so deployed pages change the image URL when the image bytes change.
 
-GitHub Pages runs `make site` and verifies the generated HTML, `app.js`, and image exist before upload.
+GitHub Actions runs `make test-site SITE_IMAGE=` in CI for the layout/runtime smoke, and the Pages workflow runs the same containerized smoke after building the deployable image. The Pages workflow also verifies the generated HTML, `app.js`, and image exist before publishing.

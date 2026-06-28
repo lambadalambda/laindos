@@ -52,6 +52,7 @@ function V86Machine({ bootKey, onStatus }) {
         fda: { url: LAIN_IMG_URL },
         memory_size: 32 * 1024 * 1024,
         vga_memory_size: 8 * 1024 * 1024,
+        disable_speaker: false,
         autostart: true,
       });
     } catch (e) {
